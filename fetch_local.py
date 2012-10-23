@@ -9,10 +9,6 @@ XXX TODO: visualization
 XXX TODO: preprocessing checks
 XXX TODO: over-all testing (nose ?, see with GV & BT)
 
-NOTES:
-1]- You may want to export HAXBY_DATA so it points to your local copy of the haxby dataset,
-    before runing this script; else, it assumes a default haxby data directory.
-    shell> export HAXBY_DATA=/somewher/in/my/home/or/my/tmp/myhaxby
 """
 
 # standard imports
