@@ -3,14 +3,7 @@
 :Synopsis: routine functions for SPM preprocessing business
 :Author: dohmatob elvis dopgima
 
-BUGFIX: Somewhere in the SPM8 Matlab backend, nifti input images are 
-expected in the format "somenifti.nii,1" instead of "somenifti.nii" 
-(notice the "1" in the former); otherwise --and for some wierd 
-reason-- the backend is dreadfully slow (about 20*60 times!). As a 
-quick (and dirty, of course!) fix, I have created patched versions 
-_Realign, etc., of the spm.Realign, etc., classes by overriding the
-SPMCommand._make_matlab_command method with a patched version. I'll 
-investigate this bug (matlab or nipype ?) latter.
+XXX: Add skull-stripping and smoothing
 """
 
 # standard imports
@@ -49,42 +42,11 @@ assert os.path.exists(MATLAB_SPM_DIR), \
     "nipype_preproc_smp_utils: T1_TEMPLATE: %s, doesn't exist; \
 you need to export T1_TEMPLATE" % T1_TEMPLATE
 
-class _Realign(spm.Realign):
-    def _make_matlab_command(self, contents, postscript=None):
-        mscript = spm.Realign._make_matlab_command(self, contents, postscript=postscript)
 
-        patched_mscript = re.sub("\.nii", ".nii,1", mscript)
-
-        return patched_mscript
-
-class _Coregister(spm.Coregister):
-    def _make_matlab_command(self, contents, postscript=None):
-        mscript = spm.Coregister._make_matlab_command(self, contents, postscript=postscript)
-       
-        patched_mscript = re.sub("\.nii", ".nii,1", mscript)
-
-        return patched_mscript
-
-class _Segment(spm.Segment):
-    def _make_matlab_command(self, contents, postscript=None):
-        mscript = spm.Segment._make_matlab_command(self, contents, postscript=postscript)
-
-        patched_mscript = re.sub("\.nii", ".nii,1", mscript)
-
-        return patched_mscript
-
-class _Normalize(spm.Normalize):
-    def _make_matlab_command(self, contents, postscript=None):
-        mscript = spm.Normalize._make_matlab_command(self, contents, postscript=postscript)
-
-        patched_mscript = re.sub("\.nii", ".nii,1", mscript)
-
-        return patched_mscript
-
-def do_subject_preproc(subject_output_dir,
+def do_subject_preproc(subject_id,
+                       subject_output_dir,
                        anat_image,
                        fmri_images,
-                       check_preproc=True,
                        **kwargs):
     """
     Function preprocessing data for a single subject.
@@ -100,60 +62,73 @@ def do_subject_preproc(subject_output_dir,
     mem = Memory(base_dir=cache_dir)
 
     #  motion correction
-    realign = mem.cache(_Realign)
+    realign = mem.cache(spm.Realign)
     realign_result = realign(in_files=fmri_images,
                              register_to_mean=True,
                              mfile=True,
                              jobtype='estwrite')
 
-    if check_preproc:
-        # verify that motion correction did well
-        pass
-
     # co-registration against structural (anatomical)
-    coreg = mem.cache(_Coregister)
+    coreg = mem.cache(spm.Coregister)
     coreg_result = coreg(target=realign_result.outputs.mean_image,
                          source=anat_image,
                          apply_to_files=realign_result.outputs.realigned_files,
                          jobtype='estwrite')
 
-    if check_preproc:
-        # verify that coregistration did well
-        pass
-
     # # learn the deformation on T1 MRI without segmentation
-    # normalize = mem.cache(_Normalize)
+    # normalize = mem.cache(spm.Normalize)
     # norm_result = normalize(source=coreg_result.outputs.coregistered_source,
     #                         template=T1_TEMPLATE)
 
+    # # deform FRMI images unto T1 template
+    # norm_apply = normalize(
+    #     parameter_file=norm_result.outputs.normalization_parameters,
+    #     apply_to_files=realign_result.outputs.realigned_files,
+    #     jobtype='write',
+    #     write_voxel_sizes=[3, 3, 3])
+
+    # wfmri = norm_apply.outputs.normalized_files
+    # # if type(wfmri) is str:
+    # #     wfmri = [wfmri]
+    # # for wf in wfmri:
+    # #     shutil.copyfile(wf, os.path.join(subject_output_dir,
+    # #                                      os.path.basename(wf)))
+
+    # # deform anat image unto T1 template
+    # norm_apply = normalize(
+    #     parameter_file=norm_result.outputs.normalization_parameters,
+    #     apply_to_files=coreg_result.outputs.coregistered_source,
+    #     jobtype='write',
+    #     write_voxel_sizes=[1, 1, 1])
+
+    # wanat = norm_apply.outputs.normalized_files
+    # # shutil.copyfile(wanat, os.path.join(t1_dir, os.path.basename(wanat)))
+
     #  alternative: Segmentation & normalization
-    normalize = mem.cache(_Normalize)
-    segment = mem.cache(_Segment)
+    normalize = mem.cache(spm.Normalize)
+    segment = mem.cache(spm.Segment)
     segment_result = segment(data=coreg_result.outputs.coregistered_source,
                              gm_output_type=[True, True, True],
                              wm_output_type=[True, True, True],
                              csf_output_type=[True, True, True])
 
-    # deform FRMI images unto T1 template
+    # segment the realigned FMRI
     norm_apply = normalize(
-        parameter_file=segment_result.transformation_mat,
+        parameter_file=segment_result.outputs.transformation_mat,
         apply_to_files=realign_result.outputs.realigned_files,
         jobtype='write',
         write_voxel_sizes=[3, 3, 3])
 
-    # wfmri = norm_apply.outputs.normalized_files
-    # if type(wfmri) is str:
-    #     wfmri = [wfmri]
-    # for wf in wfmri:
-    #     shutil.copyfile(wf, os.path.join(subject_output_dir,
-    #                                      os.path.basename(wf)))
+    wfmri = norm_apply.outputs.normalized_files
+    if type(wfmri) is str:
+        wfmri = [wfmri]
+    for wf in wfmri:
+        shutil.copyfile(wf, os.path.join(subject_output_dir,
+                                         os.path.basename(wf)))
 
-    # deform anat image unto T1 template
+    # segment the coregistered anatomical
     norm_apply = normalize(
-        parameter_file=segment_result.transformation_mat,
+        parameter_file=segment_result.outputs.transformation_mat,
         apply_to_files=coreg_result.outputs.coregistered_source,
         jobtype='write',
         write_voxel_sizes=[1, 1, 1])
-
-    # wanat = norm_apply.outputs.normalized_files
-    # shutil.copyfile(wanat, os.path.join(t1_dir, os.path.basename(wanat)))
