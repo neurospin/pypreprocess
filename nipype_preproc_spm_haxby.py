@@ -26,6 +26,7 @@ from joblib import Parallel, delayed
 
 # import visualization tools
 from check_preprocessing import *
+import pylab as pl
 
 # set data dir
 DATA_DIR = os.getcwd()
@@ -71,7 +72,6 @@ if __name__ == '__main__':
     Parallel(n_jobs=-1)(delayed(subject_callback)(args) for args in producer())
 
     # run checks
-    import pylab as pl
     for session_id, session in sessions.iteritems():
         # pre-process data for all subjects
         for subject_id, subject in session.iteritems():
