@@ -75,8 +75,6 @@ if __name__ == '__main__':
     for session_id, session in sessions.iteritems():
         # pre-process data for all subjects
         for subject_id, subject in session.iteritems():
-            anat_image = subject['anat']
-            fmri_images = subject['func']
             subject_dir = os.path.join(os.path.join(DATA_DIR,
                                                     session_id),
                                        subject_id)
