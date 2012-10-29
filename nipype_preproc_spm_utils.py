@@ -54,6 +54,9 @@ def do_subject_preproc(subject_id,
     """
     # prepare for smart-caching
     t1_dir = os.path.join(subject_output_dir, 't1')
+    realign_ouput_dir = os.path.join(subject_output_dir, "realign")
+    if not os.path.exists(realign_ouput_dir):
+        os.makedirs(realign_ouput_dir)
     if not os.path.exists(t1_dir):
         os.makedirs(t1_dir)
     cache_dir = os.path.join(subject_output_dir, 'cache_dir')
@@ -67,6 +70,9 @@ def do_subject_preproc(subject_id,
                              register_to_mean=True,
                              mfile=True,
                              jobtype='estwrite')
+    rp = realign_result.outputs.realignment_parameters
+    shutil.copyfile(rp,
+                    os.path.join(realign_ouput_dir, os.path.basename(rp)))
 
     # co-registration against structural (anatomical)
     coreg = mem.cache(spm.Coregister)

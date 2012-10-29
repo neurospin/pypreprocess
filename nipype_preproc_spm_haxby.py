@@ -16,26 +16,21 @@ XXX TODO: over-all testing (nose ?, see with GV & BT)
 import os
 
 # helper imports
-from fetch_local import fetch_haxby_data_offline
+from nisl.datasets import fetch_haxby, unzip_nii_gz
 
 # import spm preproc utilities
 from nipype_preproc_spm_utils import do_subject_preproc
-
 # parallelism imports
 from joblib import Parallel, delayed
 
 # import visualization tools
 from check_preprocessing import *
+import pylab as pl
 
 # set data dir
-DATA_DIR = os.getcwd()
-if 'DATA_DIR' in os.environ:
-    DATA_DIR = os.environ['DATA_DIR']
-    assert os.path.exists(DATA_DIR), \
-    "DATA_DIR: %s, doesn't exist" % DATA_DIR
-
-# set interesting subject ids
-SUBJECT_IDS = ["subj1", "subj2", "subj3", "subj4"]
+if not 'DATA_DIR' in os.environ:
+    raise RuntimeError, "DATA_DIR is not in your environ; export it!"
+DATA_DIR = os.environ['DATA_DIR']
 
 if __name__ == '__main__':
 
@@ -50,38 +45,35 @@ if __name__ == '__main__':
         # process this subject
         do_subject_preproc(subject_id, subject_dir, anat_image, fmri_images)
 
-    # grab local HAXBY directory structure
-    sessions = fetch_haxby_data_offline(DATA_DIR,
-                                        subject_ids=SUBJECT_IDS)
+    # fetch HAXBY dataset
+    haxby_data = fetch_haxby(data_dir=DATA_DIR)
 
     # producer
     def producer():
-        for session_id, session in sessions.iteritems():
+        for subject_id, subject_data in haxby_data.iteritems():
             # pre-process data for all subjects
-            for subject_id, subject in session.iteritems():
-                anat_image = subject['anat']
-                fmri_images = subject['func']
-                subject_dir = os.path.join(os.path.join(DATA_DIR,
-                                                        session_id),
-                                           subject_id)
-
-                yield subject_id, subject_dir, anat_image, fmri_images
+            subject_dir = subject_data["subject_dir"]
+            unzip_nii_gz(subject_dir)
+            anat_image = subject_data["anat"].replace(".gz", "")
+            fmri_images = subject_data["bold"].replace(".gz", "")
+            yield subject_id, subject_dir, anat_image, fmri_images
 
     # process the subjects
     Parallel(n_jobs=-1)(delayed(subject_callback)(args) for args in producer())
 
-    # run checks
-    import pylab as pl
-    for session_id, session in sessions.iteritems():
-        # pre-process data for all subjects
-        for subject_id, subject in session.iteritems():
-            anat_image = subject['anat']
-            fmri_images = subject['func']
-            subject_dir = os.path.join(os.path.join(DATA_DIR,
-                                                    session_id),
-                                       subject_id)
-            plot_cv_tc(glob.glob(os.path.join(subject_dir, "w*.nii")),
-                       [session_id],
-                       subject_id)
+    # do some 'visual' QA
+    for subject_id, subject_data in haxby_data.iteritems():
+        subject_dir = subject_data["subject_dir"]
+
+        # XXX TODO: Merged plots (using subplotting) of CV and motion params
+        # plot CV map
+        plot_cv_tc(glob.glob(os.path.join(subject_dir, "w*.nii")),
+                   ["haxby2001"],
+                   subject_id)
+
+        # plot motion parameters
+        parameter_files = glob.glob("%s/realign/rp_bold.txt" % subject_id)
+        assert len(parameter_files) == 1
+        plot_spm_motion_parameters(parameter_files, [subject_id])
 
     pl.show()

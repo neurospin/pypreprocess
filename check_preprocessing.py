@@ -5,6 +5,8 @@ This script checks that all the dataset is OK, using basic statistics
 2. plot the time course of cross-voxel median coefficient of variation
    in each subject
 3. plot the time courses of motion parameters
+
+# XXX do merged plots (using subplotting) of CV and motion params
 """
 import os
 import glob
@@ -18,8 +20,10 @@ from nipy.labs import viz
 
 EPS = np.finfo(float).eps
 
+
 def plot_spm_motion_parameters(parameter_files, ids=None):
-    """ Plot motion parameters obtained with SPM software
+    """
+    Plot motion parameters obtained with SPM software
 
     Parameters
     ----------
@@ -36,9 +40,9 @@ def plot_spm_motion_parameters(parameter_files, ids=None):
         motion = np.loadtxt(parameter_file)
         motion[:, 3:] *= (180. / np.pi)
         if len(parameter_files) == 1:
-            pl.subplot(1, hns, s_num)
+            pl.subplot(1, hns, s_num + 1)
         else:
-            pl.subplot(2, hns, s_num)
+            pl.subplot(2, hns, s_num + 1)
         pl.plot(motion)
         if ids is not None:
             pl.xlabel('time(scans) -- subject %s' % ids[s_num])
@@ -103,11 +107,12 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
         if len(nim.shape) == 4:
             # get the data
             data = nim.get_data()
-            thr = stats.scoreatpercentile(data.ravel(), 7)
+            thr = stats.scoreatpercentile(data.ravel(),
+                                          7) # XXX why this percentile ?
             data[data < thr] = thr
 
         else:
-            # fixme: todo
+            # XXX fixme: todo
             pass
 
         # compute the CV for the session
@@ -129,7 +134,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
                              threshold=.01, # XXX why this threshold ?
                              cmap=pl.cm.spectral,
                              black_bg=True,
-                             title="subject: %s, session: %s" %\
+                             title="CV map: %s, session: %s" %\
                                  (subject_id, session_id))
             elif isinstance(bg_image, basestring):
                 anat, anat_affine = (
