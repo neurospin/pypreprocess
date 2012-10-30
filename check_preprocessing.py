@@ -6,7 +6,8 @@ This script checks that all the dataset is OK, using basic statistics
    in each subject
 3. plot the time courses of motion parameters
 
-# XXX do merged plots (using subplotting) of CV and motion params
+XXX TODO: plot CV maps (code disabled below in plot_cv_tc)
+XXX TODO: use other statistics for QA (besides CV)
 """
 import os
 import glob
@@ -20,35 +21,31 @@ from nipy.labs import viz
 
 EPS = np.finfo(float).eps
 
-
-def plot_spm_motion_parameters(parameter_files, ids=None):
-    """
-    Plot motion parameters obtained with SPM software
+def subplot_spm_motion_parameters(parameter_file, subject_id=None, subplot=None):
+    """ Plot motion parameters obtained with SPM software
 
     Parameters
     ----------
-    Parameter_files: list of strings,
-                     paths of motion parameters in different subjects
-    ids: list of strings, optional,
-         if provided, identifiers for each parameter file,
-         typically, the subject id
+    Parameter_file: string,
+                    path of file containing the motion parameters
+    subject_id: string, optional,
+                subject id
+    subplot: optional
+           where to attach the image
     """
-    hns = max(1, len(parameter_files) / 2)
-    pl.figure(figsize=(4 * hns, 5))
+    if subplot is None:
+        subplot = pl.figure().add_subplot(1, 1, 1)
 
-    for (s_num, parameter_file) in enumerate(parameter_files):
-        motion = np.loadtxt(parameter_file)
-        motion[:, 3:] *= (180. / np.pi)
-        if len(parameter_files) == 1:
-            pl.subplot(1, hns, s_num + 1)
-        else:
-            pl.subplot(2, hns, s_num + 1)
-        pl.plot(motion)
-        if ids is not None:
-            pl.xlabel('time(scans) -- subject %s' % ids[s_num])
-        pl.legend(('tx', 'ty', 'tz', 'rx', 'ry', 'rz'))
+    motion = np.loadtxt(parameter_file)
+    motion[:, 3:] *= (180. / np.pi)
 
-        pl.ylabel('Motion estimates(mm/degrees)')
+    subplot.plot(motion)
+    # if subject_id is not None:
+    #     subplot.set_title("subject: %s" % subject_id)
+    subplot.set_xlabel('time(scans)')
+    subplot.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'))
+
+    subplot.set_ylabel('Estimated motion (mm/degrees)')
 
 
 def check_mask(data):
@@ -72,8 +69,8 @@ def check_mask(data):
     return mask_array
 
 
-def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
-               write_image=True, mask=True, bg_image=False):
+def subplot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
+               write_image=True, mask=True, bg_image=False, subplot=None):
     """
     Compute coefficient of variation of the data and plot it
 
@@ -93,6 +90,9 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
               (string) pasth of a background image for display or (bool)
               should we compute such an image as the mean across inputs.
               if no, an MNI template is used (works for normalized data)
+
+    subplot: optional
+           where to attach the image
     """
     cv_tc_ = []
     if isinstance(mask, basestring):
@@ -107,12 +107,11 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
         if len(nim.shape) == 4:
             # get the data
             data = nim.get_data()
-            thr = stats.scoreatpercentile(data.ravel(),
-                                          7) # XXX why this percentile ?
+            thr = stats.scoreatpercentile(data.ravel(), 7)
             data[data < thr] = thr
 
         else:
-            # XXX fixme: todo
+            # fixme: todo
             pass
 
         # compute the CV for the session
@@ -129,21 +128,23 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
             save(Nifti1Image(cv, affine),
                  os.path.join(data_dir, 'cv_%s.nii' % session_id))
             if bg_image == False:
-                viz.plot_map(cv,
-                             affine,
-                             threshold=.01, # XXX why this threshold ?
-                             cmap=pl.cm.spectral,
-                             black_bg=True,
-                             title="CV map: %s, session: %s" %\
-                                 (subject_id, session_id))
+                # viz.plot_map(cv,
+                #              affine,
+                #              threshold=.01, # XXX why this threshold ?
+                #              cmap=pl.cm.spectral,
+                #              black_bg=True,
+                #              title="subject: %s, session: %s" %\
+                #                  (subject_id, session_id))
+                pass
             elif isinstance(bg_image, basestring):
                 anat, anat_affine = (
                     load(bg_image).get_data(),
                     load(bg_image).get_affine())
             else:
                 anat, anat_affine = data.mean(-1), affine
-                slicer = viz.plot_map(cv, affine, threshold=.01, cmap=pl.cm.spectral,
-                                      anat=anat, anat_affine=anat_affine)
+                # slicer = viz.plot_map(cv, affine, threshold=.01, cmap=pl.cm.spectral,
+                #                       anat=anat, anat_affine=anat_affine)
+                pass
 
         # compute the time course of cv
         cv_tc_sess = np.median(
@@ -155,12 +156,13 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
 
     if do_plot:
         # plot the time course of cv for different subjects
-        pl.figure()
-        pl.plot(cv_tc, label=subject_id)
-        pl.legend()
-        pl.xlabel('time(scans)')
-        pl.ylabel('Median coefficient of variation')
-        pl.axis('tight')
+        if subplot is None:
+            subplot = pl.figure().add_subplot(1, 1, 1)
+        subplot.plot(cv_tc, label=subject_id)
+        subplot.legend()
+        subplot.set_xlabel('time(scans)')
+        subplot.set_ylabel('Median coefficient of variation')
+        subplot.axis('tight')
 
     return cv_tc
 
@@ -173,7 +175,7 @@ if __name__ == '__main__':
     epi_data = glob.glob(os.path.join(data_dir, 'wr*.nii'))
     epi_data.sort()
 
-    plot_spm_motion_parameters(spm_motion_parameters)
+    subplot_spm_motion_parameters(spm_motion_parameters)
     check_mask(epi_data[0])
-    plot_cv_tc(epi_data, session_ids, subject_id)
+    subplot_cv_tc(epi_data, session_ids, subject_id)
     pl.show()
