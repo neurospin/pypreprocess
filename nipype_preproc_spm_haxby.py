@@ -1,13 +1,12 @@
 """
 :Module: nipype_preproc_spm_haxby
-:Synopsis: SPM use-case for preprocessing HAXBY rest dataset
+:Synopsis: SPM use-case for preprocessing HAXBY dataset
 (this is just a quick-and-dirty POC)
 :Author: dohmatob elvis dopgima
 
 XXX TODO: document this according to numpy/spinx standards
 XXX TODO: re-factor the code (use unittesting)
-XXX TODO: visualization
-XXX TODO: preprocessing checks
+XXX TODO: more  preprocessing checks (coregistration step, etc.)
 XXX TODO: over-all testing (nose ?, see with GV & BT)
 
 """
@@ -20,6 +19,7 @@ from nisl.datasets import fetch_haxby, unzip_nii_gz
 
 # import spm preproc utilities
 from nipype_preproc_spm_utils import do_subject_preproc
+
 # parallelism imports
 from joblib import Parallel, delayed
 
@@ -29,7 +29,7 @@ import pylab as pl
 
 # set data dir
 if not 'DATA_DIR' in os.environ:
-    raise RuntimeError, "DATA_DIR is not in your environ; export it!"
+    "DATA_DIR is not in your environ; export it!"
 DATA_DIR = os.environ['DATA_DIR']
 
 if __name__ == '__main__':
@@ -45,7 +45,7 @@ if __name__ == '__main__':
         # process this subject
         do_subject_preproc(subject_id, subject_dir, anat_image, fmri_images)
 
-    # fetch HAXBY dataset
+    # fetch HAXBY dataset    
     haxby_data = fetch_haxby(data_dir=DATA_DIR)
 
     # producer
@@ -61,19 +61,27 @@ if __name__ == '__main__':
     # process the subjects
     Parallel(n_jobs=-1)(delayed(subject_callback)(args) for args in producer())
 
-    # do some 'visual' QA
+    # run QA
     for subject_id, subject_data in haxby_data.iteritems():
         subject_dir = subject_data["subject_dir"]
 
-        # XXX TODO: Merged plots (using subplotting) of CV and motion params
-        # plot CV map
-        plot_cv_tc(glob.glob(os.path.join(subject_dir, "w*.nii")),
-                   ["haxby2001"],
-                   subject_id)
+        # plot estimated motion parameters
+        r_dir = os.path.join(subject_dir, "realign")
+        parameter_file = glob.glob("%s/rp_bold.txt" % r_dir)[0]
+        uncorrected_fmri = glob.glob("%s/bold.nii" % subject_dir)
+        corrected_fmri = glob.glob("%s/wrbold.nii" % subject_dir)
+        figure = pl.figure()
+        sp1 = figure.add_subplot(2, 1, 1)
+        subplot_spm_motion_parameters(parameter_file, subject_id, subplot=sp1)
 
-        # plot motion parameters
-        parameter_files = glob.glob("%s/realign/rp_bold.txt" % subject_id)
-        assert len(parameter_files) == 1
-        plot_spm_motion_parameters(parameter_files, [subject_id])
+        # plot cv_tc
+        sp2 = figure.add_subplot(2, 1, 2)
+        pl.hold(True)
+        subplot_cv_tc(uncorrected_fmri, ["haxby2001"],
+                      "subject: %s (uncorrected)" % subject_id,
+                      subplot=sp2)
+        subplot_cv_tc(corrected_fmri, ["haxby2001"],
+                      "subject: %s (corrected)" % subject_id, subplot=sp2)
+        pl.hold(False)
 
     pl.show()
