@@ -21,31 +21,32 @@ from nipy.labs import viz
 
 EPS = np.finfo(float).eps
 
-def subplot_spm_motion_parameters(parameter_file, subject_id=None, subplot=None):
+
+def plot_spm_motion_parameters(parameter_files, ids=None):
     """ Plot motion parameters obtained with SPM software
 
     Parameters
     ----------
-    Parameter_file: string,
-                    path of file containing the motion parameters
+    parameter_file: list of strings,
+                    paths of files containing the motion parameters
     subject_id: string, optional,
                 subject id
-    subplot: optional
-           where to attach the image
     """
-    if subplot is None:
-        subplot = pl.figure().add_subplot(1, 1, 1)
+    for s_num, parameter_file in enumerate(parameter_files):
+        motion = np.loadtxt(parameter_file)
+        motion[:, 3:] *= (180. / np.pi)
 
-    motion = np.loadtxt(parameter_file)
-    motion[:, 3:] *= (180. / np.pi)
+        pl.plot(motion)
+        if not ids is None:
+            pl.title("subject: %s" % ids[s_num])
+        pl.xlabel('time(scans)')
+        pl.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'))
+        pl.ylabel('Estimated motion (mm/degrees)')
 
-    subplot.plot(motion)
-    # if subject_id is not None:
-    #     subplot.set_title("subject: %s" % subject_id)
-    subplot.set_xlabel('time(scans)')
-    subplot.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'))
-
-    subplot.set_ylabel('Estimated motion (mm/degrees)')
+        # dump image unto disk
+        output_dir = os.path.dirname(parameter_file)
+        img_filename = os.path.join(output_dir, "rp_plot.png")
+        pl.savefig(img_filename, bbox_inches="tight")
 
 
 def check_mask(data):
@@ -69,8 +70,8 @@ def check_mask(data):
     return mask_array
 
 
-def subplot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
-               write_image=True, mask=True, bg_image=False, subplot=None):
+def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
+               write_image=True, mask=True, bg_image=False):
     """
     Compute coefficient of variation of the data and plot it
 
