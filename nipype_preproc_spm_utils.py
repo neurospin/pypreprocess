@@ -15,6 +15,14 @@ import re
 from nipype.caching import Memory
 import nipype.interfaces.spm as spm
 import nipype.interfaces.matlab as matlab
+import nipype.interfaces.fsl as fsl
+
+# misc imports
+from nisl.datasets import unzip_nii_gz
+
+# QA imports
+from check_preprocessing import *
+import markup
 
 # set matlab exec path
 MATLAB_EXEC = "/neurospin/local/matlab/bin/matlab"
@@ -34,6 +42,12 @@ assert os.path.exists(MATLAB_SPM_DIR), \
  doesn't exist; you need to export MATLAB_SPM_DIR" % MATLAB_SPM_DIR
 matlab.MatlabCommand.set_default_paths(MATLAB_SPM_DIR)
 
+# # fsl output_type
+# fsl.FSLCommand.set_default_output_type('NIFTI_GZ')
+
+# fsl BET cmd prefix
+bet_cmd_prefix = "fsl4.1-"
+
 # set template
 T1_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'templates/T1.nii')
 if 'T1_TEMPLATE' in os.environ:
@@ -47,6 +61,7 @@ def do_subject_preproc(subject_id,
                        subject_output_dir,
                        anat_image,
                        fmri_images,
+                       session_id=None,
                        **kwargs):
     """
     Function preprocessing data for a single subject.
@@ -64,15 +79,31 @@ def do_subject_preproc(subject_id,
         os.makedirs(cache_dir)
     mem = Memory(base_dir=cache_dir)
 
+    output_dirs = dict()
+
+    # Brain Extraction
+    fmri_dir = os.path.dirname(fmri_images)
+    bet_out_file = os.path.join(fmri_dir,
+                                "bet_" + os.path.basename(fmri_images))
+    if not os.path.exists(bet_out_file):
+        bet = fsl.BET(
+            in_file=fmri_images,
+            out_file=bet_out_file)
+        bet._cmd = bet_cmd_prefix + bet._cmd
+        bet.inputs.functional = True
+        bet.run()
+        unzip_nii_gz(fmri_dir)
+
     #  motion correction
     realign = mem.cache(spm.Realign)
-    realign_result = realign(in_files=fmri_images,
+    realign_result = realign(in_files=bet_out_file,
                              register_to_mean=True,
                              mfile=True,
                              jobtype='estwrite')
     rp = realign_result.outputs.realignment_parameters
     shutil.copyfile(rp,
                     os.path.join(realign_ouput_dir, os.path.basename(rp)))
+    output_dirs["realignment"] = os.path.dirname(rp)
 
     # co-registration against structural (anatomical)
     coreg = mem.cache(spm.Coregister)
@@ -126,11 +157,8 @@ def do_subject_preproc(subject_id,
         write_voxel_sizes=[3, 3, 3])
 
     wfmri = norm_apply.outputs.normalized_files
-    if type(wfmri) is str:
-        wfmri = [wfmri]
-    for wf in wfmri:
-        shutil.copyfile(wf, os.path.join(subject_output_dir,
-                                         os.path.basename(wf)))
+    shutil.copyfile(wfmri, os.path.join(subject_output_dir,
+                                        os.path.basename(wfmri)))
 
     # segment the coregistered anatomical
     norm_apply = normalize(
@@ -138,3 +166,13 @@ def do_subject_preproc(subject_id,
         apply_to_files=coreg_result.outputs.coregistered_source,
         jobtype='write',
         write_voxel_sizes=[1, 1, 1])
+
+    # generate html report (for QA)
+    report = markup.page(mode='strict_html')
+    motion_plot = plot_spm_motion_parameters(
+        os.path.join(output_dirs["realignment"], "rp_bet_lfo.txt"),
+        subject_id=subject_id)
+    report.img(src=[motion_plot])
+    motion_img_files.append(motion_plot)
+
+    return subject_id, session_id, output_dirs
