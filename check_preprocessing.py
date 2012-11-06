@@ -15,14 +15,15 @@ import numpy as np
 from scipy import stats
 import pylab as pl
 
-from nibabel import load, Nifti1Image, save
+import nibabel as ni
 from nipy.labs import compute_mask_files
 from nipy.labs import viz
 
 EPS = np.finfo(float).eps
 
 
-def plot_spm_motion_parameters(parameter_file, subject_id=None, format="png"):
+def plot_spm_motion_parameters(parameter_file, subject_id=None, format="png",
+                               title=None):
     """ Plot motion parameters obtained with SPM software
 
     Parameters
@@ -37,14 +38,16 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, format="png"):
     # do plotting
     pl.figure()
     pl.plot(motion)
-    if not subject_id is None:
+    if not title is None:
+        pl.title(title)
+    elif not subject_id is None:
         pl.title("subject: %s" % subject_id)
     pl.xlabel('time(scans)')
     pl.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'))
     pl.ylabel('Estimated rigid-body motion (mm/degrees)')
 
     # dump image unto disk
-    img_filename = "%s.%s" %(parameter_file, format)
+    img_filename = "%s.%s" % (parameter_file, format)
     pl.savefig(img_filename, bbox_inches="tight")
 
     return img_filename
@@ -60,12 +63,12 @@ def check_mask(data):
 
     returns
     -------
-    mask_array: array of shape load(data).get_shape(),
+    mask_array: array of shape ni.load(data).get_shape(),
                 the binary mask
 
     """
     mask_array = compute_mask_files(epi_data[0])
-    affine = load(epi_data[0]).get_affine()
+    affine = ni.load(epi_data[0]).get_affine()
     vol = np.abs(np.linalg.det(affine)) * mask_array.sum() / 1000
     print 'The estimated brain volume is: %f cm^3, should be 1000< <2000' % vol
     return mask_array
@@ -83,7 +86,7 @@ def compute_cv(data, mask_array=None):
 
 
 def my_plot_cv_tc(epi_data, subject_id, mask_array=None):
-    nim = load(epi_data)
+    nim = ni.load(epi_data)
     affine = nim.get_affine()
     assert len(nim.shape) == 4
 
@@ -132,13 +135,13 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
     """
     cv_tc_ = []
     if isinstance(mask, basestring):
-        mask_array = load(mask).get_data() > 0
+        mask_array = ni.load(mask).get_data() > 0
     elif mask == True:
         mask_array = compute_mask_files(epi_data[0])
     else:
         mask_array = None
     for (session_id, fmri_file) in zip(session_ids, epi_data):
-        nim = load(fmri_file)
+        nim = ni.load(fmri_file)
         affine = nim.get_affine()
         if len(nim.shape) == 4:
             # get the data
@@ -156,7 +159,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
         if write_image:
             # write an image
             data_dir = os.path.dirname(fmri_file)
-            save(Nifti1Image(cv, affine),
+            ni.save(ni.Nifti1Image(cv, affine),
                  os.path.join(data_dir, 'cv_%s.nii' % session_id))
             if bg_image == False:
                 viz.plot_map(cv,
@@ -168,8 +171,8 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
                                  (subject_id, session_id))
             elif isinstance(bg_image, basestring):
                 anat, anat_affine = (
-                    load(bg_image).get_data(),
-                    load(bg_image).get_affine())
+                    ni.load(bg_image).get_data(),
+                    ni.load(bg_image).get_affine())
             else:
                 anat, anat_affine = data.mean(-1), affine
                 slicer = viz.plot_map(cv, affine, threshold=.01, cmap=pl.cm.spectral,
@@ -200,6 +203,43 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
             pl.savefig(plot_outfile)
 
     return cv_tc
+
+
+def plot_coregistration(reference, coregistered, black_bg=True,
+                        cut_coords=None,
+                        plot_outfile=None):
+    """
+    QA for coregistration: plots a coregistered source as bg/contrast
+    for the reference image. This way, see the similarity between the
+    two images.
+
+    """
+    # set cut_coords
+    if cut_coords is None:
+        cut_coords = (-52, 10, 22)  # XXX FIXME: etermine this!
+
+    # create figure for plots
+    fig = pl.figure()
+
+    # plot the coregistered image
+    coregistered_img = ni.load(coregistered)
+    coregistered_data = coregistered_img.get_data()
+    coregistered_affine = coregistered_img.get_affine()
+    slicer = viz.plot_anat(anat=coregistered_data,
+                           anat_affine=coregistered_affine,
+                           black_bg=black_bg,
+                           cut_coords=cut_coords,
+                           figure=fig)
+
+    # overlap the reference image
+    reference_img = ni.load(reference)
+    reference_data = reference_img.get_data()
+    reference_affine = reference_img.get_affine()
+    slicer.edge_map(reference_data, reference_affine)
+
+    if not plot_outfile is None:
+        pl.savefig(plot_outfile, bbox_inches='tight', facecolor="k",
+                   edgecolor="k")
 
 # Demo
 if __name__ == '__main__':

@@ -48,14 +48,15 @@ matlab.MatlabCommand.set_default_paths(MATLAB_SPM_DIR)
 # fsl BET cmd prefix
 bet_cmd_prefix = "fsl4.1-"
 
-# set template
+# set templates
 T1_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'templates/T1.nii')
-if 'T1_TEMPLATE' in os.environ:
-    T1_TEMPLATE = os.environ['T1_TEMPLATE']
-assert os.path.exists(MATLAB_SPM_DIR), \
-    "nipype_preproc_smp_utils: T1_TEMPLATE: %s, doesn't exist; \
-you need to export T1_TEMPLATE" % T1_TEMPLATE
+GM_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/grey.nii')
+WM_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/white.nii')
+CSF_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/csf.nii')
 
+# MISC
+COREG_TOLERANCE = [0.02, 0.02, 0.02, 0.001, 0.001, 0.001, 0.01,
+                   0.01, 0.01, 0.001, 0.001, 0.001]
 
 def do_subject_preproc(subject_id,
                        subject_output_dir,
@@ -93,7 +94,6 @@ def do_subject_preproc(subject_id,
         bet.inputs.functional = True
         bet.run()
         unzip_nii_gz(fmri_dir)
-
     #  motion correction
     realign = mem.cache(spm.Realign)
     realign_result = realign(in_files=bet_out_file,
@@ -105,12 +105,17 @@ def do_subject_preproc(subject_id,
                     os.path.join(realign_ouput_dir, os.path.basename(rp)))
     output_dirs["realignment"] = os.path.dirname(rp)
 
-    # co-registration against structural (anatomical)
+    # co-registration of functional against structural (anatomical)
     coreg = mem.cache(spm.Coregister)
     coreg_result = coreg(target=realign_result.outputs.mean_image,
                          source=anat_image,
-                         apply_to_files=realign_result.outputs.realigned_files,
-                         jobtype='estwrite')
+                         # cost_function="nmi",
+                         # tolerance=COREG_TOLERANCE,
+                         # fwhm=7,
+                         # separation=2,
+                         jobtype='estimate')
+    output_dirs["coregistration"] = os.path.dirname(
+        coreg_result.outputs.coregistered_source)
 
     # # learn the deformation on T1 MRI without segmentation
     # normalize = mem.cache(spm.Normalize)
@@ -147,14 +152,17 @@ def do_subject_preproc(subject_id,
     segment_result = segment(data=coreg_result.outputs.coregistered_source,
                              gm_output_type=[True, True, True],
                              wm_output_type=[True, True, True],
-                             csf_output_type=[True, True, True])
+                             csf_output_type=[True, True, True],
+                             tissue_prob_maps=[GM_TEMPLATE,
+                                               WM_TEMPLATE, CSF_TEMPLATE])
 
     # segment the realigned FMRI
     norm_apply = normalize(
         parameter_file=segment_result.outputs.transformation_mat,
         apply_to_files=realign_result.outputs.realigned_files,
         jobtype='write',
-        write_voxel_sizes=[3, 3, 3])
+        # write_voxel_sizes=[3, 3, 3]
+        )
 
     wfmri = norm_apply.outputs.normalized_files
     shutil.copyfile(wfmri, os.path.join(subject_output_dir,
@@ -165,14 +173,75 @@ def do_subject_preproc(subject_id,
         parameter_file=segment_result.outputs.transformation_mat,
         apply_to_files=coreg_result.outputs.coregistered_source,
         jobtype='write',
-        write_voxel_sizes=[1, 1, 1])
+        # write_voxel_sizes=[1, 1, 1]
+        )
 
     # generate html report (for QA)
+    report_filename = os.path.join(subject_output_dir, "_report.html")
     report = markup.page(mode='strict_html')
+
+    report.h1(
+        "Plots of estimated (rigid-body) motion in original FMRI time-series")
     motion_plot = plot_spm_motion_parameters(
         os.path.join(output_dirs["realignment"], "rp_bet_lfo.txt"),
-        subject_id=subject_id)
+        subject_id=subject_id,
+        title="before realignment")
     report.img(src=[motion_plot])
-    motion_img_files.append(motion_plot)
+
+    report.h1(
+        "Coregistration (anat -> mean functional)")
+    report.h2("Before coregistration")
+    overlap_plot1 = os.path.join(output_dirs["coregistration"],
+                                 "overlap_anat_on_func_before.png")
+    plot_coregistration(realign_result.outputs.mean_image,
+                        anat_image,
+                        plot_outfile=overlap_plot1)
+    overlap_plot2 = os.path.join(output_dirs["coregistration"],
+                                 "overlap_func_on_anat_before.png")
+    plot_coregistration(
+                        anat_image,
+                        realign_result.outputs.mean_image,
+                        plot_outfile=overlap_plot2)
+    report.img(src=[overlap_plot1, overlap_plot2])
+    report.h2("After coregistration")
+    overlap_plot1 = os.path.join(output_dirs["coregistration"],
+                                 "overlap_anat_on_func_after.png")
+    plot_coregistration(realign_result.outputs.mean_image,
+                        coreg_result.outputs.coregistered_source,
+                        plot_outfile=overlap_plot1)
+    overlap_plot2 = os.path.join(output_dirs["coregistration"],
+                                 "overlap_func_on_anat_after.png")
+    plot_coregistration(
+                        coreg_result.outputs.coregistered_source,
+                        realign_result.outputs.mean_image,
+                        plot_outfile=overlap_plot2)
+    report.img(src=[overlap_plot1, overlap_plot2])
+    report.br()
+    report.br()
+
+    report.h1(
+        "CV (Coefficient of Variation) of corrected FMRI time-series")
+    cv_tc_plot_outfile1 = os.path.join(subject_output_dir, "cv_tc_before.png")
+    uncorrected_FMRIs = glob.glob(
+        os.path.join(subject_output_dir,
+                     "func/lfo.nii"))
+    plot_cv_tc(uncorrected_FMRIs, [session_id], subject_id,
+               plot_outfile=cv_tc_plot_outfile1,
+               title="before preproc")
+    cv_tc_plot_outfile2 = os.path.join(subject_output_dir, "cv_tc_after.png")
+    corrected_FMRIs = glob.glob(
+        os.path.join(subject_output_dir,
+                     "wrbet_lfo.nii"))
+    plot_cv_tc(corrected_FMRIs, [session_id], subject_id,
+               plot_outfile=cv_tc_plot_outfile2,
+               title="after preproc")
+    report.img(src=[cv_tc_plot_outfile1, cv_tc_plot_outfile2])
+    report.br()
+    report.br()
+
+
+    with open(report_filename, 'w') as fd:
+        fd.write(str(report))
+        fd.close()
 
     return subject_id, session_id, output_dirs

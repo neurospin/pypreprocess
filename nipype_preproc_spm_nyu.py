@@ -34,7 +34,7 @@ if not 'DATA_DIR' in os.environ:
 DATA_DIR = os.environ['DATA_DIR']
 
 # set interesting subject ids
-SUBJECT_IDS = ["sub05676", "sub14864", "sub18604"]
+SUBJECT_IDS = ["sub14864"] # ["sub05676", "sub14864", "sub18604"]
 
 if __name__ == '__main__':
 
@@ -62,46 +62,45 @@ if __name__ == '__main__':
                                       for args in preproc_factory())
 
     # generate html report (for QA)
-# generate html report (for QA)
-    report_filename = os.path.join(DATA_DIR, "_report.html")
-    report = markup.page(mode="strict_html")
-    report.p(""" pypreproc run, %s.""" % time.asctime())
-    motion_img_files = []
-    cv_tc_img_files = []
-    for subject_id, session_id, output_dirs in results:
-        subject_dir = os.path.join(os.path.join(DATA_DIR, session_id),
-                                   subject_id)
-        uncorrected_FMRIs = glob.glob(
-            os.path.join(subject_dir,
-                         "func/lfo.nii"))
-        corrected_FMRIs = glob.glob(
-            os.path.join(subject_dir,
-                         "wrbet_lfo.nii"))
-        cv_tc_plot_outfile = os.path.join(subject_dir, "cv_tc_before.png")
-        cv_tc = plot_cv_tc(uncorrected_FMRIs, [session_id], subject_id,
-                           plot_outfile=cv_tc_plot_outfile,
-                           title="before preproc")
-        cv_tc_img_files.append(cv_tc_plot_outfile)
-        cv_tc_plot_outfile = os.path.join(subject_dir, "cv_tc_after.png")
-        cv_tc = plot_cv_tc(corrected_FMRIs, [session_id], subject_id,
-                           plot_outfile=cv_tc_plot_outfile,
-                           title="after preproc")
-        cv_tc_img_files.append(cv_tc_plot_outfile)
-        motion_plot = plot_spm_motion_parameters(
-            os.path.join(output_dirs["realignment"], "rp_bet_lfo.txt"),
-            subject_id=subject_id)
-        motion_img_files.append(motion_plot)
+    # report_filename = os.path.join(DATA_DIR, "_report.html")
+    # report = markup.page(mode="strict_html")
+    # report.p(""" pypreproc run, %s.""" % time.asctime())
+    # motion_img_files = []
+    # cv_tc_img_files = []
+    # for subject_id, session_id, output_dirs in results:
+    #     subject_dir = os.path.join(os.path.join(DATA_DIR, session_id),
+    #                                subject_id)
+    #     uncorrected_FMRIs = glob.glob(
+    #         os.path.join(subject_dir,
+    #                      "func/lfo.nii"))
+    #     corrected_FMRIs = glob.glob(
+    #         os.path.join(subject_dir,
+    #                      "wrbet_lfo.nii"))
+    #     cv_tc_plot_outfile = os.path.join(subject_dir, "cv_tc_before.png")
+    #     cv_tc = plot_cv_tc(uncorrected_FMRIs, [session_id], subject_id,
+    #                        plot_outfile=cv_tc_plot_outfile,
+    #                        title="before preproc")
+    #     cv_tc_img_files.append(cv_tc_plot_outfile)
+    #     cv_tc_plot_outfile = os.path.join(subject_dir, "cv_tc_after.png")
+    #     cv_tc = plot_cv_tc(corrected_FMRIs, [session_id], subject_id,
+    #                        plot_outfile=cv_tc_plot_outfile,
+    #                        title="after preproc")
+    #     cv_tc_img_files.append(cv_tc_plot_outfile)
+    #     motion_plot = plot_spm_motion_parameters(
+    #         os.path.join(output_dirs["realignment"], "rp_bet_lfo.txt"),
+    #         subject_id=subject_id)
+    #     motion_img_files.append(motion_plot)
 
-    report.h1(
-        "Plots of estimated (rigid-body) motion in original FMRI time-series")
-    report.img(src=motion_img_files)
+    # report.h1(
+    #     "Plots of estimated (rigid-body) motion in original FMRI time-series")
+    # report.img(src=motion_img_files)
 
-    report.h1(
-        "CV (Coefficient of Variation) of corrected FMRI time-series")
-    report.img(src=cv_tc_img_files)
+    # report.h1(
+    #     "CV (Coefficient of Variation) of corrected FMRI time-series")
+    # report.img(src=cv_tc_img_files)
 
-    report.h1("Plots of overlays")
+    # report.h1("Plots of overlays")
 
-    with open(report_filename, 'w') as fd:
-        fd.write(str(report))
-        fd.close()
+    # with open(report_filename, 'w') as fd:
+    #     fd.write(str(report))
+    #     fd.close()
