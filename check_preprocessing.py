@@ -206,6 +206,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
 
 
 def plot_coregistration(reference, coregistered, black_bg=True,
+                        title=None,
                         cut_coords=None,
                         plot_outfile=None):
     """
@@ -216,10 +217,7 @@ def plot_coregistration(reference, coregistered, black_bg=True,
     """
     # set cut_coords
     if cut_coords is None:
-        cut_coords = (-52, 10, 22)  # XXX FIXME: etermine this!
-
-    # create figure for plots
-    fig = pl.figure()
+        cut_coords = (-2, -28, 17)  # XXX FIXME: determine this!
 
     # plot the coregistered image
     coregistered_img = ni.load(coregistered)
@@ -229,7 +227,8 @@ def plot_coregistration(reference, coregistered, black_bg=True,
                            anat_affine=coregistered_affine,
                            black_bg=black_bg,
                            cut_coords=cut_coords,
-                           figure=fig)
+                           title=title
+                           )
 
     # overlap the reference image
     reference_img = ni.load(reference)
@@ -238,8 +237,7 @@ def plot_coregistration(reference, coregistered, black_bg=True,
     slicer.edge_map(reference_data, reference_affine)
 
     if not plot_outfile is None:
-        pl.savefig(plot_outfile, bbox_inches='tight', facecolor="k",
-                   edgecolor="k")
+        pl.savefig(plot_outfile)
 
 # Demo
 if __name__ == '__main__':

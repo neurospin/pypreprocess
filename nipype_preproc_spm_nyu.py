@@ -34,7 +34,7 @@ if not 'DATA_DIR' in os.environ:
 DATA_DIR = os.environ['DATA_DIR']
 
 # set interesting subject ids
-SUBJECT_IDS = ["sub14864"] # ["sub05676", "sub14864", "sub18604"]
+SUBJECT_IDS = ["sub18604"] # ["sub05676", "sub14864", "sub18604"]
 
 if __name__ == '__main__':
 
