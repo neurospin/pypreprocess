@@ -3,7 +3,8 @@
 :Synopsis: routine functions for SPM preprocessing business
 :Author: dohmatob elvis dopgima
 
-XXX: Add skull-stripping and smoothing
+XXX TODO: skull-stripping and smoothing
+XXX TODO: re-factor the code!
 """
 
 # standard imports
@@ -233,6 +234,17 @@ def do_subject_preproc(subject_id,
         subject_id=subject_id,
         title="before realignment")
     realignment_report.img(src=[motion_plot])
+
+    nipype_report_filename = os.path.join(output_dirs['realignment'],
+                                          "_report/report.rst")
+    with open(nipype_report_filename, 'r') as fd:
+        nipype_html_report_filename = nipype_report_filename + '.html'
+        nipype_report = markup.page(mode='loose_html')
+        nipype_report.p(fd.readlines())
+        open(nipype_html_report_filename, 'w').write(str(nipype_report))
+        realignment_report.a("nipype report", class_="internal",
+                              href=nipype_html_report_filename)
+
     with open(realignment_report_filename, 'w') as fd:
         fd.write(str(realignment_report))
         fd.close()
@@ -278,10 +290,16 @@ def do_subject_preproc(subject_id,
                         )
     overlaps_after.append(overlap_plot)
     sidebyside(coregistration_report, overlaps_before, overlaps_after)
-    nipype_report = os.path.join(output_dirs["coregistration"],
-                                             "_report/_report.rst")
-    coregistration_report.a("nipype report", class_="internal",
-                            href=nipype_report)
+
+    nipype_report_filename = os.path.join(output_dirs['coregistration'],
+                                          "_report/report.rst")
+    with open(nipype_report_filename, 'r') as fd:
+        nipype_html_report_filename = nipype_report_filename + '.html'
+        nipype_report = markup.page(mode='loose_html')
+        nipype_report.p(fd.readlines())
+        open(nipype_html_report_filename, 'w').write(str(nipype_report))
+        coregistration_report.a("nipype report", class_="internal",
+                              href=nipype_html_report_filename)
     with open(coregistration_report_filename, 'w') as fd:
         fd.write(str(coregistration_report))
         fd.close()
@@ -292,14 +310,19 @@ def do_subject_preproc(subject_id,
         subject_output_dir,
         "segmentation_report.html")
     segmentation_report = markup.page(mode='loose_html')
+
+    segmentation_report.p("Left column are plots before segmentaion \
+and right column are plots after; top plots are plots of template\
+ over segmented anat, whiltst bottom plots are the reverse.")
+
     segmentation_report.h2(
-        "segmentation (anat -> gm, wm, csf)")
+        "anat -> grey matter")
     overlaps_before = []
     overlaps_after = []
     overlap_plot = os.path.join(tmp,
                                 "overlap_anat_on_gm_before.png")
     plot_coregistration(GM_TEMPLATE,
-                        segmented_anat,
+                        coreg_result.outputs.coregistered_source,
                         plot_outfile=overlap_plot,
                         )
     overlaps_before.append(overlap_plot)
@@ -307,7 +330,7 @@ def do_subject_preproc(subject_id,
                                 "overlap_gm_on_anat_before.png")
 
     plot_coregistration(
-                        segmented_anat,
+                        coreg_result.outputs.coregistered_source,
                         GM_TEMPLATE,
                         plot_outfile=overlap_plot,
                         )
@@ -329,10 +352,93 @@ def do_subject_preproc(subject_id,
         )
     overlaps_after.append(overlap_plot)
     sidebyside(segmentation_report, overlaps_before, overlaps_after)
-    nipype_report = os.path.join(output_dirs["segmentation"],
-                                             "_report/_report.rst")
-    segmentation_report.a("nipype report", class_="internal",
-                            href=nipype_report)
+
+    segmentation_report.h2(
+        "anat -> white matter")
+    overlaps_before = []
+    overlaps_after = []
+    overlap_plot = os.path.join(tmp,
+                                "overlap_anat_on_wm_before.png")
+    plot_coregistration(WM_TEMPLATE,
+                        coreg_result.outputs.coregistered_source,
+                        plot_outfile=overlap_plot,
+                        )
+    overlaps_before.append(overlap_plot)
+    overlap_plot = os.path.join(tmp,
+                                "overlap_wm_on_anat_before.png")
+
+    plot_coregistration(
+                        coreg_result.outputs.coregistered_source,
+                        WM_TEMPLATE,
+                        plot_outfile=overlap_plot,
+                        )
+    overlaps_before.append(overlap_plot)
+    overlap_plot = os.path.join(tmp,
+                                "overlap_anat_on_wm_after.png")
+    plot_coregistration(
+        WM_TEMPLATE,
+        segmented_anat,
+        plot_outfile=overlap_plot,
+        )
+    overlaps_after.append(overlap_plot)
+    overlap_plot = os.path.join(tmp,
+                                "overlap_wm_on_anat_after.png")
+    plot_coregistration(
+        segmented_anat,
+        WM_TEMPLATE,
+        plot_outfile=overlap_plot,
+        )
+    overlaps_after.append(overlap_plot)
+    sidebyside(segmentation_report, overlaps_before, overlaps_after)
+
+    segmentation_report.h2(
+        "anat -> csf")
+    overlaps_before = []
+    overlaps_after = []
+    overlap_plot = os.path.join(tmp,
+                                "overlap_anat_on_csf_before.png")
+    plot_coregistration(CSF_TEMPLATE,
+                        coreg_result.outputs.coregistered_source,
+                        plot_outfile=overlap_plot,
+                        )
+    overlaps_before.append(overlap_plot)
+    overlap_plot = os.path.join(tmp,
+                                "overlap_csf_on_anat_before.png")
+
+    plot_coregistration(
+                        coreg_result.outputs.coregistered_source,
+                        CSF_TEMPLATE,
+                        plot_outfile=overlap_plot,
+                        )
+    overlaps_before.append(overlap_plot)
+    overlap_plot = os.path.join(tmp,
+                                "overlap_anat_on_csf_after.png")
+    plot_coregistration(
+        CSF_TEMPLATE,
+        segmented_anat,
+        plot_outfile=overlap_plot,
+        )
+    overlaps_after.append(overlap_plot)
+    overlap_plot = os.path.join(tmp,
+                                "overlap_csf_on_anat_after.png")
+    plot_coregistration(
+        segmented_anat,
+        CSF_TEMPLATE,
+        plot_outfile=overlap_plot,
+        )
+    overlaps_after.append(overlap_plot)
+    sidebyside(segmentation_report, overlaps_before, overlaps_after)
+
+    nipype_report_filename = os.path.join(tmp,
+                                          "_report/report.rst")
+    with open(nipype_report_filename, 'r') as fd:
+        nipype_html_report_filename = nipype_report_filename + '.html'
+        nipype_report = markup.page(mode='loose_html')
+        nipype_report.p(fd.readlines())
+        open(nipype_html_report_filename, 'w').write(str(nipype_report))
+        segmentation_report.a("nipype report", class_="internal",
+                              href=nipype_html_report_filename)
+
     with open(segmentation_report_filename, 'w') as fd:
         fd.write(str(segmentation_report))
         fd.close()

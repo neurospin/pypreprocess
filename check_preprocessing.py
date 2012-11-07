@@ -237,7 +237,9 @@ def plot_coregistration(reference, coregistered, black_bg=True,
     slicer.edge_map(reference_data, reference_affine)
 
     if not plot_outfile is None:
-        pl.savefig(plot_outfile)
+        pl.savefig(plot_outfile, bbox_inches='tight', facecolor="k",
+                   edgecolor="k")
+
 
 # Demo
 if __name__ == '__main__':
