@@ -112,6 +112,7 @@ def my_plot_cv_tc(epi_data, subject_id, mask_array=None):
 
 def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
                write_image=True, mask=True, bg_image=False, plot_outfile=None,
+               plot_cv_tc_diff=False,
                title=None,):
     """
     Compute coefficient of variation of the data and plot it
@@ -196,11 +197,23 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
 
         pl.legend()
         pl.xlabel('time(scans)')
-        pl.ylabel('Median coefficient of variation')
+        pl.ylabel('Median CV')
         pl.axis('tight')
 
         if not plot_outfile is None:
             pl.savefig(plot_outfile)
+
+        if plot_cv_tc_diff:
+            cv_tc = np.diff(cv_tc)
+            pl.figure()
+            pl.plot(cv_tc) #  , label=subject_id)
+
+            pl.legend()
+            pl.xlabel('time(scans)')
+            pl.ylabel('Differential median CV')
+            pl.axis('tight')
+
+            pl.savefig(plot_cv_tc_diff)
 
     return cv_tc
 

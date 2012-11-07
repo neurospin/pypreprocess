@@ -199,20 +199,35 @@ def do_subject_preproc(subject_id,
     report.h2(
         "CV (Coefficient of Variation) of corrected FMRI time-series")
     cv_tc_plot_outfile1 = os.path.join(subject_output_dir, "cv_tc_before.png")
+    cv_tc_plot_outfile2 = os.path.join(subject_output_dir, "cv_tc_after.png")
+    cv_tc_plot_outfile3 = os.path.join(subject_output_dir,
+                                       "cv_tc_diff_before.png")
+    cv_tc_plot_outfile4 = os.path.join(subject_output_dir,
+                                       "cv_tc_diff_after.png")
     uncorrected_FMRIs = glob.glob(
         os.path.join(subject_output_dir,
                      "func/lfo.nii"))
     plot_cv_tc(uncorrected_FMRIs, [session_id], subject_id,
                plot_outfile=cv_tc_plot_outfile1,
-               title="before preproc")
-    cv_tc_plot_outfile2 = os.path.join(subject_output_dir, "cv_tc_after.png")
+               title="before preproc",
+               plot_cv_tc_diff=cv_tc_plot_outfile3)
     corrected_FMRIs = glob.glob(
         os.path.join(subject_output_dir,
                      "wrbet_lfo.nii"))
     plot_cv_tc(corrected_FMRIs, [session_id], subject_id,
                plot_outfile=cv_tc_plot_outfile2,
-               title="after preproc")
-    sidebyside(report, cv_tc_plot_outfile1, cv_tc_plot_outfile2)
+               title="after preproc",
+               plot_cv_tc_diff=cv_tc_plot_outfile4)
+
+    uncorrected_FMRIs = glob.glob(
+        os.path.join(subject_output_dir,
+                     "func/lfo.nii"))
+    corrected_FMRIs = glob.glob(
+        os.path.join(subject_output_dir,
+                     "wrbet_lfo.nii"))
+
+    sidebyside(report, [cv_tc_plot_outfile1, cv_tc_plot_outfile3],
+               [cv_tc_plot_outfile2, cv_tc_plot_outfile4])
     report.p("See reports for each stage below.")
     report.br()
     report.a("Motion Correction", class_='internal',
