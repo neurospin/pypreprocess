@@ -125,8 +125,8 @@ def do_subject_preproc(subject_id,
 
     # co-registration of functional against structural (anatomical)
     coreg = mem.cache(spm.Coregister)
-    coreg_result = coreg(target=realign_result.outputs.mean_image,
-                         source=anat_image,
+    coreg_result = coreg(target=anat_image,
+                         source=realign_result.outputs.mean_image,
                          jobtype='estimate')
     output_dirs["coregistration"] = os.path.dirname(
         coreg_result.outputs.coregistered_source)
@@ -163,7 +163,7 @@ def do_subject_preproc(subject_id,
     #  alternative: Segmentation & normalization
     normalize = mem.cache(spm.Normalize)
     segment = mem.cache(spm.Segment)
-    segment_result = segment(data=coreg_result.outputs.coregistered_source,
+    segment_result = segment(data=anat_image,
                              gm_output_type=[True, True, True],
                              wm_output_type=[True, True, True],
                              csf_output_type=[True, True, True],
@@ -185,7 +185,7 @@ def do_subject_preproc(subject_id,
     # segment the coregistered anatomical
     norm_apply = normalize(
         parameter_file=segment_result.outputs.transformation_mat,
-        apply_to_files=coreg_result.outputs.coregistered_source,
+        apply_to_files=anat_image,
         jobtype='write',
         # write_voxel_sizes=[1, 1, 1]
         )
@@ -270,37 +270,35 @@ def do_subject_preproc(subject_id,
         "coregistration_report.html")
     coregistration_report = markup.page(mode='loose_html')
     coregistration_report.h2(
-        "Coregistration (anat -> mean functional)")
+        "Coregistration (mean functional -> anat)")
     overlaps_before = []
     overlaps_after = []
     overlap_plot = os.path.join(output_dirs["coregistration"],
                                 "overlap_func_on_anat_before.png")
     plot_coregistration(realign_result.outputs.mean_image,
-                        coreg_result.outputs.coregistered_source,
+                        anat_image,
                         plot_outfile=overlap_plot,
                         )
     overlaps_before.append(overlap_plot)
     overlap_plot = os.path.join(output_dirs["coregistration"],
                                 "overlap_anat_on_func_before.png")
 
-    plot_coregistration(
-                        coreg_result.outputs.coregistered_source,
+    plot_coregistration(anat_image,
                         realign_result.outputs.mean_image,
                         plot_outfile=overlap_plot,
                         )
     overlaps_before.append(overlap_plot)
     overlap_plot = os.path.join(output_dirs["coregistration"],
                                 "overlap_func_on_anat_after.png")
-    plot_coregistration(realign_result.outputs.mean_image,
-                        coreg_result.outputs.coregistered_source,
+    plot_coregistration(coreg_result.outputs.coregistered_source,
+                        anat_image,
                         plot_outfile=overlap_plot,
                         )
     overlaps_after.append(overlap_plot)
     overlap_plot = os.path.join(output_dirs["coregistration"],
                                 "overlap_anat_on_func_after.png")
-    plot_coregistration(
+    plot_coregistration(anat_image,
                         coreg_result.outputs.coregistered_source,
-                        realign_result.outputs.mean_image,
                         plot_outfile=overlap_plot,
                         )
     overlaps_after.append(overlap_plot)
@@ -336,8 +334,8 @@ and right column are plots after; top plots are plots of template\
     overlaps_after = []
     overlap_plot = os.path.join(tmp,
                                 "overlap_anat_on_gm_before.png")
-    plot_coregistration(GM_TEMPLATE,
-                        coreg_result.outputs.coregistered_source,
+    plot_coregistration(segment_result.outputs.modulated_gm_image,
+                        anat_image,
                         plot_outfile=overlap_plot,
                         )
     overlaps_before.append(overlap_plot)
@@ -345,15 +343,15 @@ and right column are plots after; top plots are plots of template\
                                 "overlap_gm_on_anat_before.png")
 
     plot_coregistration(
-                        coreg_result.outputs.coregistered_source,
-                        GM_TEMPLATE,
+                        anat_image,
+                        segment_result.outputs.modulated_gm_image,
                         plot_outfile=overlap_plot,
                         )
     overlaps_before.append(overlap_plot)
     overlap_plot = os.path.join(tmp,
                                 "overlap_anat_on_gm_after.png")
     plot_coregistration(
-        GM_TEMPLATE,
+        segment_result.outputs.modulated_gm_image,
         segmented_anat,
         plot_outfile=overlap_plot,
         )
@@ -362,7 +360,7 @@ and right column are plots after; top plots are plots of template\
                                 "overlap_gm_on_anat_after.png")
     plot_coregistration(
         segmented_anat,
-        GM_TEMPLATE,
+        segment_result.outputs.modulated_gm_image,
         plot_outfile=overlap_plot,
         )
     overlaps_after.append(overlap_plot)
@@ -375,7 +373,7 @@ and right column are plots after; top plots are plots of template\
     overlap_plot = os.path.join(tmp,
                                 "overlap_anat_on_wm_before.png")
     plot_coregistration(WM_TEMPLATE,
-                        coreg_result.outputs.coregistered_source,
+                        anat_image,
                         plot_outfile=overlap_plot,
                         )
     overlaps_before.append(overlap_plot)
@@ -383,7 +381,7 @@ and right column are plots after; top plots are plots of template\
                                 "overlap_wm_on_anat_before.png")
 
     plot_coregistration(
-                        coreg_result.outputs.coregistered_source,
+                        anat_image,
                         WM_TEMPLATE,
                         plot_outfile=overlap_plot,
                         )
@@ -413,7 +411,7 @@ and right column are plots after; top plots are plots of template\
     overlap_plot = os.path.join(tmp,
                                 "overlap_anat_on_csf_before.png")
     plot_coregistration(CSF_TEMPLATE,
-                        coreg_result.outputs.coregistered_source,
+                        anat_image,
                         plot_outfile=overlap_plot,
                         )
     overlaps_before.append(overlap_plot)
@@ -421,7 +419,7 @@ and right column are plots after; top plots are plots of template\
                                 "overlap_csf_on_anat_before.png")
 
     plot_coregistration(
-                        coreg_result.outputs.coregistered_source,
+                        anat_image,
                         CSF_TEMPLATE,
                         plot_outfile=overlap_plot,
                         )
