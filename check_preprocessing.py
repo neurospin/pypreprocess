@@ -18,6 +18,7 @@ import pylab as pl
 import nibabel as ni
 from nipy.labs import compute_mask_files
 from nipy.labs import viz
+from joblib import Memory as _Memory
 
 EPS = np.finfo(float).eps
 
@@ -110,10 +111,9 @@ def my_plot_cv_tc(epi_data, subject_id, mask_array=None):
     return output_filename
 
 
-def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
-               write_image=True, mask=True, bg_image=False, plot_outfile=None,
-               plot_cv_tc_diff=False,
-               title=None,):
+def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
+               write_image=True, mask=True, bg_image=False,
+               cv_plot_outfiles=None, cv_tc_plot_outfile=None, title=None):
     """
     Compute coefficient of variation of the data and plot it
 
@@ -134,6 +134,10 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
               should we compute such an image as the mean across inputs.
               if no, an MNI template is used (works for normalized data)
     """
+    assert len(epi_data) == len(session_ids)
+    if not cv_plot_outfiles:
+        assert len(cv_plot_outfiles) == len(epi_data)
+
     cv_tc_ = []
     if isinstance(mask, basestring):
         mask_array = ni.load(mask).get_data() > 0
@@ -141,21 +145,23 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
         mask_array = compute_mask_files(epi_data[0])
     else:
         mask_array = None
+    count = 0
     for (session_id, fmri_file) in zip(session_ids, epi_data):
         nim = ni.load(fmri_file)
         affine = nim.get_affine()
         if len(nim.shape) == 4:
             # get the data
             data = nim.get_data()
-            thr = stats.scoreatpercentile(data.ravel(), 7)
-            data[data < thr] = thr
-
         else:
-            # fixme: todo
-            pass
+            raise RuntimeError, "expecting 4D image, got %iD" % len(nim.shape)
 
         # compute the CV for the session
-        cv = compute_cv(data, mask_array)
+        cache_dir = os.path.join(output_dir, "CV")
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        mem = _Memory(cache_dir)
+        _compute_cv = mem.cache(compute_cv)
+        cv = _compute_cv(data, mask_array)
 
         if write_image:
             # write an image
@@ -176,8 +182,13 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
                     ni.load(bg_image).get_affine())
             else:
                 anat, anat_affine = data.mean(-1), affine
-                slicer = viz.plot_map(cv, affine, threshold=.01, cmap=pl.cm.spectral,
-                                      anat=anat, anat_affine=anat_affine)
+                viz.plot_map(cv, affine, threshold=.01,
+                             cmap=pl.cm.spectral,
+                             anat=anat, anat_affine=anat_affine)
+
+            if not cv_plot_outfiles is None:
+                pl.savefig(cv_plot_outfiles[count])
+                count += 1
 
         # compute the time course of cv
         cv_tc_sess = np.median(
@@ -190,7 +201,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
     if do_plot:
         # plot the time course of cv for different subjects
         pl.figure()
-        pl.plot(cv_tc) #  , label=subject_id)
+        pl.plot(cv_tc)  # , label=subject_id)
 
         if title:
             pl.title(title)
@@ -200,25 +211,25 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
         pl.ylabel('Median CV')
         pl.axis('tight')
 
-        if not plot_outfile is None:
-            pl.savefig(plot_outfile)
+        if not cv_tc_plot_outfile is None:
+            pl.savefig(cv_tc_plot_outfile)
 
-        if plot_cv_tc_diff:
-            cv_tc = np.diff(cv_tc)
-            pl.figure()
-            pl.plot(cv_tc) #  , label=subject_id)
+        # if plot_cv_tc_diff:
+        #     cv_tc = np.diff(cv_tc)
+        #     pl.figure()
+        #     pl.plot(cv_tc) #  , label=subject_id)
 
-            pl.legend()
-            pl.xlabel('time(scans)')
-            pl.ylabel('Differential median CV')
-            pl.axis('tight')
+        #     pl.legend()
+        #     pl.xlabel('time(scans)')
+        #     pl.ylabel('Differential median CV')
+        #     pl.axis('tight')
 
-            pl.savefig(plot_cv_tc_diff)
+        #     pl.savefig(plot_cv_tc_diff)
 
     return cv_tc
 
 
-def plot_coregistration(reference, coregistered, black_bg=True,
+def plot_registration(reference, coregistered, black_bg=True,
                         title=None,
                         cut_coords=None,
                         plot_outfile=None):
@@ -250,8 +261,56 @@ def plot_coregistration(reference, coregistered, black_bg=True,
     slicer.edge_map(reference_data, reference_affine)
 
     if not plot_outfile is None:
-        pl.savefig(plot_outfile, bbox_inches='tight', facecolor="k",
+        pl.savefig(plot_outfile, dpi=200, bbox_inches='tight', facecolor="k",
                    edgecolor="k")
+
+
+def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
+                      output_filename=None, cut_coords=None,
+                      title='GM + WM + CSF segmentation'):
+    """
+    Plot a contour mapping of the GM, WM, and CSF of a subject's anatomical.
+
+    """
+    if cut_coords is None:
+        cut_coords = (-2, -28, 17)
+
+    fig = pl.figure(edgecolor='k', facecolor='k')
+
+    # plot img
+    img = ni.load(img_filename)
+    anat = img.get_data()
+    anat_affine = img.get_affine()
+    slicer = viz.plot_anat(anat, anat_affine, cut_coords=cut_coords,
+                           black_bg=True, cmap=pl.cm.spectral, figure=fig)
+
+    # draw a GM contour map
+    gm = ni.load(gm_filename)
+    gm_template = gm.get_data()
+    gm_affine = gm.get_affine()
+    slicer.contour_map(gm_template, gm_affine, levels=[.51], colors=["k"])
+
+    # draw a WM contour map
+    wm = ni.load(wm_filename)
+    wm_template = wm.get_data()
+    wm_affine = wm.get_affine()
+    slicer.contour_map(wm_template, wm_affine, levels=[.51], colors=["w"])
+
+    # draw a CSF contour map
+    csf = ni.load(csf_filename)
+    csf_template = csf.get_data()
+    csf_affine = csf.get_affine()
+    slicer.contour_map(csf_template, csf_affine, levels=[.51], colors=['r'])
+
+    # misc
+    slicer.title(title, size=12, color='w',
+                 alpha=0)
+    # pl.legend(("WM", "CSF", "GM"))
+
+    if not output_filename is None:
+        fig.savefig(output_filename, dpi=200, bbox_inches='tight',
+                    facecolor="k",
+                    edgecolor="k")
 
 
 # Demo

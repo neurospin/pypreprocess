@@ -1,6 +1,7 @@
 """
 :Module: nipype_preproc_spm_nyu
-:Synopsis: SPM use-case for preprocessing NYU rest dataset (this is just a quick-and-dirty POC)
+:Synopsis: SPM use-case for preprocessing NYU rest dataset (this is 
+just a quick-and-dirty POC)
 :Author: dohmatob elvis dopgima
 
 XXX TODO: document this according to numpy/spinx standards
