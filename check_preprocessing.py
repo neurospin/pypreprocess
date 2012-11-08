@@ -18,6 +18,7 @@ import pylab as pl
 import nibabel as ni
 from nipy.labs import compute_mask_files
 from nipy.labs import viz
+from joblib import Memory as _Memory
 
 EPS = np.finfo(float).eps
 
@@ -110,9 +111,9 @@ def my_plot_cv_tc(epi_data, subject_id, mask_array=None):
     return output_filename
 
 
-def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
-               write_image=True, mask=True, bg_image=False, plot_outfile=None,
-               title=None,):
+def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
+               write_image=True, mask=True, bg_image=False,
+               cv_plot_outfiles=None, cv_tc_plot_outfile=None, title=None):
     """
     Compute coefficient of variation of the data and plot it
 
@@ -133,6 +134,10 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
               should we compute such an image as the mean across inputs.
               if no, an MNI template is used (works for normalized data)
     """
+    assert len(epi_data) == len(session_ids)
+    if not cv_plot_outfiles:
+        assert len(cv_plot_outfiles) == len(epi_data)
+
     cv_tc_ = []
     if isinstance(mask, basestring):
         mask_array = ni.load(mask).get_data() > 0
@@ -140,21 +145,24 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
         mask_array = compute_mask_files(epi_data[0])
     else:
         mask_array = None
+    count = 0
     for (session_id, fmri_file) in zip(session_ids, epi_data):
         nim = ni.load(fmri_file)
         affine = nim.get_affine()
         if len(nim.shape) == 4:
             # get the data
             data = nim.get_data()
-            thr = stats.scoreatpercentile(data.ravel(), 7)
-            data[data < thr] = thr
-
         else:
             # fixme: todo
             pass
 
         # compute the CV for the session
-        cv = compute_cv(data, mask_array)
+        cache_dir = os.path.join(output_dir, "CV")
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        mem = _Memory(cache_dir)
+        _compute_cv = mem.cache(compute_cv)
+        cv = _compute_cv(data, mask_array)
 
         if write_image:
             # write an image
@@ -175,8 +183,13 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
                     ni.load(bg_image).get_affine())
             else:
                 anat, anat_affine = data.mean(-1), affine
-                slicer = viz.plot_map(cv, affine, threshold=.01, cmap=pl.cm.spectral,
-                                      anat=anat, anat_affine=anat_affine)
+                viz.plot_map(cv, affine, threshold=.01,
+                             cmap=pl.cm.spectral,
+                             anat=anat, anat_affine=anat_affine)
+
+            if not cv_plot_outfiles is None:
+                pl.savefig(cv_plot_outfiles[count])
+                count += 1
 
         # compute the time course of cv
         cv_tc_sess = np.median(
@@ -189,7 +202,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
     if do_plot:
         # plot the time course of cv for different subjects
         pl.figure()
-        pl.plot(cv_tc) #  , label=subject_id)
+        pl.plot(cv_tc)  # , label=subject_id)
 
         if title:
             pl.title(title)
@@ -199,13 +212,13 @@ def plot_cv_tc(epi_data, session_ids, subject_id, do_plot=True,
         pl.ylabel('Median coefficient of variation')
         pl.axis('tight')
 
-        if not plot_outfile is None:
-            pl.savefig(plot_outfile)
+        if not cv_tc_plot_outfile is None:
+            pl.savefig(cv_tc_plot_outfile)
 
     return cv_tc
 
 
-def plot_coregistration(reference, coregistered, black_bg=True,
+def plot_registration(reference, coregistered, black_bg=True,
                         title=None,
                         cut_coords=None,
                         plot_outfile=None):
