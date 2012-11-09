@@ -113,8 +113,8 @@ def my_plot_cv_tc(epi_data, subject_id, mask_array=None):
 
 def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
                write_image=True, mask=True, bg_image=False,
-               cv_plot_outfiles=None, cv_tc_plot_outfile=None,
-               cv_tc_diff_plot_outfile=None, title=None):
+               cv_plot_outfiles=None, cv_tc_plot_outfile=None, plot_diff=False,
+               title=None):
     """
     Compute coefficient of variation of the data and plot it
 
@@ -201,30 +201,25 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
     if do_plot:
         # plot the time course of cv for different subjects
         pl.figure()
-        pl.plot(cv_tc)  # , label=subject_id)
+        stuff = [cv_tc]
+        legends = ['Median Coefficient of Variation']
+        if plot_diff:
+            diff_cv_tc = np.hstack(([0], np.diff(cv_tc)))
+            stuff.append(diff_cv_tc)
+            legends.append('Differential Coefficent of Variation')
+        legends = tuple(legends)
+        pl.plot(np.vstack(stuff).T)
+        pl.legend(legends)
 
-        if title:
-            pl.title(title)
-
-        pl.legend()
         pl.xlabel('time(scans)')
         pl.ylabel('Median Coefficient of Variation')
         pl.axis('tight')
 
+        if title:
+            pl.title(title)
+
         if not cv_tc_plot_outfile is None:
             pl.savefig(cv_tc_plot_outfile)
-
-        if cv_tc_diff_plot_outfile:
-            d = np.diff(cv_tc)
-            pl.figure()
-            pl.plot(d)
-
-            pl.legend()
-            pl.xlabel('time(scans)')
-            pl.ylabel('Differential median Coefficient of Variation')
-            pl.axis('tight')
-
-            pl.savefig(cv_tc_diff_plot_outfile)
 
     return cv_tc
 

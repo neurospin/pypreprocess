@@ -20,7 +20,7 @@ n_subjects = 3
 #         os.mkdir(directory)
 
 # cmd_prefix = 'fsl5.0-'
-nyu = datasets.fetch_nyu_rest(n_subjects=n_subjects)
+# nyu = datasets.fetch_nyu_rest(n_subjects=n_subjects)
 
 ##############################################################
 # Preprocess functional data
@@ -109,20 +109,20 @@ def do_subject_preproc(subject_output_dir,
     flt.run()
 
 
-mainpath = '/tmp/nyu'
-if not os.path.exists(mainpath):
-    os.mkdir(mainpath)
-for i, func in enumerate(nyu.func):
-    path = os.path.join(mainpath, str(i))
-    if not os.path.exists(path):
-        os.mkdir(path)
-    do_subject_preproc(path, nyu.anat_anon[i], func, cmd_prefix='fsl5.0-')
+# mainpath = '/tmp/nyu'
+# if not os.path.exists(mainpath):
+#     os.mkdir(mainpath)
+# for i, func in enumerate(nyu.func):
+#     path = os.path.join(mainpath, str(i))
+#     if not os.path.exists(path):
+#         os.mkdir(path)
+#     do_subject_preproc(path, nyu.anat_anon[i], func, cmd_prefix='fsl5.0-')
 
-"""
-fnt = fsl.FNIRT(in_file='/tmp/kr080082/t1/kr080082_t1.nii.gz', 
-                ref_file='/tmp/T1.nii', #ref_file=example_data('mni.nii'),
-                warped_file='/tmp/kr080082/t1/kr080082_t1_warped.nii.gz')
-if neurospin:
-    fnt._cmd = 'fsl4.1-' + fnt._cmd
-res = fnt.run()
-"""
+# """
+# fnt = fsl.FNIRT(in_file='/tmp/kr080082/t1/kr080082_t1.nii.gz', 
+#                 ref_file='/tmp/T1.nii', #ref_file=example_data('mni.nii'),
+#                 warped_file='/tmp/kr080082/t1/kr080082_t1_warped.nii.gz')
+# if neurospin:
+#     fnt._cmd = 'fsl4.1-' + fnt._cmd
+# res = fnt.run()
+# """

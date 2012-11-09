@@ -60,7 +60,7 @@ def do_subject_preproc(subject_id,
                        subject_output_dir,
                        anat_image,
                        fmri_images,
-                       session_id=None,
+                       session_id="UNKNOWN",
                        **kwargs):
     """
     Function preprocessing data for a single subject.
@@ -100,6 +100,7 @@ def do_subject_preproc(subject_id,
                              mfile=True,
                              jobtype='estwrite')
     rp = realign_result.outputs.realignment_parameters
+
     shutil.copyfile(rp,
                     os.path.join(realign_ouput_dir, os.path.basename(rp)))
     output_dirs["realignment"] = os.path.dirname(rp)
@@ -204,35 +205,27 @@ def do_subject_preproc(subject_id,
     cv_plot_outfile1 = os.path.join(subject_output_dir, "cv_before.png")
     cv_tc_plot_outfile1 = os.path.join(subject_output_dir, "cv_tc_before.png")
     cv_tc_plot_outfile2 = os.path.join(subject_output_dir, "cv_tc_after.png")
-    cv_tc_plot_outfile3 = os.path.join(subject_output_dir,
-                                       "cv_tc_diff_before.png")
-    cv_tc_plot_outfile4 = os.path.join(subject_output_dir,
-                                       "cv_tc_diff_after.png")
     cv_plot_outfile2 = os.path.join(subject_output_dir, "cv_after.png")
     cv_tc_plot_outfile2 = os.path.join(subject_output_dir, "cv_tc_after.png")
 
-    uncorrected_FMRIs = glob.glob(
-        os.path.join(subject_output_dir,
-                     "func/lfo.nii"))
+    uncorrected_FMRIs = [fmri_images]
     qa_mem.cache(plot_cv_tc)(uncorrected_FMRIs, [session_id],
                              subject_id, subject_output_dir,
                              cv_plot_outfiles=[cv_plot_outfile1],
                              cv_tc_plot_outfile=cv_tc_plot_outfile1,
-                             cv_tc_diff_plot_outfile=cv_tc_plot_outfile3,
-                             title="before preproc")
-    corrected_FMRIs = glob.glob(
-        os.path.join(subject_output_dir,
-                     "wrbet_lfo.nii"))
+                             plot_diff=True,
+                             title="subject %s before preproc " % subject_id)
+    corrected_FMRIs = [segmented_func]
     qa_mem.cache(plot_cv_tc)(corrected_FMRIs, [session_id], subject_id,
                              subject_output_dir,
                              cv_plot_outfiles=[cv_plot_outfile2],
                              cv_tc_plot_outfile=cv_tc_plot_outfile2,
-                             cv_tc_diff_plot_outfile=cv_tc_plot_outfile4,
-                             title="after preproc")
+                             plot_diff=True,
+                             title="subject %s after preproc " % subject_id)
     sidebyside(
-        report, [cv_tc_plot_outfile1, cv_tc_plot_outfile3],
-        [cv_tc_plot_outfile2, cv_tc_plot_outfile4])
-    output["plots"]["cv"] = cv_tc_plot_outfile2
+        report, cv_tc_plot_outfile1,
+        cv_tc_plot_outfile2)
+    output["plots"]["cv_tc"] = cv_tc_plot_outfile2
 
     report.p("See reports for each stage below.")
     report.br()
@@ -250,10 +243,10 @@ def do_subject_preproc(subject_id,
     realignment_report = markup.page(mode="loose_html")
     realignment_report.h2(
         "Plots of estimated (rigid-body) motion in original FMRI time-series")
-    motion_plot = plot_spm_motion_parameters(
-        os.path.join(output_dirs["realignment"], "rp_bet_lfo.txt"),
+    motion_plot = plot_spm_motion_parameters(rp,
         subject_id=subject_id,
-        title="before realignment")
+        title="Motion parameters of subject %s before realignment" % \
+            subject_id)
     realignment_report.img(src=[motion_plot])
 
     nipype_report_filename = os.path.join(output_dirs['realignment'],
@@ -285,16 +278,20 @@ def do_subject_preproc(subject_id,
     overlap_plot = os.path.join(output_dirs["coregistration"],
                                 "overlap_func_on_anat_before.png")
     qa_mem.cache(plot_registration)(realign_result.outputs.mean_image,
-                                 anat_image,
-                                 output_filename=overlap_plot,
-                                 )
+                                    anat_image,
+                                    output_filename=overlap_plot,
+                                    title="Before coregistration: overlap of \
+(mean) functional on anatomical for subject %s" % subject_id)
+
     overlaps_before.append(overlap_plot)
     overlap_plot = os.path.join(output_dirs["coregistration"],
                                 "overlap_anat_on_func_before.png")
     qa_mem.cache(plot_registration)(anat_image,
-                                 realign_result.outputs.mean_image,
-                                 output_filename=overlap_plot,
-                                 )
+                                    realign_result.outputs.mean_image,
+                                    output_filename=overlap_plot,
+                                    title="After coregistration: overlap of \
+(mean) functional on anatomical for subject %s" % subject_id)
+
     overlaps_before.append(overlap_plot)
     overlap_plot = os.path.join(output_dirs["coregistration"],
                                 "overlap_func_on_anat_after.png")
@@ -343,7 +340,8 @@ def do_subject_preproc(subject_id,
                                  WM_TEMPLATE,
                                  CSF_TEMPLATE,
                                  output_filename=before_segmentation,
-                                 title="Before segmentation: GM+WM+CSF")
+                                 title="Before segmentation: GM, WM, and CSF \
+contour maps of subject %s's mean functional" % subject_id)
 
     after_segmentation = os.path.join(tmp, "after_segmentation.png")
     qa_mem.cache(plot_segmentation)(segmented_anat,
@@ -351,7 +349,8 @@ def do_subject_preproc(subject_id,
                                  segment_result.outputs.modulated_wm_image,
                                  segment_result.outputs.modulated_csf_image,
                                  output_filename=after_segmentation,
-                                 title="After segmentation: GM+WM+CSF")
+                                 title="After segmentation: GM, WM, and CSF \
+contour maps of subject %s's mean functional" % subject_id)
 
     sidebyside(segmentation_report, before_segmentation, after_segmentation)
 
