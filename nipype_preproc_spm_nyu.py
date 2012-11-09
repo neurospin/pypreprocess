@@ -1,12 +1,12 @@
 """
 :Module: nipype_preproc_spm_nyu
-:Synopsis: SPM use-case for preprocessing NYU rest dataset (this is 
-just a quick-and-dirty POC)
+:Synopsis: SPM use-case for preprocessing NYU rest dataset
+(this is just a quick-and-dirty POC)
 :Author: dohmatob elvis dopgima
 
 XXX TODO: document this according to numpy/spinx standards
 XXX TODO: re-factor the code (use unittesting)
-XXX TODO: visualization 
+XXX TODO: visualization
 XXX TODO: preprocessing checks
 XXX TODO: over-all testing (nose ?, see with GV & BT)
 
@@ -27,6 +27,7 @@ from joblib import Parallel, delayed
 # QA imports
 from check_preprocessing import *
 import markup
+from report_utils import *
 import time
 
 # set data dir
@@ -35,7 +36,7 @@ if not 'DATA_DIR' in os.environ:
 DATA_DIR = os.environ['DATA_DIR']
 
 # set interesting subject ids
-SUBJECT_IDS = ["sub14864"] # ["sub05676", "sub14864", "sub18604"]
+SUBJECT_IDS = ["sub05676", "sub08889", "sub14864", "sub18604"]
 
 if __name__ == '__main__':
 
@@ -45,7 +46,8 @@ if __name__ == '__main__':
                                   fmri_images, session_id=session_id)
 
     # grab local NYU directory structure
-    sessions = fetch_nyu_data_offline(DATA_DIR, subject_ids=SUBJECT_IDS)
+    sessions = fetch_nyu_data_offline(DATA_DIR)
+    print sessions["session1"].keys()
 
     # producer
     def preproc_factory():
@@ -63,12 +65,40 @@ if __name__ == '__main__':
                                       for args in preproc_factory())
 
     # generate html report (for QA)
-    # report_filename = os.path.join(DATA_DIR, "_report.html")
-    # report = markup.page(mode="strict_html")
-    # report.p(""" pypreproc run, %s.""" % time.asctime())
-    # motion_img_files = []
-    # cv_tc_img_files = []
-    # for subject_id, session_id, output_dirs in results:
+    report_filename = os.path.join(DATA_DIR, "_report.html")
+    report = markup.page(mode="strict_html")
+    report.h1(""" pypreproc run, %s.""" % time.asctime())
+    report.p("See reports for each stage below.")
+    plots = dict()
+    plots["cv_tc"] = list()
+    plots["segmentation"] = list()
+
+    for subject_id, session_id, output in results:
+        report.a("Report for subject %s " % subject_id, class_="internal",
+                 href=output["report"])
+        plots["segmentation"].append(output["plots"]["segmentation"])
+
+    report.h2("Grouped reports")
+
+    report.a("Segmentation report", class_='internal',
+             href="segmentation_report.html")
+    report.br()
+
+    segmentation_report_filename = os.path.join(DATA_DIR,
+                                                "segmentation_report.html")
+    segmentation_report = markup.page(mode='loose_html')
+    sidebyside(segmentation_report,
+               plots["segmentation"][:len(plots["segmentation"]) / 2],
+               plots["segmentation"][len(plots["segmentation"]) / 2:])
+
+    with open(segmentation_report_filename, 'w') as fd:
+        fd.write(str(segmentation_report))
+        fd.close()
+
+    with open(report_filename, 'w') as fd:
+        fd.write(str(report))
+        fd.close()
+
     #     subject_dir = os.path.join(os.path.join(DATA_DIR, session_id),
     #                                subject_id)
     #     uncorrected_FMRIs = glob.glob(

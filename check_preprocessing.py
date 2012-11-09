@@ -18,7 +18,7 @@ import pylab as pl
 import nibabel as ni
 from nipy.labs import compute_mask_files
 from nipy.labs import viz
-from joblib import Memory as _Memory
+from joblib import Memory as CheckPreprocMemory
 
 EPS = np.finfo(float).eps
 
@@ -113,7 +113,8 @@ def my_plot_cv_tc(epi_data, subject_id, mask_array=None):
 
 def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
                write_image=True, mask=True, bg_image=False,
-               cv_plot_outfiles=None, cv_tc_plot_outfile=None, title=None):
+               cv_plot_outfiles=None, cv_tc_plot_outfile=None,
+               cv_tc_diff_plot_outfile=None, title=None):
     """
     Compute coefficient of variation of the data and plot it
 
@@ -159,9 +160,8 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
         cache_dir = os.path.join(output_dir, "CV")
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        mem = _Memory(cache_dir)
-        _compute_cv = mem.cache(compute_cv)
-        cv = _compute_cv(data, mask_array)
+        mem = CheckPreprocMemory(cachedir=cache_dir, verbose=5)
+        cv = mem.cache(compute_cv)(data, mask_array)
 
         if write_image:
             # write an image
@@ -208,31 +208,31 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
 
         pl.legend()
         pl.xlabel('time(scans)')
-        pl.ylabel('Median CV')
+        pl.ylabel('Median Coefficient of Variation')
         pl.axis('tight')
 
         if not cv_tc_plot_outfile is None:
             pl.savefig(cv_tc_plot_outfile)
 
-        # if plot_cv_tc_diff:
-        #     cv_tc = np.diff(cv_tc)
-        #     pl.figure()
-        #     pl.plot(cv_tc) #  , label=subject_id)
+        if cv_tc_diff_plot_outfile:
+            d = np.diff(cv_tc)
+            pl.figure()
+            pl.plot(d)
 
-        #     pl.legend()
-        #     pl.xlabel('time(scans)')
-        #     pl.ylabel('Differential median CV')
-        #     pl.axis('tight')
+            pl.legend()
+            pl.xlabel('time(scans)')
+            pl.ylabel('Differential median Coefficient of Variation')
+            pl.axis('tight')
 
-        #     pl.savefig(plot_cv_tc_diff)
+            pl.savefig(cv_tc_diff_plot_outfile)
 
     return cv_tc
 
 
-def plot_registration(reference, coregistered, black_bg=True,
-                        title=None,
+def plot_registration(reference, coregistered,
+                        title="untitled coregistration!",
                         cut_coords=None,
-                        plot_outfile=None):
+                        output_filename=None):
     """
     QA for coregistration: plots a coregistered source as bg/contrast
     for the reference image. This way, see the similarity between the
@@ -243,15 +243,18 @@ def plot_registration(reference, coregistered, black_bg=True,
     if cut_coords is None:
         cut_coords = (-2, -28, 17)  # XXX FIXME: determine this!
 
+    fig = pl.figure(edgecolor='k', facecolor='k')
+
     # plot the coregistered image
     coregistered_img = ni.load(coregistered)
     coregistered_data = coregistered_img.get_data()
     coregistered_affine = coregistered_img.get_affine()
     slicer = viz.plot_anat(anat=coregistered_data,
                            anat_affine=coregistered_affine,
-                           black_bg=black_bg,
+                           black_bg=True,
+                           cmap=pl.cm.spectral,
                            cut_coords=cut_coords,
-                           title=title
+                           figure=fig,
                            )
 
     # overlap the reference image
@@ -260,9 +263,14 @@ def plot_registration(reference, coregistered, black_bg=True,
     reference_affine = reference_img.get_affine()
     slicer.edge_map(reference_data, reference_affine)
 
-    if not plot_outfile is None:
-        pl.savefig(plot_outfile, dpi=200, bbox_inches='tight', facecolor="k",
-                   edgecolor="k")
+    # misc
+    slicer.title(title, size=12, color='w',
+                 alpha=0)
+
+    if not output_filename is None:
+        fig.savefig(output_filename, dpi=200, bbox_inches='tight',
+                    facecolor="k",
+                    edgecolor="k")
 
 
 def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,

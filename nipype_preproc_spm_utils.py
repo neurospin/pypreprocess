@@ -22,6 +22,7 @@ from nisl.datasets import unzip_nii_gz
 
 # QA imports
 from check_preprocessing import *
+from report_utils import *
 import markup
 
 # set matlab exec path
@@ -53,26 +54,6 @@ T1_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'templates/T1.nii')
 GM_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/grey.nii')
 WM_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/white.nii')
 CSF_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/csf.nii')
-
-
-def sidebyside(report, img1, img2):
-    if not type(img1) is list:
-        img1 = [img1]
-    if not type(img2) is list:
-        img2 = [img2]
-
-    report.center()
-    report.table(border="0", width="100%", cellspacing="1")
-    report.tr()
-    report.td()
-    report.img(src=img1, width="100%")
-    report.td.close()
-    report.td()
-    report.img(src=img2, width="100%")
-    report.td.close()
-    report.tr.close()
-    report.table.close()
-    report.center.close()
 
 
 def do_subject_preproc(subject_id,
@@ -207,12 +188,19 @@ def do_subject_preproc(subject_id,
             os.path.basename(segmented_func)))
 
     # generate html report (for QA)
+    output = dict()
+    output["plots"] = dict()
+    from joblib import Memory as QAMemory
+    qa_cache_dir = os.path.join(subject_output_dir, "QA")
+    if not os.path.exists(qa_cache_dir):
+        os.makedirs(qa_cache_dir)
+    qa_mem = QAMemory(cachedir=qa_cache_dir, verbose=5)
     report_filename = os.path.join(subject_output_dir, "_report.html")
     report = markup.page(mode='loose_html')
 
     report.h2(
         "CV (Coefficient of Variation) of corrected FMRI time-series")
-
+    output["plots"] = dict()
     cv_plot_outfile1 = os.path.join(subject_output_dir, "cv_before.png")
     cv_tc_plot_outfile1 = os.path.join(subject_output_dir, "cv_tc_before.png")
     cv_tc_plot_outfile2 = os.path.join(subject_output_dir, "cv_tc_after.png")
@@ -226,20 +214,26 @@ def do_subject_preproc(subject_id,
     uncorrected_FMRIs = glob.glob(
         os.path.join(subject_output_dir,
                      "func/lfo.nii"))
-    plot_cv_tc(uncorrected_FMRIs, [session_id], subject_id, subject_output_dir,
-               cv_plot_outfiles=[cv_plot_outfile1],
-               cv_tc_plot_outfile=cv_tc_plot_outfile1,
-               title="before preproc")
+    qa_mem.cache(plot_cv_tc)(uncorrected_FMRIs, [session_id],
+                             subject_id, subject_output_dir,
+                             cv_plot_outfiles=[cv_plot_outfile1],
+                             cv_tc_plot_outfile=cv_tc_plot_outfile1,
+                             cv_tc_diff_plot_outfile=cv_tc_plot_outfile3,
+                             title="before preproc")
     corrected_FMRIs = glob.glob(
         os.path.join(subject_output_dir,
                      "wrbet_lfo.nii"))
-    plot_cv_tc(corrected_FMRIs, [session_id], subject_id, subject_output_dir,
-               cv_plot_outfiles=[cv_plot_outfile2],
-               cv_tc_plot_outfile=cv_tc_plot_outfile2,
-               title="after preproc")
+    qa_mem.cache(plot_cv_tc)(corrected_FMRIs, [session_id], subject_id,
+                             subject_output_dir,
+                             cv_plot_outfiles=[cv_plot_outfile2],
+                             cv_tc_plot_outfile=cv_tc_plot_outfile2,
+                             cv_tc_diff_plot_outfile=cv_tc_plot_outfile4,
+                             title="after preproc")
     sidebyside(
-        report, [cv_plot_outfile1, cv_tc_plot_outfile1, cv_tc_plot_outfile3],
-        [cv_plot_outfile2, cv_tc_plot_outfile2, cv_tc_plot_outfile4])
+        report, [cv_tc_plot_outfile1, cv_tc_plot_outfile3],
+        [cv_tc_plot_outfile2, cv_tc_plot_outfile4])
+    output["plots"]["cv"] = cv_tc_plot_outfile2
+
     report.p("See reports for each stage below.")
     report.br()
     report.a("Motion Correction", class_='internal',
@@ -277,6 +271,8 @@ def do_subject_preproc(subject_id,
         fd.write(str(realignment_report))
         fd.close()
 
+    output["plots"]["realignment_parameters"] = motion_plot
+
     # coreg report
     coregistration_report_filename = os.path.join(
         subject_output_dir,
@@ -288,31 +284,32 @@ def do_subject_preproc(subject_id,
     overlaps_after = []
     overlap_plot = os.path.join(output_dirs["coregistration"],
                                 "overlap_func_on_anat_before.png")
-    plot_registration(realign_result.outputs.mean_image,
-                      anat_image,
-                      plot_outfile=overlap_plot,
-                      )
+    qa_mem.cache(plot_registration)(realign_result.outputs.mean_image,
+                                 anat_image,
+                                 output_filename=overlap_plot,
+                                 )
     overlaps_before.append(overlap_plot)
     overlap_plot = os.path.join(output_dirs["coregistration"],
                                 "overlap_anat_on_func_before.png")
-    plot_registration(anat_image,
-                      realign_result.outputs.mean_image,
-                      plot_outfile=overlap_plot,
-                      )
+    qa_mem.cache(plot_registration)(anat_image,
+                                 realign_result.outputs.mean_image,
+                                 output_filename=overlap_plot,
+                                 )
     overlaps_before.append(overlap_plot)
     overlap_plot = os.path.join(output_dirs["coregistration"],
                                 "overlap_func_on_anat_after.png")
-    plot_registration(coreg_result.outputs.coregistered_source,
-                      anat_image,
-                      plot_outfile=overlap_plot,
-                      )
+    qa_mem.cache(plot_registration)(
+        coreg_result.outputs.coregistered_source,
+        anat_image,
+        output_filename=overlap_plot,
+        )
     overlaps_after.append(overlap_plot)
     overlap_plot = os.path.join(output_dirs["coregistration"],
                                 "overlap_anat_on_func_after.png")
-    plot_registration(anat_image,
-                      coreg_result.outputs.coregistered_source,
-                      plot_outfile=overlap_plot,
-                      )
+    qa_mem.cache(plot_registration)(anat_image,
+                                 coreg_result.outputs.coregistered_source,
+                                 output_filename=overlap_plot,
+                                 )
     overlaps_after.append(overlap_plot)
     sidebyside(coregistration_report, overlaps_before, overlaps_after)
 
@@ -330,6 +327,8 @@ def do_subject_preproc(subject_id,
         fd.write(str(coregistration_report))
         fd.close()
 
+    output["plots"]["coregistration"] = overlap_plot
+
     # segment report
     tmp = os.path.dirname(segmented_anat)
     segmentation_report_filename = os.path.join(
@@ -339,21 +338,20 @@ def do_subject_preproc(subject_id,
     segmentation_report.h1("Segmentation report for subject: %s" % subject_id)
 
     before_segmentation = os.path.join(tmp, "before_segmentation.png")
-    plot_segmentation(anat_image, segment_result.outputs.modulated_gm_image,
-                      GM_TEMPLATE,
-                      WM_TEMPLATE,
-                      CSF_TEMPLATE,
-                      output_filename=before_segmentation,
-                      title="Before segmentation: GM+WM+CSF \
-contour maps on anat")
+    qa_mem.cache(plot_segmentation)(anat_image,
+                                 GM_TEMPLATE,
+                                 WM_TEMPLATE,
+                                 CSF_TEMPLATE,
+                                 output_filename=before_segmentation,
+                                 title="Before segmentation: GM+WM+CSF")
 
     after_segmentation = os.path.join(tmp, "after_segmentation.png")
-    plot_segmentation(segmented_anat,
-                      segment_result.outputs.modulated_gm_image,
-                      segment_result.outputs.modulated_wm_image,
-                      segment_result.outputs.modulated_csf_image,
-                      output_filename=after_segmentation,
-                      title="After segmentation: GM+WM+CSF")
+    qa_mem.cache(plot_segmentation)(segmented_anat,
+                                 segment_result.outputs.modulated_gm_image,
+                                 segment_result.outputs.modulated_wm_image,
+                                 segment_result.outputs.modulated_csf_image,
+                                 output_filename=after_segmentation,
+                                 title="After segmentation: GM+WM+CSF")
 
     sidebyside(segmentation_report, before_segmentation, after_segmentation)
 
@@ -376,4 +374,8 @@ contour maps on anat")
         fd.write(str(report))
         fd.close()
 
-    return subject_id, session_id, output_dirs
+    output["plots"]["segmentation"] = after_segmentation
+
+    output["report"] = report_filename
+
+    return subject_id, session_id, output

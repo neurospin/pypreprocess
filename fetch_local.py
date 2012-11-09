@@ -26,7 +26,7 @@ def unzip_nii_gz(dirname):
             f_out.writelines(f_in)
             f_out.close()
             f_in.close()
-            os.remove(filename) #  XXX why ?
+            os.remove(filename)
 
 
 def fetch_haxby_data_offline(haxby_dir, session_ids=["haxby2001"],
@@ -77,12 +77,17 @@ def fetch_haxby_data_offline(haxby_dir, session_ids=["haxby2001"],
 
 
 def fetch_nyu_data_offline(nyu_rest_dir, session_ids=["session1"],
-                           subject_ids=["sub05676"]):
+                           subject_ids=None):
     """
     Helper function for globbing local NYU directory structure.
 
     """
     assert os.path.exists(nyu_rest_dir)
+
+    if subject_ids is None:
+        subject_ids = [os.path.basename(x) for x in glob.glob(
+                os.path.join(nyu_rest_dir,
+                             os.path.join(session_ids[0], "sub*")))]
 
     print "Pulling NYU (rest) data from %s .." % nyu_rest_dir
     sessions = dict()
@@ -102,8 +107,13 @@ def fetch_nyu_data_offline(nyu_rest_dir, session_ids=["session1"],
                 continue
 
             # Because SPM doesn't understand .gz
-            unzip_nii_gz(os.path.join(subject_dir, "anat"))
-            unzip_nii_gz(os.path.join(subject_dir, "func"))
+            try:
+                unzip_nii_gz(os.path.join(subject_dir, "anat"))
+                unzip_nii_gz(os.path.join(subject_dir, "func"))
+            except IOError:
+                print "Warning: %s contains corrupt .nii.gz archives!"  \
+                    % subject_dir
+                continue
 
             try:
                 anonymized_image = glob.glob("%s/anat/mprage_anonymized.nii" %\
