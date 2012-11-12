@@ -57,6 +57,8 @@ if __name__ == '__main__':
 
     # producer
     def preproc_factory():
+        print commands.getoutput("source /etc/fsl/4.1/fsl.sh")
+
         for session_id, session in sessions.iteritems():
             # pre-process data for all subjects
             for subject_id, subject in session.iteritems():
@@ -68,7 +70,7 @@ if __name__ == '__main__':
                 # anats for some subjects have shitty orientation (LR, AP, SI)
                 # meta-headers (and this leads to awefully skrewed-up coreg!)
                 # strip them off, and let SPM figure out the right orientaion
-                commands.getoutput("fslorient -deleteorient %s" % anat_image)
+                print commands.getoutput("fslorient -deleteorient %s" % anat_image)
 
                 yield subject_id, subject_dir, anat_image, fmri_images, \
                     session_id
