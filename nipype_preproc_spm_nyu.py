@@ -14,6 +14,7 @@ XXX TODO: over-all testing (nose ?, see with GV & BT)
 
 # standard imports
 import os
+import commands
 
 # helper imports
 from fetch_local import fetch_nyu_data_offline
@@ -37,7 +38,7 @@ if not 'DATA_DIR' in os.environ:
 DATA_DIR = os.environ['DATA_DIR']
 
 # set interesting subject ids
-SUBJECT_IDS = ["sub05676", "sub08889", "sub14864", "sub18604"]
+SUBJECT_IDS = ["sub05676", "sub08889", "sub14864", "sub08224"]
 
 # set job count
 N_JOBS = -1
@@ -53,8 +54,6 @@ if __name__ == '__main__':
 
     # grab local NYU directory structure
     sessions = fetch_nyu_data_offline(DATA_DIR)
-    del sessions["session1"]["sub09607"]
-    print sessions["session1"].keys()
 
     # producer
     def preproc_factory():
@@ -65,6 +64,12 @@ if __name__ == '__main__':
                 fmri_images = subject['func']
                 subject_dir = os.path.join(os.path.join(DATA_DIR, session_id),
                                            subject_id)
+
+                # anats for some subjects have shitty orientation (LR, AP, SI)
+                # meta-headers (and this leads to awefully skrewed-up coreg!)
+                # strip them off, and let SPM figure out the right orientaion
+                commands.getoutput("fslorient -deleteorient %s" % anat_image)
+
                 yield subject_id, subject_dir, anat_image, fmri_images, \
                     session_id
 
