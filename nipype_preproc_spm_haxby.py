@@ -56,7 +56,8 @@ if __name__ == '__main__':
                                   fmri_images)
 
     # fetch HAXBY dataset
-    haxby_data = fetch_haxby(data_dir=DATA_DIR)
+    haxby_data = fetch_haxby(data_dir=DATA_DIR,
+                             subject_ids=["subj4", "subj2", "subj3"])
 
     # producer
     def preproc_factory():
