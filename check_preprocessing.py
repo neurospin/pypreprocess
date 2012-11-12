@@ -278,20 +278,18 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
     if cut_coords is None:
         cut_coords = (-2, -28, 17)
 
-    fig = pl.figure(edgecolor='k', facecolor='k')
-
     # plot img
     img = ni.load(img_filename)
     anat = img.get_data()
     anat_affine = img.get_affine()
     slicer = viz.plot_anat(anat, anat_affine, cut_coords=cut_coords,
-                           black_bg=True, cmap=pl.cm.spectral, figure=fig)
+                           black_bg=True, cmap=pl.cm.spectral)
 
     # draw a GM contour map
     gm = ni.load(gm_filename)
     gm_template = gm.get_data()
     gm_affine = gm.get_affine()
-    slicer.contour_map(gm_template, gm_affine, levels=[.51], colors=["k"])
+    slicer.contour_map(gm_template, gm_affine, levels=[.51], colors=["w"])
 
     # draw a WM contour map
     wm = ni.load(wm_filename)
@@ -303,17 +301,17 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
     csf = ni.load(csf_filename)
     csf_template = csf.get_data()
     csf_affine = csf.get_affine()
-    slicer.contour_map(csf_template, csf_affine, levels=[.51], colors=['r'])
+    slicer.contour_map(csf_template, csf_affine, levels=[.51], colors=['w'])
 
     # misc
-    slicer.title(title, size=12, color='w',
+    slicer.title(title, size=10, color='w',
                  alpha=0)
     # pl.legend(("WM", "CSF", "GM"))
 
     if not output_filename is None:
-        fig.savefig(output_filename, dpi=200, bbox_inches='tight',
-                    facecolor="k",
-                    edgecolor="k")
+        pl.savefig(output_filename, dpi=200, bbox_inches='tight',
+                   facecolor="k",
+                   edgecolor="k")
 
 
 # Demo
