@@ -80,22 +80,22 @@ def do_subject_preproc(subject_id,
 
     output_dirs = dict()
 
-    # Brain Extraction
-    fmri_dir = os.path.dirname(fmri_images)
-    bet_out_file = os.path.join(fmri_dir,
-                                "bet_" + os.path.basename(fmri_images))
-    if not os.path.exists(bet_out_file):
-        bet = fsl.BET(
-            in_file=fmri_images,
-            out_file=bet_out_file)
-        bet._cmd = bet_cmd_prefix + bet._cmd
-        bet.inputs.functional = True
-        bet.run()
-        unzip_nii_gz(fmri_dir)
+    # # Brain Extraction
+    # fmri_dir = os.path.dirname(fmri_images)
+    # bet_out_file = os.path.join(fmri_dir,
+    #                             "bet_" + os.path.basename(fmri_images))
+    # if not os.path.exists(bet_out_file):
+    #     bet = fsl.BET(
+    #         in_file=fmri_images,
+    #         out_file=bet_out_file)
+    #     bet._cmd = bet_cmd_prefix + bet._cmd
+    #     bet.inputs.functional = True
+    #     bet.run()
+    #     unzip_nii_gz(fmri_dir)
 
     #  motion correction
     realign = mem.cache(spm.Realign)
-    realign_result = realign(in_files=bet_out_file,
+    realign_result = realign(in_files=fmri_images,
                              register_to_mean=True,
                              mfile=True,
                              jobtype='estwrite')
@@ -111,7 +111,6 @@ def do_subject_preproc(subject_id,
                          source=realign_result.outputs.mean_image,
                          apply_to_files=realign_result.outputs.realigned_files,
                          jobtype='estimate')
-    coregistered_files = coreg_result.outputs.coregistered_files
     output_dirs["coregistration"] = os.path.dirname(
         coreg_result.outputs.coregistered_source)
 
@@ -172,15 +171,15 @@ def do_subject_preproc(subject_id,
         apply_to_files=coreg_result.outputs.coregistered_source,
         jobtype='write',
         )
-    segmented_mean = norm_apply.outputs.normalized_files
-    shutil.copyfile(segmented_mean, os.path.join(
+    segmented_mean_func = norm_apply.outputs.normalized_files
+    shutil.copyfile(segmented_mean_func, os.path.join(
             subject_output_dir,
-            os.path.basename(segmented_mean)))
+            os.path.basename(segmented_mean_func)))
 
     # segment the FMRI
     norm_apply = normalize(
         parameter_file=segment_result.outputs.transformation_mat,
-        apply_to_files=coregistered_files,
+        apply_to_files=coreg_result.outputs.coregistered_files,
         jobtype='write',
         )
     segmented_func = norm_apply.outputs.normalized_files
@@ -189,6 +188,11 @@ def do_subject_preproc(subject_id,
             os.path.basename(segmented_func)))
 
     # generate html report (for QA)
+
+    blablabla = "Generating HTML reports for QA .."
+    dadada = "+" * len(blablabla)
+    print "%s\r\n%s\r\n%s" % (dadada, blablabla, dadada)
+
     output = dict()
     output["plots"] = dict()
     from joblib import Memory as QAMemory
@@ -327,7 +331,7 @@ def do_subject_preproc(subject_id,
     output["plots"]["coregistration"] = overlap_plot
 
     # segment report
-    tmp = os.path.dirname(segmented_anat)
+    tmp = os.path.dirname(segmented_mean_func)
     segmentation_report_filename = os.path.join(
         subject_output_dir,
         "segmentation_report.html")
@@ -335,16 +339,16 @@ def do_subject_preproc(subject_id,
     segmentation_report.h1("Segmentation report for subject: %s" % subject_id)
 
     before_segmentation = os.path.join(tmp, "before_segmentation.png")
-    qa_mem.cache(plot_segmentation)(anat_image,
-                                 GM_TEMPLATE,
-                                 WM_TEMPLATE,
-                                 CSF_TEMPLATE,
-                                 output_filename=before_segmentation,
-                                 title="Before segmentation: GM, WM, and CSF \
-contour maps of subject %s's mean functional" % subject_id)
+    qa_mem.cache(plot_segmentation)(realign_result.outputs.mean_image,
+                                    GM_TEMPLATE,
+                                    WM_TEMPLATE,
+                                    CSF_TEMPLATE,
+                                    output_filename=before_segmentation,
+                                    title="Before segmentation: GM, WM, and\
+ CSF contour maps of subject %s's mean functional" % subject_id)
 
     after_segmentation = os.path.join(tmp, "after_segmentation.png")
-    qa_mem.cache(plot_segmentation)(segmented_anat,
+    qa_mem.cache(plot_segmentation)(segmented_mean_func,
                                  segment_result.outputs.modulated_gm_image,
                                  segment_result.outputs.modulated_wm_image,
                                  segment_result.outputs.modulated_csf_image,
