@@ -26,7 +26,7 @@ def unzip_nii_gz(dirname):
             f_out.writelines(f_in)
             f_out.close()
             f_in.close()
-            os.remove(filename)
+            # os.remove(filename)
 
 
 def fetch_haxby_data_offline(haxby_dir, session_ids=["haxby2001"],
