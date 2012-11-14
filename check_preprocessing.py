@@ -20,6 +20,12 @@ from nipy.labs import compute_mask_files
 from nipy.labs import viz
 from joblib import Memory as CheckPreprocMemory
 
+font = {'family' : 'normal',
+        'weight' : 'bold',
+        'size'   : 6}
+
+pl.rc('font', **font)
+
 EPS = np.finfo(float).eps
 
 
@@ -44,12 +50,13 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, format="png",
     elif not subject_id is None:
         pl.title("subject: %s" % subject_id)
     pl.xlabel('time(scans)')
-    pl.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'))
-    pl.ylabel('Estimated rigid-body motion (mm/degrees)')
+    pl.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'), prop={'size': 6})
+    pl.ylabel('Estimated motion (mm/degrees)',
+              fontsize=10)
 
     # dump image unto disk
     img_filename = "%s.%s" % (parameter_file, format)
-    pl.savefig(img_filename, bbox_inches="tight")
+    pl.savefig(img_filename, bbox_inches="tight", dpi=200)
 
     return img_filename
 
@@ -200,7 +207,6 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
 
     if do_plot:
         # plot the time course of cv for different subjects
-        pl.figure()
         stuff = [cv_tc]
         legends = ['Median Coefficient of Variation']
         if plot_diff:
@@ -238,8 +244,6 @@ def plot_registration(reference, coregistered,
     if cut_coords is None:
         cut_coords = (-2, -28, 17)  # XXX FIXME: determine this!
 
-    fig = pl.figure(edgecolor='k', facecolor='k')
-
     # plot the coregistered image
     coregistered_img = ni.load(coregistered)
     coregistered_data = coregistered_img.get_data()
@@ -249,7 +253,6 @@ def plot_registration(reference, coregistered,
                            black_bg=True,
                            cmap=pl.cm.spectral,
                            cut_coords=cut_coords,
-                           figure=fig,
                            )
 
     # overlap the reference image
@@ -263,13 +266,14 @@ def plot_registration(reference, coregistered,
                  alpha=0)
 
     if not output_filename is None:
-        fig.savefig(output_filename, dpi=200, bbox_inches='tight',
-                    facecolor="k",
-                    edgecolor="k")
+        pl.savefig(output_filename, dpi=200, bbox_inches='tight',
+                     facecolor="k",
+                     edgecolor="k")
 
 
 def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
                       output_filename=None, cut_coords=None,
+                      slicer='ortho',
                       title='GM + WM + CSF segmentation'):
     """
     Plot a contour mapping of the GM, WM, and CSF of a subject's anatomical.
@@ -278,38 +282,42 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
     if cut_coords is None:
         cut_coords = (-2, -28, 17)
 
+    if slicer in ['x', 'y', 'z']:
+        cut_coords = (cut_coords['xyz'.index(slicer)],)
+
     # plot img
     img = ni.load(img_filename)
     anat = img.get_data()
     anat_affine = img.get_affine()
-    slicer = viz.plot_anat(anat, anat_affine, cut_coords=cut_coords,
-                           black_bg=True, cmap=pl.cm.spectral)
+    _slicer = viz.plot_anat(anat, anat_affine, cut_coords=cut_coords,
+                            slicer=slicer,
+                            black_bg=True, cmap=pl.cm.spectral)
 
     # draw a GM contour map
     gm = ni.load(gm_filename)
     gm_template = gm.get_data()
     gm_affine = gm.get_affine()
-    slicer.contour_map(gm_template, gm_affine, levels=[.51], colors=["w"])
+    _slicer.contour_map(gm_template, gm_affine, levels=[.51], colors=["r"])
 
     # draw a WM contour map
     wm = ni.load(wm_filename)
     wm_template = wm.get_data()
     wm_affine = wm.get_affine()
-    slicer.contour_map(wm_template, wm_affine, levels=[.51], colors=["w"])
+    _slicer.contour_map(wm_template, wm_affine, levels=[.51], colors=["g"])
 
     # draw a CSF contour map
     csf = ni.load(csf_filename)
     csf_template = csf.get_data()
     csf_affine = csf.get_affine()
-    slicer.contour_map(csf_template, csf_affine, levels=[.51], colors=['w'])
+    _slicer.contour_map(csf_template, csf_affine, levels=[.51], colors=['b'])
 
     # misc
-    slicer.title(title, size=10, color='w',
+    _slicer.title(title, size=10, color='w',
                  alpha=0)
     # pl.legend(("WM", "CSF", "GM"))
 
     if not output_filename is None:
-        pl.savefig(output_filename, dpi=200, bbox_inches='tight',
+        pl.savefig(output_filename, bbox_inches='tight', dpi=200,
                    facecolor="k",
                    edgecolor="k")
 

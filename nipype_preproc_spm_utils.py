@@ -11,11 +11,13 @@ XXX TODO: re-factor the code!
 import os
 import shutil
 
-# import useful interfaces from nipype
-from nipype.caching import Memory
+# imports for caching (yeah, we aint got time to loose!)
+from nipype.caching import Memory as nipypeMemory
+from joblib import Memory as joblibMemory
+
+# spm and matlab imports
 import nipype.interfaces.spm as spm
 import nipype.interfaces.matlab as matlab
-import nipype.interfaces.fsl as fsl
 
 # misc imports
 from nisl.datasets import unzip_nii_gz
@@ -43,12 +45,6 @@ assert os.path.exists(MATLAB_SPM_DIR), \
  doesn't exist; you need to export MATLAB_SPM_DIR" % MATLAB_SPM_DIR
 matlab.MatlabCommand.set_default_paths(MATLAB_SPM_DIR)
 
-# # fsl output_type
-# fsl.FSLCommand.set_default_output_type('NIFTI_GZ')
-
-# fsl BET cmd prefix
-bet_cmd_prefix = "fsl4.1-"
-
 # set templates
 T1_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'templates/T1.nii')
 GM_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/grey.nii')
@@ -61,6 +57,7 @@ def do_subject_preproc(subject_id,
                        anat_image,
                        fmri_images,
                        session_id="UNKNOWN",
+                       do_report=True,
                        **kwargs):
     """
     Function preprocessing data for a single subject.
@@ -76,22 +73,9 @@ def do_subject_preproc(subject_id,
     cache_dir = os.path.join(subject_output_dir, 'cache_dir')
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
-    mem = Memory(base_dir=cache_dir)
+    mem = nipypeMemory(base_dir=cache_dir)
 
     output_dirs = dict()
-
-    # # Brain Extraction
-    # fmri_dir = os.path.dirname(fmri_images)
-    # bet_out_file = os.path.join(fmri_dir,
-    #                             "bet_" + os.path.basename(fmri_images))
-    # if not os.path.exists(bet_out_file):
-    #     bet = fsl.BET(
-    #         in_file=fmri_images,
-    #         out_file=bet_out_file)
-    #     bet._cmd = bet_cmd_prefix + bet._cmd
-    #     bet.inputs.functional = True
-    #     bet.run()
-    #     unzip_nii_gz(fmri_dir)
 
     #  motion correction
     realign = mem.cache(spm.Realign)
@@ -114,36 +98,7 @@ def do_subject_preproc(subject_id,
     output_dirs["coregistration"] = os.path.dirname(
         coreg_result.outputs.coregistered_source)
 
-    # # learn the deformation on T1 MRI without segmentation
-    # normalize = mem.cache(spm.Normalize)
-    # norm_result = normalize(source=coreg_result.outputs.coregistered_source,
-    #                         template=T1_TEMPLATE)
-
-    # # deform FRMI images unto T1 template
-    # norm_apply = normalize(
-    #     parameter_file=norm_result.outputs.normalization_parameters,
-    #     apply_to_files=realign_result.outputs.realigned_files,
-    #     jobtype='write',
-    #     write_voxel_sizes=[3, 3, 3])
-
-    # wfmri = norm_apply.outputs.normalized_files
-    # # if type(wfmri) is str:
-    # #     wfmri = [wfmri]
-    # # for wf in wfmri:
-    # #     shutil.copyfile(wf, os.path.join(subject_output_dir,
-    # #                                      os.path.basename(wf)))
-
-    # # deform anat image unto T1 template
-    # norm_apply = normalize(
-    #     parameter_file=norm_result.outputs.normalization_parameters,
-    #     apply_to_files=coreg_result.outputs.coregistered_source,
-    #     jobtype='write',
-    #     write_voxel_sizes=[1, 1, 1])
-
-    # wanat = norm_apply.outputs.normalized_files
-    # # shutil.copyfile(wanat, os.path.join(t1_dir, os.path.basename(wanat)))
-
-    #  alternative: Segmentation & normalization
+    # Segmentation & normalization
     normalize = mem.cache(spm.Normalize)
     segment = mem.cache(spm.Segment)
     segment_result = segment(data=anat_image,
@@ -189,17 +144,16 @@ def do_subject_preproc(subject_id,
 
     # generate html report (for QA)
 
-    blablabla = "Generating HTML reports for QA .."
+    blablabla = "Generating QA reports for subject %s .." % subject_id
     dadada = "+" * len(blablabla)
-    print "%s\r\n%s\r\n%s" % (dadada, blablabla, dadada)
+    print "\r\n%s\r\n%s\r\n%s\r\n" % (dadada, blablabla, dadada)
 
     output = dict()
     output["plots"] = dict()
-    from joblib import Memory as QAMemory
     qa_cache_dir = os.path.join(subject_output_dir, "QA")
     if not os.path.exists(qa_cache_dir):
         os.makedirs(qa_cache_dir)
-    qa_mem = QAMemory(cachedir=qa_cache_dir, verbose=5)
+    qa_mem = joblibMemory(cachedir=qa_cache_dir, verbose=5)
     report_filename = os.path.join(subject_output_dir, "_report.html")
     report = markup.page(mode='loose_html')
 
@@ -348,12 +302,21 @@ def do_subject_preproc(subject_id,
  CSF contour maps of subject %s's mean functional" % subject_id)
 
     after_segmentation = os.path.join(tmp, "after_segmentation.png")
+    after_segmentation_summary = os.path.join(tmp,
+                                              "after_segmentation_summary.png")
     qa_mem.cache(plot_segmentation)(segmented_mean_func,
-                                 segment_result.outputs.modulated_gm_image,
-                                 segment_result.outputs.modulated_wm_image,
-                                 segment_result.outputs.modulated_csf_image,
-                                 output_filename=after_segmentation,
-                                 title="After segmentation: GM, WM, and CSF \
+                                    segment_result.outputs.modulated_gm_image,
+                                    segment_result.outputs.modulated_wm_image,
+                                    segment_result.outputs.modulated_csf_image,
+                                    output_filename=after_segmentation_summary,
+                                    slicer='z',
+                                    title="subject: %s" % subject_id)
+    qa_mem.cache(plot_segmentation)(segmented_mean_func,
+                                    segment_result.outputs.modulated_gm_image,
+                                    segment_result.outputs.modulated_wm_image,
+                                    segment_result.outputs.modulated_csf_image,
+                                    output_filename=after_segmentation,
+                                    title="After segmentation: GM, WM, and CSF \
 contour maps of subject %s's mean functional" % subject_id)
 
     sidebyside(segmentation_report, before_segmentation, after_segmentation)
@@ -378,6 +341,7 @@ contour maps of subject %s's mean functional" % subject_id)
         fd.close()
 
     output["plots"]["segmentation"] = after_segmentation
+    output["plots"]["segmentation_summary"] = after_segmentation_summary
 
     output["report"] = report_filename
 
