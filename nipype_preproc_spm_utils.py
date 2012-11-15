@@ -3,7 +3,7 @@
 :Synopsis: routine functions for SPM preprocessing business
 :Author: dohmatob elvis dopgima
 
-XXX TODO: skull-stripping and smoothing
+XXX TODO: document the code!
 XXX TODO: re-factor the code!
 """
 
@@ -19,14 +19,9 @@ from joblib import Memory as joblibMemory
 import nipype.interfaces.spm as spm
 import nipype.interfaces.matlab as matlab
 
-# misc imports
-from nisl.datasets import unzip_nii_gz
-
-# QA imports
-from check_preprocessing import plot_spm_motion_parameters,\
-    plot_cv_tc, plot_registration, plot_segmentation
-from reporter import *
-import time
+# parallelism imports
+from joblib import Parallel, delayed
+from multiprocessing import cpu_count
 
 # set matlab exec path
 MATLAB_EXEC = "/neurospin/local/matlab/bin/matlab"
@@ -45,6 +40,11 @@ assert os.path.exists(MATLAB_SPM_DIR), \
     "nipype_preproc_smp_utils: MATLAB_SPM_DIR: %s,\
  doesn't exist; you need to export MATLAB_SPM_DIR" % MATLAB_SPM_DIR
 matlab.MatlabCommand.set_default_paths(MATLAB_SPM_DIR)
+
+# set job count
+N_JOBS = -1
+if 'N_JOBS' in os.environ:
+    N_JOBS = int(os.environ['N_JOBS'])
 
 # set templates
 T1_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'templates/T1.nii')
@@ -145,8 +145,14 @@ def do_subject_preproc(subject_id,
 
     # generate html report (for QA)
     if do_report:
+        from check_preprocessing import plot_spm_motion_parameters,\
+            plot_cv_tc, plot_registration, plot_segmentation
+        from reporter import BASE_PREPROC_REPORT_HTML_TEMPLATE, \
+            nipype2htmlreport
+        import time
+
         report_filename = os.path.join(subject_output_dir, "_report.html")
-        plots_gallery = list()
+        plots_gallery = []
 
         blablabla = "Generating QA reports for subject %s .." % subject_id
         dadada = "+" * len(blablabla)
@@ -193,8 +199,7 @@ def do_subject_preproc(subject_id,
                                               "_report/report.rst")
         with open(nipype_report_filename, 'r') as fd:
             nipype_html_report_filename = nipype_report_filename + '.html'
-            nipype_report = RAW_DUMP_HTML_TEMPLATE.substitute(
-                raw_dump=fd.read())
+            nipype_report = nipype2htmlreport(nipype_report_filename)
             open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
         output["plots"]["motion"] = motion_plot
@@ -224,8 +229,7 @@ def do_subject_preproc(subject_id,
                                               "_report/report.rst")
         with open(nipype_report_filename, 'r') as fd:
             nipype_html_report_filename = nipype_report_filename + '.html'
-            nipype_report = RAW_DUMP_HTML_TEMPLATE.substitute(
-                raw_dump=fd.read())
+            nipype_report = nipype2htmlreport(nipype_report_filename)
             open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
         plots_gallery.append(
@@ -263,8 +267,7 @@ contour maps of subject %s's mean functional" % subject_id)
                                               "_report/report.rst")
         with open(nipype_report_filename, 'r') as fd:
             nipype_html_report_filename = nipype_report_filename + '.html'
-            nipype_report = RAW_DUMP_HTML_TEMPLATE.substitute(
-                raw_dump=fd.read())
+            nipype_report = nipype2htmlreport(nipype_report_filename)
             open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
         output["plots"]["segmentation"] = after_segmentation
@@ -276,9 +279,12 @@ contour maps of subject %s's mean functional" % subject_id)
 
         report = BASE_PREPROC_REPORT_HTML_TEMPLATE.substitute(
             now=time.ctime(), plots_gallery=plots_gallery,
-            height=300, report_name="Subject %s" % subject_id)
+            height=400, report_name="Subject %s" % subject_id)
 
+
+        print ">" * 80 + "BEGIN HTML"
         print report
+        print "<" * 80 + "END HTML"
 
         with open(report_filename, 'w') as fd:
             fd.write(str(report))
@@ -287,3 +293,53 @@ contour maps of subject %s's mean functional" % subject_id)
         output["report"] = report_filename
 
         return subject_id, session_id, output
+
+
+def do_group_preproc(subjects,
+                     do_report=True,
+                     **kwargs):
+
+    def subject_callback(args):
+        subject_id, subject_dir, anat_image, fmri_images, session_id = args
+        return do_subject_preproc(subject_id, subject_dir, anat_image,
+                                  fmri_images, session_id=session_id,
+                                  do_report=do_report)
+
+    print subjects
+    results = Parallel(n_jobs=N_JOBS)(delayed(subject_callback)(subject_data) \
+                                      for subject_data in [1,2])
+
+    # generate html report (for QA)
+    if do_report:
+        from reporter import BASE_PREPROC_REPORT_HTML_TEMPLATE
+        import time
+
+        blablabla = "Generating QA report for %d subjects .." % len(results)
+        dadada = "+" * len(blablabla)
+        print "\r\n%s\r\n%s\r\n%s\r\n" % (dadada, blablabla, dadada)
+
+        tmpl = BASE_PREPROC_REPORT_HTML_TEMPLATE
+        report_filename = "nyu_preproc_report.html"
+        plots_gallery = []
+
+        for subject_id, session_id, output in results:
+            full_plot = output['plots']['segmentation']
+            title = 'subject: %s' % subject_id
+            summary_plot = output['plots']['segmentation_summary']
+            redirect_url = output["report"]
+            plots_gallery.append(
+                (full_plot, title, summary_plot, redirect_url))
+
+        report  = tmpl.substitute(now=time.ctime(),
+                                  plots_gallery=plots_gallery,
+                                  height=300)
+
+        print ">" * 80 + "BEGIN HTML"
+        print report
+        print "<" * 80 + "END HTML"
+
+        with open(report_filename, 'w') as fd:
+            fd.write(str(report))
+            fd.close()
+
+            print "\r\nDone."

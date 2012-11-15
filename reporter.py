@@ -1,7 +1,9 @@
 """
 :Module: reporter
 :Synopsis: utility module for report generation business
-:dohmatob elvis dopgima
+:Author: dohmatob elvis dopgima
+
+XXX TODO: Docu
 """
 
 import sys
@@ -12,10 +14,6 @@ import os
 PRETTYPHOTO_DIR = os.getcwd()
 if 'PRETTYPHOTO_DIR' in os.environ:
     PRETTYPHOTO_DIR = os.environ['PRETTYPHOTO_DIR']
-
-RAW_DUMP_HTML_TEMPLATE = tempita.HTMLTemplate("""\
-{{raw_dump}}\
-""")
 
 _text = """\
 {{default report_name = "Report"}}
@@ -55,12 +53,21 @@ _text = _text.replace("prettyphoto_css_path",
 
 BASE_PREPROC_REPORT_HTML_TEMPLATE = tempita.HTMLTemplate(_text)
 
+
+def nipype2htmlreport(nipype_report_filename):
+    with open(nipype_report_filename, 'r') as fd:
+        return tempita.HTMLTemplate(''.join(
+                ['<p>%s</p>' % line for line in fd.readlines()])).substitute()
+
 if __name__ == '__main__':
-    tmpl = GROUP_REPORT_HTML_TEMPLATE
+    tmpl = BASE_PREPROC_REPORT_HTML_TEMPLATE
     now = time.ctime()
-    plots_gallery = [(x.replace('_summary.png', '.png'), '[place title here]', x, "http://github.com/dohmatob") for x in sys.stdin.readlines()]
+    plots_gallery = [(x.replace('_summary.png', '.png'),
+                      '[place title here]', x, "http://github.com/dohmatob") \
+                         for x in sys.stdin.readlines()]
 
     report = tmpl.substitute(locals())
+
     print report
 
     with open("demo.html", 'w') as fd:
