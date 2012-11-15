@@ -21,7 +21,6 @@ from nipy.labs import viz
 from joblib import Memory as CheckPreprocMemory
 
 font = {'family' : 'normal',
-        'weight' : 'bold',
         'size'   : 6}
 
 pl.rc('font', **font)
@@ -56,7 +55,7 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, format="png",
 
     # dump image unto disk
     img_filename = "%s.%s" % (parameter_file, format)
-    pl.savefig(img_filename, bbox_inches="tight", dpi=200)
+    pl.savefig(img_filename, bbox_inches="tight", dpi=200, figsize=(8,5))
 
     return img_filename
 
@@ -143,7 +142,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
               if no, an MNI template is used (works for normalized data)
     """
     assert len(epi_data) == len(session_ids)
-    if not cv_plot_outfiles:
+    if not cv_plot_outfiles is None:
         assert len(cv_plot_outfiles) == len(epi_data)
 
     cv_tc_ = []
@@ -194,7 +193,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
                              anat=anat, anat_affine=anat_affine)
 
             if not cv_plot_outfiles is None:
-                pl.savefig(cv_plot_outfiles[count])
+                pl.savefig(cv_plot_outfiles[count], figsize=(8,5))
                 count += 1
 
         # compute the time course of cv
@@ -225,7 +224,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
             pl.title(title)
 
         if not cv_tc_plot_outfile is None:
-            pl.savefig(cv_tc_plot_outfile)
+            pl.savefig(cv_tc_plot_outfile, figsize=(8,5))
 
     return cv_tc
 
@@ -268,7 +267,7 @@ def plot_registration(reference, coregistered,
     if not output_filename is None:
         pl.savefig(output_filename, dpi=200, bbox_inches='tight',
                      facecolor="k",
-                     edgecolor="k")
+                     edgecolor="k", figsize=(8,5))
 
 
 def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
@@ -319,7 +318,7 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
     if not output_filename is None:
         pl.savefig(output_filename, bbox_inches='tight', dpi=200,
                    facecolor="k",
-                   edgecolor="k")
+                   edgecolor="k", figsize=(8,5))
 
 
 # Demo
