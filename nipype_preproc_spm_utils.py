@@ -23,9 +23,10 @@ import nipype.interfaces.matlab as matlab
 from nisl.datasets import unzip_nii_gz
 
 # QA imports
-from check_preprocessing import *
-from report_utils import *
-import markup
+from check_preprocessing import plot_spm_motion_parameters,\
+    plot_cv_tc, plot_registration, plot_segmentation
+from reporter import *
+import time
 
 # set matlab exec path
 MATLAB_EXEC = "/neurospin/local/matlab/bin/matlab"
@@ -143,206 +144,146 @@ def do_subject_preproc(subject_id,
             os.path.basename(segmented_func)))
 
     # generate html report (for QA)
+    if do_report:
+        report_filename = os.path.join(subject_output_dir, "_report.html")
+        plots_gallery = list()
 
-    blablabla = "Generating QA reports for subject %s .." % subject_id
-    dadada = "+" * len(blablabla)
-    print "\r\n%s\r\n%s\r\n%s\r\n" % (dadada, blablabla, dadada)
+        blablabla = "Generating QA reports for subject %s .." % subject_id
+        dadada = "+" * len(blablabla)
+        print "\r\n%s\r\n%s\r\n%s\r\n" % (dadada, blablabla, dadada)
 
-    output = dict()
-    output["plots"] = dict()
-    qa_cache_dir = os.path.join(subject_output_dir, "QA")
-    if not os.path.exists(qa_cache_dir):
-        os.makedirs(qa_cache_dir)
-    qa_mem = joblibMemory(cachedir=qa_cache_dir, verbose=5)
-    report_filename = os.path.join(subject_output_dir, "_report.html")
-    report = markup.page(mode='loose_html')
+        output = dict()
+        output["plots"] = dict()
+        qa_cache_dir = os.path.join(subject_output_dir, "QA")
+        if not os.path.exists(qa_cache_dir):
+            os.makedirs(qa_cache_dir)
+        qa_mem = joblibMemory(cachedir=qa_cache_dir, verbose=5)
 
-    report.h2(
-        "CV (Coefficient of Variation) of corrected FMRI time-series")
-    output["plots"] = dict()
-    cv_plot_outfile1 = os.path.join(subject_output_dir, "cv_before.png")
-    cv_tc_plot_outfile1 = os.path.join(subject_output_dir, "cv_tc_before.png")
-    cv_tc_plot_outfile2 = os.path.join(subject_output_dir, "cv_tc_after.png")
-    cv_plot_outfile2 = os.path.join(subject_output_dir, "cv_after.png")
-    cv_tc_plot_outfile2 = os.path.join(subject_output_dir, "cv_tc_after.png")
+        cv_tc_plot_before = os.path.join(subject_output_dir,
+                                         "cv_tc_before.png")
+        cv_tc_plot_after = os.path.join(subject_output_dir, "cv_tc_after.png")
 
-    uncorrected_FMRIs = [fmri_images]
-    qa_mem.cache(plot_cv_tc)(uncorrected_FMRIs, [session_id],
-                             subject_id, subject_output_dir,
-                             cv_plot_outfiles=[cv_plot_outfile1],
-                             cv_tc_plot_outfile=cv_tc_plot_outfile1,
-                             plot_diff=True,
-                             title="subject %s before preproc " % subject_id)
-    corrected_FMRIs = [segmented_func]
-    qa_mem.cache(plot_cv_tc)(corrected_FMRIs, [session_id], subject_id,
-                             subject_output_dir,
-                             cv_plot_outfiles=[cv_plot_outfile2],
-                             cv_tc_plot_outfile=cv_tc_plot_outfile2,
-                             plot_diff=True,
-                             title="subject %s after preproc " % subject_id)
-    sidebyside(
-        report, cv_tc_plot_outfile1,
-        cv_tc_plot_outfile2)
-    output["plots"]["cv_tc"] = cv_tc_plot_outfile2
+        uncorrected_FMRIs = [fmri_images]
+        qa_mem.cache(plot_cv_tc)(
+            uncorrected_FMRIs, [session_id],
+            subject_id, subject_output_dir,
+            cv_tc_plot_outfile=cv_tc_plot_before,
+            plot_diff=True,
+            title="subject %s before preproc " % subject_id)
 
-    report.p("See reports for each stage below.")
-    report.br()
-    report.a("Motion Correction", class_='internal',
-             href="realignment_report.html")
-    report.a("Co-registration", class_='internal',
-             href="coregistration_report.html")
-    report.a("Segmentation", class_='internal',
-             href="segmentation_report.html")
-    report.br()
+        corrected_FMRIs = [segmented_func]
+        qa_mem.cache(plot_cv_tc)(
+            corrected_FMRIs, [session_id], subject_id,
+            subject_output_dir,
+            cv_tc_plot_outfile=cv_tc_plot_after,
+            plot_diff=True,
+            title="subject %s after preproc " % subject_id)
 
-    # realignment report
-    realignment_report_filename = os.path.join(subject_output_dir,
-                                               "realignment_report.html")
-    realignment_report = markup.page(mode="loose_html")
-    realignment_report.h2(
-        "Plots of estimated (rigid-body) motion in original FMRI time-series")
-    motion_plot = plot_spm_motion_parameters(rp,
+        # plots_gallery.append((cv_tc_plot_before, 'subject: %s' % subject_id,
+        #                       cv_tc_plot_after, ""))
+
+        # realignment report
+        motion_plot = plot_spm_motion_parameters(
+        rp,
         subject_id=subject_id,
         title="Motion parameters of subject %s before realignment" % \
             subject_id)
-    realignment_report.img(src=[motion_plot])
 
-    nipype_report_filename = os.path.join(output_dirs['realignment'],
-                                          "_report/report.rst")
-    with open(nipype_report_filename, 'r') as fd:
-        nipype_html_report_filename = nipype_report_filename + '.html'
-        nipype_report = markup.page(mode='loose_html')
-        nipype_report.p(fd.readlines())
-        open(nipype_html_report_filename, 'w').write(str(nipype_report))
-        realignment_report.h2("Miscellaneous")
-        realignment_report.a("nipype report", class_="internal",
-                              href=nipype_html_report_filename)
+        nipype_report_filename = os.path.join(output_dirs['realignment'],
+                                              "_report/report.rst")
+        with open(nipype_report_filename, 'r') as fd:
+            nipype_html_report_filename = nipype_report_filename + '.html'
+            nipype_report = RAW_DUMP_HTML_TEMPLATE.substitute(
+                raw_dump=fd.read())
+            open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
-    with open(realignment_report_filename, 'w') as fd:
-        fd.write(str(realignment_report))
-        fd.close()
+        output["plots"]["motion"] = motion_plot
+        plots_gallery.append((motion_plot, 'subject: %s' % subject_id,
+                              motion_plot, nipype_html_report_filename))
 
-    output["plots"]["realignment_parameters"] = motion_plot
-
-    # coreg report
-    coregistration_report_filename = os.path.join(
-        subject_output_dir,
-        "coregistration_report.html")
-    coregistration_report = markup.page(mode='loose_html')
-    coregistration_report.h1(
-        "Coregistration for subject %s (mean functional -> anat)" % subject_id)
-    overlaps_before = []
-    overlaps_after = []
-    overlap_plot = os.path.join(output_dirs["coregistration"],
-                                "overlap_func_on_anat_before.png")
-    qa_mem.cache(plot_registration)(realign_result.outputs.mean_image,
-                                    anat_image,
-                                    output_filename=overlap_plot,
-                                    title="Before coregistration: overlap of \
+        # coreg report
+        func_on_anat_overlap = os.path.join(output_dirs["coregistration"],
+                                            "func_on_anat_overlap.png")
+        qa_mem.cache(plot_registration)(
+            coreg_result.outputs.coregistered_source,
+            anat_image,
+            output_filename=func_on_anat_overlap,
+            title="Overlap of \
 (mean) functional on anatomical for subject %s" % subject_id)
 
-    overlaps_before.append(overlap_plot)
-    overlap_plot = os.path.join(output_dirs["coregistration"],
-                                "overlap_anat_on_func_before.png")
-    qa_mem.cache(plot_registration)(anat_image,
-                                    realign_result.outputs.mean_image,
-                                    output_filename=overlap_plot,
-                                    title="After coregistration: overlap of \
-(mean) functional on anatomical for subject %s" % subject_id)
+        anat_on_func_overlap = os.path.join(output_dirs["coregistration"],
+                                            "anat_on_func_overlap.png")
+        qa_mem.cache(plot_registration)(
+            anat_image,
+            coreg_result.outputs.coregistered_source,
+            output_filename=anat_on_func_overlap,
+            title="Overlap of anatomical on \
+(mean) function for subject %s" % subject_id)
 
-    overlaps_before.append(overlap_plot)
-    overlap_plot = os.path.join(output_dirs["coregistration"],
-                                "overlap_func_on_anat_after.png")
-    qa_mem.cache(plot_registration)(
-        coreg_result.outputs.coregistered_source,
-        anat_image,
-        output_filename=overlap_plot,
-        )
-    overlaps_after.append(overlap_plot)
-    overlap_plot = os.path.join(output_dirs["coregistration"],
-                                "overlap_anat_on_func_after.png")
-    qa_mem.cache(plot_registration)(anat_image,
-                                 coreg_result.outputs.coregistered_source,
-                                 output_filename=overlap_plot,
-                                 )
-    overlaps_after.append(overlap_plot)
-    sidebyside(coregistration_report, overlaps_before, overlaps_after)
+        nipype_report_filename = os.path.join(output_dirs['coregistration'],
+                                              "_report/report.rst")
+        with open(nipype_report_filename, 'r') as fd:
+            nipype_html_report_filename = nipype_report_filename + '.html'
+            nipype_report = RAW_DUMP_HTML_TEMPLATE.substitute(
+                raw_dump=fd.read())
+            open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
-    nipype_report_filename = os.path.join(output_dirs['coregistration'],
-                                          "_report/report.rst")
-    with open(nipype_report_filename, 'r') as fd:
-        nipype_html_report_filename = nipype_report_filename + '.html'
-        nipype_report = markup.page(mode='loose_html')
-        nipype_report.p(fd.readlines())
-        open(nipype_html_report_filename, 'w').write(str(nipype_report))
-        coregistration_report.h2("Miscellaneous")
-        coregistration_report.a("nipype report", class_="internal",
-                              href=nipype_html_report_filename)
-    with open(coregistration_report_filename, 'w') as fd:
-        fd.write(str(coregistration_report))
-        fd.close()
+        plots_gallery.append(
+            (func_on_anat_overlap,
+             'subject: %s' % subject_id,
+             anat_on_func_overlap, nipype_html_report_filename))
 
-    output["plots"]["coregistration"] = overlap_plot
+        # segment report
+        tmp = os.path.dirname(segmented_mean_func)
 
-    # segment report
-    tmp = os.path.dirname(segmented_mean_func)
-    segmentation_report_filename = os.path.join(
-        subject_output_dir,
-        "segmentation_report.html")
-    segmentation_report = markup.page(mode='loose_html')
-    segmentation_report.h1("Segmentation report for subject: %s" % subject_id)
+        after_segmentation = os.path.join(tmp, "after_segmentation.png")
+        after_segmentation_summary = os.path.join(
+            tmp,
+            "after_segmentation_summary.png")
 
-    before_segmentation = os.path.join(tmp, "before_segmentation.png")
-    qa_mem.cache(plot_segmentation)(realign_result.outputs.mean_image,
-                                    GM_TEMPLATE,
-                                    WM_TEMPLATE,
-                                    CSF_TEMPLATE,
-                                    output_filename=before_segmentation,
-                                    title="Before segmentation: GM, WM, and\
- CSF contour maps of subject %s's mean functional" % subject_id)
+        qa_mem.cache(plot_segmentation)(
+            segmented_mean_func,
+            segment_result.outputs.modulated_gm_image,
+            segment_result.outputs.modulated_wm_image,
+            segment_result.outputs.modulated_csf_image,
+            output_filename=after_segmentation_summary,
+            slicer='z',
+            title="subject: %s" % subject_id)
 
-    after_segmentation = os.path.join(tmp, "after_segmentation.png")
-    after_segmentation_summary = os.path.join(tmp,
-                                              "after_segmentation_summary.png")
-    qa_mem.cache(plot_segmentation)(segmented_mean_func,
-                                    segment_result.outputs.modulated_gm_image,
-                                    segment_result.outputs.modulated_wm_image,
-                                    segment_result.outputs.modulated_csf_image,
-                                    output_filename=after_segmentation_summary,
-                                    slicer='z',
-                                    title="subject: %s" % subject_id)
-    qa_mem.cache(plot_segmentation)(segmented_mean_func,
-                                    segment_result.outputs.modulated_gm_image,
-                                    segment_result.outputs.modulated_wm_image,
-                                    segment_result.outputs.modulated_csf_image,
-                                    output_filename=after_segmentation,
-                                    title="After segmentation: GM, WM, and CSF \
+        qa_mem.cache(plot_segmentation)(
+            segmented_mean_func,
+            segment_result.outputs.modulated_gm_image,
+            segment_result.outputs.modulated_wm_image,
+            segment_result.outputs.modulated_csf_image,
+            output_filename=after_segmentation,
+            title="GM, WM, and CSF \
 contour maps of subject %s's mean functional" % subject_id)
 
-    sidebyside(segmentation_report, before_segmentation, after_segmentation)
+        nipype_report_filename = os.path.join(tmp,
+                                              "_report/report.rst")
+        with open(nipype_report_filename, 'r') as fd:
+            nipype_html_report_filename = nipype_report_filename + '.html'
+            nipype_report = RAW_DUMP_HTML_TEMPLATE.substitute(
+                raw_dump=fd.read())
+            open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
-    nipype_report_filename = os.path.join(tmp,
-                                          "_report/report.rst")
-    with open(nipype_report_filename, 'r') as fd:
-        nipype_html_report_filename = nipype_report_filename + '.html'
-        nipype_report = markup.page(mode='loose_html')
-        nipype_report.p(fd.readlines())
-        open(nipype_html_report_filename, 'w').write(str(nipype_report))
-        segmentation_report.h2("Miscellaneous")
-        segmentation_report.a("nipype report", class_="internal",
-                              href=nipype_html_report_filename)
+        output["plots"]["segmentation"] = after_segmentation
+        output["plots"]["segmentation_summary"] = after_segmentation_summary
+        plots_gallery.append((after_segmentation,
+                              "subject: %s" % subject_id,
+                              after_segmentation_summary,
+                              nipype_html_report_filename))
 
-    with open(segmentation_report_filename, 'w') as fd:
-        fd.write(str(segmentation_report))
-        fd.close()
+        report = BASE_PREPROC_REPORT_HTML_TEMPLATE.substitute(
+            now=time.ctime(), plots_gallery=plots_gallery,
+            height=300, report_name="Subject %s" % subject_id)
 
-    with open(report_filename, 'w') as fd:
-        fd.write(str(report))
-        fd.close()
+        print report
 
-    output["plots"]["segmentation"] = after_segmentation
-    output["plots"]["segmentation_summary"] = after_segmentation_summary
+        with open(report_filename, 'w') as fd:
+            fd.write(str(report))
+            fd.close()
 
-    output["report"] = report_filename
+        output["report"] = report_filename
 
-    return subject_id, session_id, output
+        return subject_id, session_id, output
