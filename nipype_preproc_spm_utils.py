@@ -28,6 +28,15 @@ from check_preprocessing import plot_spm_motion_parameters,\
 from reporter import *
 import time
 
+# parallelism imports
+from joblib import Parallel, delayed
+from multiprocessing import cpu_count
+
+# set job count
+N_JOBS = -1
+if 'N_JOBS' in os.environ:
+    N_JOBS = int(os.environ['N_JOBS'])
+
 # set matlab exec path
 MATLAB_EXEC = "/neurospin/local/matlab/bin/matlab"
 if 'MATLAB_EXEC' in os.environ:
@@ -287,3 +296,41 @@ contour maps of subject %s's mean functional" % subject_id)
         output["report"] = report_filename
 
         return subject_id, session_id, output
+
+
+def subject_callback(args):
+    subject_id, subject_dir, anat_image, fmri_images, session_id = args
+    return do_subject_preproc(subject_id, subject_dir, anat_image,
+                              fmri_images, session_id=session_id)
+
+
+def do_group_preproc(subjects,
+                     do_report=True,
+                     **kwargs):
+
+    results = Parallel(n_jobs=N_JOBS)(delayed(subject_callback)(args) \
+                                      for args in subjects)
+
+    # generate html report (for QA)
+    blablabla = "Generating QA report for %d subjects .." % len(results)
+    dadada = "+" * len(blablabla)
+    print "\r\n%s\r\n%s\r\n%s\r\n" % (dadada, blablabla, dadada)
+
+    tmpl = BASE_PREPROC_REPORT_HTML_TEMPLATE
+    report_filename = "nyu_preproc_report.html"
+    plots_gallery = list()
+
+    for subject_id, session_id, output in results:
+        full_plot = output['plots']['segmentation']
+        title = 'subject: %s' % subject_id
+        summary_plot = output['plots']['segmentation_summary']
+        redirect_url = output["report"]
+        plots_gallery.append((full_plot, title, summary_plot, redirect_url))
+
+    report  = tmpl.substitute(now=time.ctime(), plots_gallery=plots_gallery)
+    print report
+    with open(report_filename, 'w') as fd:
+        fd.write(str(report))
+        fd.close()
+
+    print "\r\nDone."
