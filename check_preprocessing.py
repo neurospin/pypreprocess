@@ -20,8 +20,7 @@ from nipy.labs import compute_mask_files
 from nipy.labs import viz
 from joblib import Memory as CheckPreprocMemory
 
-font = {'family' : 'normal',
-        'size'   : 6}
+font = {'size'   : 12}
 
 pl.rc('font', **font)
 
@@ -193,7 +192,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
                              anat=anat, anat_affine=anat_affine)
 
             if not cv_plot_outfiles is None:
-                pl.savefig(cv_plot_outfiles[count], figsize=(8,5))
+                pl.savefig(cv_plot_outfiles[count])
                 count += 1
 
         # compute the time course of cv
@@ -224,24 +223,27 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
             pl.title(title)
 
         if not cv_tc_plot_outfile is None:
-            pl.savefig(cv_tc_plot_outfile, figsize=(8,5))
+            pl.savefig(cv_tc_plot_outfile)
 
     return cv_tc
 
 
 def plot_registration(reference, coregistered,
-                        title="untitled coregistration!",
-                        cut_coords=None,
-                        output_filename=None):
+                      title="untitled coregistration!",
+                      cut_coords=None,
+                      slicer='ortho',
+                      output_filename=None):
     """
     QA for coregistration: plots a coregistered source as bg/contrast
     for the reference image. This way, see the similarity between the
     two images.
 
     """
-    # set cut_coords
     if cut_coords is None:
-        cut_coords = (-2, -28, 17)  # XXX FIXME: determine this!
+        cut_coords = (-2, -28, 17)
+
+    if slicer in ['x', 'y', 'z']:
+        cut_coords = (cut_coords['xyz'.index(slicer)],)
 
     # plot the coregistered image
     coregistered_img = ni.load(coregistered)
@@ -252,6 +254,7 @@ def plot_registration(reference, coregistered,
                            black_bg=True,
                            cmap=pl.cm.spectral,
                            cut_coords=cut_coords,
+                           slicer=slicer
                            )
 
     # overlap the reference image
@@ -267,7 +270,7 @@ def plot_registration(reference, coregistered,
     if not output_filename is None:
         pl.savefig(output_filename, dpi=200, bbox_inches='tight',
                      facecolor="k",
-                     edgecolor="k", figsize=(8,5))
+                     edgecolor="k")
 
 
 def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
@@ -318,7 +321,7 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
     if not output_filename is None:
         pl.savefig(output_filename, bbox_inches='tight', dpi=200,
                    facecolor="k",
-                   edgecolor="k", figsize=(8,5))
+                   edgecolor="k")
 
 
 # Demo

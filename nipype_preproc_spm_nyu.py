@@ -18,7 +18,8 @@ import commands
 from fetch_local import fetch_nyu_data_offline
 
 # import spm preproc utilities
-from nipype_preproc_spm_utils import do_group_preproc
+from nipype_preproc_spm_utils import do_subject_preproc, \
+    do_group_preproc
 
 # set data dir
 if not 'DATA_DIR' in os.environ:
@@ -49,5 +50,4 @@ if __name__ == '__main__':
                 yield subject_id, subject_dir, anat_image, fmri_images, \
                     session_id
 
-    do_group_preproc(preproc_factory(),
-                     do_report=True)
+    do_group_preproc(preproc_factory())

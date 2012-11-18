@@ -23,6 +23,11 @@ import nipype.interfaces.matlab as matlab
 from joblib import Parallel, delayed
 from multiprocessing import cpu_count
 
+# set job count
+N_JOBS = -1
+if 'N_JOBS' in os.environ:
+    N_JOBS = int(os.environ['N_JOBS'])
+
 # set matlab exec path
 MATLAB_EXEC = "/neurospin/local/matlab/bin/matlab"
 if 'MATLAB_EXEC' in os.environ:
@@ -145,10 +150,8 @@ def do_subject_preproc(subject_id,
 
     # generate html report (for QA)
     if do_report:
-        from check_preprocessing import plot_spm_motion_parameters,\
-            plot_cv_tc, plot_registration, plot_segmentation
-        from reporter import BASE_PREPROC_REPORT_HTML_TEMPLATE, \
-            nipype2htmlreport
+        import check_preprocessing
+        import reporter
         import time
 
         report_filename = os.path.join(subject_output_dir, "_report.html")
@@ -170,7 +173,7 @@ def do_subject_preproc(subject_id,
         cv_tc_plot_after = os.path.join(subject_output_dir, "cv_tc_after.png")
 
         uncorrected_FMRIs = [fmri_images]
-        qa_mem.cache(plot_cv_tc)(
+        qa_mem.cache(check_preprocessing.plot_cv_tc)(
             uncorrected_FMRIs, [session_id],
             subject_id, subject_output_dir,
             cv_tc_plot_outfile=cv_tc_plot_before,
@@ -178,7 +181,7 @@ def do_subject_preproc(subject_id,
             title="subject %s before preproc " % subject_id)
 
         corrected_FMRIs = [segmented_func]
-        qa_mem.cache(plot_cv_tc)(
+        qa_mem.cache(check_preprocessing.plot_cv_tc)(
             corrected_FMRIs, [session_id], subject_id,
             subject_output_dir,
             cv_tc_plot_outfile=cv_tc_plot_after,
@@ -189,7 +192,7 @@ def do_subject_preproc(subject_id,
         #                       cv_tc_plot_after, ""))
 
         # realignment report
-        motion_plot = plot_spm_motion_parameters(
+        motion_plot = check_preprocessing.plot_spm_motion_parameters(
         rp,
         subject_id=subject_id,
         title="Motion parameters of subject %s before realignment" % \
@@ -199,7 +202,7 @@ def do_subject_preproc(subject_id,
                                               "_report/report.rst")
         with open(nipype_report_filename, 'r') as fd:
             nipype_html_report_filename = nipype_report_filename + '.html'
-            nipype_report = nipype2htmlreport(nipype_report_filename)
+            nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
             open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
         output["plots"]["motion"] = motion_plot
@@ -207,18 +210,20 @@ def do_subject_preproc(subject_id,
                               motion_plot, nipype_html_report_filename))
 
         # coreg report
-        func_on_anat_overlap = os.path.join(output_dirs["coregistration"],
-                                            "func_on_anat_overlap.png")
-        qa_mem.cache(plot_registration)(
-            coreg_result.outputs.coregistered_source,
+        anat_on_func_overlap_summary = os.path.join(
+            output_dirs["coregistration"],
+            "anat_on_func_overlap_summary.png")
+        qa_mem.cache(check_preprocessing.plot_registration)(
             anat_image,
-            output_filename=func_on_anat_overlap,
-            title="Overlap of \
-(mean) functional on anatomical for subject %s" % subject_id)
+            coreg_result.outputs.coregistered_source,
+            output_filename=anat_on_func_overlap_summary,
+            title="Subject %s" % subject_id,
+            slicer='z')
 
-        anat_on_func_overlap = os.path.join(output_dirs["coregistration"],
-                                            "anat_on_func_overlap.png")
-        qa_mem.cache(plot_registration)(
+        anat_on_func_overlap = os.path.join(
+            output_dirs["coregistration"],
+            "anat_on_func_overlap.png")
+        qa_mem.cache(check_preprocessing.plot_registration)(
             anat_image,
             coreg_result.outputs.coregistered_source,
             output_filename=anat_on_func_overlap,
@@ -229,13 +234,14 @@ def do_subject_preproc(subject_id,
                                               "_report/report.rst")
         with open(nipype_report_filename, 'r') as fd:
             nipype_html_report_filename = nipype_report_filename + '.html'
-            nipype_report = nipype2htmlreport(nipype_report_filename)
+            nipype_report = reporter.nipype2htmlreport(
+                nipype_report_filename)
             open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
         plots_gallery.append(
-            (func_on_anat_overlap,
+            (anat_on_func_overlap,
              'subject: %s' % subject_id,
-             anat_on_func_overlap, nipype_html_report_filename))
+             anat_on_func_overlap_summary, nipype_html_report_filename))
 
         # segment report
         tmp = os.path.dirname(segmented_mean_func)
@@ -245,20 +251,20 @@ def do_subject_preproc(subject_id,
             tmp,
             "after_segmentation_summary.png")
 
-        qa_mem.cache(plot_segmentation)(
+        qa_mem.cache(check_preprocessing.plot_segmentation)(
             segmented_mean_func,
-            segment_result.outputs.modulated_gm_image,
-            segment_result.outputs.modulated_wm_image,
-            segment_result.outputs.modulated_csf_image,
+            GM_TEMPLATE, # segment_result.outputs.modulated_gm_image,
+            WM_TEMPLATE, # segment_result.outputs.modulated_wm_image,
+            CSF_TEMPLATE, # segment_result.outputs.modulated_csf_image,
             output_filename=after_segmentation_summary,
             slicer='z',
             title="subject: %s" % subject_id)
 
-        qa_mem.cache(plot_segmentation)(
+        qa_mem.cache(check_preprocessing.plot_segmentation)(
             segmented_mean_func,
-            segment_result.outputs.modulated_gm_image,
-            segment_result.outputs.modulated_wm_image,
-            segment_result.outputs.modulated_csf_image,
+            GM_TEMPLATE, # segment_result.outputs.modulated_gm_image,
+            WM_TEMPLATE, # segment_result.outputs.modulated_wm_image,
+            CSF_TEMPLATE, # segment_result.outputs.modulated_csf_image,
             output_filename=after_segmentation,
             title="GM, WM, and CSF \
 contour maps of subject %s's mean functional" % subject_id)
@@ -267,7 +273,8 @@ contour maps of subject %s's mean functional" % subject_id)
                                               "_report/report.rst")
         with open(nipype_report_filename, 'r') as fd:
             nipype_html_report_filename = nipype_report_filename + '.html'
-            nipype_report = nipype2htmlreport(nipype_report_filename)
+            nipype_report = reporter.nipype2htmlreport(
+                nipype_report_filename)
             open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
         output["plots"]["segmentation"] = after_segmentation
@@ -277,10 +284,9 @@ contour maps of subject %s's mean functional" % subject_id)
                               after_segmentation_summary,
                               nipype_html_report_filename))
 
-        report = BASE_PREPROC_REPORT_HTML_TEMPLATE.substitute(
+        report = reporter.BASE_PREPROC_REPORT_HTML_TEMPLATE.substitute(
             now=time.ctime(), plots_gallery=plots_gallery,
             height=400, report_name="Subject %s" % subject_id)
-
 
         print ">" * 80 + "BEGIN HTML"
         print report
@@ -295,49 +301,42 @@ contour maps of subject %s's mean functional" % subject_id)
         return subject_id, session_id, output
 
 
+def subject_callback(args):
+    subject_id, subject_dir, anat_image, fmri_images, session_id = args
+    return do_subject_preproc(subject_id, subject_dir, anat_image,
+                              fmri_images, session_id=session_id)
+
+
 def do_group_preproc(subjects,
                      do_report=True,
                      **kwargs):
 
-    def subject_callback(args):
-        subject_id, subject_dir, anat_image, fmri_images, session_id = args
-        return do_subject_preproc(subject_id, subject_dir, anat_image,
-                                  fmri_images, session_id=session_id,
-                                  do_report=do_report)
-
-    print subjects
-    results = Parallel(n_jobs=N_JOBS)(delayed(subject_callback)(subject_data) \
-                                      for subject_data in [1,2])
+    results = Parallel(n_jobs=N_JOBS)(delayed(subject_callback)(args) \
+                                      for args in subjects)
 
     # generate html report (for QA)
     if do_report:
-        from reporter import BASE_PREPROC_REPORT_HTML_TEMPLATE
+        import reporter
         import time
-
         blablabla = "Generating QA report for %d subjects .." % len(results)
         dadada = "+" * len(blablabla)
         print "\r\n%s\r\n%s\r\n%s\r\n" % (dadada, blablabla, dadada)
 
-        tmpl = BASE_PREPROC_REPORT_HTML_TEMPLATE
+        tmpl = reporter.BASE_PREPROC_REPORT_HTML_TEMPLATE
         report_filename = "nyu_preproc_report.html"
-        plots_gallery = []
+        plots_gallery = list()
 
         for subject_id, session_id, output in results:
             full_plot = output['plots']['segmentation']
             title = 'subject: %s' % subject_id
             summary_plot = output['plots']['segmentation_summary']
             redirect_url = output["report"]
-            plots_gallery.append(
-                (full_plot, title, summary_plot, redirect_url))
+            plots_gallery.append((full_plot, title, summary_plot,
+                                  redirect_url))
 
         report  = tmpl.substitute(now=time.ctime(),
-                                  plots_gallery=plots_gallery,
-                                  height=300)
-
-        print ">" * 80 + "BEGIN HTML"
+                                  plots_gallery=plots_gallery)
         print report
-        print "<" * 80 + "END HTML"
-
         with open(report_filename, 'w') as fd:
             fd.write(str(report))
             fd.close()
