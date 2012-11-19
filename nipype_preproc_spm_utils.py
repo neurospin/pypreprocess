@@ -151,6 +151,7 @@ def do_subject_preproc(subject_id,
     # generate html report (for QA)
     if do_report:
         import check_preprocessing
+        import tempita
         import reporter
         import time
 
@@ -195,8 +196,7 @@ def do_subject_preproc(subject_id,
         motion_plot = check_preprocessing.plot_spm_motion_parameters(
         rp,
         subject_id=subject_id,
-        title="Motion parameters of subject %s before realignment" % \
-            subject_id)
+        title="Plot of motion parameters before realignment")
 
         nipype_report_filename = os.path.join(output_dirs['realignment'],
                                               "_report/report.rst")
@@ -217,7 +217,7 @@ def do_subject_preproc(subject_id,
             anat_image,
             coreg_result.outputs.coregistered_source,
             output_filename=anat_on_func_overlap_summary,
-            title="Subject %s" % subject_id,
+            title="%s: Anat on functional" % subject_id,
             slicer='z')
 
         anat_on_func_overlap = os.path.join(
@@ -244,30 +244,82 @@ def do_subject_preproc(subject_id,
              anat_on_func_overlap_summary, nipype_html_report_filename))
 
         # segment report
+        output["plots"]["segmentation"] = dict()
         tmp = os.path.dirname(segmented_mean_func)
 
-        after_segmentation = os.path.join(tmp, "after_segmentation.png")
-        after_segmentation_summary = os.path.join(
+        # plot contours of template TPMs on subjects (mean) functional
+        output["plots"]["segmentation"]["template_tpms"] = dict()
+        template_tpms_contours = os.path.join(
             tmp,
-            "after_segmentation_summary.png")
+            "template_tmps_contours.png")
+        template_tpms_contours_summary = os.path.join(
+            tmp,
+            "template_tpms_contours_summary.png")
 
         qa_mem.cache(check_preprocessing.plot_segmentation)(
             segmented_mean_func,
-            GM_TEMPLATE, # segment_result.outputs.modulated_gm_image,
-            WM_TEMPLATE, # segment_result.outputs.modulated_wm_image,
-            CSF_TEMPLATE, # segment_result.outputs.modulated_csf_image,
-            output_filename=after_segmentation_summary,
+            GM_TEMPLATE,
+            WM_TEMPLATE,
+            CSF_TEMPLATE,
+            output_filename=template_tpms_contours_summary,
             slicer='z',
-            title="subject: %s" % subject_id)
+            title="%s: template TPMs" % subject_id)
 
         qa_mem.cache(check_preprocessing.plot_segmentation)(
             segmented_mean_func,
-            GM_TEMPLATE, # segment_result.outputs.modulated_gm_image,
-            WM_TEMPLATE, # segment_result.outputs.modulated_wm_image,
-            CSF_TEMPLATE, # segment_result.outputs.modulated_csf_image,
-            output_filename=after_segmentation,
-            title="GM, WM, and CSF \
-contour maps of subject %s's mean functional" % subject_id)
+            GM_TEMPLATE,
+            WM_TEMPLATE,
+            CSF_TEMPLATE,
+            output_filename=template_tpms_contours,
+            title="Template GM, WM, and CSF contours of subject %s's \
+(mean) functional" % subject_id)
+
+        plots_gallery.append((template_tpms_contours,
+                              "subject: %s" % subject_id,
+                              template_tpms_contours_summary,
+                              nipype_html_report_filename))
+
+        output["plots"]["segmentation"]["template_tpms"]["full"] = \
+            template_tpms_contours
+        output["plots"]["segmentation"]["template_tpms"]["summary"] = \
+template_tpms_contours_summary
+
+        # plot contours of subject's TPMs on subjects (mean) function
+        output["plots"]["segmentation"]["subject_tpms"] = dict()
+        subject_tpms_contours = os.path.join(
+            tmp,
+            "subject_tmps_contours.png")
+        subject_tpms_contours_summary = os.path.join(
+            tmp,
+            "subject_tpms_contours_summary.png")
+
+        qa_mem.cache(check_preprocessing.plot_segmentation)(
+            segmented_mean_func,
+            segment_result.outputs.modulated_gm_image,
+            segment_result.outputs.modulated_wm_image,
+            segment_result.outputs.modulated_csf_image,
+            output_filename=subject_tpms_contours_summary,
+            slicer='z',
+            title="%s: subject TPMs" % subject_id)
+
+        qa_mem.cache(check_preprocessing.plot_segmentation)(
+            segmented_mean_func,
+            segment_result.outputs.modulated_gm_image,
+            segment_result.outputs.modulated_wm_image,
+            segment_result.outputs.modulated_csf_image,
+            output_filename=subject_tpms_contours,
+            title="Subject %s's GM, WM, and CSF contours on their (mean)\
+ functional" % subject_id)
+
+        plots_gallery.append((subject_tpms_contours,
+                              "subject: %s" % subject_id,
+                              subject_tpms_contours_summary,
+                              nipype_html_report_filename))
+
+        output["plots"]["segmentation"]["subject_tpms"]["full"] = \
+            subject_tpms_contours
+        output["plots"]["segmentation"]["subject_tpms"]["summary"] = \
+subject_tpms_contours_summary
 
         nipype_report_filename = os.path.join(tmp,
                                               "_report/report.rst")
@@ -277,16 +329,9 @@ contour maps of subject %s's mean functional" % subject_id)
                 nipype_report_filename)
             open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
-        output["plots"]["segmentation"] = after_segmentation
-        output["plots"]["segmentation_summary"] = after_segmentation_summary
-        plots_gallery.append((after_segmentation,
-                              "subject: %s" % subject_id,
-                              after_segmentation_summary,
-                              nipype_html_report_filename))
-
         report = reporter.BASE_PREPROC_REPORT_HTML_TEMPLATE.substitute(
             now=time.ctime(), plots_gallery=plots_gallery,
-            height=400, report_name="Subject %s" % subject_id)
+            height=400, report_name="Report for subject %s" % subject_id)
 
         print ">" * 80 + "BEGIN HTML"
         print report
@@ -309,6 +354,8 @@ def subject_callback(args):
 
 def do_group_preproc(subjects,
                      do_report=True,
+                     dataset_description=None,
+                     report_filename=None,
                      **kwargs):
 
     results = Parallel(n_jobs=N_JOBS)(delayed(subject_callback)(args) \
@@ -316,6 +363,7 @@ def do_group_preproc(subjects,
 
     # generate html report (for QA)
     if do_report:
+        import tempita
         import reporter
         import time
         blablabla = "Generating QA report for %d subjects .." % len(results)
@@ -323,22 +371,32 @@ def do_group_preproc(subjects,
         print "\r\n%s\r\n%s\r\n%s\r\n" % (dadada, blablabla, dadada)
 
         tmpl = reporter.BASE_PREPROC_REPORT_HTML_TEMPLATE
-        report_filename = "nyu_preproc_report.html"
         plots_gallery = list()
 
         for subject_id, session_id, output in results:
-            full_plot = output['plots']['segmentation']
+            full_plot = \
+                output['plots']['segmentation']["template_tpms"]["full"]
             title = 'subject: %s' % subject_id
-            summary_plot = output['plots']['segmentation_summary']
+            summary_plot = \
+                output['plots']["segmentation"]["template_tpms"]["summary"]
             redirect_url = output["report"]
             plots_gallery.append((full_plot, title, summary_plot,
                                   redirect_url))
 
-        report  = tmpl.substitute(now=time.ctime(),
-                                  plots_gallery=plots_gallery)
-        print report
-        with open(report_filename, 'w') as fd:
-            fd.write(str(report))
-            fd.close()
+        report  = tmpl.substitute(
+            now=time.ctime(),
+            plots_gallery=plots_gallery,
+            dataset_description=tempita.html(
+                reporter.lines2breaks(dataset_description)))
 
-            print "\r\nDone."
+        print ">" * 80 + "BEGIN HTML"
+        print report
+        print "<" * 80 + "END HTML\r\n"
+
+        if not report_filename is None:
+            with open(report_filename, 'w') as fd:
+                fd.write(str(report))
+                fd.close()
+                print "HTML report written to %s" % report_filename
+
+        print "\r\nDone."

@@ -15,21 +15,34 @@ import os
 import commands
 
 # helper imports
-from fetch_local import fetch_nyu_data_offline
+import fetch_local
 
 # import spm preproc utilities
-from nipype_preproc_spm_utils import do_subject_preproc, \
-    do_group_preproc
+import nipype_preproc_spm_utils
 
 # set data dir
 if not 'DATA_DIR' in os.environ:
     raise IOError, "DATA_DIR is not in your environ; export it!"
 DATA_DIR = os.environ['DATA_DIR']
 
+DATASET_DESCRIPTION = """\
+The NYU CSC TestRetest resource includes EPI-images of 25 participants\
+ gathered during rest as well as anonymized anatomical images of the \
+same participants.
+
+The resting-state fMRI images were collected on several occasions:
+1. the first resting-state scan in a scan session
+2. 5-11 months after the first resting-state scan
+3. about 30 (< 45) minutes after 2.
+
+<a href="http://www.nitrc.org/projects/nyu_trt/"> NYU TestRest</a>
+"""
+
 if __name__ == '__main__':
 
     # grab local NYU directory structure
-    sessions = fetch_nyu_data_offline(DATA_DIR)
+    sessions = fetch_local.fetch_nyu_data_offline(
+        DATA_DIR)
 
     # producer
     def preproc_factory():
@@ -50,4 +63,9 @@ if __name__ == '__main__':
                 yield subject_id, subject_dir, anat_image, fmri_images, \
                     session_id
 
-    do_group_preproc(preproc_factory())
+    # do preprocessing proper
+    nipype_preproc_spm_utils.do_group_preproc(
+        preproc_factory(),
+        dataset_description=DATASET_DESCRIPTION,
+        report_filename=os.path.join(DATA_DIR,
+                                     "nyu_preproc_report.html"))

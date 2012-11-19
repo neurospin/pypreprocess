@@ -20,21 +20,23 @@ from nipy.labs import compute_mask_files
 from nipy.labs import viz
 from joblib import Memory as CheckPreprocMemory
 
-font = {'size'   : 12}
-
-pl.rc('font', **font)
-
 EPS = np.finfo(float).eps
 
 
-def plot_spm_motion_parameters(parameter_file, subject_id=None, format="png",
-                               title=None):
+def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None):
     """ Plot motion parameters obtained with SPM software
 
     Parameters
     ----------
     parameter_file: string,
                     path of file containing the motion parameters
+
+    subject_id: string (optional)
+                    subject id
+
+    titile: string (optional)
+                    title to attribute to plotted figure
+
     """
     # load parameters
     motion = np.loadtxt(parameter_file)
@@ -43,18 +45,16 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, format="png",
     # do plotting
     pl.figure()
     pl.plot(motion)
-    if not title is None:
-        pl.title(title)
-    elif not subject_id is None:
-        pl.title("subject: %s" % subject_id)
-    pl.xlabel('time(scans)')
-    pl.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'), prop={'size': 6})
-    pl.ylabel('Estimated motion (mm/degrees)',
-              fontsize=10)
+    if title is None:
+        title = "subject: %s" % subject_id
+    pl.title(title, fontsize=10)
+    pl.xlabel('time(scans)', fontsize=10)
+    pl.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'), prop={"size": 5})
+    pl.ylabel('Estimated motion (mm/degrees)', fontsize=10)
 
     # dump image unto disk
-    img_filename = "%s.%s" % (parameter_file, format)
-    pl.savefig(img_filename, bbox_inches="tight", dpi=200, figsize=(8,5))
+    img_filename = "%s.png" % (parameter_file)
+    pl.savefig(img_filename, bbox_inches="tight", dpi=200)
 
     return img_filename
 
@@ -89,31 +89,6 @@ def compute_cv(data, mask_array=None):
         cv = data.std(-1) / (data.mean(-1) + EPS)
 
     return cv
-
-
-def my_plot_cv_tc(epi_data, subject_id, mask_array=None):
-    nim = ni.load(epi_data)
-    affine = nim.get_affine()
-    assert len(nim.shape) == 4
-
-    # get the data
-    data = nim.get_data()
-    thr = stats.scoreatpercentile(data.ravel(), 7)
-    data[data < thr] = thr
-
-    # compute cv
-    cv = compute_cv(data, mask_array)
-
-    pl.plot(cv, label=subject_id)
-    pl.legend()
-    pl.xlabel('time(scans)')
-    pl.ylabel('Median coefficient of variation')
-    pl.axis('tight')
-
-    output_filename = epi_data.sub(".nii", "").sub(".gz", "") + "_cv.png"
-    pl.savefig(output_filename)
-
-    return output_filename
 
 
 def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
@@ -264,7 +239,7 @@ def plot_registration(reference, coregistered,
     slicer.edge_map(reference_data, reference_affine)
 
     # misc
-    slicer.title(title, size=12, color='w',
+    slicer.title(title, size=10, color='w',
                  alpha=0)
 
     if not output_filename is None:
@@ -280,6 +255,21 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
     """
     Plot a contour mapping of the GM, WM, and CSF of a subject's anatomical.
 
+    Parameters
+    ----------
+    img_filename: string
+                  path of file containing epi data
+
+    gm_filename: string
+                 path of file containing Grey Matter template
+
+    wm_filename: string
+                 path of file containing White Matter template
+
+    csf_filename: string
+                 path of file containing Cerebro-Spinal Fluid template
+
+
     """
     if cut_coords is None:
         cut_coords = (-2, -28, 17)
@@ -293,7 +283,8 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
     anat_affine = img.get_affine()
     _slicer = viz.plot_anat(anat, anat_affine, cut_coords=cut_coords,
                             slicer=slicer,
-                            black_bg=True, cmap=pl.cm.spectral)
+                            black_bg=True,
+                            cmap=pl.cm.spectral)
 
     # draw a GM contour map
     gm = ni.load(gm_filename)
