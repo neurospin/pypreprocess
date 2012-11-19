@@ -1,0 +1,25 @@
+{{default report_name = "Report"}}
+{{default description = "ERROR: NO DESCRIPTION FOR REPORT!!!"}}
+{{default height = 300}}
+<script src="jquery_path" type="text/javascript" charset="utf-8"></script>
+<link rel="stylesheet" href="prettyphoto_css_path" type="text/css" media="screen" charset="utf-8" />
+<script src="prettyphoto_js_path" type="text/javascript" charset="utf-8"></script>
+
+<h2>{{report_name}}: pypreproc run, {{now}}</h2>
+<h3>Description of dataset</h3>
+<p>{{description}}</p>
+<h3>Results (one per subject; click plots to get more details)</h3>
+{{for summary_plot, title, full_plot, redirect_url in plots_gallery}}
+<a href="{{summary_plot}}" rel="prettyPhoto[gallery]" title="{{title}}"><img src="{{full_plot}}" height="{{height}}" alt='<a href="{{redirect_url}}">goto detailed report</a>' /></a>
+{{endfor}}
+
+<script type="text/javascript" charset="utf-8">
+  $(document).ready(function(){
+    $("a[rel^='prettyPhoto']").prettyPhoto({
+    allow_resize: true, /* Resize the photos bigger than viewport. true/false */
+    default_width: 900,
+    deeplinking: false,
+    social_tools: false /* Hey, let's be serious here --please! */
+    });
+  });
+</script>
