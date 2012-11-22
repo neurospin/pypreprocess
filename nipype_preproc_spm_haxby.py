@@ -19,8 +19,7 @@ import glob
 from nisl.datasets import fetch_haxby, unzip_nii_gz
 
 # import spm preproc utilities
-from nipype_preproc_spm_utils import do_subject_preproc, \
-    do_group_preproc
+import nipype_preproc_spm_utils
 
 # QA imports
 from check_preprocessing import *
@@ -30,8 +29,22 @@ import time
 
 # set data dir
 if not 'DATA_DIR' in os.environ:
-    raise IOError, "DATA_DIR is not in your environ; export it!"
+    raise IOError("DATA_DIR is not in your environ; export it!")
 DATA_DIR = os.environ['DATA_DIR']
+
+DATASET_DESCRIPTION = """\
+This is a block-design fMRI dataset from a study on face and object\
+ representation in human ventral temporal cortex. It consists of 6 subjects\
+ with 12 runs per subject. In each run, the subjects passively viewed \
+greyscale images of eight object categories, grouped in 24s blocks separated\
+ by rest periods. Each image was shown for 500ms and was followed by a 1500ms\
+ inter-stimulus interval. Full-brain fMRI data were recorded with a volume \
+repetition time of 2.5s, thus, a stimulus block was covered by roughly 9 \
+volumes.
+
+Get full description <a href="http://dev.pymvpa.org/datadb/haxby2001.html">\
+here</a>.\
+"""
 
 if __name__ == '__main__':
     # fetch HAXBY dataset
@@ -39,7 +52,7 @@ if __name__ == '__main__':
                              subject_ids=["subj4", "subj2", "subj3"])
 
     # producer
-    def preproc_factory():
+    def subject_factory():
         for subject_id, subject_data in haxby_data.iteritems():
             # pre-process data for all subjects
             subject_dir = subject_data["subject_dir"]
@@ -49,4 +62,7 @@ if __name__ == '__main__':
             yield subject_id, subject_dir, anat_image, fmri_images,\
                 "haxbyby2001"
 
-    do_group_preproc(preproc_factory())
+    nipype_preproc_spm_utils.do_group_preproc(
+        subject_factory(),
+        dataset_description=DATASET_DESCRIPTION,
+        report_filename=os.path.join(DATA_DIR, "haxby_preproc_report.html"))

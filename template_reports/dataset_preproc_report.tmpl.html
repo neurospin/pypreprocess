@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>fMRI preproc report</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="fMRI preproc report">
+     <!-- Le styles -->
+    <link href="external/bootstrap/docs/assets/css/bootstrap.css" rel="stylesheet">
+
+	<link href="external/bootstrap/docs/assets/css/example-fixed-layout.css" rel="stylesheet">
+    <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="//html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- Le fav and touch icons -->
+    <link rel="shortcut icon" href="../examples/images/favicon.ico">
+    <link rel="apple-touch-icon" href="../examples/images/apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="../examples/images/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="../examples/images/apple-touch-icon-114x114.png">
+    <link rel="stylesheet" href="external/prettyphoto/css/prettyPhoto.css" type="text/css" media="screen" charset="utf-8" />
+
+    <style>
+      .navbar-inner {
+      background-color: #000; /* background color will be black for all browsers */
+      background-image: none;
+      background-repeat: no-repeat;
+      filter: none;
+      }
+    </style>
+  </head>
+
+  <body bgcolor="silver">
+
+    <div class="navbar navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+
+            <span class="icon-bar"></span>
+          </a>
+          <a class="brand" href="#"><img src="/images/w3r.png" width="111" height="30" alt="fMRI preproc reporter" /></a>
+          <div class="nav-collapse">
+            <ul class="nav">
+              <li class="active"><a href="#">Main Page</a></li>
+              <li><a href="#about">About</a></li>
+              <li><a href="#contact">Report a Bug</a></li>
+
+            </ul>
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div>
+    <div class="container">
+      <div class="row">
+	<div class="span3">
+	  <h4>Useful links</h4>
+	  <ul>
+	    <li><a href="http://www.fil.ion.ucl.ac.uk/spm/">SPM official website</a></li>
+	  </ul>
+	</div>
+      
+      <!-- Example row of columns -->
+      <!-- <div class="row"> -->
+        <div class="span9">
+	  <div id="myCollapseExample"><a href="#results" data-toggle="collapse"><h4>Results</h4></a></div>
+	  <div id="results" class="collapse">
+	    <p>Below is a gallery of results for all subjects. Use side-arrows to navigate between subjects.
+	      Click current image to enlarge it (and get more detail).<p></p>
+	    <div class="span6">
+            <div id="resultsCarousel" class="carousel slide">
+  	      <!-- Carousel items -->
+	      <div class="carousel-inner">
+    		<div class="active item"><a href="{{final_plots[0][1]}}" title="<a href='{{final_plots[0][2]}}'>Click here for full subject report</a>" rel="prettyPhoto"><img src="{{final_plots[0][0]}}"/></a></div>
+                {{for final_plot in final_plots[1:]}}
+    		<div class="item"><a href="{{final_plot[1]}}" title="<a href='{{final_plots[0][2]}}'>Click here for full subject report</a>" rel="prettyPhoto"><img src="{{final_plot[0]}}"/></a></div>
+                {{endfor}}
+	      </div>
+	      <!-- Carousel nav -->
+	      <a class="carousel-control left" href="#this-carousel-id" data-slide="prev">&lsaquo;</a>
+	      <a class="carousel-control right" href="#this-carousel-id" data-slide="next">&rsaquo;</a>
+	    </div>
+	    </div>
+	  </div>
+	  <div id="myCollapseExample"><a href="#datasetDescription" data-toggle="collapse"><h4>Description of the dataset</h4></a></div>
+	  <div id="datasetDescription" class="collapse">
+            {{dataset_description|html}}
+	  </div>
+	  <div id="myCollapeExample"><a href="#preprocUndergone" data-toggle="collapse"><h4>Preprocessing steps undergone</h4></a></div>
+	  <div id="preprocUndergone" class="collapse">
+            {{preproc_undergone|html}}
+ 	  </div>
+	</div>
+      </div>
+
+      <hr>
+
+      <footer>
+        <p>&copy; <b>PARIETAL</b> 2012</p>
+      </footer>
+
+    </div> <!-- /container -->
+
+    <!-- Le javascript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+
+    <script src="external/bootstrap/docs/assets/js/jquery.js"></script>
+    <script src="external/bootstrap/docs/assets/js/bootstrap-carousel.js"></script>
+    <script src="external/bootstrap/docs/assets/js/bootstrap-collapse.js"></script>
+    <script src="external/prettyphoto/js/jquery.prettyPhoto.js"></script>
+    <script>
+      $(document).ready(function(){
+      $("#results").collapse({
+      hide: false});
+
+      $("#datasetDescription").collapse({
+      hide: false});
+
+      $("#preprocUndergone").collapse({
+      hide: false});
+
+      $("#resultsCarousel").carousel(0);
+
+      $("a[rel^='prettyPhoto']").prettyPhoto({
+      allow_resize: true, /* Resize the photos bigger than viewport. true/false */
+      deeplinking: false,
+      social_tools: false /* Hey, let's be serious here --please! */
+      });
+
+      });
+    </script>
+  </body>

@@ -16,8 +16,8 @@
 {{endfor}}
 {{endif}}
 <h3>Results (one per subject; click plots to get more details)</h3>
-{{for summary_plot, title, full_plot, redirect_url in plots_gallery}}
-<a href="{{summary_plot}}" rel="prettyPhoto[gallery]" title="{{title}}"><img src="{{full_plot}}" height="{{height}}" alt='<a href="{{redirect_url}}">goto detailed report</a>' /></a>
+{{for subject_id, summary_plot, title, full_plot, redirect_url in plots_gallery}}
+<a href="{{summary_plot}}" rel="prettyPhoto[gallery]" title='<a href="{{redirect_url}}">Click here to get full preprocessing report for subject {{subject_id}}</a>'<img src="{{full_plot}}" height="{{height}}"</a>
 {{endfor}}
 
 <script type="text/javascript" charset="utf-8">

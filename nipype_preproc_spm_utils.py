@@ -58,12 +58,45 @@ WM_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/white.nii')
 CSF_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/csf.nii')
 
 
+def make_spm_realignment_report(rp,
+                                subject_id,
+                                nipype_report_filename=None,
+                                output_filename=None):
+    import check_preprocessing
+    import reporter
+
+    rp_plot = check_preprocessing.plot_spm_motion_parameters(
+        rp,
+        subject_id=subject_id,
+        title="Plot of motion parameters before realignment")
+
+    nipype_html_report_filename = None
+    if not nipype_report_filename is None:
+        nipype_html_report_filename = nipype_report_filename + '.html'
+        nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
+        with open(nipype_html_report_filename, 'w') as fd:
+            fd.write(str(nipype_report))
+            fd.close()
+
+    report = reporter.SUBJECT_REALIGNMENT_REPORT_HTML_TEMPLATE.substitute(
+        subject_id=subject_id,
+        rp_plot=rp_plot,
+        run_log=nipype_html_report_filename)
+
+    if not output_filename is None:
+        with open(output_filename, 'w') as fd:
+            fd.write(report)
+            fd.close()
+            print "Wrote realignment report to %s" % output_filename
+
+
 def do_subject_preproc(subject_id,
                        subject_output_dir,
                        anat_image,
                        fmri_images,
                        session_id="UNKNOWN",
                        do_report=True,
+                       preproc_undergone=None,
                        **kwargs):
     """
     Function preprocessing data for a single subject.
@@ -169,44 +202,52 @@ def do_subject_preproc(subject_id,
             os.makedirs(qa_cache_dir)
         qa_mem = joblibMemory(cachedir=qa_cache_dir, verbose=5)
 
-        cv_tc_plot_before = os.path.join(subject_output_dir,
-                                         "cv_tc_before.png")
-        cv_tc_plot_after = os.path.join(subject_output_dir, "cv_tc_after.png")
+        # cv_tc_plot_before = os.path.join(subject_output_dir,
+        #                                  "cv_tc_before.png")
+        # cv_tc_plot_after = os.path.join(subject_output_dir, "cv_tc_after.png")
 
-        uncorrected_FMRIs = [fmri_images]
-        qa_mem.cache(check_preprocessing.plot_cv_tc)(
-            uncorrected_FMRIs, [session_id],
-            subject_id, subject_output_dir,
-            cv_tc_plot_outfile=cv_tc_plot_before,
-            plot_diff=True,
-            title="subject %s before preproc " % subject_id)
+        # uncorrected_FMRIs = [fmri_images]
+        # qa_mem.cache(check_preprocessing.plot_cv_tc)(
+        #     uncorrected_FMRIs, [session_id],
+        #     subject_id, subject_output_dir,
+        #     cv_tc_plot_outfile=cv_tc_plot_before,
+        #     plot_diff=True,
+        #     title="subject %s before preproc " % subject_id)
 
-        corrected_FMRIs = [segmented_func]
-        qa_mem.cache(check_preprocessing.plot_cv_tc)(
-            corrected_FMRIs, [session_id], subject_id,
-            subject_output_dir,
-            cv_tc_plot_outfile=cv_tc_plot_after,
-            plot_diff=True,
-            title="subject %s after preproc " % subject_id)
+        # corrected_FMRIs = [segmented_func]
+        # qa_mem.cache(check_preprocessing.plot_cv_tc)(
+        #     corrected_FMRIs, [session_id], subject_id,
+        #     subject_output_dir,
+        #     cv_tc_plot_outfile=cv_tc_plot_after,
+        #     plot_diff=True,
+        #     title="subject %s after preproc " % subject_id)
 
-        # plots_gallery.append((cv_tc_plot_before, 'subject: %s' % subject_id,
-        #                       cv_tc_plot_after, ""))
+        # # plots_gallery.append((cv_tc_plot_before, 'subject: %s' % subject_id,
+        # #                       cv_tc_plot_after, ""))
 
         # realignment report
+        nipype_report_filename = os.path.join(output_dirs['realignment'],
+                                              "_report/report.rst")
+        realignment_report_filename = os.path.join(
+            subject_output_dir, "realignment_report.html")
+        make_spm_realignment_report(
+            rp,
+            subject_id,
+            nipype_report_filename=nipype_report_filename,
+            output_filename=realignment_report_filename)
+
         motion_plot = check_preprocessing.plot_spm_motion_parameters(
         rp,
         subject_id=subject_id,
         title="Plot of motion parameters before realignment")
 
-        nipype_report_filename = os.path.join(output_dirs['realignment'],
-                                              "_report/report.rst")
         with open(nipype_report_filename, 'r') as fd:
             nipype_html_report_filename = nipype_report_filename + '.html'
             nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
             open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
         output["plots"]["motion"] = motion_plot
-        plots_gallery.append((motion_plot, 'subject: %s' % subject_id,
+        plots_gallery.append(("Motion correction",
                               motion_plot, nipype_html_report_filename))
 
         # coreg report
@@ -239,9 +280,8 @@ def do_subject_preproc(subject_id,
             open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
         plots_gallery.append(
-            (anat_on_func_overlap,
-             'subject: %s' % subject_id,
-             anat_on_func_overlap_summary, nipype_html_report_filename))
+            ("Coregistration mean fMRI image -> anatomical",
+             anat_on_func_overlap, nipype_html_report_filename))
 
         # segment report
         output["plots"]["segmentation"] = dict()
@@ -274,9 +314,8 @@ def do_subject_preproc(subject_id,
             title="Template GM, WM, and CSF contours of subject %s's \
 (mean) functional" % subject_id)
 
-        plots_gallery.append((template_tpms_contours,
-                              "subject: %s" % subject_id,
-                              template_tpms_contours_summary,
+        plots_gallery.append(("Segmentation of mean fMRI image (click to see\
+ template GM, WM, and CSF contours)", template_tpms_contours,
                               nipype_html_report_filename))
 
         output["plots"]["segmentation"]["template_tpms"]["full"] = \
@@ -311,10 +350,14 @@ template_tpms_contours_summary
             title="Subject %s's GM, WM, and CSF contours on their (mean)\
  functional" % subject_id)
 
-        plots_gallery.append((subject_tpms_contours,
-                              "subject: %s" % subject_id,
-                              subject_tpms_contours_summary,
+        plots_gallery.append(("Segmentation of mean fMRI image (click to see\
+ subject's GM, WM, and CSF contours)", subject_tpms_contours,
                               nipype_html_report_filename))
+
+        # plots_gallery.append((subject_tpms_contours,
+        #                       "subject: %s" % subject_id,
+        #                       subject_tpms_contours_summary,
+        #                       nipype_html_report_filename))
 
         output["plots"]["segmentation"]["subject_tpms"]["full"] = \
             subject_tpms_contours
@@ -329,9 +372,8 @@ subject_tpms_contours_summary
                 nipype_report_filename)
             open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
-        report = reporter.BASE_PREPROC_REPORT_HTML_TEMPLATE.substitute(
-            now=time.ctime(), plots_gallery=plots_gallery,
-            height=400, report_name="Report for subject %s" % subject_id)
+        report = reporter.SUBJECT_PREPROC_REPORT_HTML_TEMPLATE.substitute(
+            subject_id=subject_id, plots_gallery=plots_gallery)
 
         print ">" * 80 + "BEGIN HTML"
         print report
@@ -355,6 +397,7 @@ def subject_callback(args):
 def do_group_preproc(subjects,
                      do_report=True,
                      dataset_description=None,
+                     preproc_undergone=None,
                      report_filename=None,
                      **kwargs):
 
@@ -370,24 +413,28 @@ def do_group_preproc(subjects,
         dadada = "+" * len(blablabla)
         print "\r\n%s\r\n%s\r\n%s\r\n" % (dadada, blablabla, dadada)
 
-        tmpl = reporter.BASE_PREPROC_REPORT_HTML_TEMPLATE
-        plots_gallery = list()
+        tmpl = reporter.DATASET_PREPROC_REPORT_HTML_TEMPLATE # reporter.BASE_PREPROC_REPORT_HTML_TEMPLATE
+        plots_gallery = []
+        final_plots = []
 
         for subject_id, session_id, output in results:
             full_plot = \
-                output['plots']['segmentation']["template_tpms"]["full"]
+                output['plots']['segmentation']["subject_tpms"]["full"]
             title = 'subject: %s' % subject_id
             summary_plot = \
-                output['plots']["segmentation"]["template_tpms"]["summary"]
+                output['plots']["segmentation"]["subject_tpms"]["summary"]
             redirect_url = output["report"]
-            plots_gallery.append((full_plot, title, summary_plot,
-                                  redirect_url))
+            plots_gallery.append((subject_id, full_plot, title, summary_plot,
+            redirect_url))
+            final_plots.append((summary_plot, full_plot, redirect_url))
 
-        report  = tmpl.substitute(
-            now=time.ctime(),
-            plots_gallery=plots_gallery,
-            dataset_description=tempita.html(
-                reporter.lines2breaks(dataset_description)))
+        report = tmpl.substitute(locals())
+
+        # report  = tmpl.substitute(
+        #     now=time.ctime(),
+        #     plots_gallery=plots_gallery,
+        #     dataset_description=tempita.html(
+        #         reporter.lines2breaks(dataset_description)))
 
         print ">" * 80 + "BEGIN HTML"
         print report
