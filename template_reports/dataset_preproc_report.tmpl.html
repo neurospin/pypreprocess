@@ -29,6 +29,7 @@
       filter: none;
       }
     </style>
+
   </head>
 
   <body>
@@ -56,7 +57,7 @@
     </div>
     <div class="container">
       <div class="row">
-	<div class="span3">
+	<div class="span2">
 	  <h4>Useful links</h4>
 	  <ul>
 	    <li><a href="http://www.fil.ion.ucl.ac.uk/spm/">SPM official website</a></li>
@@ -65,25 +66,22 @@
       
       <!-- Example row of columns -->
       <!-- <div class="row"> -->
-        <div class="span9">
+        <div class="span10">
 	  <div id="myCollapseExample"><a href="#results" data-toggle="collapse"><h4>Results</h4></a></div>
 	  <div id="results" class="collapse">
 	    <p>Below is a gallery of results for all subjects. Use side-arrows to navigate between subjects.
 	      Click current image to enlarge it (and get more detail).<p></p>
-	    <div class="span6">
-            <div id="resultsCarousel" class="carousel slide">
-  	      <!-- Carousel items -->
-	      <div class="carousel-inner">
-    		<div class="active item"><a href="{{final_plots[0][1]}}" title="<a href='{{final_plots[0][2]}}'>Click here for full subject report</a>" rel="prettyPhoto"><img src="{{final_plots[0][0]}}"/></a></div>
-                {{for final_plot in final_plots[1:]}}
-    		<div class="item"><a href="{{final_plot[1]}}" title="<a href='{{final_plots[0][2]}}'>Click here for full subject report</a>" rel="prettyPhoto"><img src="{{final_plot[0]}}"/></a></div>
-                {{endfor}}
-	      </div>
-	      <!-- Carousel nav -->
-	      <a class="carousel-control left" href="#resultsCarousel" data-slide="prev">&lsaquo;</a>
-	      <a class="carousel-control right" href="#resultsCarousel" data-slide="next">&rsaquo;</a>
+	    {{for j in xrange(0, len(final_plots), 3)}}
+	    {{for final_plot in final_plots[j:j+3]}}
+	    <div class="span3">
+	      <div class="caption">
+		<h5>{{subject_id}}</h5>
+              </div>
+	      <a href={{final_plot[2]}}><img src={{final_plot[0]}}></a>
 	    </div>
-	    </div>
+	    {{endfor}}
+	    <br>
+	    {{endfor}}
 	  </div>
 	  <div id="myCollapseExample"><a href="#datasetDescription" data-toggle="collapse"><h4>Description of the dataset</h4></a></div>
 	  <div id="datasetDescription" class="collapse">
