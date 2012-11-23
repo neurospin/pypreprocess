@@ -15,7 +15,8 @@ import numpy as np
 from scipy import stats
 import pylab as pl
 
-import nibabel as ni
+import nibabel
+
 from nipy.labs import compute_mask_files
 from nipy.labs import viz
 from joblib import Memory as CheckPreprocMemory
@@ -69,12 +70,12 @@ def check_mask(data):
 
     returns
     -------
-    mask_array: array of shape ni.load(data).get_shape(),
+    mask_array: array of shape nibabel.load(data).get_shape(),
                 the binary mask
 
     """
     mask_array = compute_mask_files(epi_data[0])
-    affine = ni.load(epi_data[0]).get_affine()
+    affine = nibabel.load(epi_data[0]).get_affine()
     vol = np.abs(np.linalg.det(affine)) * mask_array.sum() / 1000
     print 'The estimated brain volume is: %f cm^3, should be 1000< <2000' % vol
     return mask_array
@@ -121,14 +122,14 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
 
     cv_tc_ = []
     if isinstance(mask, basestring):
-        mask_array = ni.load(mask).get_data() > 0
+        mask_array = nibabel.load(mask).get_data() > 0
     elif mask == True:
         mask_array = compute_mask_files(epi_data[0])
     else:
         mask_array = None
     count = 0
     for (session_id, fmri_file) in zip(session_ids, epi_data):
-        nim = ni.load(fmri_file)
+        nim = nibabel.load(fmri_file)
         affine = nim.get_affine()
         if len(nim.shape) == 4:
             # get the data
@@ -146,7 +147,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
         if write_image:
             # write an image
             data_dir = os.path.dirname(fmri_file)
-            ni.save(ni.Nifti1Image(cv, affine),
+            nibabel.save(nibabel.Nifti1Image(cv, affine),
                  os.path.join(data_dir, 'cv_%s.nii' % session_id))
             if bg_image == False:
                 viz.plot_map(cv,
@@ -158,8 +159,8 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
                                  (subject_id, session_id))
             elif isinstance(bg_image, basestring):
                 anat, anat_affine = (
-                    ni.load(bg_image).get_data(),
-                    ni.load(bg_image).get_affine())
+                    nibabel.load(bg_image).get_data(),
+                    nibabel.load(bg_image).get_affine())
             else:
                 anat, anat_affine = data.mean(-1), affine
                 viz.plot_map(cv, affine, threshold=.01,
@@ -180,6 +181,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
 
     if do_plot:
         # plot the time course of cv for different subjects
+        pl.figure()
         stuff = [cv_tc]
         legends = ['Median Coefficient of Variation']
         if plot_diff:
@@ -188,7 +190,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
             legends.append('Differential Coefficent of Variation')
         legends = tuple(legends)
         pl.plot(np.vstack(stuff).T)
-        pl.legend(legends)
+        pl.legend(legends, prop={"size": 5})
 
         pl.xlabel('time(scans)')
         pl.ylabel('Median Coefficient of Variation')
@@ -198,7 +200,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
             pl.title(title)
 
         if not cv_tc_plot_outfile is None:
-            pl.savefig(cv_tc_plot_outfile)
+            pl.savefig(cv_tc_plot_outfile, bbox_inches="tight", dpi=200)
 
     return cv_tc
 
@@ -221,7 +223,7 @@ def plot_registration(reference, coregistered,
         cut_coords = (cut_coords['xyz'.index(slicer)],)
 
     # plot the coregistered image
-    coregistered_img = ni.load(coregistered)
+    coregistered_img = nibabel.load(coregistered)
     coregistered_data = coregistered_img.get_data()
     coregistered_affine = coregistered_img.get_affine()
     slicer = viz.plot_anat(anat=coregistered_data,
@@ -233,7 +235,7 @@ def plot_registration(reference, coregistered,
                            )
 
     # overlap the reference image
-    reference_img = ni.load(reference)
+    reference_img = nibabel.load(reference)
     reference_data = reference_img.get_data()
     reference_affine = reference_img.get_affine()
     slicer.edge_map(reference_data, reference_affine)
@@ -278,7 +280,7 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
         cut_coords = (cut_coords['xyz'.index(slicer)],)
 
     # plot img
-    img = ni.load(img_filename)
+    img = nibabel.load(img_filename)
     anat = img.get_data()
     anat_affine = img.get_affine()
     _slicer = viz.plot_anat(anat, anat_affine, cut_coords=cut_coords,
@@ -287,19 +289,19 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
                             cmap=pl.cm.spectral)
 
     # draw a GM contour map
-    gm = ni.load(gm_filename)
+    gm = nibabel.load(gm_filename)
     gm_template = gm.get_data()
     gm_affine = gm.get_affine()
     _slicer.contour_map(gm_template, gm_affine, levels=[.51], colors=["r"])
 
     # draw a WM contour map
-    wm = ni.load(wm_filename)
+    wm = nibabel.load(wm_filename)
     wm_template = wm.get_data()
     wm_affine = wm.get_affine()
     _slicer.contour_map(wm_template, wm_affine, levels=[.51], colors=["g"])
 
     # draw a CSF contour map
-    csf = ni.load(csf_filename)
+    csf = nibabel.load(csf_filename)
     csf_template = csf.get_data()
     csf_affine = csf.get_affine()
     _slicer.contour_map(csf_template, csf_affine, levels=[.51], colors=['b'])

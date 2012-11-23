@@ -202,28 +202,19 @@ def do_subject_preproc(subject_id,
             os.makedirs(qa_cache_dir)
         qa_mem = joblibMemory(cachedir=qa_cache_dir, verbose=5)
 
-        # cv_tc_plot_before = os.path.join(subject_output_dir,
-        #                                  "cv_tc_before.png")
-        # cv_tc_plot_after = os.path.join(subject_output_dir, "cv_tc_after.png")
+        cv_tc_plot_after = os.path.join(subject_output_dir, "cv_tc_after.png")
 
-        # uncorrected_FMRIs = [fmri_images]
-        # qa_mem.cache(check_preprocessing.plot_cv_tc)(
-        #     uncorrected_FMRIs, [session_id],
-        #     subject_id, subject_output_dir,
-        #     cv_tc_plot_outfile=cv_tc_plot_before,
-        #     plot_diff=True,
-        #     title="subject %s before preproc " % subject_id)
+        corrected_FMRIs = [segmented_func]
+        qa_mem.cache(check_preprocessing.plot_cv_tc)(
+            corrected_FMRIs, [session_id], subject_id,
+            subject_output_dir,
+            cv_tc_plot_outfile=cv_tc_plot_after,
+            plot_diff=True,
+            title="subject %s after preproc " % subject_id)
 
-        # corrected_FMRIs = [segmented_func]
-        # qa_mem.cache(check_preprocessing.plot_cv_tc)(
-        #     corrected_FMRIs, [session_id], subject_id,
-        #     subject_output_dir,
-        #     cv_tc_plot_outfile=cv_tc_plot_after,
-        #     plot_diff=True,
-        #     title="subject %s after preproc " % subject_id)
-
-        # # plots_gallery.append((cv_tc_plot_before, 'subject: %s' % subject_id,
-        # #                       cv_tc_plot_after, ""))
+        plots_gallery.append(("Coefficient of Variation",
+                              cv_tc_plot_after, 
+                              None))
 
         # realignment report
         nipype_report_filename = os.path.join(output_dirs['realignment'],
@@ -328,6 +319,43 @@ template_tpms_contours_summary
         subject_tpms_contours = os.path.join(
             tmp,
             "subject_tmps_contours.png")
+
+        qa_mem.cache(check_preprocessing.plot_segmentation)(
+            segmented_anat,
+            segment_result.outputs.modulated_gm_image,
+            segment_result.outputs.modulated_wm_image,
+            segment_result.outputs.modulated_csf_image,
+            output_filename=subject_tpms_contours,
+            title="Subject %s's GM, WM, and CSF contours on their anat" %\
+                subject_id)
+
+        plots_gallery.append(("Segmentation of anat image (click to see\
+ subject's GM, WM, and CSF contours)", subject_tpms_contours,
+                              nipype_html_report_filename))
+
+        # plot contours of template TPMs on subjects (mean) functional
+        template_tpms_contours = os.path.join(
+            tmp,
+            "template_tmps_contours.png")
+
+        qa_mem.cache(check_preprocessing.plot_segmentation)(
+            segmented_anat,
+            GM_TEMPLATE,
+            WM_TEMPLATE,
+            CSF_TEMPLATE,
+            output_filename=template_tpms_contours,
+            title="Template GM, WM, and CSF contours of subject %s's \
+anat image" % subject_id)
+
+        plots_gallery.append(("Segmentation of anat image (click to see\
+ template GM, WM, and CSF contours)", template_tpms_contours,
+                              nipype_html_report_filename))
+
+        # plot contours of subject's TPMs on subjects (mean) function
+        output["plots"]["segmentation"]["subject_tpms"] = dict()
+        subject_tpms_contours = os.path.join(
+            tmp,
+            "subject_tmps_contours.png")
         subject_tpms_contours_summary = os.path.join(
             tmp,
             "subject_tpms_contours_summary.png")
@@ -401,10 +429,11 @@ def do_group_preproc(subjects,
                      report_filename=None,
                      **kwargs):
 
-    results = Parallel(n_jobs=N_JOBS)(delayed(subject_callback)(args) \
-                                      for args in subjects)
+    # preproc subjects
+    results = Parallel(n_jobs=N_JOBS)(delayed(subject_callback)(subject_data) \
+                                      for subject_data in subjects)
 
-    # generate html report (for QA)
+    # generate html report (for QA) as desired
     if do_report:
         import tempita
         import reporter
@@ -413,7 +442,7 @@ def do_group_preproc(subjects,
         dadada = "+" * len(blablabla)
         print "\r\n%s\r\n%s\r\n%s\r\n" % (dadada, blablabla, dadada)
 
-        tmpl = reporter.DATASET_PREPROC_REPORT_HTML_TEMPLATE # reporter.BASE_PREPROC_REPORT_HTML_TEMPLATE
+        tmpl = reporter.DATASET_PREPROC_REPORT_HTML_TEMPLATE
         plots_gallery = []
         final_plots = []
 
@@ -429,12 +458,6 @@ def do_group_preproc(subjects,
             final_plots.append((summary_plot, full_plot, redirect_url))
 
         report = tmpl.substitute(locals())
-
-        # report  = tmpl.substitute(
-        #     now=time.ctime(),
-        #     plots_gallery=plots_gallery,
-        #     dataset_description=tempita.html(
-        #         reporter.lines2breaks(dataset_description)))
 
         print ">" * 80 + "BEGIN HTML"
         print report
