@@ -50,7 +50,7 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None):
         title = "subject: %s" % subject_id
     pl.title(title, fontsize=10)
     pl.xlabel('time(scans)', fontsize=10)
-    pl.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'), prop={"size": 5})
+    pl.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'), prop={"size": 10})
     pl.ylabel('Estimated motion (mm/degrees)', fontsize=10)
 
     # dump image unto disk
@@ -190,7 +190,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
             legends.append('Differential Coefficent of Variation')
         legends = tuple(legends)
         pl.plot(np.vstack(stuff).T)
-        pl.legend(legends, prop={"size": 5})
+        pl.legend(legends, loc="center")
 
         pl.xlabel('time(scans)')
         pl.ylabel('Median Coefficient of Variation')
@@ -209,6 +209,7 @@ def plot_registration(reference, coregistered,
                       title="untitled coregistration!",
                       cut_coords=None,
                       slicer='ortho',
+                      cmap=None,
                       output_filename=None):
     """
     QA for coregistration: plots a coregistered source as bg/contrast
@@ -216,6 +217,9 @@ def plot_registration(reference, coregistered,
     two images.
 
     """
+    if cmap is None:
+        cmap = pl.cm.spectral
+
     if cut_coords is None:
         cut_coords = (-2, -28, 17)
 
@@ -229,7 +233,7 @@ def plot_registration(reference, coregistered,
     slicer = viz.plot_anat(anat=coregistered_data,
                            anat_affine=coregistered_affine,
                            black_bg=True,
-                           cmap=pl.cm.spectral,
+                           cmap=cmap,
                            cut_coords=cut_coords,
                            slicer=slicer
                            )
@@ -253,6 +257,7 @@ def plot_registration(reference, coregistered,
 def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
                       output_filename=None, cut_coords=None,
                       slicer='ortho',
+                      cmap=None,
                       title='GM + WM + CSF segmentation'):
     """
     Plot a contour mapping of the GM, WM, and CSF of a subject's anatomical.
@@ -273,6 +278,9 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
 
 
     """
+    if cmap is None:
+        cmap = pl.cm.spectral
+
     if cut_coords is None:
         cut_coords = (-2, -28, 17)
 
@@ -285,8 +293,8 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
     anat_affine = img.get_affine()
     _slicer = viz.plot_anat(anat, anat_affine, cut_coords=cut_coords,
                             slicer=slicer,
-                            black_bg=True,
-                            cmap=pl.cm.spectral)
+                            cmap=cmap,
+                            black_bg=True)
 
     # draw a GM contour map
     gm = nibabel.load(gm_filename)
