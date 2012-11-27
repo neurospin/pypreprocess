@@ -354,7 +354,7 @@ def do_subject_preproc(
     do_realign=True,
     do_coreg=True,
     do_segment=True,
-    **preproc_kwargs):
+    do_cv_tc=True):
     """
     Function preprocessing data for a single subject.
 
@@ -403,6 +403,7 @@ def do_subject_preproc(
         if do_report:
             galleries.append(realign_output['gallery'])
             final_thumbnail.image = realign_output['rp_plot']
+            final_thumbnail.tooltip_image = realign_output['rp_plot']
     else:
         img = nibabel.load(fmri_images)
         mean = nibabel.Nifti1Image(
@@ -526,30 +527,31 @@ def do_subject_preproc(
         dadada = "+" * len(blablabla)
         print "\r\n%s\r\n%s\r\n%s\r\n" % (dadada, blablabla, dadada)
 
-        qa_cache_dir = os.path.join(output_dir, "QA")
-        if not os.path.exists(qa_cache_dir):
-            os.makedirs(qa_cache_dir)
-        qa_mem = joblibMemory(cachedir=qa_cache_dir, verbose=5)
+        if do_cv_tc:
+            qa_cache_dir = os.path.join(output_dir, "QA")
+            if not os.path.exists(qa_cache_dir):
+                os.makedirs(qa_cache_dir)
+            qa_mem = joblibMemory(cachedir=qa_cache_dir, verbose=5)
 
-        cv_tc_plot_after = os.path.join(output_dir, "cv_tc_after.png")
+            cv_tc_plot_after = os.path.join(output_dir, "cv_tc_after.png")
 
-        corrected_FMRIs = [final_func]
-        qa_mem.cache(check_preprocessing.plot_cv_tc)(
-            corrected_FMRIs, [session_id], subject_id,
-            output_dir,
-            cv_tc_plot_outfile=cv_tc_plot_after,
-            plot_diff=True,
-            title="subject %s after preproc " % subject_id)
+            corrected_FMRIs = [final_func]
+            qa_mem.cache(check_preprocessing.plot_cv_tc)(
+                corrected_FMRIs, [session_id], subject_id,
+                output_dir,
+                cv_tc_plot_outfile=cv_tc_plot_after,
+                plot_diff=True,
+                title="subject %s after preproc " % subject_id)
 
-        gallery = tempita.bunch(
-            title="Coefficient of Variation",
-            thumbnails=[tempita.bunch(
-                    title=None,
-                    image=cv_tc_plot_after)],
-            nb_thumbnails_per_row=1)
-        galleries.append(gallery)
+            gallery = tempita.bunch(
+                title="Coefficient of Variation",
+                thumbnails=[tempita.bunch(
+                        title=None,
+                        image=cv_tc_plot_after)],
+                nb_thumbnails_per_row=1)
+            galleries.append(gallery)
 
-        final_thumbnail.tooltip_image = cv_tc_plot_after
+            final_thumbnail.tooltip_image = cv_tc_plot_after
 
         report = reporter.SUBJECT_PREPROC_REPORT_HTML_TEMPLATE.substitute(
             subject_id=subject_id, galleries=galleries)
@@ -574,13 +576,14 @@ def do_group_preproc(subjects,
                      report_filename=None,
                      do_realign=True,
                      do_coreg=True,
-                     do_segment=True):
+                     do_segment=True,
+                     do_cv_tc=True):
 
     kwargs = {'do_realign': do_realign, 'do_coreg': do_coreg,
-                'do_segment': do_segment}
+                'do_segment': do_segment, 'do_cv_tc': do_cv_tc}
 
     # preproc subjects
-    results = Parallel(n_jobs=1)(delayed(do_subject_preproc)(
+    results = Parallel(n_jobs=N_JOBS)(delayed(do_subject_preproc)(
             subject_data, **kwargs) for subject_data in subjects)
 
     # generate html report (for QA) as desired
@@ -612,8 +615,9 @@ def do_group_preproc(subjects,
 
         # XXX the following info is fake; compute it from function args
         preproc_undergone = """\
-<p>All preprocessing has been done using nipype's interface to the SPM8 \
-package.</p>
+<p>All preprocessing has been done using nipype's interface to the \
+<a href="http://www.fil.ion.ucl.ac.uk/spm/">SPM8
+package</a>.</p>
 <p>Only intra-subject preprocessing has been carried out. For each \
 subject:<br>
 1. motion correction has been done so as to detect artefacts due to the \

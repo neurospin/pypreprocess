@@ -85,23 +85,18 @@
 	  <hr/>
 
 	  <!-- Results -->
-	  <div class="thumbnails">
-	    {{py: thumbnail_span = 12/gallery.nb_thumbnails_per_row}}
-	    {{for j in xrange(0, len(gallery.thumbnails), gallery.nb_thumbnails_per_row)}}
-	    <div class="row-fluid">
-	      <div class="span12">    
-		{{for k in xrange(j,min(j+gallery.nb_thumbnails_per_row, len(gallery.thumbnails)))}}
-		{{py: thumbnail = gallery.thumbnails[k];}}
-		<div class="span{{thumbnail_span}}">
-		  <div class="caption">{{thumbnail.title}}</div>
-		  <a href="{{thumbnail.redirect_url}}" rel="fit-content" data-content="<img src='{{thumbnail.tooltip_image}}' alt='no img'/>" data-placement="{{if 2*(k % gallery.nb_thumbnails_per_row) < gallery.nb_thumbnails_per_row}}right{{else}}left{{endif}}"><img class="thumbnail" src="{{thumbnail.image}}" alt="no img"/>
-		  </a>
-		</div>
-		{{endfor}}
-	      </div>
+	  <ul class="thumbnails">
+	    <div class="span12">
+	      {{for thumbnail in gallery.thumbnails}}
+	      <li class="span4">
+		<div class="caption">{{thumbnail.title}}</div>
+		<a href="{{thumbnail.redirect_url}}" rel="fit-content" data-content="<img src='{{thumbnail.tooltip_image}}' alt='no img'/>" data-placement="bottom"><img class="thumbnail" src="{{thumbnail.image}}" alt="no img"/ width="500">
+		</a>
+	      </li>
+	      {{endfor}}
 	    </div>
-	    {{endfor}}
-	  </div>
+	  </ul>
+	</div>
 
 	  <!-- Dataset Description -->
 	  <div id="myCollapseExample"><a href="#datasetDescription" data-toggle="collapse"><h2>Description of the dataset</h2></a></div>
@@ -150,6 +145,8 @@
       $("[rel=fit-content]").popover({
       trigger: 'hover',
       html: true,
+      delay: {show: 0, hide: 0},
+      placement: 'bottom',
       template: '<div class="popover"><div class="arrow"></div><div class="fit-content"><div class="popover-content"><p></p></div></div></div>'
       });
 

@@ -21,12 +21,6 @@ from nisl.datasets import fetch_haxby, unzip_nii_gz
 # import spm preproc utilities
 import nipype_preproc_spm_utils
 
-# QA imports
-from check_preprocessing import *
-import markup
-from report_utils import *
-import time
-
 # set data dir
 if not 'DATA_DIR' in os.environ:
     raise IOError("DATA_DIR is not in your environ; export it!")
@@ -55,14 +49,18 @@ if __name__ == '__main__':
     def subject_factory():
         for subject_id, subject_data in haxby_data.iteritems():
             # pre-process data for all subjects
-            subject_dir = subject_data["subject_dir"]
-            unzip_nii_gz(subject_dir)
-            anat_image = subject_data["anat"].replace(".gz", "")
-            fmri_images = subject_data["bold"].replace(".gz", "")
-            yield subject_id, subject_dir, anat_image, fmri_images,\
-                "haxbyby2001"
+            subject_data['output_dir'] = subject_data['subject_dir']
+            subject_data['subject_id'] = subject_id
+            subject_data['func'] = subject_data['bold']
+            unzip_nii_gz(subject_data['output_dir'])
+            subject_data['anat'] = subject_data["anat"].replace(".gz", "")
+            subject_data['func'] = subject_data["bold"].replace(".gz", "")
+            subject_data['session_id'] = 'haxby2001'
+
+            yield subject_data
 
     nipype_preproc_spm_utils.do_group_preproc(
         subject_factory(),
+        do_cv_tc=False,
         dataset_description=DATASET_DESCRIPTION,
-        report_filename=os.path.join(DATA_DIR, "haxby_preproc_report.html"))
+        report_filename=os.path.abspath("haxby_preproc_report.html"))

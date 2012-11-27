@@ -69,7 +69,5 @@ if __name__ == '__main__':
     # do preprocessing proper
     nipype_preproc_spm_utils.do_group_preproc(
         subject_factory(),
-        do_coreg=False,
-        do_segment=False,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=os.path.abspath("nyu_preproc_report.html"))

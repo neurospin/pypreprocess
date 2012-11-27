@@ -190,7 +190,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
             legends.append('Differential Coefficent of Variation')
         legends = tuple(legends)
         pl.plot(np.vstack(stuff).T)
-        pl.legend(legends, loc="center")
+        pl.legend(legends, loc="center", prop={'size': 10})
 
         pl.xlabel('time(scans)')
         pl.ylabel('Median Coefficient of Variation')
