@@ -377,7 +377,7 @@ def do_subject_preproc(
         import check_preprocessing
         import tempita
         import reporter
-        from nipy.labs import viz
+        import pylab as pl
 
         report_filename = os.path.join(output_dir, "_report.html")
         galleries = []
@@ -463,7 +463,7 @@ def do_subject_preproc(
                                            subject_id=subject_id,
                                            segment_result=segment_result,
                                            data_name="anat",
-                                           cmap=viz.cm.cold_hot,
+                                           cmap=pl.cm.gray,
                                            do_report=do_report,
                                            parameter_file=norm_parameter_file,
                                            apply_to_files=norm_apply_to_files,
