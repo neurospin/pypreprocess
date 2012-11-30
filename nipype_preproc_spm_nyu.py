@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     # grab local NYU directory structure
     sessions = fetch_local.fetch_nyu_data_offline(
-        DATA_DIR)
+        DATA_DIR, subject_ids=['sub18604'])
 
     # producer
     def subject_factory():

@@ -9,13 +9,13 @@
   <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <title>fMRI preproc front-end</title>
-    <meta http-equiv="Refresh" content="{{refresh_timeout}}">
     <meta name="Description" content="Max Design - standards based web design, development and training" />
     <meta name="robots" content="all, index, follow" />
     <meta name="distribution" content="global" />
     <link rel="shortcut icon" href="/favicon.ico" />
 
-    <link href="styles.css" rel="stylesheet">
+    <link href="css/styles.css" rel="stylesheet">
+
   </head>
 
   <body>
@@ -28,7 +28,8 @@
       <div id="navigation">
 	<ul>
 	  <li><a href="#">Main Page</a></li>
-	  <li><a href="#">Export this report</a></li>
+	  <li><a href="#">Execution Log</a></li>
+	  <li><a href="#">Export Report</a></li>
 	  <li><a href="#">About</a></li>
 	  <li><a href="#">FAQs</a></li>
 	</ul>
@@ -38,13 +39,7 @@
 	  <div id="section-navigation">
 	  </div>
 	  <div id="content">
-	    {{if done:}}
-	    <h2>Ended {{timestamp}}   <font color="green">Done</font>.
-	    </h2>
-	    {{else}}
-	    <h2> Started {{timestamp}}   <font color="red"><i>STILL RUNNING ..</i></font>
-	    </h2>
-	    {{endif}}
+	    <h2><div id='time' style='display: inline;'></div>{{if done:}}<font color="green">   Done</font>.{{else}}<font color="red"><i>   STILL RUNNING ..</i></font>{{endif}}</h2>
 	    <hr/>
 	    {{if dataset_description}}
 	    <h3>Dataset Description</h3>
@@ -56,8 +51,17 @@
 	    {{preproc_undergone | html}}
 	    <hr/>
 	    {{endif}}
-	    <h3>Results</h3>
-	    {{results | html}}
+	    <script type="text/javascript">
+	      var auto_refresh = setInterval(
+
+	      function() {
+	      $('#results').load("{{results.loader_filename}}").fadeIn("slow");
+	      }, {{results.refresh_timeout}});
+	    </script>
+	    <h3>{{results.title | html}}</h3>
+	    {{results.description | html}}
+	    <div id="results">
+	    </div>
 	  </div>
 	  <div id="footer">
 	    <img src="/home/elvis/Downloads/parietal_web_page.png" width="120" alt="PARIETAL"/>
@@ -68,14 +72,8 @@
 
     <!-- It's time for javascript, folks -->
     <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
-
-    <script language="javascript">    
-    $(document).ready(function(){
-
-      <!-- scroll to bottow of page when refreshed -->
-      $(window).load(function() {
-      $("html, body").animate({ scrollTop: $("#resultsGallery").scrollTop($("#resultsGallery").scrollHeight)}, 1000);
-      });
+    <script type='text/javascript'>
+      $(document).ready(function(){
       });
     </script>
   </body>

@@ -64,7 +64,7 @@ CSF_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/csf.nii')
 def do_subject_realign(output_dir,
                        subject_id=None,
                        do_report=True,
-                       **kwargs):
+                       **spm_realign_kwargs):
     output = {}
 
     # prepare for smart caching
@@ -75,7 +75,7 @@ def do_subject_realign(output_dir,
 
     # run workflow
     realign = mem.cache(spm.Realign)
-    realign_result = realign(**kwargs)
+    realign_result = realign(**spm_realign_kwargs)
 
     # generate gallery for HTML report
     if do_report:
@@ -85,29 +85,28 @@ def do_subject_realign(output_dir,
 
         rp = realign_result.outputs.realignment_parameters
 
-        nipype_report_filename = os.path.join(
-            os.path.dirname(rp),
-            "_report/report.rst")
+        output['thumbnails'] = []
 
         rp_plot = check_preprocessing.plot_spm_motion_parameters(
         rp,
         subject_id=subject_id,
         title="Plot of motion parameters before realignment")
 
-        nipype_html_report_filename = os.path.join(
-            output_dir, os.path.basename(nipype_report_filename) + '.html')
+        # nipype report
+        nipype_report_filename = os.path.join(
+            os.path.dirname(rp),
+            "_report/report.rst")
+        nipype_html_report_filename = nipype_report_filename + '.html'
         nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
-        gallery = tempita.bunch(
-            title="Motion Correction",
-            thumbnails=[tempita.bunch(
-                    title=None,
-                    image=rp_plot)],
-            nb_thumbnails_per_row=1,
-            exec_log=nipype_html_report_filename)
-
-        output['gallery'] = gallery
+        # create thumbnail
+        thumbnail = reporter.Thumbnail()
+        thumbnail.a = tempita.bunch(href=rp_plot)
+        thumbnail.img = tempita.bunch(src=rp_plot, height="500px")
+        thumbnail.description = "Motion Correction (<a href=%s>see \
+execution log</a>)" % nipype_html_report_filename
+        output['thumbnails'].append(thumbnail)
 
     # collect ouput
     output['result'] = realign_result
@@ -120,7 +119,7 @@ def do_subject_coreg(output_dir,
                      subject_id=None,
                      do_report=True,
                      cmap=None,
-                     **kwargs):
+                     **spm_coregister_kwargs):
     output = {}
 
     # prepare for smart caching
@@ -131,7 +130,7 @@ def do_subject_coreg(output_dir,
 
     # run workflow
     coreg = mem.cache(spm.Coregister)
-    coreg_result = coreg(**kwargs)
+    coreg_result = coreg(**spm_coregister_kwargs)
 
     # generate gallery for HTML report
     if do_report:
@@ -139,8 +138,10 @@ def do_subject_coreg(output_dir,
         import tempita
         import reporter
 
-        target = os.path.basename(kwargs['target'])
-        source = os.path.basename(kwargs['source'])
+        target = os.path.basename(spm_coregister_kwargs['target'])
+        source = os.path.basename(spm_coregister_kwargs['source'])
+
+        output['thumbnails'] = []
 
         # prepare for smart caching
         qa_cache_dir = os.path.join(output_dir, "QA")
@@ -152,44 +153,40 @@ def do_subject_coreg(output_dir,
             output_dir,
             "%s_on_%s_overlap.png" % (target, source))
         qa_mem.cache(check_preprocessing.plot_registration)(
-            kwargs['target'],
+            spm_coregister_kwargs['target'],
             coreg_result.outputs.coregistered_source,
             output_filename=overlap,
             cmap=cmap,
             title="Overlap of %s on %s" % (target, source))
 
-        overlap_summary = os.path.join(
+        overlap_axial = os.path.join(
             output_dir,
-            "%s_on_%s_overlap_summary.png" % (target, source))
+            "%s_on_%s_overlap_axial.png" % (target, source))
         qa_mem.cache(check_preprocessing.plot_registration)(
-            kwargs['target'],
+            spm_coregister_kwargs['target'],
             coreg_result.outputs.coregistered_source,
-            output_filename=overlap_summary,
+            output_filename=overlap_axial,
             slicer='z',
             cmap=cmap,
             title="%s: coreg" % subject_id)
 
-        # convert nipype log to HTML
+        # nipype report
         nipype_report_filename = os.path.join(
             os.path.dirname(coreg_result.outputs.coregistered_source),
             "_report/report.rst")
-        nipype_html_report_filename = os.path.join(
-            output_dir,
-            os.path.basename(nipype_report_filename) + '.html')
-        nipype_report = reporter.nipype2htmlreport(
-            nipype_report_filename)
+        nipype_html_report_filename = nipype_report_filename + '.html'
+        nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
-        gallery = tempita.bunch(
-            title="Coregistration",
-            thumbnails=[tempita.bunch(
-                    title=None,
-                    image=overlap)],
-            nb_thumbnails_per_row=1,
-            exec_log=nipype_html_report_filename)
+        # create thumbnail
+        thumbnail = reporter.Thumbnail()
+        thumbnail.a = tempita.bunch(href=overlap)
+        thumbnail.img = tempita.bunch(src=overlap, height="500px")
+        thumbnail.description = "Co-registration (<a href=%s>see \
+execution</a>)" % nipype_html_report_filename
+        output['thumbnails'].append(thumbnail)
 
-        output['gallery'] = gallery
-        output['summary'] = overlap_summary
+        output['axial_overlap'] = overlap_axial
 
     # collect ouput
     output['result'] = coreg_result
@@ -200,7 +197,7 @@ def do_subject_coreg(output_dir,
 def do_subject_segment(output_dir,
                        subject_id=None,
                        do_report=True,
-                       **kwargs):
+                       **spm_segment_kwargs):
     output = {}
 
     # prepare for smart caching
@@ -211,7 +208,7 @@ def do_subject_segment(output_dir,
 
     # run workflow
     segment = mem.cache(spm.Segment)
-    segment_result = segment(**kwargs)
+    segment_result = segment(**spm_segment_kwargs)
 
     # generate gallery for HTML report
     if do_report:
@@ -230,7 +227,7 @@ def do_subject_normalize(output_dir,
                          cmap=None,
                          segment_result=None,
                          data_name="brain",
-                         **kwargs):
+                         **spm_normalize_kwargs):
     output = {}
 
     # prepare for smart caching
@@ -241,7 +238,7 @@ def do_subject_normalize(output_dir,
 
     # run workflow
     normalize = mem.cache(spm.Normalize)
-    norm_result = normalize(**kwargs)
+    norm_result = normalize(**spm_normalize_kwargs)
 
     # generate gallery for HTML report
     if do_report and preproc_stream == "segmentation":
@@ -255,23 +252,31 @@ def do_subject_normalize(output_dir,
             os.makedirs(qa_cache_dir)
         qa_mem = joblibMemory(cachedir=qa_cache_dir, verbose=5)
 
-        gallery_thumbnails = []
-        gallery = tempita.bunch(nb_thumbnails_per_row=1)
+        # nipype report
+        nipype_report_filename = os.path.join(
+            os.path.dirname(norm_result.outputs.normalized_files),
+            "_report/report.rst")
+        nipype_html_report_filename = nipype_report_filename + ".html"
+        nipype_report = reporter.nipype2htmlreport(
+            nipype_report_filename)
+        open(nipype_html_report_filename, 'w').write(str(nipype_report))
+
+        output['thumbnails'] = []
 
         # plot contours of template TPMs on subject's brain
         template_tpms_contours = os.path.join(
             output_dir,
             "template_tmps_contours_on_%s.png" % data_name)
-        template_tpms_contours_summary = os.path.join(
+        template_tpms_contours_axial = os.path.join(
             output_dir,
-            "template_tpms_contours_on_%s_summary.png" % data_name)
+            "template_tpms_contours_on_%s_axial.png" % data_name)
 
         qa_mem.cache(check_preprocessing.plot_segmentation)(
             norm_result.outputs.normalized_files,
             GM_TEMPLATE,
             WM_TEMPLATE,
             CSF_TEMPLATE,
-            output_filename=template_tpms_contours_summary,
+            output_filename=template_tpms_contours_axial,
             slicer='z',
             cmap=cmap,
             title="%s: template TPMs" % subject_id)
@@ -286,24 +291,30 @@ def do_subject_normalize(output_dir,
             title="Template GM, WM, and CSF contours on subject's %s" % \
                 data_name)
 
-        gallery_thumbail = tempita.bunch(title=None,
-                                         image=template_tpms_contours)
-        gallery_thumbnails.append(gallery_thumbail)
+        # create thumbnail
+        thumbnail = reporter.Thumbnail()
+        thumbnail.a = tempita.bunch(href=template_tpms_contours)
+        thumbnail.img = tempita.bunch(src=template_tpms_contours,
+                                      height="500px")
+        thumbnail.description = "Template GM, WM, and CSF contours on \
+subject's %s (<a href=%s>see execution</a>)" \
+            % (data_name, nipype_html_report_filename)
+        output['thumbnails'].append(thumbnail)
 
         # plot contours of subject's TPMs on subjects brain
         subject_tpms_contours = os.path.join(
             output_dir,
             "subject_tmps_contours_on_subject_%s.png" % data_name)
-        subject_tpms_contours_summary = os.path.join(
+        subject_tpms_contours_axial = os.path.join(
             output_dir,
-            "subject_tmps_contours_on_subject_%s_summary.png" % data_name)
+            "subject_tmps_contours_on_subject_%s_axial.png" % data_name)
 
         qa_mem.cache(check_preprocessing.plot_segmentation)(
             norm_result.outputs.normalized_files,
             segment_result.outputs.modulated_gm_image,
             segment_result.outputs.modulated_wm_image,
             segment_result.outputs.modulated_csf_image,
-            output_filename=subject_tpms_contours_summary,
+            output_filename=subject_tpms_contours_axial,
             slicer='z',
             cmap=cmap,
             title="%s: subject TPMs" % subject_id)
@@ -317,30 +328,21 @@ def do_subject_normalize(output_dir,
             title="Subject's GM, WM, and CSF contours on subject's %s" % \
                 data_name)
 
-        gallery_thumbail = tempita.bunch(title=None,
-                                         image=subject_tpms_contours)
-        gallery_thumbnails.append(gallery_thumbail)
-
-        # convert nipype log to HTML
-        nipype_report_filename = os.path.join(
-            os.path.dirname(norm_result.outputs.normalized_files),
-            "_report/report.rst")
-        nipype_html_report_filename = os.path.join(
-            output_dir,
-            os.path.basename(nipype_report_filename) + '.html')
-        nipype_report = reporter.nipype2htmlreport(
-            nipype_report_filename)
-        open(nipype_html_report_filename, 'w').write(str(nipype_report))
-
-        gallery.thumbnails = gallery_thumbnails
-        gallery.exec_log = nipype_html_report_filename
-        output['gallery'] = gallery
+        # create thumbnail
+        thumbnail = reporter.Thumbnail()
+        thumbnail.a = tempita.bunch(href=template_tpms_contours)
+        thumbnail.img = tempita.bunch(src=template_tpms_contours,
+                                      height="500px")
+        thumbnail.description = "Template GM, WM, and CSF contours on \
+subject's %s (<a href=%s>see execution</a>)" \
+            % (data_name, nipype_html_report_filename)
+        output['thumbnails'].append(thumbnail)
 
         output['axials'] = {}
         output['axials']['template_tpms_contours'] = \
-            template_tpms_contours_summary
+            template_tpms_contours_axial
         output['axials']['subject_tpms_contours'] = \
-            subject_tpms_contours_summary
+            subject_tpms_contours_axial
 
     # collect ouput
     output['result'] = norm_result
@@ -377,13 +379,33 @@ def do_subject_preproc(
         import check_preprocessing
         import tempita
         import reporter
-        from nipy.labs import viz
+        import pylab as pl
 
         report_filename = os.path.join(output_dir, "_report.html")
-        galleries = []
         output = {}
         output["plots"] = {}
-        final_thumbnail = tempita.bunch(title=subject_id)
+        final_thumbnail = reporter.Thumbnail()
+        final_thumbnail.a = tempita.bunch(href=report_filename)
+        final_thumbnail.img = tempita.bunch()
+        final_thumbnail.description = subject_id
+
+        # initialize results gallery
+        loader_filename = os.path.join(output_dir, "results_loader.php")
+        results_gallery = reporter.ResultsGallery(
+            loader_filename=loader_filename,
+            title="Results for subject %s" % subject_id)
+
+        # html markup
+        report = reporter.SUBJECT_PREPROC_REPORT_HTML_TEMPLATE().substitute(
+            results=results_gallery)
+
+        print ">" * 80 + "BEGIN HTML"
+        print report
+        print "<" * 80 + "END HTML"
+
+        with open(report_filename, 'w') as fd:
+            fd.write(str(report))
+            fd.close()
 
     #  motion correction
     if do_realign:
@@ -401,9 +423,9 @@ def do_subject_preproc(
         final_func = realign_result.outputs.realigned_files
 
         if do_report:
-            galleries.append(realign_output['gallery'])
-            final_thumbnail.image = realign_output['rp_plot']
-            final_thumbnail.tooltip_image = realign_output['rp_plot']
+            results_gallery.update(realign_output['thumbnails'])
+            final_thumbnail.img.src = realign_output['rp_plot']
+
     else:
         img = nibabel.load(fmri_images)
         mean = nibabel.Nifti1Image(
@@ -431,10 +453,8 @@ def do_subject_preproc(
         final_func = coreg_result.outputs.coregistered_files
 
         if do_report:
-            gallery = coreg_output['gallery']
-            gallery.title = 'Coregistration (func -> anat)'
-            galleries.append(coreg_output['gallery'])
-            final_thumbnail.image = coreg_output['summary']
+            results_gallery.update(coreg_output['thumbnails'])
+            final_thumbnail.img.src = coreg_output['axial_overlap']
 
     # segment anat
     if do_segment:
@@ -463,7 +483,7 @@ def do_subject_preproc(
                                            subject_id=subject_id,
                                            segment_result=segment_result,
                                            data_name="anat",
-                                           cmap=viz.cm.cold_hot,
+                                           cmap=pl.cm.gray,
                                            do_report=do_report,
                                            parameter_file=norm_parameter_file,
                                            apply_to_files=norm_apply_to_files,
@@ -472,9 +492,9 @@ def do_subject_preproc(
         norm_result = norm_output['result']
 
         if do_report:
-            gallery = norm_output['gallery']
-            gallery.title = 'Segmentation of anatomical image'
-            galleries.append(gallery)
+            results_gallery.update(norm_output['thumbnails'])
+            final_thumbnail.img.src = \
+                norm_output['axials']["template_tpms_contours"]
 
         # normalize mean func based on the learned segmentation
         norm_parameter_file = segment_result.outputs.transformation_mat
@@ -496,11 +516,9 @@ def do_subject_preproc(
         norm_result = norm_output['result']
 
         if do_report:
-            gallery = norm_output['gallery']
-            gallery.title = 'Segmentation of mean functional image'
-            galleries.append(gallery)
-            final_thumbnail.image =\
-                norm_output['axials']['subject_tpms_contours']
+            results_gallery.update(norm_output['thumbnails'])
+            final_thumbnail.img.src = \
+                norm_output['axials']["template_tpms_contours"]
 
         # normalize func images based on the learned segmentation
         norm_parameter_file = segment_result.outputs.transformation_mat
@@ -543,26 +561,12 @@ def do_subject_preproc(
                 plot_diff=True,
                 title="subject %s after preproc " % subject_id)
 
-            gallery = tempita.bunch(
-                title="Coefficient of Variation",
-                thumbnails=[tempita.bunch(
-                        title=None,
-                        image=cv_tc_plot_after)],
-                nb_thumbnails_per_row=1)
-            galleries.append(gallery)
-
-            final_thumbnail.tooltip_image = cv_tc_plot_after
-
-        report = reporter.SUBJECT_PREPROC_REPORT_HTML_TEMPLATE.substitute(
-            subject_id=subject_id, galleries=galleries)
-
-        print ">" * 80 + "BEGIN HTML"
-        print report
-        print "<" * 80 + "END HTML"
-
-        with open(report_filename, 'w') as fd:
-            fd.write(str(report))
-            fd.close()
+            # create thumbnail
+            thumbnail = reporter.Thumbnail()
+            thumbnail.a = tempita.bunch(href=cv_tc_plot_after)
+            thumbnail.img = tempita.bunch(src=cv_tc_plot_after, height="500px")
+            thumbnail.description = "Coefficient of Variation"
+            results_gallery.update(thumbnail)
 
         final_thumbnail.redirect_url = report_filename
         output['final_thumbnail'] = final_thumbnail
@@ -582,36 +586,9 @@ def do_group_preproc(subjects,
     kwargs = {'do_realign': do_realign, 'do_coreg': do_coreg,
                 'do_segment': do_segment, 'do_cv_tc': do_cv_tc}
 
-    # preproc subjects
-    results = Parallel(n_jobs=N_JOBS)(delayed(do_subject_preproc)(
-            subject_data, **kwargs) for subject_data in subjects)
-
     # generate html report (for QA) as desired
     if do_report:
-        import tempita
         import reporter
-        blablabla = "Generating QA report for %d subjects .." % len(results)
-        dadada = "+" * len(blablabla)
-        print "\r\n%s\r\n%s\r\n%s\r\n" % (dadada, blablabla, dadada)
-
-        tmpl = reporter.DATASET_PREPROC_REPORT_HTML_TEMPLATE
-
-        gallery = tempita.bunch()
-
-        if do_segment:
-            gallery.nb_thumbnails_per_row = 4
-        elif do_coreg:
-            gallery.nb_thumbnails_per_row = 4
-        elif do_realign:
-            gallery.nb_thumbnails_per_row = 2
-
-        gallery_thumbnails = []
-
-        # populate gallery
-        for subject_id, session_id, output in results:
-            gallery_thumbnails.append(output['final_thumbnail'])
-
-        gallery.thumbnails = gallery_thumbnails
 
         # XXX the following info is fake; compute it from function args
         preproc_undergone = """\
@@ -630,18 +607,34 @@ for warping the fMRI into some standard space later on;<br>
 3. the subject's anatomical has been segmented into GM, WM, and CSF tissue \
 probabitility maps (TPMs);</p>
 """
-        report = tmpl.substitute(dataset_description=dataset_description,
-                                 preproc_undergone=preproc_undergone,
-                                 gallery=gallery)
 
+        # initialize code for reporter from template
+        tmpl = reporter.DATASET_PREPROC_REPORT_HTML_TEMPLATE()
+
+        # prepare meta results
+        loader_filename = os.path.join(os.path.dirname(report_filename),
+                                       "results_loader.php")
+        results_gallery = reporter.ResultsGallery(
+            loader_filename=loader_filename)
+
+        # write initial content for reporting
+        report = tmpl.substitute(
+            preproc_undergone=preproc_undergone,
+            dataset_description=dataset_description,
+            results=results_gallery)
         print ">" * 80 + "BEGIN HTML"
         print report
         print "<" * 80 + "END HTML\r\n"
 
-        if not report_filename is None:
-            with open(report_filename, 'w') as fd:
-                fd.write(str(report))
-                fd.close()
-                print "HTML report written to %s" % report_filename
+        with open(report_filename, 'w') as fd:
+            fd.write(str(report))
+            fd.close()
+            print "HTML report (dynamic) written to %s" % report_filename
 
-        print "\r\nDone."
+    # preproc subjects
+    results = Parallel(n_jobs=N_JOBS)(delayed(do_subject_preproc)(
+            subject_data, **kwargs) for subject_data in subjects)
+
+    # populate gallery
+    for subject_id, session_id, output in results:
+        results_gallery.update(output['final_thumbnail'])

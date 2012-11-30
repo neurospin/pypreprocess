@@ -1,149 +1,68 @@
-<!-- Define some default values -->
-{{default remarks = "No remarks."}}
-{{default dataset_description = "No description available."}}
-{{py: import time; timestamp = time.ctime();}}
-<hea
-<!DOCTYPE html>
-<html lang="en">
+<!-- Define some useful defaults -->
+{{default done = 0}} <!-- is preproc done ? -->
+{{default preproc_undergone = None}}
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
   <head>
-    <meta charset="utf-8">
-    <title>fMRI preproc reporter</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="">
-    <meta name="author" content="">
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>fMRI preproc front-end</title>
+    <meta name="Description" content="Max Design - standards based web design, development and training" />
+    <meta name="robots" content="all, index, follow" />
+    <meta name="distribution" content="global" />
+    <link rel="shortcut icon" href="/favicon.ico" />
 
-    <!-- Le styles -->
-    <link href="/volatile/elvis/CODE/FORKED/pypreprocess/external/bootstrap/docs/assets/css/bootstrap.css" rel="stylesheet">
-    <style>
-      body {
-        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
-      }
-    </style>
-    <link href="/volatile/elvis/CODE/FORKED/pypreprocess/external/bootstrap/docs/assets/css/bootstrap-responsive.css" rel="stylesheet">
-    <link rel="stylesheet" href="/volatile/elvis/CODE/FORKED/pypreprocess/external/prettyphoto/css/prettyPhoto.css" type="text/css" media="screen" charset="utf-8" />
-
-    <style>
-      .navbar-inner {
-      background-color: #000; /* background color will be black for all browsers */
-      background-image: none;
-      background-repeat: no-repeat;
-      filter: none;
-      }
-    </style>
-    
-    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
-    <!--[if lt IE 9]>
-      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
+    <link href="css/styles.css" rel="stylesheet">
 
   </head>
 
   <body>
-    <div class="navbar navbar-fixed-top">
-      <div class="navbar-inner">
-        <div class="container">
-          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
+    <div id="container">
+      <div id="header">
+	<h1>
+	  <font color="white">fMRI PREPROC REPORT</font>
+	</h1>
+      </div>
+      <div id="navigation">
+	<ul>
+	  <li><a href="#">Main Page</a></li>
+	  <li><a href="#">Execution Log</a></li>
+	  <li><a href="#">Export Report</a></li>
+	  <li><a href="#">About</a></li>
+	  <li><a href="#">FAQs</a></li>
+	</ul>
+      </div>
+      <div id="content-container1">
+	<div id="content-container2">
+	  <div id="section-navigation">
+	  </div>
+	  <div id="content">
+	    <h2><div id='time' style='display: inline;'></div>{{if done:}}<font color="green">   Done</font>.{{else}}<font color="red"><i>   STILL RUNNING ..</i></font>{{endif}}</h2>
+	    <hr/>
+	    <script type="text/javascript">
+	      var auto_refresh = setInterval(
 
-            <span class="icon-bar"></span>
-          </a>
-          <a class="brand" href="#"><img src="nologo.png" width="111" height="30" alt="fMRI preproc reporter" /></a>
-          <div class="nav-collapse">
-            <ul class="nav">
-              <li class="active"><a href="#">Main Page</a></li>
-              <li><a href="#about">About</a></li>
-              <li><a href="#bug">Report a Bug</a></li>
-              <li><a href="#export">Export Report</a></li>
-            </ul>
-          </div><!--/.nav-collapse -->
-        </div>
+	      function() {
+	      $('#results').load("{{results.loader_filename}}").fadeIn("slow");
+	      }, {{results.refresh_timeout}});
+	    </script>
+	    <h3>{{results.title | html}}</h3>
+	    {{results.description | html}}
+	    <div id="results">
+	    </div>
+	  </div>
+	  <div id="footer">
+	    <img src="/home/elvis/Downloads/parietal_web_page.png" width="120" alt="PARIETAL"/>
+	  </div>
+	</div>
       </div>
     </div>
-    <div class="container">
-      <div class="row-fluid">
-	<div class="span2">
-	  <h4>Useful links</h4>
-	  <ul>
-	    <li>
-	      <a href="http://www.fil.ion.ucl.ac.uk/spm/">SPM official website</a>
-	    </li>
-	    <li>
-	      <a href="https://team.inria.fr/parietal/">PARIETAL website</a>
-	    </li>
-	  </ul>
-	</div>
-      
-      <!-- Example row of columns -->
-      <!-- <div class="row"> -->
-        <div class="span8">
-	  <h1>Report of {{timestamp}}</h1>
-	  <hr/>
 
-	  {{for gallery in galleries}}
-	  <h3>{{gallery.title}}</h3>
-	  {{if gallery.has_key('exec_log')}}
-	  <p>Checkout options used and execution log <a href="{{gallery.exec_log}}">here</a>.</p>
-	  {{endif}}
-	  <ul class="thumbnails">
-	    <div class="span12">
-	      {{py: thumbnail_span = 12/gallery.nb_thumbnails_per_row}}
-	      {{for j in xrange(0, len(gallery.thumbnails), gallery.nb_thumbnails_per_row)}}
-	      <div class="row-fluid">
-		{{for thumbnail in gallery.thumbnails[j:j+gallery.nb_thumbnails_per_row]}}
-		<div class="span{{thumbnail_span}}">
-		  <li>
-		    {{if thumbnail.title}}
-		    <div class="caption">
-		      {{thumbnail.title}}
-		    </div>
-		    {{endif}}
-		    <img class="thumbnail" src="{{thumbnail.image}}"/>
-		  </li>
-		</div>
-		{{endfor}}
-	      </div>
-	      {{endfor}}
-	    </div>
-	  </ul>
-	  <hr/>
-	  {{endfor}}
-	  <div id="myCollapeExample"><a href="#" data-toggle="collapse"><h2>Remarks</h2></a></div>
-	  <div id="remarks" class="collapse">
-            {{remarks|html}}
- 	  </div>
-	</div>
-      </div>
-      
-      <hr>
-
-      <footer>
-        <p>&copy; <a href="https://team.inria.fr/parietal/"><img src="/volatile/elvis/Downloads/parietal_web_page.png" alt="PARIETAL" width="99"/></a> 2012</p>
-      </footer>
-
-    </div> <!-- /container -->
-
-    <!-- Le javascript
-    ================================================== -->
-    <!-- Placed at the end of the document so the pages load faster -->
-    <script src="/volatile/elvis/CODE/FORKED/pypreprocess/external/bootstrap/docs/assets/js/jquery.js"></script>
-    <script src="/volatile/elvis/CODE/FORKED/pypreprocess/external/bootstrap/docs/assets/js/bootstrap-popover.js"></script>
-    <script src="/volatile/elvis/CODE/FORKED/pypreprocess/external/bootstrap/docs/assets/js/bootstrap-collapse.js"></script>
-    <script src="/volatile/elvis/CODE/FORKED/pypreprocess/external/prettyphoto/js/jquery.prettyPhoto.js"></script>
-
-    <script>
+    <!-- It's time for javascript, folks -->
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script type='text/javascript'>
       $(document).ready(function(){
-      <!-- unhide all twitter bootstrap .collapse objects -->
-      $(".collapse").collapse({
-      hide: false});
-      
-      <!-- customize preetyphoto -->
-      $("a[rel^='prettyPhoto']").prettyPhoto({
-      allow_resize: true, /* Resize the photos bigger than viewport. true/false */
-      deeplinking: false,
-      social_tools: false /* Hey, let's be serious here --please! */
-      });
-
       });
     </script>
   </body>
