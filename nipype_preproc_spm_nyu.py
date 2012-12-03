@@ -54,16 +54,16 @@ if __name__ == '__main__':
         for session_id, session in sessions.iteritems():
             # pre-process data for all subjects
             for subject_id, subject in session.iteritems():
-                subject_data = dict()
-                subject_data['session_id'] = session_id
-                subject_data['subject_id'] = subject_id
-                subject_data['anat'] = subject['skullstripped_anat']
-                subject_data['func'] = subject['func']
-                subject_data['output_dir'] = os.path.join(
+                subject_data = nipype_preproc_spm_utils.SubjectData()
+                subject_data.subject_id = subject_id
+                subject_data.session_id = session_id
+                subject_data.anat = subject['skullstripped_anat']
+                subject_data.func = subject['func']
+                subject_data.output_dir = os.path.join(
                     os.path.join(OUTPUT_DIR, session_id),
                     subject_id)
-                if not os.path.exists(subject_data['output_dir']):
-                    os.makedirs(subject_data["output_dir"])
+                if not os.path.exists(subject_data.output_dir):
+                    os.makedirs(subject_data.output_dir)
 
                 yield subject_data
 

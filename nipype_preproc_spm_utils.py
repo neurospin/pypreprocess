@@ -9,6 +9,7 @@ XXX TODO: re-factor the code!
 
 # standard imports
 import os
+import shutil
 
 # imports for caching (yeah, we aint got time to loose!)
 from nipype.caching import Memory
@@ -55,10 +56,9 @@ GM_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/grey.nii')
 WM_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/white.nii')
 CSF_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/csf.nii')
 
-# BET command prefix
-BET_CMD_PREFIX = 'fsl4.1-'
-if 'BET_CMD_PREFIX' in os.environ:
-    BET_CMD_PREFIX = os.environ['BET_CMD_PREFIX']
+
+class SubjectData(object):
+    pass
 
 
 def do_subject_realign(output_dir,
@@ -472,42 +472,31 @@ def do_subject_preproc(
     do_realign=True,
     do_coreg=True,
     do_segment=True,
-    do_cv_tc=True):
+    do_cv_tc=True,
+    parent_results_gallery=None):
     """
     Function preprocessing data for a single subject.
 
     """
 
-    # unpack (and sanitize) input
-    output_dir = subject_data['output_dir']
-    anat = subject_data['anat']
-    func = subject_data['func']
-    if not 'subject_id' in subject_data:
-        subject_id = None
-    else:
-        subject_id = subject_data['subject_id']
-    if not 'session_id' in subject_data:
-        session_id = None
-    else:
-        session_id = subject_data['session_id']
-
     if do_report:
         import check_preprocessing
         import reporter
 
-        report_filename = os.path.join(output_dir, "_report.html")
+        report_filename = os.path.join(subject_data.output_dir, "_report.html")
         output = {}
         output["plots"] = {}
         final_thumbnail = reporter.Thumbnail()
         final_thumbnail.a = reporter.a(href=report_filename)
         final_thumbnail.img = reporter.img()
-        final_thumbnail.description = subject_id
+        final_thumbnail.description = subject_data.subject_id
 
         # initialize results gallery
-        loader_filename = os.path.join(output_dir, "results_loader.php")
+        loader_filename = os.path.join(
+            subject_data.output_dir, "results_loader.php")
         results_gallery = reporter.ResultsGallery(
             loader_filename=loader_filename,
-            title="Results for subject %s" % subject_id)
+            title="Report for subject %s" % subject_data.subject_id)
 
         # html markup
         report = reporter.SUBJECT_PREPROC_REPORT_HTML_TEMPLATE().substitute(
@@ -522,7 +511,7 @@ def do_subject_preproc(
             fd.close()
 
     # final fMRI images (re-set after each stage/node)
-    final_func = func
+    final_func = subject_data.func
 
     # brain extraction (bet)
     if do_bet:
@@ -531,44 +520,50 @@ def do_subject_preproc(
     #####################
     #  motion correction
     #####################
+    # XXX /!\ ARE WE REALLY SURE THE IMAGE HEADERS HAVE BEEN MOVED ?
     if do_realign:
         realign_output = do_subject_realign(
-            output_dir,
-            subject_id=subject_id,
+            subject_data.output_dir,
+            subject_id=subject_data.subject_id,
             do_report=do_report,
-            in_files=func,
+            in_files=subject_data.func,
             register_to_mean=True,
-            jobtype='estimate',
+            jobtype='estwrite',
             )
+
+        # collect output
+        realign_result = realign_output['result']
+        final_func = realign_result.outputs.realigned_files
+        mean_func = realign_result.outputs.mean_image
 
         # generate report stub
         if do_report:
             results_gallery.commit_thumbnails(realign_output['thumbnails'])
             final_thumbnail.img.src = realign_output['rp_plot']
-
-    ################################################################
-    # co-registration of functional against structural (anatomical)
-    ################################################################
-    if do_coreg:
+    else:
         import nibabel
 
         # manually compute mean (along time axis) of fMRI images
         func_images = nibabel.load(final_func)
         mean_func_image = nibabel.Nifti1Image(
             func_images.get_data().mean(-1), func_images.get_affine())
-        mean_func_image_filename = os.path.join(
-            os.path.dirname(func),
-            'mean' + os.path.basename(func))
-        nibabel.save(mean_func_image, mean_func_image_filename)
+        mean_func_image = os.path.join(
+            os.path.dirname(subject_data.func),
+            'mean' + os.path.basename(subject_data.func))
+        nibabel.save(mean_func_image, mean_func_image)
 
+    ################################################################
+    # co-registration of functional against structural (anatomical)
+    ################################################################
+    if do_coreg:
         # specify input files for coregistration
-        coreg_target = mean_func_image_filename
-        coreg_source = anat
+        coreg_target = mean_func
+        coreg_source = subject_data.anat
 
         # run coreg proper
         coreg_output = do_subject_coreg(
-            output_dir,
-            subject_id=subject_id,
+            subject_data.output_dir,
+            subject_id=subject_data.subject_id,
             do_report=do_report,
             comments="anat -> epi",
             target=coreg_target,
@@ -593,13 +588,13 @@ def do_subject_preproc(
     if do_segment:
         segment_data = anat
         segment_output = do_subject_segment(
-            output_dir,
-            subject_id=subject_id,
+            subject_data.output_dir,
+            subject_id=subject_data.subject_id,
             do_report=False,  # XXX why ?
             data=segment_data,
-            gm_output_type=[True, True, True],
-            wm_output_type=[True, True, True],
-            csf_output_type=[True, True, True],
+            gm_output_type=[True, True, True], # XXX why ?
+            wm_output_type=[True, True, True], # XXX why ?
+            csf_output_type=[True, True, True], # XXX why ?
             tissue_prob_maps=[GM_TEMPLATE,
                               WM_TEMPLATE, CSF_TEMPLATE],
             # the following kwargs are courtesy of christophe p.
@@ -620,8 +615,8 @@ def do_subject_preproc(
         norm_apply_to_files = final_func
 
         norm_output = do_subject_normalize(
-            output_dir,
-            subject_id=subject_id,
+            subject_data.output_dir,
+            subject_id=subject_data.subject_id,
             segment_result=segment_result,
             do_report=True,
             brain='epi',
@@ -647,8 +642,8 @@ def do_subject_preproc(
         norm_apply_to_files = anat
 
         norm_output = do_subject_normalize(
-            output_dir,
-            subject_id=subject_id,
+            subject_data.output_dir,
+            subject_id=subject_data.subject_id,
             segment_result=segment_result,
             brain="anat",
             cmap=pl.cm.gray,
@@ -671,8 +666,8 @@ def do_subject_preproc(
         norm_apply_to_files = final_func
 
         norm_output = do_subject_normalize(
-            output_dir,
-            subject_id=subject_id,
+            subject_data.output_dir,
+            subject_id=subject_data.subject_id,
             do_report=False,
             parameter_file=norm_parameter_file,
             apply_to_files=norm_apply_to_files,
@@ -684,22 +679,26 @@ def do_subject_preproc(
 
     # generate html report (for QA)
     if do_report:
-        blablabla = "Generating QA reports for subject %s .." % subject_id
+        blablabla = "Generating QA reports for subject %s .."\
+            % subject_data.subject_id
         dadada = "+" * len(blablabla)
         print "\r\n%s\r\n%s\r\n%s\r\n" % (dadada, blablabla, dadada)
 
         if do_cv_tc:
-            qa_cache_dir = os.path.join(output_dir, "QA")
+            qa_cache_dir = os.path.join(subject_data.output_dir, "QA")
             if not os.path.exists(qa_cache_dir):
                 os.makedirs(qa_cache_dir)
             qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
 
-            cv_tc_plot_after = os.path.join(output_dir, "cv_tc_after.png")
+            cv_tc_plot_after = os.path.join(
+                subject_data.output_dir, "cv_tc_after.png")
 
             corrected_FMRIs = [final_func]
-            qa_mem.cache(check_preprocessing.plot_cv_tc)(
-                corrected_FMRIs, [session_id], subject_id,
-                output_dir,
+            qa_mem.cache(
+                check_preprocessing.plot_cv_tc)(
+                corrected_FMRIs, [subject_data.session_id],
+                subject_data.subject_id,
+                subject_data.output_dir,
                 cv_tc_plot_outfile=cv_tc_plot_after,
                 plot_diff=True,
                 title="")
@@ -715,14 +714,17 @@ def do_subject_preproc(
         final_thumbnail.img.height = "250px"
         output['final_thumbnail'] = final_thumbnail
 
-        return subject_id, session_id, output
+        if parent_results_gallery:
+            parent_results_gallery.commit_thumbnails(final_thumbnail)
+
+        return output
 
 
 def do_group_preproc(subjects,
                      do_report=True,
                      dataset_description=None,
                      report_filename=None,
-                     do_bet=True,
+                     do_bet=False,
                      do_realign=True,
                      do_coreg=True,
                      do_segment=True,
@@ -750,7 +752,7 @@ package</a>.</p>"""
                 " and other non-brain components from the subject's "
                 "anatomical image. This prevents later registration problems "
                 "like the skull been (mis-)aligned unto the cortical surface, "
-                "etc." % step)
+                "etc.<br/>" % step)
         if do_realign:
             step += 1
             preproc_undergone += (
@@ -761,7 +763,7 @@ package</a>.</p>"""
             step += 1
             preproc_undergone += (
                 "%i. The subject's anatomical image has been coregistered "
-                "against their fMRI images (precisely, to the mean thereof)."
+                "against their fMRI images (precisely, to the mean thereof). "
                 "Coregistration is important as it allows deformations of the "
                 "anatomy (learned by registration against other images, "
                 "templates for example) to be directly applicable to the fMRI."
@@ -801,6 +803,9 @@ package</a>.</p>"""
             print "HTML report (dynamic) written to %s" % report_filename
 
     # preproc subjects
+    shutil.copy('css/styles.css', "/tmp/styles.css")
+    kwargs['parent_results_gallery'] = results_gallery
+
     results = joblib.Parallel(
         n_jobs=N_JOBS, verbose=100)(joblib.delayed(do_subject_preproc)(
             subject_data, **kwargs) for subject_data in subjects)

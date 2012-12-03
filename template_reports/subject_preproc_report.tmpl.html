@@ -12,7 +12,7 @@
     <meta name="distribution" content="global" />
     <link rel="shortcut icon" href="/favicon.ico" />
 
-    <link href="/home/elvis/CODE/FORKED/pypreprocess/css/styles.css" rel="stylesheet">
+    <link href="/tmp/styles.css" rel="stylesheet">
 
   </head>
 
@@ -20,7 +20,7 @@
     <div id="container">
       <div id="header">
 	<h1>
-	  <font color="white">fMRI PREPROC REPORT</font>
+	  <font color="white">{{results.title | html}}</font>
 	</h1>
       </div>
       <div id="navigation">
@@ -58,7 +58,6 @@
 	      $('#results').load("{{results.loader_filename}}").fadeIn("slow");
 	      }, {{results.refresh_timeout}});
 	    </script>
-	    <h3>{{results.title | html}}</h3>
 	    {{results.description | html}}
 	    <div id="results">
 	    </div>

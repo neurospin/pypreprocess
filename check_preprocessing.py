@@ -61,7 +61,7 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None):
     return img_filename
 
 
-def check_mask(data):
+def check_mask(epi_data):
     """
     Create the data mask and check that the volume is reasonable
 
@@ -227,21 +227,11 @@ def plot_registration(reference, coregistered,
     if slicer in ['x', 'y', 'z']:
         cut_coords = (cut_coords['xyz'.index(slicer)],)
 
-    # prepare for smart-caching
-    if not output_filename is None:
-        output_dir = os.path.dirname(output_filename)
-    else:
-        output_dir = os.path.dirname(reference)
-    cache_dir = os.path.join(output_dir, "REG")
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    mem = joblib.Memory(cachedir=cache_dir, verbose=5)
-
     # plot the coregistered image
     coregistered_img = nibabel.load(coregistered)
     coregistered_data = coregistered_img.get_data()
     coregistered_affine = coregistered_img.get_affine()
-    slicer = mem.cache(viz.plot_anat)(
+    slicer = viz.plot_anat(
         anat=coregistered_data,
         anat_affine=coregistered_affine,
         black_bg=True,
@@ -299,21 +289,11 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
     if slicer in ['x', 'y', 'z']:
         cut_coords = (cut_coords['xyz'.index(slicer)],)
 
-    # prepare for smart-caching
-    if not output_filename is None:
-        output_dir = os.path.dirname(output_filename)
-    else:
-        output_dir = os.path.dirname(img_filename)
-    cache_dir = os.path.join(output_dir, "SEG")
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    mem = joblib.Memory(cachedir=cache_dir, verbose=5)
-
     # plot img
     img = nibabel.load(img_filename)
     anat = img.get_data()
     anat_affine = img.get_affine()
-    _slicer = mem.cache(viz.plot_anat)(
+    _slicer = viz.plot_anat(
         anat, anat_affine, cut_coords=cut_coords,
         slicer=slicer,
         cmap=cmap,

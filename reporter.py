@@ -14,9 +14,6 @@ import os
 
 def GALLERY_HTML_MARKUP():
     return tempita.HTMLTemplate("""\
-{{if not thumbnails}}
-<font color='red'>pending ..</font>
-{{else}}
 {{for thumbnail in thumbnails}}
 <div class="img">
   <a {{attr(**thumbnail.a)}}>
@@ -24,9 +21,7 @@ def GALLERY_HTML_MARKUP():
   </a>
   <div class="desc">{{thumbnail.description | html}}</div>
 </div>
-{{endfor}}
-{{endif}}""")
-
+{{endfor}}""")
 
 class a(tempita.bunch):
     pass
@@ -52,21 +47,18 @@ class ResultsGallery(object):
         self.title = title
         self.description = description
 
-        self.thumbnails = []
+        # start with a clean slate
+        os.remove(self.loader_filename)
 
-        self.commit_thumbnails()
-
-    def commit_thumbnails(self, thumbnails=[]):
+    def commit_thumbnails(self, thumbnails):
         if not type(thumbnails) is list:
-            self.thumbnails.append(thumbnails)
-        else:
-            self.thumbnails += thumbnails
+            thumbnails = [thumbnails]
 
-        self.raw = GALLERY_HTML_MARKUP().substitute(thumbnails=self.thumbnails)
+        self.raw = GALLERY_HTML_MARKUP().substitute(thumbnails=thumbnails)
 
-        with open(self.loader_filename, 'w') as fd:
-            fd.write(self.raw)
-            fd.close()
+        fd = open(self.loader_filename, 'a')
+        fd.write(self.raw)
+        fd.close()
 
 
 def SUBJECT_PREPROC_REPORT_HTML_TEMPLATE():
