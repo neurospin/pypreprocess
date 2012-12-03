@@ -37,13 +37,13 @@ doesn't exist; you need to export MATLAB_EXEC" % MATLAB_EXEC
 matlab.MatlabCommand.set_default_matlab_cmd(MATLAB_EXEC)
 
 # set matlab SPM back-end path
-MATLAB_SPM_DIR = '/i2bm/local/spm8'
-if 'MATLAB_SPM_DIR' in os.environ:
-    MATLAB_SPM_DIR = os.environ['MATLAB_SPM_DIR']
-assert os.path.exists(MATLAB_SPM_DIR), \
-    "nipype_preproc_smp_utils: MATLAB_SPM_DIR: %s,\
- doesn't exist; you need to export MATLAB_SPM_DIR" % MATLAB_SPM_DIR
-matlab.MatlabCommand.set_default_paths(MATLAB_SPM_DIR)
+SPM_DIR = '/i2bm/local/spm8'
+if 'SPM_DIR' in os.environ:
+    SPM_DIR = os.environ['SPM_DIR']
+assert os.path.exists(SPM_DIR), \
+    "nipype_preproc_smp_utils: SPM_DIR: %s,\
+ doesn't exist; you need to export SPM_DIR" % SPM_DIR
+matlab.MatlabCommand.set_default_paths(SPM_DIR)
 
 # set job count
 N_JOBS = -1
@@ -51,10 +51,10 @@ if 'N_JOBS' in os.environ:
     N_JOBS = int(os.environ['N_JOBS'])
 
 # set templates
-T1_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'templates/T1.nii')
-GM_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/grey.nii')
-WM_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/white.nii')
-CSF_TEMPLATE = os.path.join(MATLAB_SPM_DIR, 'tpm/csf.nii')
+T1_TEMPLATE = os.path.join(SPM_DIR, 'templates/T1.nii')
+GM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/grey.nii')
+WM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/white.nii')
+CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
 
 
 class SubjectData(object):
@@ -402,7 +402,7 @@ def do_subject_normalize(output_dir,
         output['thumbnails'].append(thumbnail)
 
         # check registration
-        target = os.path.join(MATLAB_SPM_DIR, "templates/T1.nii")
+        target = os.path.join(SPM_DIR, "templates/T1.nii")
         source = normalized_file
 
         # plot overlap (edge map) of MNI template on the
@@ -473,7 +473,8 @@ def do_subject_preproc(
     do_coreg=True,
     do_segment=True,
     do_cv_tc=True,
-    parent_results_gallery=None):
+    parent_results_gallery=None,
+    main_page="#"):
     """
     Function preprocessing data for a single subject.
 
@@ -500,7 +501,8 @@ def do_subject_preproc(
 
         # html markup
         report = reporter.SUBJECT_PREPROC_REPORT_HTML_TEMPLATE().substitute(
-            results=results_gallery)
+            results=results_gallery,
+            main_page=main_page)
 
         print ">" * 80 + "BEGIN HTML"
         print report
@@ -805,6 +807,7 @@ package</a>.</p>"""
     # preproc subjects
     shutil.copy('css/styles.css', "/tmp/styles.css")
     kwargs['parent_results_gallery'] = results_gallery
+    kwargs['main_page'] = report_filename
 
     joblib.Parallel(
         n_jobs=N_JOBS, verbose=100)(joblib.delayed(do_subject_preproc)(
