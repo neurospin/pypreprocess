@@ -30,6 +30,8 @@ DATA_DIR = os.environ['DATA_DIR']
 OUTPUT_DIR = os.getcwd()
 if 'OUTPUT_DIR' in os.environ:
     OUTPUT_DIR = os.environ['OUTPUT_DIR']
+    if not os.path.exists(OUTPUT_DIR):
+        os.makedirs(OUTPUT_DIR)
 
 DATASET_DESCRIPTION = """\
 This is a block-design fMRI dataset from a study on face and object\
@@ -47,26 +49,23 @@ here</a>.\
 
 if __name__ == '__main__':
     # fetch HAXBY dataset
-    haxby_data = fetch_haxby(data_dir=DATA_DIR,
-                             subject_ids=["subj2"])
+    haxby_data = fetch_haxby(data_dir=DATA_DIR)
 
     # producer
     def subject_factory():
-        for subject_id, subject_data in haxby_data.iteritems():
+        for subject_id, _subject_data in haxby_data.iteritems():
             # pre-process data for all subjects
+            subject_data = nipype_preproc_spm_utils.SubjectData()
             session_id = "haxby2001"
-            subject_data['output_dir'] = subject_data['subject_dir']
-            subject_data['subject_id'] = subject_id
-            subject_data['func'] = subject_data['bold']
-            unzip_nii_gz(subject_data['output_dir'])
-            subject_data['anat'] = subject_data["anat"].replace(".gz", "")
-            subject_data['func'] = subject_data["bold"].replace(".gz", "")
-            subject_data['session_id'] = session_id
-            subject_data['output_dir'] = os.path.join(
+            subject_data.subject_id = subject_id
+            unzip_nii_gz(_subject_data['subject_dir'])
+            subject_data.anat = _subject_data["anat"].replace(".gz", "")
+            subject_data.func = _subject_data["bold"].replace(".gz", "")
+            subject_data.output_dir = os.path.join(
                 os.path.join(OUTPUT_DIR, session_id),
                 subject_id)
-            if not os.path.exists(subject_data['output_dir']):
-                os.makedirs(subject_data["output_dir"])
+            if not os.path.exists(subject_data.output_dir):
+                os.makedirs(subject_data.output_dir)
 
             yield subject_data
 
@@ -78,7 +77,6 @@ if __name__ == '__main__':
         subject_factory(),
         do_realign=False,
         do_coreg=False,
-        do_bet=False,
         do_cv_tc=False,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename)
