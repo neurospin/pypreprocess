@@ -14,6 +14,9 @@ import os
 
 def GALLERY_HTML_MARKUP():
     return tempita.HTMLTemplate("""\
+{{if not thumbnails}}
+<font color='red'>pending ..</font>
+{{else}}
 {{for thumbnail in thumbnails}}
 <div class="img">
   <a {{attr(**thumbnail.a)}}>
@@ -21,7 +24,16 @@ def GALLERY_HTML_MARKUP():
   </a>
   <div class="desc">{{thumbnail.description | html}}</div>
 </div>
-{{endfor}}""")
+{{endfor}}
+{{endif}}""")
+
+
+class a(tempita.bunch):
+    pass
+
+
+class img(tempita.bunch):
+    pass
 
 
 class Thumbnail(object):
@@ -42,9 +54,9 @@ class ResultsGallery(object):
 
         self.thumbnails = []
 
-        self.update()
+        self.commit_thumbnails()
 
-    def update(self, thumbnails=[]):
+    def commit_thumbnails(self, thumbnails=[]):
         if not type(thumbnails) is list:
             self.thumbnails.append(thumbnails)
         else:
@@ -162,4 +174,4 @@ fMRI images</p>"""
             thumbnail.description = subject_id
 
             # update gallery
-            results.update(thumbnail)
+            results.commit_thumbnails(thumbnail)

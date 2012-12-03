@@ -1,7 +1,5 @@
-<!-- Define some useful defaults -->
-{{default done = 0}} <!-- is preproc done ? -->
+{{default done = 0}}
 {{default preproc_undergone = None}}
-{{default refresh_timeout = 5}} <!-- the page will be refreshed every this number of seconds -->
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
@@ -14,7 +12,7 @@
     <meta name="distribution" content="global" />
     <link rel="shortcut icon" href="/favicon.ico" />
 
-    <link href="css/styles.css" rel="stylesheet">
+    <link href="/home/elvis/CODE/FORKED/pypreprocess/css/styles.css" rel="stylesheet">
 
   </head>
 
@@ -39,6 +37,18 @@
 	  <div id="section-navigation">
 	  </div>
 	  <div id="content">
+	    <script type="text/javascript">
+	      window.onload = startInterval;
+	      function startInterval()
+	      {
+	      setInterval("startTime();",1000);
+	      }
+	      
+	      function startTime()
+	      {
+	      document.getElementById('time').innerHTML = Date();  
+	      }
+	    </script>
 	    <h2><div id='time' style='display: inline;'></div>{{if done:}}<font color="green">   Done</font>.{{else}}<font color="red"><i>   STILL RUNNING ..</i></font>{{endif}}</h2>
 	    <hr/>
 	    {{if dataset_description}}

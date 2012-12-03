@@ -19,7 +19,7 @@ import nibabel
 
 from nipy.labs import compute_mask_files
 from nipy.labs import viz
-from joblib import Memory as CheckPreprocMemory
+import joblib
 
 EPS = np.finfo(float).eps
 
@@ -50,7 +50,8 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None):
         title = "subject: %s" % subject_id
     pl.title(title, fontsize=10)
     pl.xlabel('time(scans)', fontsize=10)
-    pl.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'), prop={"size": 10})
+    pl.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'), prop={"size": 12},
+              loc="upper left")
     pl.ylabel('Estimated motion (mm/degrees)', fontsize=10)
 
     # dump image unto disk
@@ -135,13 +136,13 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
             # get the data
             data = nim.get_data()
         else:
-            raise RuntimeError, "expecting 4D image, got %iD" % len(nim.shape)
+            raise RuntimeError("expecting 4D image, got %iD" % len(nim.shape))
 
         # compute the CV for the session
         cache_dir = os.path.join(output_dir, "CV")
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        mem = CheckPreprocMemory(cachedir=cache_dir, verbose=5)
+        mem = joblib.Memory(cachedir=cache_dir, verbose=5)
         cv = mem.cache(compute_cv)(data, mask_array)
 
         if write_image:
@@ -190,7 +191,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
             legends.append('Differential Coefficent of Variation')
         legends = tuple(legends)
         pl.plot(np.vstack(stuff).T)
-        pl.legend(legends, loc="center", prop={'size': 10})
+        pl.legend(legends, loc="center", prop={'size': 12})
 
         pl.xlabel('time(scans)')
         pl.ylabel('Median Coefficient of Variation')
@@ -221,22 +222,33 @@ def plot_registration(reference, coregistered,
         cmap = pl.cm.spectral
 
     if cut_coords is None:
-        cut_coords = (-2, -28, 17)
+        cut_coords = (-10, -28, 17)
 
     if slicer in ['x', 'y', 'z']:
         cut_coords = (cut_coords['xyz'.index(slicer)],)
+
+    # prepare for smart-caching
+    if not output_filename is None:
+        output_dir = os.path.dirname(output_filename)
+    else:
+        output_dir = os.path.dirname(reference)
+    cache_dir = os.path.join(output_dir, "REG")
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    mem = joblib.Memory(cachedir=cache_dir, verbose=5)
 
     # plot the coregistered image
     coregistered_img = nibabel.load(coregistered)
     coregistered_data = coregistered_img.get_data()
     coregistered_affine = coregistered_img.get_affine()
-    slicer = viz.plot_anat(anat=coregistered_data,
-                           anat_affine=coregistered_affine,
-                           black_bg=True,
-                           cmap=cmap,
-                           cut_coords=cut_coords,
-                           slicer=slicer
-                           )
+    slicer = mem.cache(viz.plot_anat)(
+        anat=coregistered_data,
+        anat_affine=coregistered_affine,
+        black_bg=True,
+        cmap=cmap,
+        cut_coords=cut_coords,
+        slicer=slicer
+        )
 
     # overlap the reference image
     reference_img = nibabel.load(reference)
@@ -245,7 +257,7 @@ def plot_registration(reference, coregistered,
     slicer.edge_map(reference_data, reference_affine)
 
     # misc
-    slicer.title(title, size=10, color='w',
+    slicer.title(title, size=12, color='w',
                  alpha=0)
 
     if not output_filename is None:
@@ -282,19 +294,30 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
         cmap = pl.cm.spectral
 
     if cut_coords is None:
-        cut_coords = (-2, -28, 17)
+        cut_coords = (-10, -28, 17)
 
     if slicer in ['x', 'y', 'z']:
         cut_coords = (cut_coords['xyz'.index(slicer)],)
+
+    # prepare for smart-caching
+    if not output_filename is None:
+        output_dir = os.path.dirname(output_filename)
+    else:
+        output_dir = os.path.dirname(img_filename)
+    cache_dir = os.path.join(output_dir, "SEG")
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    mem = joblib.Memory(cachedir=cache_dir, verbose=5)
 
     # plot img
     img = nibabel.load(img_filename)
     anat = img.get_data()
     anat_affine = img.get_affine()
-    _slicer = viz.plot_anat(anat, anat_affine, cut_coords=cut_coords,
-                            slicer=slicer,
-                            cmap=cmap,
-                            black_bg=True)
+    _slicer = mem.cache(viz.plot_anat)(
+        anat, anat_affine, cut_coords=cut_coords,
+        slicer=slicer,
+        cmap=cmap,
+        black_bg=True)
 
     # draw a GM contour map
     gm = nibabel.load(gm_filename)
@@ -315,7 +338,7 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
     _slicer.contour_map(csf_template, csf_affine, levels=[.51], colors=['b'])
 
     # misc
-    _slicer.title(title, size=10, color='w',
+    _slicer.title(title, size=12, color='w',
                  alpha=0)
     # pl.legend(("WM", "CSF", "GM"))
 
@@ -327,13 +350,4 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
 
 # Demo
 if __name__ == '__main__':
-    data_dir = '/tmp/va100099/fmri/'
-    session_ids = ['000007', '000009']
-    subject_id = 'va100099'
-    spm_motion_parameters = glob.glob(os.path.join(data_dir, 'rp*.txt'))
-    epi_data = glob.glob(os.path.join(data_dir, 'wr*.nii'))
-    epi_data.sort()
-
-    plot_spm_motion_parameters(spm_motion_parameters)
-    check_mask(epi_data[0])
-    plot_cv_tc(epi_data, session_ids, subject_id)
+    pass  # XXX placeholder for demo code

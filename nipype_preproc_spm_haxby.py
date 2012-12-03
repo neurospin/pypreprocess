@@ -26,6 +26,11 @@ if not 'DATA_DIR' in os.environ:
     raise IOError("DATA_DIR is not in your environ; export it!")
 DATA_DIR = os.environ['DATA_DIR']
 
+# set output dir (never pollute data dir!!!)
+OUTPUT_DIR = os.getcwd()
+if 'OUTPUT_DIR' in os.environ:
+    OUTPUT_DIR = os.environ['OUTPUT_DIR']
+
 DATASET_DESCRIPTION = """\
 This is a block-design fMRI dataset from a study on face and object\
  representation in human ventral temporal cortex. It consists of 6 subjects\
@@ -43,24 +48,37 @@ here</a>.\
 if __name__ == '__main__':
     # fetch HAXBY dataset
     haxby_data = fetch_haxby(data_dir=DATA_DIR,
-                             subject_ids=["subj4", "subj2", "subj3"])
+                             subject_ids=["subj2"])
 
     # producer
     def subject_factory():
         for subject_id, subject_data in haxby_data.iteritems():
             # pre-process data for all subjects
+            session_id = "haxby2001"
             subject_data['output_dir'] = subject_data['subject_dir']
             subject_data['subject_id'] = subject_id
             subject_data['func'] = subject_data['bold']
             unzip_nii_gz(subject_data['output_dir'])
             subject_data['anat'] = subject_data["anat"].replace(".gz", "")
             subject_data['func'] = subject_data["bold"].replace(".gz", "")
-            subject_data['session_id'] = 'haxby2001'
+            subject_data['session_id'] = session_id
+            subject_data['output_dir'] = os.path.join(
+                os.path.join(OUTPUT_DIR, session_id),
+                subject_id)
+            if not os.path.exists(subject_data['output_dir']):
+                os.makedirs(subject_data["output_dir"])
 
             yield subject_data
 
+    # do preprocessing proper
+    report_filename = os.path.join(OUTPUT_DIR,
+                                   "_report.html")
+
     nipype_preproc_spm_utils.do_group_preproc(
         subject_factory(),
+        do_realign=False,
+        do_coreg=False,
+        do_bet=False,
         do_cv_tc=False,
         dataset_description=DATASET_DESCRIPTION,
-        report_filename=os.path.abspath("haxby_preproc_report.html"))
+        report_filename=report_filename)
