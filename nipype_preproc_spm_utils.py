@@ -547,10 +547,10 @@ def do_subject_preproc(
         func_images = nibabel.load(final_func)
         mean_func_image = nibabel.Nifti1Image(
             func_images.get_data().mean(-1), func_images.get_affine())
-        mean_func_image = os.path.join(
+        mean_func = os.path.join(
             os.path.dirname(subject_data.func),
             'mean' + os.path.basename(subject_data.func))
-        nibabel.save(mean_func_image, mean_func_image)
+        nibabel.save(mean_func_image, mean_func)
 
     ################################################################
     # co-registration of functional against structural (anatomical)
@@ -575,7 +575,7 @@ def do_subject_preproc(
         coreg_result = coreg_output['result']
 
         # rest anat to coregistered version thereof
-        anat = coreg_result.outputs.coregistered_source
+        subject_data.anat = coreg_result.outputs.coregistered_source
 
         # generate report stub
         if do_report:
@@ -586,7 +586,7 @@ def do_subject_preproc(
     # segmentation of anatomical image
     ###################################
     if do_segment:
-        segment_data = anat
+        segment_data = subject_data.anat
         segment_output = do_subject_segment(
             subject_data.output_dir,
             subject_id=subject_data.subject_id,
@@ -639,7 +639,7 @@ def do_subject_preproc(
         # using the deformations learned by segmentation
         #############################################################
         norm_parameter_file = segment_result.outputs.transformation_mat
-        norm_apply_to_files = anat
+        norm_apply_to_files = subject_data.anat
 
         norm_output = do_subject_normalize(
             subject_data.output_dir,
