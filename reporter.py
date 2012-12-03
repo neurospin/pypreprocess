@@ -48,7 +48,8 @@ class ResultsGallery(object):
         self.description = description
 
         # start with a clean slate
-        os.remove(self.loader_filename)
+        if os.path.isfile(self.loader_filename):
+            os.remove(self.loader_filename)
 
     def commit_thumbnails(self, thumbnails):
         if not type(thumbnails) is list:

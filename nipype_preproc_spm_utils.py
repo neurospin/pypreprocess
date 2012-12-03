@@ -806,10 +806,6 @@ package</a>.</p>"""
     shutil.copy('css/styles.css', "/tmp/styles.css")
     kwargs['parent_results_gallery'] = results_gallery
 
-    results = joblib.Parallel(
+    joblib.Parallel(
         n_jobs=N_JOBS, verbose=100)(joblib.delayed(do_subject_preproc)(
             subject_data, **kwargs) for subject_data in subjects)
-
-    # populate gallery
-    for output in results:
-        results_gallery.commit_thumbnails(output['final_thumbnail'])
