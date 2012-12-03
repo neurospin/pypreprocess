@@ -1,0 +1,7 @@
+-e git+https://github.com/nipy/nipype.git#egg=nipype
+
+-e git+https://github.com/nipy/nipype.git#egg=nipy
+
+-e git+https://github.com/joblib/joblib.git#egg=joblib
+
+-e hg+https://bitbucket.org/ianb/tempita#egg=tempita
