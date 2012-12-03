@@ -63,7 +63,7 @@ class ResultsGallery(object):
 
 
 def SUBJECT_PREPROC_REPORT_HTML_TEMPLATE():
-    with open("template_reports/subject_preproc_report.tmpl.html") as fd:
+    with open("template_reports/subject_preproc_report_template.tmpl.html") as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
 
