@@ -1,0 +1,8 @@
+You just need to "coregister only".  Reslicing anatomical images is
+really only needed when using software outside SPM, which may not be
+able to understand the orientation information in the image headers (or
+mat files for older SPM versions).
+
+Best regards,
+-John
+
