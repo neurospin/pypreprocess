@@ -8,6 +8,12 @@ XXX TODO: document this according to numpy/spinx standards
 XXX TODO: re-factor the code (use unittesting)
 XXX TODO: over-all testing (nose ?, see with GV & BT)
 
+Example cmd-line run (there are no breaks between the following lines):
+SPM_DIR=~/spm8 MATLAB_EXEC=/usr/local/MATLAB/R2011a/bin/matlab \
+DATA_DIR=~/CODE/datasets/nyu_data/nyu_rest/nyu_rest/ N_JOBS=-1 \
+OUTPUT_DIR=~/CODE/FORKED/pypreprocess/nyu_runs \
+python nipype_preproc_spm_nyu.py
+
 """
 
 # standard imports

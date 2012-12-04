@@ -320,7 +320,7 @@ def do_subject_normalize(output_dir,
                 normalized_img.get_affine())
             mean_normalized_file = os.path.join(
                 os.path.dirname(normalized_file),
-                'mean (along the time axis) ' + os.path.basename(
+                'mean' + os.path.basename(
                     normalized_file))
             nibabel.save(mean_normalized_img, mean_normalized_file)
             normalized_file = mean_normalized_file

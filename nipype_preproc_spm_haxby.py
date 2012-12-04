@@ -9,6 +9,12 @@ XXX TODO: re-factor the code (use unittesting)
 XXX TODO: more  preprocessing checks (coregistration step, etc.)
 XXX TODO: over-all testing (nose ?, see with GV & BT)
 
+Example cmd-line run (there are no breaks between the following lines):
+SPM_DIR=~/spm8 MATLAB_EXEC=/usr/local/MATLAB/R2011a/bin/matlab \
+DATA_DIR=~/CODE/datasets/haxby/ N_JOBS=-1 \
+OUTPUT_DIR=~/CODE/FORKED/pypreprocess/haxby_runs \
+python nipype_preproc_spm_haxby.py
+
 """
 
 # standard imports
