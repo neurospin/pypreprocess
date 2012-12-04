@@ -1,13 +1,18 @@
 """
 :Module: nipype_preproc_spm_nyu
-:Synopsis: SPM use-case for preprocessing NYU rest dataset (this is just a quick-and-dirty POC)
+:Synopsis: SPM use-case for preprocessing NYU rest dataset
+(this is just a quick-and-dirty POC)
 :Author: dohmatob elvis dopgima
 
 XXX TODO: document this according to numpy/spinx standards
 XXX TODO: re-factor the code (use unittesting)
-XXX TODO: visualization 
-XXX TODO: preprocessing checks
 XXX TODO: over-all testing (nose ?, see with GV & BT)
+
+Example cmd-line run (there are no breaks between the following lines):
+SPM_DIR=~/spm8 MATLAB_EXEC=/usr/local/MATLAB/R2011a/bin/matlab \
+DATA_DIR=~/CODE/datasets/nyu_data/nyu_rest/nyu_rest/ N_JOBS=-1 \
+OUTPUT_DIR=~/CODE/FORKED/pypreprocess/nyu_runs \
+python nipype_preproc_spm_nyu.py
 
 """
 
@@ -15,42 +20,63 @@ XXX TODO: over-all testing (nose ?, see with GV & BT)
 import os
 
 # helper imports
-from fetch_local import fetch_nyu_data_offline
+import fetch_local
 
 # import spm preproc utilities
-from nipype_preproc_spm_utils import do_subject_preproc
-
-# parallelism imports
-from joblib import Parallel, delayed
+import nipype_preproc_spm_utils
 
 # set data dir
-DATA_DIR = os.getcwd()
-if 'DATA_DIR' in os.environ:
-    DATA_DIR = os.environ['DATA_DIR']
-assert os.path.exists(DATA_DIR), \
-    "DATA_DIR: %s, doesn't exist" % DATA_DIR
+if not 'DATA_DIR' in os.environ:
+    raise IOError("DATA_DIR is not in your environ; export it!")
+DATA_DIR = os.environ['DATA_DIR']
 
-# set interesting subject ids
-SUBJECT_IDS = ["sub05676", "sub14864", "sub18604"]
+# set output dir (never pollute data dir!!!)
+OUTPUT_DIR = os.getcwd()
+if 'OUTPUT_DIR' in os.environ:
+    OUTPUT_DIR = os.environ['OUTPUT_DIR']
+
+DATASET_DESCRIPTION = """\
+<p>The NYU CSC TestRetest resource includes EPI-images of 25 participants
+gathered during rest as well as anonymized anatomical images of the \
+same participants.</p>
+
+<p>The resting-state fMRI images were collected on several occasions:<br>
+1. the first resting-state scan in a scan session<br>
+2. 5-11 months after the first resting-state scan<br>
+3. about 30 (< 45) minutes after 2.</p>
+
+<p>Get full description <a href="http://www.nitrc.org/projects/nyu_trt\
+/">here</a>.</p>
+"""
 
 if __name__ == '__main__':
 
-    def subject_callback(args):
-        subject_dir, anat_image, fmri_images = args
-        do_subject_preproc(subject_dir, anat_image, fmri_images)
-
     # grab local NYU directory structure
-    sessions = fetch_nyu_data_offline(DATA_DIR, subject_ids=SUBJECT_IDS)
+    sessions = fetch_local.fetch_nyu_data_offline(
+        DATA_DIR)
 
     # producer
-    def producer():
+    def subject_factory():
         for session_id, session in sessions.iteritems():
             # pre-process data for all subjects
             for subject_id, subject in session.iteritems():
-                anat_image = subject['skullstripped_anat']
-                fmri_images = subject['func']
-                subject_dir = os.path.join(os.path.join(DATA_DIR, session_id),
-                                           subject_id)
-                yield subject_dir, anat_image, fmri_images
+                subject_data = nipype_preproc_spm_utils.SubjectData()
+                subject_data.subject_id = subject_id
+                subject_data.session_id = session_id
+                subject_data.anat = subject['skullstripped_anat']
+                subject_data.func = subject['func']
+                subject_data.output_dir = os.path.join(
+                    os.path.join(OUTPUT_DIR, session_id),
+                    subject_id)
+                if not os.path.exists(subject_data.output_dir):
+                    os.makedirs(subject_data.output_dir)
 
-    Parallel(n_jobs=8)(delayed(subject_callback)(args) for args in producer())
+                yield subject_data
+
+    # do preprocessing proper
+    report_filename = os.path.join(OUTPUT_DIR,
+                                   "nyu_preproc_report.html")
+    nipype_preproc_spm_utils.do_group_preproc(
+        subject_factory(),
+        dataset_description=DATASET_DESCRIPTION,
+        report_filename=report_filename)
