@@ -555,7 +555,7 @@ def do_subject_preproc(
         nibabel.save(mean_func_image, mean_func)
 
     ################################################################
-    # co-registration of functional against structural (anatomical)
+    # co-registration of structural (anatomical) against functional 
     ################################################################
     if do_coreg:
         # specify input files for coregistration
