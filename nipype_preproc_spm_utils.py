@@ -14,7 +14,6 @@ import shutil
 # imports for caching (yeah, we aint got time to loose!)
 from nipype.caching import Memory
 
-
 # spm and matlab imports
 import nipype.interfaces.spm as spm
 import nipype.interfaces.matlab as matlab
@@ -480,13 +479,14 @@ def do_subject_preproc(
 
     """
 
+    if not os.path.exists(subject_data.output_dir):
+        os.makedirs(subject_data.output_dir)
+
     if do_report:
         import check_preprocessing
         import reporter
 
         report_filename = os.path.join(subject_data.output_dir, "_report.html")
-        output = {}
-        output["plots"] = {}
         final_thumbnail = reporter.Thumbnail()
         final_thumbnail.a = reporter.a(href=report_filename)
         final_thumbnail.img = reporter.img()
@@ -522,7 +522,6 @@ def do_subject_preproc(
     #####################
     #  motion correction
     #####################
-    # XXX /!\ ARE WE REALLY SURE THE IMAGE HEADERS HAVE BEEN MOVED ?
     if do_realign:
         realign_output = do_subject_realign(
             subject_data.output_dir,
@@ -555,7 +554,7 @@ def do_subject_preproc(
         nibabel.save(mean_func_image, mean_func)
 
     ################################################################
-    # co-registration of structural (anatomical) against functional 
+    # co-registration of structural (anatomical) against functional
     ################################################################
     if do_coreg:
         # specify input files for coregistration
@@ -594,9 +593,9 @@ def do_subject_preproc(
             subject_id=subject_data.subject_id,
             do_report=False,  # XXX why ?
             data=segment_data,
-            gm_output_type=[True, True, True], # XXX why ?
-            wm_output_type=[True, True, True], # XXX why ?
-            csf_output_type=[True, True, True], # XXX why ?
+            gm_output_type=[True, True, True],  # XXX why ?
+            wm_output_type=[True, True, True],  # XXX why ?
+            csf_output_type=[True, True, True],  # XXX why ?
             tissue_prob_maps=[GM_TEMPLATE,
                               WM_TEMPLATE, CSF_TEMPLATE],
             # the following kwargs are courtesy of christophe p.
@@ -714,12 +713,9 @@ def do_subject_preproc(
             results_gallery.commit_thumbnails(thumbnail)
 
         final_thumbnail.img.height = "250px"
-        output['final_thumbnail'] = final_thumbnail
 
         if parent_results_gallery:
             parent_results_gallery.commit_thumbnails(final_thumbnail)
-
-        return output
 
 
 def do_group_preproc(subjects,
@@ -732,6 +728,26 @@ def do_group_preproc(subjects,
                      do_segment=True,
                      do_cv_tc=True):
 
+    """
+    This functions doe intra-subject fMRI preprocessing on a
+    group os subjects.
+
+    Parameters
+    ==========
+    report_filename: string (optional)
+    if provided, an HTML report will be produced. This report is
+    dynamic and its contents are updated automatically as more
+    and more subjects are preprocessed.
+
+    """
+
+    # sanitize input
+    if do_report:
+        if report_filename is None:
+            raise RuntimeError(
+                ("You asked for reporting (do_report=True)  but specified"
+                 " an invalid report_filename (None)"))
+
     kwargs = {'do_realign': do_realign, 'do_coreg': do_coreg,
                 'do_segment': do_segment, 'do_cv_tc': do_cv_tc}
 
@@ -739,7 +755,7 @@ def do_group_preproc(subjects,
     if do_report:
         import reporter
 
-        # compute docstring explaing preproc steps undergone
+        # compute docstring explaining preproc steps undergone
         preproc_undergone = """\
 <p>All preprocessing has been done using nipype's interface to the \
 <a href="http://www.fil.ion.ucl.ac.uk/spm/">SPM8
@@ -809,6 +825,8 @@ package</a>.</p>"""
     kwargs['parent_results_gallery'] = results_gallery
     kwargs['main_page'] = report_filename
 
-    joblib.Parallel(
-        n_jobs=N_JOBS, verbose=100)(joblib.delayed(do_subject_preproc)(
+    joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
+            do_subject_preproc)(
             subject_data, **kwargs) for subject_data in subjects)
+
+    print "HTML report (dynamic) written to %s" % report_filename
