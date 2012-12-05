@@ -10,16 +10,14 @@ XXX TODO: more  preprocessing checks (coregistration step, etc.)
 XXX TODO: over-all testing (nose ?, see with GV & BT)
 
 Example cmd-line run (there are no breaks between the following lines):
-SPM_DIR=~/spm8 MATLAB_EXEC=/usr/local/MATLAB/R2011a/bin/matlab \
-DATA_DIR=~/CODE/datasets/haxby/ N_JOBS=-1 \
-OUTPUT_DIR=~/CODE/FORKED/pypreprocess/haxby_runs \
+DATA_DIR=~/haxby_data N_JOBS=-1 \
+OUTPUT_DIR=~/haxby_runs \
 python nipype_preproc_spm_haxby.py
 
 """
 
 # standard imports
 import os
-import glob
 
 # helper imports
 from nisl.datasets import fetch_haxby, unzip_nii_gz
@@ -70,8 +68,6 @@ if __name__ == '__main__':
             subject_data.output_dir = os.path.join(
                 os.path.join(OUTPUT_DIR, session_id),
                 subject_id)
-            if not os.path.exists(subject_data.output_dir):
-                os.makedirs(subject_data.output_dir)
 
             yield subject_data
 
