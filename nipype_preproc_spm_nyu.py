@@ -68,8 +68,6 @@ if __name__ == '__main__':
                 subject_data.output_dir = os.path.join(
                     os.path.join(OUTPUT_DIR, session_id),
                     subject_id)
-                if not os.path.exists(subject_data.output_dir):
-                    os.makedirs(subject_data.output_dir)
 
                 yield subject_data
 
