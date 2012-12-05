@@ -3,7 +3,7 @@
 :Synopsis: utility module for report generation business
 :Author: dohmatob elvis dopgima
 
-XXX TODO: Docu
+XXX TODO: Document this module.
 """
 
 import tempita
@@ -19,23 +19,43 @@ def GALLERY_HTML_MARKUP():
   <a {{attr(**thumbnail.a)}}>
     <img {{attr(**thumbnail.img)}}/>
   </a>
-  <div class="desc">{{thumbnail.description | html}}</div>
+  <div class="desc"><b>{{thumbnail.description | html}}</b></div>
 </div>
 {{endfor}}""")
 
+
 class a(tempita.bunch):
+    """
+    HTML anchor element.
+
+    """
+
     pass
 
 
 class img(tempita.bunch):
+    """
+    HTML image element.
+
+    """
+
     pass
 
 
 class Thumbnail(object):
+    """
+    Thumbnnail (HTML img + effects).
+
+    """
+
     pass
 
 
 class ResultsGallery(object):
+    """
+    Gallery of results (summarized by thumbnails).
+
+    """
 
     def __init__(self, loader_filename,
                  refresh_timeout=5000,
@@ -63,7 +83,8 @@ class ResultsGallery(object):
 
 
 def SUBJECT_PREPROC_REPORT_HTML_TEMPLATE():
-    with open("template_reports/subject_preproc_report_template.tmpl.html") as fd:
+    with open(
+        "template_reports/subject_preproc_report_template.tmpl.html") as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
 
@@ -87,6 +108,9 @@ def nipype2htmlreport(nipype_report_filename):
         return lines2breaks(fd.readlines())
 
 
+#######
+# DEMO
+#######
 if __name__ == '__main__':
     with open(("template_reports/dataset_preproc_report"
                "_template.tmpl.html")
