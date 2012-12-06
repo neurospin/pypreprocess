@@ -85,24 +85,27 @@ def do_subject_realign(output_dir,
 
         output['thumbnails'] = []
 
-        rp_plot = check_preprocessing.plot_spm_motion_parameters(
+        rp_plot = os.path.join(output_dir, 'rp_plot.png')
+        check_preprocessing.plot_spm_motion_parameters(
         rp,
         subject_id=subject_id,
-        title="Plot of motion parameters before realignment")
+        title="Plot of motion parameters before realignment",
+        output_filename=rp_plot)
 
         # nipype report
         nipype_report_filename = os.path.join(
             os.path.dirname(rp),
             "_report/report.rst")
-        nipype_html_report_filename = nipype_report_filename + '.html'
+        nipype_html_report_filename = "nipype_report.html"
         nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
         # create thumbnail
         thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=rp_plot)
-        thumbnail.img = reporter.img(src=rp_plot, height="500px",
-                                      width="1200px")
+        thumbnail.a = reporter.a(href=os.path.basename(rp_plot))
+        thumbnail.img = reporter.img(src=os.path.basename(rp_plot),
+                                     height="500px",
+                                     width="1200px")
         thumbnail.description = \
             "Motion Correction (<a href=%s>see execution log</a>)" \
             % nipype_html_report_filename
@@ -144,7 +147,7 @@ def do_subject_coreg(output_dir,
         nipype_report_filename = os.path.join(
             os.path.dirname(coreg_result.outputs.coregistered_source),
             "_report/report.rst")
-        nipype_html_report_filename = nipype_report_filename + '.html'
+        nipype_html_report_filename = "nipype_report.html"
         nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
@@ -184,8 +187,9 @@ def do_subject_coreg(output_dir,
 
         # create thumbnail
         thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=overlap)
-        thumbnail.img = reporter.img(src=overlap, height="500px")
+        thumbnail.a = reporter.a(href=os.path.basename(overlap))
+        thumbnail.img = reporter.img(src=os.path.basename(overlap),
+                                     height="500px")
         thumbnail.description = \
             "Coregistration %s (<a href=%s>see execution log</a>)" \
             % (comments, nipype_html_report_filename)
@@ -222,8 +226,9 @@ def do_subject_coreg(output_dir,
 
         # create thumbnail
         thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=overlap)
-        thumbnail.img = reporter.img(src=overlap, height="500px")
+        thumbnail.a = reporter.a(href=os.path.basename(overlap))
+        thumbnail.img = reporter.img(src=os.path.basename(overlap),
+                                     height="500px")
         thumbnail.description = \
             "Coregistration %s (<a href=%s>see execution log</a>)" \
             % (comments, nipype_html_report_filename)
@@ -297,7 +302,7 @@ def do_subject_normalize(output_dir,
         nipype_report_filename = os.path.join(
             os.path.dirname(norm_result.outputs.normalized_files),
             "_report/report.rst")
-        nipype_html_report_filename = nipype_report_filename + ".html"
+        nipype_html_report_filename = "nipype_report.html"
         nipype_report = reporter.nipype2htmlreport(
             nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
@@ -354,9 +359,11 @@ def do_subject_normalize(output_dir,
 
         # create thumbnail
         thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=template_compartments_contours)
-        thumbnail.img = reporter.img(src=template_compartments_contours,
-                                     height="500px")
+        thumbnail.a = reporter.a(
+            href=os.path.basename(template_compartments_contours))
+        thumbnail.img = reporter.img(
+            src=os.path.basename(template_compartments_contours),
+            height="500px")
         thumbnail.description \
             = "Normalization (<a href=%s>see execution log</a>)" \
             % (nipype_html_report_filename)
@@ -392,9 +399,11 @@ def do_subject_normalize(output_dir,
 
         # create thumbnail
         thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=subject_compartments_contours)
-        thumbnail.img = reporter.img(src=subject_compartments_contours,
-                                      height="500px")
+        thumbnail.a = reporter.a(
+            href=os.path.basename(subject_compartments_contours))
+        thumbnail.img = reporter.img(
+            src=os.path.basename(subject_compartments_contours),
+            height="500px")
         thumbnail.description = \
             "Normalization (<a href=%s>see execution log</a>)" \
             % nipype_html_report_filename
@@ -420,8 +429,9 @@ def do_subject_normalize(output_dir,
 
         # create thumbnail
         thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=overlap)
-        thumbnail.img = reporter.img(src=overlap, height="500px")
+        thumbnail.a = reporter.a(href=os.path.basename(overlap))
+        thumbnail.img = reporter.img(
+            src=os.path.basename(overlap), height="500px")
         thumbnail.description = \
             "Normalization (<a href=%s>see execution log</a>)" \
             % nipype_html_report_filename
@@ -444,8 +454,9 @@ def do_subject_normalize(output_dir,
 
         # create thumbnail
         thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=overlap)
-        thumbnail.img = reporter.img(src=overlap, height="500px")
+        thumbnail.a = reporter.a(href=os.path.basename(overlap))
+        thumbnail.img = reporter.img(
+            src=os.path.basename(overlap), height="500px")
         thumbnail.description = \
             "Normalization (<a href=%s>see execution log</a>)" \
             % nipype_html_report_filename
@@ -707,12 +718,16 @@ def do_subject_preproc(
             # create thumbnail
             thumbnail = reporter.Thumbnail()
             thumbnail.a = reporter.a(href=cv_tc_plot_after)
-            thumbnail.img = reporter.img(src=cv_tc_plot_after, height="500px",
-                                         width="1200px")
+            thumbnail.img = reporter.img(
+                src=os.path.basename(cv_tc_plot_after), height="500px",
+                width="1200px")
             thumbnail.description = "Coefficient of Variation"
             results_gallery.commit_thumbnails(thumbnail)
 
         final_thumbnail.img.height = "250px"
+        final_thumbnail.img.src = os.path.join(
+            "%s/%s" % (subject_data.session_id, subject_data.subject_id),
+            final_thumbnail.img.src)
 
         if parent_results_gallery:
             parent_results_gallery.commit_thumbnails(final_thumbnail)
@@ -754,6 +769,10 @@ def do_group_preproc(subjects,
     # generate html report (for QA) as desired
     if do_report:
         import reporter
+
+        # do some sanity
+        shutil.copy(
+            "css/styles.css", os.path.dirname(report_filename))
 
         # compute docstring explaining preproc steps undergone
         preproc_undergone = """\
@@ -823,7 +842,7 @@ package</a>.</p>"""
     # preproc subjects
     shutil.copy('css/styles.css', "/tmp/styles.css")
     kwargs['parent_results_gallery'] = results_gallery
-    kwargs['main_page'] = report_filename
+    kwargs['main_page'] = "../../%s" % os.path.basename(report_filename)
 
     joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
             do_subject_preproc)(

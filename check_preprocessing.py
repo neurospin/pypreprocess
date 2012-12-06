@@ -24,7 +24,8 @@ import joblib
 EPS = np.finfo(float).eps
 
 
-def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None):
+def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None,
+                               output_filename=None):
     """ Plot motion parameters obtained with SPM software
 
     Parameters
@@ -55,10 +56,8 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None):
     pl.ylabel('Estimated motion (mm/degrees)', fontsize=10)
 
     # dump image unto disk
-    img_filename = "%s.png" % (parameter_file)
-    pl.savefig(img_filename, bbox_inches="tight", dpi=200)
-
-    return img_filename
+    if not output_filename is None:
+        pl.savefig(output_filename, bbox_inches="tight", dpi=200)
 
 
 def check_mask(epi_data):
