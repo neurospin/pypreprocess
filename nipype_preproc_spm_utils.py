@@ -14,6 +14,10 @@ import shutil
 # imports for caching (yeah, we aint got time to loose!)
 from nipype.caching import Memory
 
+# imports for nifti manip
+from nisl.utils import concat_niimgs
+import nibabel as ni
+
 # spm and matlab imports
 import nipype.interfaces.spm as spm
 import nipype.interfaces.matlab as matlab
@@ -162,38 +166,38 @@ def do_subject_coreg(output_dir,
             os.makedirs(qa_cache_dir)
         qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
 
-        # plot overlap of target on coregistered source
+        # plot outline of target on coregistered source
         target = spm_coregister_kwargs['target']
         source = coreg_result.outputs.coregistered_source
 
-        overlap = os.path.join(
+        outline = os.path.join(
             output_dir,
-            "%s_on_%s_overlap.png" % (os.path.basename(target),
+            "%s_on_%s_outline.png" % (os.path.basename(target),
                                       os.path.basename(source)))
         qa_mem.cache(check_preprocessing.plot_registration)(
             target,
             source,
-            output_filename=overlap,
+            output_filename=outline,
             cmap=pl.cm.gray,
-            title="Overlap of %s on %s" % (os.path.basename(target),
+            title="Outline of %s on %s" % (os.path.basename(target),
                                            os.path.basename(source)))
 
-        overlap_axial = os.path.join(
+        outline_axial = os.path.join(
             output_dir,
-            "%s_on_%s_overlap_axial.png" % (os.path.basename(target),
+            "%s_on_%s_outline_axial.png" % (os.path.basename(target),
                                             os.path.basename(source)))
         qa_mem.cache(check_preprocessing.plot_registration)(
             target,
             source,
-            output_filename=overlap_axial,
+            output_filename=outline_axial,
             slicer='z',
             cmap=pl.cm.gray,
             title="%s: coreg" % subject_id)
 
         # create thumbnail
         thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=os.path.basename(overlap))
-        thumbnail.img = reporter.img(src=os.path.basename(overlap),
+        thumbnail.a = reporter.a(href=os.path.basename(outline))
+        thumbnail.img = reporter.img(src=os.path.basename(outline),
                                      height="500px")
         thumbnail.description = \
             "Coregistration %s (<a href=%s>see execution log</a>)" \
@@ -201,38 +205,38 @@ def do_subject_coreg(output_dir,
 
         output['thumbnails'].append(thumbnail)
 
-        output['axial_overlap'] = overlap_axial
+        output['axial_outline'] = outline_axial
 
-        # plot overlap of coregistered source on target
+        # plot outline of coregistered source on target
         source, target = (target, source)
-        overlap = os.path.join(
+        outline = os.path.join(
             output_dir,
-            "%s_on_%s_overlap.png" % (os.path.basename(target),
+            "%s_on_%s_outline.png" % (os.path.basename(target),
                                       os.path.basename(source)))
         qa_mem.cache(check_preprocessing.plot_registration)(
             target,
             source,
-            output_filename=overlap,
+            output_filename=outline,
             cmap=pl.cm.gray,
-            title="Overlap of %s on %s" % (os.path.basename(target),
+            title="Outline of %s on %s" % (os.path.basename(target),
                                            os.path.basename(source)))
 
-        overlap_axial = os.path.join(
+        outline_axial = os.path.join(
             output_dir,
-            "%s_on_%s_overlap_axial.png" % (os.path.basename(target),
+            "%s_on_%s_outline_axial.png" % (os.path.basename(target),
                                             os.path.basename(source)))
         qa_mem.cache(check_preprocessing.plot_registration)(
             target,
             source,
-            output_filename=overlap_axial,
+            output_filename=outline_axial,
             cmap=pl.cm.gray,
             slicer='z',
             title="%s: coreg" % subject_id)
 
         # create thumbnail
         thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=os.path.basename(overlap))
-        thumbnail.img = reporter.img(src=os.path.basename(overlap),
+        thumbnail.a = reporter.a(href=os.path.basename(outline))
+        thumbnail.img = reporter.img(src=os.path.basename(outline),
                                      height="500px")
         thumbnail.description = \
             "Coregistration %s (<a href=%s>see execution log</a>)" \
@@ -292,7 +296,6 @@ def do_subject_normalize(output_dir,
 
     # generate gallery for HTML report
     if do_report and not segment_result is None:
-        import nibabel
         import check_preprocessing
         import reporter
         import pylab as pl
@@ -322,16 +325,16 @@ def do_subject_normalize(output_dir,
         # align with the template gm, wm, csf compartments pretty well,
         # and with the MNI template too; else, we've got a failed
         # normalization.
-        normalized_img = nibabel.load(normalized_file)
+        normalized_img = ni.load(normalized_file)
         if len(normalized_img.shape) == 4:
-            mean_normalized_img = nibabel.Nifti1Image(
+            mean_normalized_img = ni.Nifti1Image(
                 normalized_img.get_data().mean(-1),
                 normalized_img.get_affine())
             mean_normalized_file = os.path.join(
                 os.path.dirname(normalized_file),
                 'mean' + os.path.basename(
                     normalized_file))
-            nibabel.save(mean_normalized_img, mean_normalized_file)
+            ni.save(mean_normalized_img, mean_normalized_file)
             normalized_file = mean_normalized_file
 
         # plot contours of template compartments on subject's brain
@@ -418,50 +421,52 @@ def do_subject_normalize(output_dir,
         target = os.path.join(SPM_DIR, "templates/T1.nii")
         source = normalized_file
 
-        # plot overlap (edge map) of MNI template on the
+        # plot outline (edge map) of MNI template on the
         # normalized image
-        overlap = os.path.join(
+        outline = os.path.join(
             output_dir,
-            "%s_on_%s_overlap.png" % (os.path.basename(target),
+            "%s_on_%s_outline.png" % (os.path.basename(target),
                                       os.path.basename(source)))
         qa_mem.cache(check_preprocessing.plot_registration)(
             target,
             source,
-            output_filename=overlap,
+            output_filename=outline,
             cmap=cmap,
-            title="Overlap of %s on %s" % (os.path.basename(target),
-                                           os.path.basename(source)))
+            title="Outline of MNI %s template on %s" % (
+                os.path.basename(target),
+                os.path.basename(source)))
 
         # create thumbnail
         thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=os.path.basename(overlap))
+        thumbnail.a = reporter.a(href=os.path.basename(outline))
         thumbnail.img = reporter.img(
-            src=os.path.basename(overlap), height="500px")
+            src=os.path.basename(outline), height="500px")
         thumbnail.description = \
             "Normalization (<a href=%s>see execution log</a>)" \
             % nipype_html_report_filename
         output['thumbnails'].append(thumbnail)
 
-        # plot overlap (edge map) of the normalized image
+        # plot outline (edge map) of the normalized image
         # on the MNI template
         source, target = (target, source)
-        overlap = os.path.join(
+        outline = os.path.join(
             output_dir,
-            "%s_on_%s_overlap.png" % (os.path.basename(target),
+            "%s_on_%s_outline.png" % (os.path.basename(target),
                                       os.path.basename(source)))
         qa_mem.cache(check_preprocessing.plot_registration)(
             target,
             source,
-            output_filename=overlap,
+            output_filename=outline,
             cmap=pl.cm.gray,
-            title="Overlap of %s on %s" % (os.path.basename(target),
-                                           os.path.basename(source)))
+            title="Outline of %s on MNI %s template" % (
+                os.path.basename(target),
+                os.path.basename(source)))
 
         # create thumbnail
         thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=os.path.basename(overlap))
+        thumbnail.a = reporter.a(href=os.path.basename(outline))
         thumbnail.img = reporter.img(
-            src=os.path.basename(overlap), height="500px")
+            src=os.path.basename(outline), height="500px")
         thumbnail.description = \
             "Normalization (<a href=%s>see execution log</a>)" \
             % nipype_html_report_filename
@@ -495,8 +500,21 @@ def do_subject_preproc(
 
     """
 
+    # create subject_data.output_dir if dir doesn't exist
     if not os.path.exists(subject_data.output_dir):
         os.makedirs(subject_data.output_dir)
+
+    # merge subject_data.func into 4D nifti if necessary
+    if type(subject_data.func) is list:
+        if len(subject_data.func) > 1:
+            # XXX we should check that each image x below is really 3D !!!
+            print "Converting 3D images to 4D nii .."
+            threeD_images = [ni.load(x) for x in subject_data.func]
+            fourD_image = concat_niimgs(threeD_images)
+            subject_data.func = os.path.join(subject_data.output_dir,
+                                             "func4D.nii")
+            ni.save(fourD_image, subject_data.func)
+            print "+++++++Done."
 
     if do_report:
         import check_preprocessing
@@ -558,16 +576,14 @@ def do_subject_preproc(
             results_gallery.commit_thumbnails(realign_output['thumbnails'])
             final_thumbnail.img.src = realign_output['rp_plot']
     else:
-        import nibabel
-
         # manually compute mean (along time axis) of fMRI images
-        func_images = nibabel.load(final_func)
-        mean_func_image = nibabel.Nifti1Image(
+        func_images = ni.load(final_func)
+        mean_func_image = ni.Nifti1Image(
             func_images.get_data().mean(-1), func_images.get_affine())
         mean_func = os.path.join(
             os.path.dirname(subject_data.func),
             'mean' + os.path.basename(subject_data.func))
-        nibabel.save(mean_func_image, mean_func)
+        ni.save(mean_func_image, mean_func)
 
     ################################################################
     # co-registration of structural (anatomical) against functional
@@ -597,7 +613,7 @@ def do_subject_preproc(
         # generate report stub
         if do_report:
             results_gallery.commit_thumbnails(coreg_output['thumbnails'])
-            final_thumbnail.img.src = coreg_output['axial_overlap']
+            final_thumbnail.img.src = coreg_output['axial_outline']
 
     ###################################
     # segmentation of anatomical image
@@ -853,7 +869,6 @@ package</a>.</p>"""
             print "HTML report (dynamic) written to %s" % report_filename
 
     # preproc subjects
-    shutil.copy('css/styles.css', "/tmp/styles.css")
     kwargs['parent_results_gallery'] = results_gallery
     kwargs['main_page'] = "../../%s" % os.path.basename(report_filename)
 
