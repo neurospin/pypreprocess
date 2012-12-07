@@ -57,6 +57,11 @@ CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
 
 
 class SubjectData(object):
+    """
+    Encapsulation for subject data, relative to preprocessing.
+
+    """
+
     pass
 
 
@@ -735,6 +740,7 @@ def do_subject_preproc(
 
 def do_group_preproc(subjects,
                      do_report=True,
+                     do_export_report=True,
                      dataset_description=None,
                      report_filename=None,
                      do_bet=False,
@@ -749,6 +755,8 @@ def do_group_preproc(subjects,
 
     Parameters
     ==========
+    subjects: iterable of SubjectData objects
+
     report_filename: string (optional)
     if provided, an HTML report will be produced. This report is
     dynamic and its contents are updated automatically as more
@@ -849,3 +857,8 @@ package</a>.</p>"""
             subject_data, **kwargs) for subject_data in subjects)
 
     print "HTML report (dynamic) written to %s" % report_filename
+
+    # export report (so it can be emailed, for example)
+    if do_report:
+        if do_export_report:
+            reporter.export_report(os.path.dirname(report_filename))
