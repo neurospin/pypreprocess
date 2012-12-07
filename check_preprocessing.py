@@ -52,7 +52,7 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None,
     pl.title(title, fontsize=10)
     pl.xlabel('time(scans)', fontsize=10)
     pl.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'), prop={"size": 12},
-              loc="upper left")
+              loc="upper left", ncol=2)
     pl.ylabel('Estimated motion (mm/degrees)', fontsize=10)
 
     # dump image unto disk
