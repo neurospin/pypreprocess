@@ -10,9 +10,89 @@ import tempita
 import sys
 import time
 import os
+import shutil
+import commands
+import re
+
+
+def del_empty_dirs(s_dir):
+    """
+    Recursively deletes all empty subdirs fo given dir.
+
+    Parameters
+    ==========
+    s_dir: string
+    directory under inspection
+
+    """
+    b_empty = True
+    for s_target in os.listdir(s_dir):
+        s_path = os.path.join(s_dir, s_target)
+        if os.path.isdir(s_path):
+            if not del_empty_dirs(s_path):
+                b_empty = False
+        else:
+            b_empty = False
+        if b_empty:
+            print('deleting: %s' % s_dir)
+            shutil.rmtree(s_dir)
+
+    return b_empty
+
+
+def export_report(src, make_archive=True):
+    """
+    Exports a report (html, php, etc. files) , ignoring data
+    files like *.nii, etc.
+
+    Parameters
+    ==========
+    src: string
+    directory contain report
+
+    make_archive: bool (optional)
+    should the final report dir (dst) be archived ?
+
+    """
+
+    def check_extension(f):
+        return re.match(".*\.(?:png|html|php|css)$", f)
+
+    def ignore_these(folder, files):
+        return [f for f in files if \
+                    (os.path.isfile(
+                    os.path.join(folder, f)) and not check_extension(f))]
+
+    # sanity
+    dst = os.path.join(src, "frozen_report")
+
+    if os.path.exists(dst):
+        print "Removing old %s." % dst
+        shutil.rmtree(dst)
+
+    # copy hierarchy
+    print "Copying files directory structure from %s to %s" % (src, dst)
+    shutil.copytree(src, dst, ignore=ignore_these)
+    print "+++++++Done."
+
+    # zip the results (dst)
+    if make_archive:
+        dst_archive = dst + ".zip"
+        print "Writing archive %s .." % dst_archive
+        print commands.getoutput(
+            'cd %s; zip -r %s %s; cd -' % (os.path.dirname(dst),
+                                           os.path.basename(dst_archive),
+                                           os.path.basename(dst)))
+        print "+++++++Done."
 
 
 def GALLERY_HTML_MARKUP():
+    """
+    Function to generate markup for the contents of a <div id="results">
+    type html element.
+
+    """
+
     return tempita.HTMLTemplate("""\
 {{for thumbnail in thumbnails}}
 <div class="img">
@@ -83,6 +163,11 @@ class ResultsGallery(object):
 
 
 def SUBJECT_PREPROC_REPORT_HTML_TEMPLATE():
+    """
+    Report template for subject preproc.
+
+    """
+
     with open(
         "template_reports/subject_preproc_report_template.tmpl.html") as fd:
         _text = fd.read()
@@ -90,6 +175,10 @@ def SUBJECT_PREPROC_REPORT_HTML_TEMPLATE():
 
 
 def DATASET_PREPROC_REPORT_HTML_TEMPLATE():
+    """
+    Returns report template for dataset preproc.
+
+    """
     with open(
         "template_reports/dataset_preproc_report_template.tmpl.html") as fd:
         _text = fd.read()
@@ -97,6 +186,11 @@ def DATASET_PREPROC_REPORT_HTML_TEMPLATE():
 
 
 def lines2breaks(lines):
+    """
+    Converts line breaks to HTML breaks.
+
+    """
+
     if type(lines) is str:
         lines = lines.split('\n')
 
@@ -104,6 +198,10 @@ def lines2breaks(lines):
 
 
 def nipype2htmlreport(nipype_report_filename):
+    """
+    Converts a nipype.caching report (.rst) to html.
+
+    """
     with open(nipype_report_filename, 'r') as fd:
         return lines2breaks(fd.readlines())
 
