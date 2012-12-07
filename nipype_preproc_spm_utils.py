@@ -101,7 +101,7 @@ def do_subject_realign(output_dir,
         nipype_report_filename = os.path.join(
             os.path.dirname(rp),
             "_report/report.rst")
-        nipype_html_report_filename = "nipype_report.html"
+        nipype_html_report_filename = nipype_report_filename + '.html'
         nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
@@ -152,7 +152,7 @@ def do_subject_coreg(output_dir,
         nipype_report_filename = os.path.join(
             os.path.dirname(coreg_result.outputs.coregistered_source),
             "_report/report.rst")
-        nipype_html_report_filename = "nipype_report.html"
+        nipype_html_report_filename = nipype_report_filename + '.html'
         nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
@@ -307,7 +307,7 @@ def do_subject_normalize(output_dir,
         nipype_report_filename = os.path.join(
             os.path.dirname(norm_result.outputs.normalized_files),
             "_report/report.rst")
-        nipype_html_report_filename = "nipype_report.html"
+        nipype_html_report_filename = nipype_report_filename + '.html'
         nipype_report = reporter.nipype2htmlreport(
             nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
@@ -730,9 +730,14 @@ def do_subject_preproc(
             results_gallery.commit_thumbnails(thumbnail)
 
         final_thumbnail.img.height = "250px"
-        final_thumbnail.img.src = os.path.join(
-            "%s/%s" % (subject_data.session_id, subject_data.subject_id),
-            final_thumbnail.img.src)
+        final_thumbnail.img.src = "%s/%s/%s" % (
+            subject_data.session_id,
+            subject_data.subject_id,
+            os.path.basename(final_thumbnail.img.src))
+        final_thumbnail.a.href = "%s/%s/%s" % (
+            subject_data.session_id,
+            subject_data.subject_id,
+            os.path.basename(final_thumbnail.a.href))
 
         if parent_results_gallery:
             parent_results_gallery.commit_thumbnails(final_thumbnail)
