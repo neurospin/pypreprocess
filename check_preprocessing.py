@@ -1,18 +1,13 @@
 """
-This script checks that all the dataset is OK, using basic statistics
-1. write an image of the coefficient of variation for each voxel
-   in each session and subject
-2. plot the time course of cross-voxel median coefficient of variation
-   in each subject
-3. plot the time courses of motion parameters
+:Module: check_preprocessing
+:Synopsis: module for generating post-preproc plots (registration,
+segmentation, etc.) using the viz module from nipy.labs.
+:Author: DED (dohmatob elvis dopgima)
 
-XXX TODO: plot CV maps (code disabled below in plot_cv_tc)
-XXX TODO: use other statistics for QA (besides CV)
 """
+
 import os
-import glob
 import numpy as np
-from scipy import stats
 import pylab as pl
 
 import nibabel
