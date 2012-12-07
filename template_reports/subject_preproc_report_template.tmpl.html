@@ -54,7 +54,8 @@
 	      var auto_refresh = setInterval(
 
 	      function() {
-	      $('#results').load("{{results.loader_filename}}").fadeIn("slow");
+	      {{py: import os; loader=os.path.basename(results.loader_filename);}}
+	      $('#results').load("{{loader}}").fadeIn("slow");
 	      }, {{results.refresh_timeout}});
 	    </script>
 	    {{results.description | html}}
