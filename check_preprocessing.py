@@ -2,7 +2,7 @@
 :Module: check_preprocessing
 :Synopsis: module for generating post-preproc plots (registration,
 segmentation, etc.) using the viz module from nipy.labs.
-:Author: DED (dohmatob elvis dopgima)
+:Author: bertrand thirion, dohmatob elvis dopgima
 
 """
 
@@ -224,8 +224,10 @@ def plot_registration(reference, coregistered,
     # plot the coregistered image
     coregistered_img = nibabel.load(coregistered)
     coregistered_data = coregistered_img.get_data()
+    if len(coregistered_data.shape) == 4:
+        coregistered_data = coregistered_data[..., ..., ..., 0]
     coregistered_affine = coregistered_img.get_affine()
-    slicer = viz.plot_anat(
+    _slicer = viz.plot_anat(
         anat=coregistered_data,
         anat_affine=coregistered_affine,
         black_bg=True,
@@ -237,12 +239,15 @@ def plot_registration(reference, coregistered,
     # overlap the reference image
     reference_img = nibabel.load(reference)
     reference_data = reference_img.get_data()
+    if len(reference_data.shape) == 4:
+        reference_data = reference_data[..., ..., ..., 0]
+
     reference_affine = reference_img.get_affine()
-    slicer.edge_map(reference_data, reference_affine)
+    _slicer.edge_map(reference_data, reference_affine)
 
     # misc
-    slicer.title(title, size=12, color='w',
-                 alpha=0)
+    _slicer.title(title, size=12, color='w',
+                  alpha=0)
 
     if not output_filename is None:
         pl.savefig(output_filename, dpi=200, bbox_inches='tight',

@@ -15,7 +15,6 @@ import shutil
 from nipype.caching import Memory
 
 # imports for nifti manip
-from nisl.utils import concat_niimgs
 import nibabel as ni
 
 # spm and matlab imports
@@ -64,14 +63,35 @@ class SubjectData(object):
     """
     Encapsulation for subject data, relative to preprocessing.
 
+    XXX Why not inherit from Bunch ?
     """
 
+    def __init__(self):
+        self.subject_id = "subXYZ"
+        self.session_id = "UNKNOWN_SESSION"
+
     pass
+
+
+def get_vox_dims(volume):
+    """
+    Infer voxel dimensions.
+
+    """
+
+    if isinstance(volume, list):
+        volume = volume[0]
+    nii = ni.load(volume)
+    hdr = nii.get_header()
+    voxdims = hdr.get_zooms()
+
+    return [float(voxdims[0]), float(voxdims[1]), float(voxdims[2])]
 
 
 def do_subject_realign(output_dir,
                        subject_id=None,
                        do_report=True,
+                       results_gallery=None,
                        **spm_realign_kwargs):
     output = {}
 
@@ -92,8 +112,6 @@ def do_subject_realign(output_dir,
 
         rp = realign_result.outputs.realignment_parameters
 
-        output['thumbnails'] = []
-
         rp_plot = os.path.join(output_dir, 'rp_plot.png')
         check_preprocessing.plot_spm_motion_parameters(
         rp,
@@ -110,15 +128,17 @@ def do_subject_realign(output_dir,
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
         # create thumbnail
-        thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=os.path.basename(rp_plot))
-        thumbnail.img = reporter.img(src=os.path.basename(rp_plot),
-                                     height="500px",
-                                     width="1200px")
-        thumbnail.description = \
-            "Motion Correction (<a href=%s>see execution log</a>)" \
-            % nipype_html_report_filename
-        output['thumbnails'].append(thumbnail)
+        if results_gallery:
+            thumbnail = reporter.Thumbnail()
+            thumbnail.a = reporter.a(href=os.path.basename(rp_plot))
+            thumbnail.img = reporter.img(src=os.path.basename(rp_plot),
+                                         height="500px",
+                                         width="1200px")
+            thumbnail.description = \
+                "Motion Correction (<a href=%s>see execution log</a>)" \
+                % nipype_html_report_filename
+
+            results_gallery.commit_thumbnails(thumbnail)
 
     # collect ouput
     output['result'] = realign_result
@@ -130,6 +150,7 @@ def do_subject_realign(output_dir,
 def do_subject_coreg(output_dir,
                      subject_id=None,
                      do_report=True,
+                     results_gallery=None,
                      comments="",
                      **spm_coregister_kwargs):
     output = {}
@@ -149,8 +170,6 @@ def do_subject_coreg(output_dir,
         import check_preprocessing
         import reporter
         import pylab as pl
-
-        output['thumbnails'] = []
 
         # nipype report
         nipype_report_filename = os.path.join(
@@ -195,15 +214,16 @@ def do_subject_coreg(output_dir,
             title="%s: coreg" % subject_id)
 
         # create thumbnail
-        thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=os.path.basename(outline))
-        thumbnail.img = reporter.img(src=os.path.basename(outline),
-                                     height="500px")
-        thumbnail.description = \
-            "Coregistration %s (<a href=%s>see execution log</a>)" \
-            % (comments, nipype_html_report_filename)
+        if results_gallery:
+            thumbnail = reporter.Thumbnail()
+            thumbnail.a = reporter.a(href=os.path.basename(outline))
+            thumbnail.img = reporter.img(src=os.path.basename(outline),
+                                         height="500px")
+            thumbnail.description = \
+                "Coregistration %s (<a href=%s>see execution log</a>)" \
+                % (comments, nipype_html_report_filename)
 
-        output['thumbnails'].append(thumbnail)
+            results_gallery.commit_thumbnails(thumbnail)
 
         output['axial_outline'] = outline_axial
 
@@ -234,14 +254,15 @@ def do_subject_coreg(output_dir,
             title="%s: coreg" % subject_id)
 
         # create thumbnail
-        thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=os.path.basename(outline))
-        thumbnail.img = reporter.img(src=os.path.basename(outline),
-                                     height="500px")
-        thumbnail.description = \
-            "Coregistration %s (<a href=%s>see execution log</a>)" \
-            % (comments, nipype_html_report_filename)
-        output['thumbnails'].append(thumbnail)
+        if results_gallery:
+            thumbnail = reporter.Thumbnail()
+            thumbnail.a = reporter.a(href=os.path.basename(outline))
+            thumbnail.img = reporter.img(src=os.path.basename(outline),
+                                         height="500px")
+            thumbnail.description = \
+                "Coregistration %s (<a href=%s>see execution log</a>)" \
+                % (comments, nipype_html_report_filename)
+            results_gallery.commit_thumbnails(thumbnail)
 
     # collect ouput
     output['result'] = coreg_result
@@ -278,6 +299,7 @@ def do_subject_segment(output_dir,
 def do_subject_normalize(output_dir,
                          subject_id=None,
                          do_report=True,
+                         results_gallery=None,
                          segment_result=None,
                          brain="brain",
                          cmap=None,
@@ -314,8 +336,6 @@ def do_subject_normalize(output_dir,
         nipype_report = reporter.nipype2htmlreport(
             nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
-
-        output['thumbnails'] = []
 
         normalized_file = norm_result.outputs.normalized_files
 
@@ -362,20 +382,22 @@ def do_subject_normalize(output_dir,
             CSF_TEMPLATE,
             output_filename=template_compartments_contours,
             cmap=cmap,
-            title="Template GM, WM, and CSF contours on subject's %s" % \
-                brain)
+            title="Template GM, WM, and CSF contours on subject's %s" \
+                % brain)
 
         # create thumbnail
-        thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(
-            href=os.path.basename(template_compartments_contours))
-        thumbnail.img = reporter.img(
-            src=os.path.basename(template_compartments_contours),
-            height="500px")
-        thumbnail.description \
-            = "Normalization (<a href=%s>see execution log</a>)" \
-            % (nipype_html_report_filename)
-        output['thumbnails'].append(thumbnail)
+        if results_gallery:
+            thumbnail = reporter.Thumbnail()
+            thumbnail.a = reporter.a(
+                href=os.path.basename(template_compartments_contours))
+            thumbnail.img = reporter.img(
+                src=os.path.basename(template_compartments_contours),
+                height="500px")
+            thumbnail.description \
+                = "Normalization (<a href=%s>see execution log</a>)" \
+                % (nipype_html_report_filename)
+
+            results_gallery.commit_thumbnails(thumbnail)
 
         # plot contours of subject's compartments on subject's brain
         subject_compartments_contours = os.path.join(
@@ -406,16 +428,18 @@ def do_subject_normalize(output_dir,
                 brain)
 
         # create thumbnail
-        thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(
-            href=os.path.basename(subject_compartments_contours))
-        thumbnail.img = reporter.img(
-            src=os.path.basename(subject_compartments_contours),
-            height="500px")
-        thumbnail.description = \
-            "Normalization (<a href=%s>see execution log</a>)" \
-            % nipype_html_report_filename
-        output['thumbnails'].append(thumbnail)
+        if results_gallery:
+            thumbnail = reporter.Thumbnail()
+            thumbnail.a = reporter.a(
+                href=os.path.basename(subject_compartments_contours))
+            thumbnail.img = reporter.img(
+                src=os.path.basename(subject_compartments_contours),
+                height="500px")
+            thumbnail.description = \
+                "Normalization (<a href=%s>see execution log</a>)" \
+                % nipype_html_report_filename
+
+            results_gallery.commit_thumbnails(thumbnail)
 
         # check registration
         target = os.path.join(SPM_DIR, "templates/T1.nii")
@@ -437,14 +461,16 @@ def do_subject_normalize(output_dir,
                 os.path.basename(source)))
 
         # create thumbnail
-        thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=os.path.basename(outline))
-        thumbnail.img = reporter.img(
-            src=os.path.basename(outline), height="500px")
-        thumbnail.description = \
-            "Normalization (<a href=%s>see execution log</a>)" \
-            % nipype_html_report_filename
-        output['thumbnails'].append(thumbnail)
+        if results_gallery:
+            thumbnail = reporter.Thumbnail()
+            thumbnail.a = reporter.a(href=os.path.basename(outline))
+            thumbnail.img = reporter.img(
+                src=os.path.basename(outline), height="500px")
+            thumbnail.description = \
+                "Normalization (<a href=%s>see execution log</a>)" \
+                % nipype_html_report_filename
+
+            results_gallery.commit_thumbnails(thumbnail)
 
         # plot outline (edge map) of the normalized image
         # on the MNI template
@@ -463,14 +489,16 @@ def do_subject_normalize(output_dir,
                 os.path.basename(source)))
 
         # create thumbnail
-        thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=os.path.basename(outline))
-        thumbnail.img = reporter.img(
-            src=os.path.basename(outline), height="500px")
-        thumbnail.description = \
-            "Normalization (<a href=%s>see execution log</a>)" \
-            % nipype_html_report_filename
-        output['thumbnails'].append(thumbnail)
+        if results_gallery:
+            thumbnail = reporter.Thumbnail()
+            thumbnail.a = reporter.a(href=os.path.basename(outline))
+            thumbnail.img = reporter.img(
+                src=os.path.basename(outline), height="500px")
+            thumbnail.description = \
+                "Normalization (<a href=%s>see execution log</a>)" \
+                % nipype_html_report_filename
+
+            results_gallery.commit_thumbnails(thumbnail)
 
         output['axials'] = {}
         output['axials']['template_compartments_contours'] = \
@@ -482,6 +510,30 @@ def do_subject_normalize(output_dir,
     output['result'] = norm_result
 
     return output
+
+
+def do_3Dto4D_merge(output_dir, **fslmerge_kwargs):
+    """
+    This function produces a single 4D nifti image from several 3D.
+
+    """
+
+    import nipype.interfaces.fsl as fsl
+
+    # we want .nii, not .nii.gz
+    fsl.FSLCommand.set_default_output_type('NIFTI')
+
+    # prepare for smart caching
+    cache_dir = os.path.join(output_dir, 'cache_dir')
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    mem = Memory(base_dir=cache_dir)
+
+    # create workflow node
+    fsl_merge = mem.cache(fsl.Merge)
+
+    # execute node proper
+    return fsl_merge(**fslmerge_kwargs)
 
 
 def do_subject_preproc(
@@ -507,14 +559,12 @@ def do_subject_preproc(
     # merge subject_data.func into 4D nifti if necessary
     if type(subject_data.func) is list:
         if len(subject_data.func) > 1:
-            # XXX we should check that each image x below is really 3D !!!
-            print "Converting 3D images to 4D nii .."
-            threeD_images = [ni.load(x) for x in subject_data.func]
-            fourD_image = concat_niimgs(threeD_images)
-            subject_data.func = os.path.join(subject_data.output_dir,
-                                             "func4D.nii")
-            ni.save(fourD_image, subject_data.func)
-            print "+++++++Done."
+            merge_result = do_3Dto4D_merge(
+                subject_data.output_dir,
+                in_files=subject_data.func,
+                dimension='t')
+
+            subject_data.func = merge_result.outputs.merged_file
 
     if do_report:
         import check_preprocessing
@@ -561,6 +611,7 @@ def do_subject_preproc(
             subject_data.output_dir,
             subject_id=subject_data.subject_id,
             do_report=do_report,
+            results_gallery=results_gallery,
             in_files=subject_data.func,
             register_to_mean=True,
             jobtype='estwrite',
@@ -573,7 +624,6 @@ def do_subject_preproc(
 
         # generate report stub
         if do_report:
-            results_gallery.commit_thumbnails(realign_output['thumbnails'])
             final_thumbnail.img.src = realign_output['rp_plot']
     else:
         # manually compute mean (along time axis) of fMRI images
@@ -598,6 +648,7 @@ def do_subject_preproc(
             subject_data.output_dir,
             subject_id=subject_data.subject_id,
             do_report=do_report,
+            results_gallery=results_gallery,
             comments="anat -> epi",
             target=coreg_target,
             source=coreg_source,
@@ -612,7 +663,6 @@ def do_subject_preproc(
 
         # generate report stub
         if do_report:
-            results_gallery.commit_thumbnails(coreg_output['thumbnails'])
             final_thumbnail.img.src = coreg_output['axial_outline']
 
     ###################################
@@ -652,18 +702,17 @@ def do_subject_preproc(
             subject_id=subject_data.subject_id,
             segment_result=segment_result,
             do_report=True,
+            results_gallery=results_gallery,
             brain='epi',
             parameter_file=norm_parameter_file,
             apply_to_files=norm_apply_to_files,
             write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-            write_voxel_sizes=[3, 3, 3],
+            write_voxel_sizes=get_vox_dims(norm_apply_to_files),
             write_interp=1,
             jobtype='write',
             )
 
         if do_report:
-            import pylab as pl  # we need color maps
-            results_gallery.commit_thumbnails(norm_output['thumbnails'])
             final_thumbnail.img.src = \
                 norm_output['axials']["template_compartments_contours"]
 
@@ -671,6 +720,8 @@ def do_subject_preproc(
         # indirect normalization: warp anat image int into MNI space
         # using the deformations learned by segmentation
         #############################################################
+        import pylab as pl
+
         norm_parameter_file = segment_result.outputs.transformation_mat
         norm_apply_to_files = subject_data.anat
 
@@ -681,34 +732,14 @@ def do_subject_preproc(
             brain="anat",
             cmap=pl.cm.gray,
             do_report=do_report,
+            results_gallery=results_gallery,
             parameter_file=norm_parameter_file,
             apply_to_files=norm_apply_to_files,
             write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-            write_voxel_sizes=[1, 1, 1],
+            write_voxel_sizes=get_vox_dims(norm_apply_to_files),
             write_wrap=[0, 0, 0],
             write_interp=1,
             jobtype='write')
-
-        norm_result = norm_output['result']
-
-        if do_report:
-            results_gallery.commit_thumbnails(norm_output['thumbnails'])
-
-        # normalize func images based on the learned segmentation
-        norm_parameter_file = segment_result.outputs.transformation_mat
-        norm_apply_to_files = final_func
-
-        norm_output = do_subject_normalize(
-            subject_data.output_dir,
-            subject_id=subject_data.subject_id,
-            do_report=False,
-            parameter_file=norm_parameter_file,
-            apply_to_files=norm_apply_to_files,
-            jobtype='write',
-            )
-
-        norm_result = norm_output['result']
-        final_func = norm_result.outputs.normalized_files
 
     # generate html report (for QA)
     if do_report:

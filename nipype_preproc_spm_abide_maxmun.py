@@ -41,7 +41,6 @@ if __name__ == '__main__':
         for subject_id in subject_ids:
             subject_data = nipype_preproc_spm_utils.SubjectData()
             subject_data.subject_id = subject_id
-            subject_data.session_id = 'UNKNOWN_SESSION'
 
             subject_data.func = glob.glob(
                 os.path.join(
