@@ -319,7 +319,7 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
     # misc
     _slicer.title(title, size=12, color='w',
                  alpha=0)
-    # pl.legend(("WM", "CSF", "GM"))
+    # pl.legend(("WM", "CSF", "GM"), loc="lower left", ncol=len(cut_coords))
 
     if not output_filename is None:
         pl.savefig(output_filename, bbox_inches='tight', dpi=200,

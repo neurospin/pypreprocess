@@ -99,7 +99,7 @@ def GALLERY_HTML_MARKUP():
   <a {{attr(**thumbnail.a)}}>
     <img {{attr(**thumbnail.img)}}/>
   </a>
-  <div class="desc"><b>{{thumbnail.description | html}}</b></div>
+  <div class="desc">{{thumbnail.description | html}}</div>
 </div>
 {{endfor}}""")
 
@@ -122,7 +122,7 @@ class img(tempita.bunch):
     pass
 
 
-class Thumbnail(object):
+class Thumbnail(tempita.bunch):
     """
     Thumbnnail (HTML img + effects).
 

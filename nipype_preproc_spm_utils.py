@@ -840,41 +840,47 @@ def do_group_preproc(subjects,
 <a href="http://www.fil.ion.ucl.ac.uk/spm/">SPM8
 package</a>.</p>"""
 
-        step = 0
+        preproc_undergone = "<ul>"
 
         if do_bet:
-            step += 1
             preproc_undergone += (
-                "%i. Brain extraction has been applied to strip-off the skull"
+                "<li>"
+                "Brain extraction has been applied to strip-off the skull"
                 " and other non-brain components from the subject's "
                 "anatomical image. This prevents later registration problems "
                 "like the skull been (mis-)aligned unto the cortical surface, "
-                "etc.<br/>" % step)
+                "etc.</li>")
         if do_realign:
-            step += 1
             preproc_undergone += (
-                "%i. Motion correction has been done so as to detect artefacts"
+                "<li>"
+                "Motion correction has been done so as to detect artefacts"
                 " due to the subject's head motion during the acquisition, "
-                "after which the images have been resliced.<br/>" % step)
+                "after which the images have been resliced.</li>")
         if do_coreg:
-            step += 1
             preproc_undergone += (
-                "%i. The subject's anatomical image has been coregistered "
+                "<li>"
+                "The subject's anatomical image has been coregistered "
                 "against their fMRI images (precisely, to the mean thereof). "
                 "Coregistration is important as it allows deformations of the "
                 "anatomy (learned by registration against other images, "
                 "templates for example) to be directly applicable to the fMRI."
-                "<br/>" % step)
+                "</li>")
         if do_segment:
-            step += 1
             preproc_undergone += (
-                "%i. The anatomical image has been segmented into GM, WM,"
-                " and CSF compartments by using TPMs (Tissue Probability Maps)"
-                " as priors. The segmented anatomical image has been warped "
+                "<li>"
+                "Tissue Segmentation has been employed to segment the "
+                "anatomical image into GM, WM, and CSF compartments by using "
+                "TPMs (Tissue Probability Maps) as priors.</li>")
+
+            preproc_undergone += (
+                "<li>"
+                "The segmented anatomical image has been warped "
                 "into the MNI template space by applying the deformations "
                 "learned during segmentation. The same deformations have been"
                 " applied to the fMRI images. This procedure is referred to "
-                "as <i>indirect Normalization</i> in SPM jargon." % step)
+                "as <i>indirect Normalization</i> in SPM jargon.</li>")
+
+        preproc_undergone += "</ul>"
 
         # initialize code for reporter from template
         tmpl = reporter.DATASET_PREPROC_REPORT_HTML_TEMPLATE()
