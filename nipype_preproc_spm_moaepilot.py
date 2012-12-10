@@ -15,7 +15,8 @@ import nipype_preproc_spm_utils
 from nisl.datasets import fetch_spm_auditory_data
 
 DATASET_DESCRIPTION = """\
-<p>MoAEpilot SPM auditory dataset</p>\
+<p>MoAEpilot <a href="http://www.fil.ion.ucl.ac.uk/spm/data/auditory/">\
+SPM auditory dataset</a>.</p>\
 """
 
 if __name__ == '__main__':
