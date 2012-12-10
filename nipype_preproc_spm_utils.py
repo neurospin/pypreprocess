@@ -10,6 +10,7 @@ XXX TODO: re-factor the code!
 # standard imports
 import os
 import shutil
+import commands
 
 # imports for caching (yeah, we aint got time to loose!)
 from nipype.caching import Memory
@@ -286,6 +287,7 @@ def do_subject_segment(output_dir,
 
     # run workflow
     segment = mem.cache(spm.Segment)
+
     segment_result = segment(**spm_segment_kwargs)
 
     # generate gallery for HTML report
@@ -355,6 +357,15 @@ def do_subject_normalize(output_dir,
             "%s_on_%s_outline.png" % (os.path.basename(target),
                                       os.path.basename(source)))
 
+        qa_mem.cache(check_preprocessing.plot_registration)(
+            target,
+            source,
+            output_filename=outline,
+            cmap=pl.cm.gray,
+            title="Outline of MNI %s template on %s" % (
+                os.path.basename(target),
+                os.path.basename(source)))
+
         # create thumbnail
         if results_gallery:
             thumbnail = reporter.Thumbnail()
@@ -382,7 +393,8 @@ def do_subject_normalize(output_dir,
         qa_mem.cache(check_preprocessing.plot_registration)(
             target,
             source,
-            output_filename=outline,
+            output_filename=outline_axial,
+            slicer='z',
             cmap=cmap,
             title="Outline of MNI %s template on %s" % (
                 os.path.basename(target),
@@ -547,7 +559,12 @@ def do_3Dto4D_merge(output_dir, **fslmerge_kwargs):
     fsl_merge = mem.cache(fsl.Merge)
 
     # execute node proper
-    return fsl_merge(**fslmerge_kwargs)
+    try:
+        return fsl_merge(**fslmerge_kwargs)
+    except IOError:
+        print ("\r\n/!\ fslmerge not found. Run 'source /etc/fsl/4.1/fsl.sh' "
+        "in your terminal before continuiing!\r\n")
+        raise RuntimeError
 
 
 def do_subject_preproc(
