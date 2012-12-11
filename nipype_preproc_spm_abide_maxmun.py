@@ -14,7 +14,7 @@ import sys
 import nipype_preproc_spm_utils
 
 DATASET_DESCRIPTION = """\
-<p>ABIDE MaxMun dataset</p>\
+<p>ABIDE MaxMun dataset.</p>\
 """
 
 if __name__ == '__main__':
@@ -38,21 +38,25 @@ if __name__ == '__main__':
 
     # producer for MaxMun subjects
     def subject_factory():
-        for subject_id in subject_ids:
+        for subject_id in ['MaxMun_51348']:  # subject_ids:
             subject_data = nipype_preproc_spm_utils.SubjectData()
             subject_data.subject_id = subject_id
 
-            subject_data.func = glob.glob(
-                os.path.join(
-                    ABIDE_DIR,
-                    "%s/%s/scans/rest/resources/NIfTI/files/rest.nii" % (
-                        subject_id, subject_id)))
+            # subject_data.func = glob.glob(
+            #     os.path.join(
+            #         ABIDE_DIR,
+            #         "%s/%s/scans/rest/resources/NIfTI/files/rest.nii" % (
+            #             subject_id, subject_id)))
 
-            subject_data.anat = glob.glob(
-                os.path.join(
-                    ABIDE_DIR,
-                    "%s/%s/scans/anat/resources/NIfTI/files/mprage.nii" % (
-                        subject_id, subject_id)))
+            subject_data.func = '/tmp/rest.nii'
+
+            subject_data.anat = "/tmp/mprage.nii"
+
+            # subject_data.anat = glob.glob(
+            #     os.path.join(
+            #         ABIDE_DIR,
+            #         "%s/%s/scans/anat/resources/NIfTI/files/mprage.nii" % (
+            #             subject_id, subject_id)))
 
             subject_data.output_dir = os.path.join(
                 os.path.join(

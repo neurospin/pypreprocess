@@ -19,6 +19,39 @@ import joblib
 EPS = np.finfo(float).eps
 
 
+def do_3Dto4D_merge(threeD_img_filenames):
+    """
+    This function produces a single 4D nifti image from several 3D.
+
+    """
+
+    if type(threeD_img_filenames) is str:
+        return threeD_img_filenames
+
+    output_dir = os.path.dirname(threeD_img_filenames[0])
+
+    # prepare for smart caching
+    merge_cache_dir = os.path.join(output_dir, "merge")
+    if not os.path.exists(merge_cache_dir):
+        os.makedirs(merge_cache_dir)
+    merge_mem = joblib.Memory(cachedir=merge_cache_dir, verbose=5)
+
+    # merging proper
+    fourD_img = merge_mem.cache(nibabel.concat_images)(threeD_img_filenames)
+    fourD_img_filename = os.path.join(output_dir,
+                                      "fourD_func.nii")
+
+    # sanity
+    if len(fourD_img.shape) == 5:
+        fourD_img = nibabel.Nifti1Image(
+            fourD_img.get_data()[..., ..., ..., 0, ...],
+            fourD_img.get_affine())
+
+    merge_mem.cache(nibabel.save)(fourD_img, fourD_img_filename)
+
+    return fourD_img_filename
+
+
 def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None,
                                output_filename=None):
     """ Plot motion parameters obtained with SPM software
@@ -124,7 +157,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
         mask_array = None
     count = 0
     for (session_id, fmri_file) in zip(session_ids, epi_data):
-        nim = nibabel.load(fmri_file)
+        nim = nibabel.load(do_3Dto4D_merge(fmri_file))
         affine = nim.get_affine()
         if len(nim.shape) == 4:
             # get the data
@@ -141,7 +174,10 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
 
         if write_image:
             # write an image
-            data_dir = os.path.dirname(fmri_file)
+            if type(fmri_file) is str:
+                data_dir = os.path.dirname(fmri_file)
+            else:
+                data_dir = os.path.dirname(fmri_file[0])
             nibabel.save(nibabel.Nifti1Image(cv, affine),
                  os.path.join(data_dir, 'cv_%s.nii' % session_id))
             if bg_image == False:
@@ -222,7 +258,7 @@ def plot_registration(reference, coregistered,
         cut_coords = (cut_coords['xyz'.index(slicer)],)
 
     # plot the coregistered image
-    coregistered_img = nibabel.load(coregistered)
+    coregistered_img = nibabel.load(do_3Dto4D_merge(coregistered))
     coregistered_data = coregistered_img.get_data()
     if len(coregistered_data.shape) == 4:
         coregistered_data = coregistered_data[..., ..., ..., 0]
@@ -237,7 +273,7 @@ def plot_registration(reference, coregistered,
         )
 
     # overlap the reference image
-    reference_img = nibabel.load(reference)
+    reference_img = nibabel.load(do_3Dto4D_merge(reference))
     reference_data = reference_img.get_data()
     if len(reference_data.shape) == 4:
         reference_data = reference_data[..., ..., ..., 0]

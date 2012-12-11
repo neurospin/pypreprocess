@@ -10,7 +10,6 @@ XXX TODO: re-factor the code!
 # standard imports
 import os
 import shutil
-import commands
 
 # imports for caching (yeah, we aint got time to loose!)
 from nipype.caching import Memory
@@ -73,7 +72,9 @@ class SubjectData(object):
         self.session_id = "UNKNOWN_SESSION"
         self.anat = None
         self.func = None
-    pass
+
+    def delete_orientation(self):
+        pass
 
 
 def get_vox_dims(volume):
@@ -326,6 +327,10 @@ def do_subject_normalize(output_dir,
         import reporter
         import pylab as pl
 
+        normalized_files = norm_result.outputs.normalized_files
+        if type(normalized_files) is str:
+            normalized_files = [normalized_files]
+
         # prepare for smart caching
         qa_cache_dir = os.path.join(output_dir, "QA")
         if not os.path.exists(qa_cache_dir):
@@ -334,28 +339,26 @@ def do_subject_normalize(output_dir,
 
         # nipype report
         nipype_report_filename = os.path.join(
-            os.path.dirname(norm_result.outputs.normalized_files),
+            os.path.dirname(normalized_files[0]),
             "_report/report.rst")
         nipype_html_report_filename = nipype_report_filename + '.html'
         nipype_report = reporter.nipype2htmlreport(
             nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
-        normalized_file = norm_result.outputs.normalized_files
-
         #####################
         # check registration
         #####################
 
-        target = os.path.join(SPM_DIR, "templates/T1.nii")
-        source = normalized_file
-
         # plot outline (edge map) of MNI template on the
         # normalized image
+        target = os.path.join(SPM_DIR, "templates/T1.nii")
+        source = normalized_files
+
         outline = os.path.join(
             output_dir,
             "%s_on_%s_outline.png" % (os.path.basename(target),
-                                      os.path.basename(source)))
+                                      brain))
 
         qa_mem.cache(check_preprocessing.plot_registration)(
             target,
@@ -364,7 +367,7 @@ def do_subject_normalize(output_dir,
             cmap=pl.cm.gray,
             title="Outline of MNI %s template on %s" % (
                 os.path.basename(target),
-                os.path.basename(source)))
+                brain))
 
         # create thumbnail
         if results_gallery:
@@ -383,11 +386,11 @@ def do_subject_normalize(output_dir,
         source, target = (target, source)
         outline = os.path.join(
             output_dir,
-            "%s_on_%s_outline.png" % (os.path.basename(target),
+            "%s_on_%s_outline.png" % (brain,
                                       os.path.basename(source)))
         outline_axial = os.path.join(
             output_dir,
-            "%s_on_%s_outline_axial.png" % (os.path.basename(target),
+            "%s_on_%s_outline_axial.png" % (brain,
                                             os.path.basename(source)))
 
         qa_mem.cache(check_preprocessing.plot_registration)(
@@ -396,8 +399,8 @@ def do_subject_normalize(output_dir,
             output_filename=outline_axial,
             slicer='z',
             cmap=cmap,
-            title="Outline of MNI %s template on %s" % (
-                os.path.basename(target),
+            title="Outline of %s on MNI %s template" % (
+                brain,
                 os.path.basename(source)))
 
         output['axial'] = outline_axial
@@ -408,7 +411,7 @@ def do_subject_normalize(output_dir,
             output_filename=outline,
             cmap=pl.cm.gray,
             title="Outline of %s on MNI %s template" % (
-                os.path.basename(target),
+                brain,
                 os.path.basename(source)))
 
         # create thumbnail
@@ -433,15 +436,19 @@ def do_subject_normalize(output_dir,
             # align with the template gm, wm, csf compartments pretty well,
             # and with the MNI template too; else, we've got a failed
             # normalization.
-            normalized_img = ni.load(normalized_file)
+            normalized_img = ni.load(
+                check_preprocessing.do_3Dto4D_merge(normalized_files))
             if len(normalized_img.shape) == 4:
                 mean_normalized_img = ni.Nifti1Image(
                 normalized_img.get_data().mean(-1),
                 normalized_img.get_affine())
+                if type(normalized_files) is str:
+                    tmp = os.path.dirname(normalized_files)
+                else:
+                    tmp = os.path.dirname(normalized_files[0])
                 mean_normalized_file = os.path.join(
-                    os.path.dirname(normalized_file),
-                    'mean' + os.path.basename(
-                        normalized_file))
+                    tmp,
+                    'mean%s.nii' % brain)
                 ni.save(mean_normalized_img, mean_normalized_file)
                 normalized_file = mean_normalized_file
 
@@ -538,37 +545,9 @@ def do_subject_normalize(output_dir,
     return output
 
 
-def do_3Dto4D_merge(output_dir, **fslmerge_kwargs):
-    """
-    This function produces a single 4D nifti image from several 3D.
-
-    """
-
-    import nipype.interfaces.fsl as fsl
-
-    # we want .nii, not .nii.gz
-    fsl.FSLCommand.set_default_output_type('NIFTI')
-
-    # prepare for smart caching
-    cache_dir = os.path.join(output_dir, 'cache_dir')
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    mem = Memory(base_dir=cache_dir)
-
-    # create workflow node
-    fsl_merge = mem.cache(fsl.Merge)
-
-    # execute node proper
-    try:
-        return fsl_merge(**fslmerge_kwargs)
-    except IOError:
-        print ("\r\n/!\ fslmerge not found. Run 'source /etc/fsl/4.1/fsl.sh' "
-        "in your terminal before continuiing!\r\n")
-        raise RuntimeError
-
-
 def do_subject_preproc(
     subject_data,
+    delete_orientation=False,
     do_report=True,
     do_bet=True,
     do_slicetiming=False,
@@ -587,15 +566,9 @@ def do_subject_preproc(
     if not os.path.exists(subject_data.output_dir):
         os.makedirs(subject_data.output_dir)
 
-    # merge subject_data.func into 4D nifti if necessary
-    if type(subject_data.func) is list:
-        if len(subject_data.func) > 1:
-            merge_result = do_3Dto4D_merge(
-                subject_data.output_dir,
-                in_files=subject_data.func,
-                dimension='t')
-
-            subject_data.func = merge_result.outputs.merged_file
+    # sanity
+    if delete_orientation:
+        subject_data.delete_orientation()
 
     if do_report:
         import check_preprocessing
@@ -709,9 +682,9 @@ def do_subject_preproc(
             subject_id=subject_data.subject_id,
             do_report=False,  # XXX why ?
             data=segment_data,
-            gm_output_type=[True, True, True],  # XXX why ?
-            wm_output_type=[True, True, True],  # XXX why ?
-            csf_output_type=[True, True, True],  # XXX why ?
+            gm_output_type=[True, True, True],
+            wm_output_type=[True, True, True],
+            csf_output_type=[True, True, True],
             tissue_prob_maps=[GM_TEMPLATE,
                               WM_TEMPLATE, CSF_TEMPLATE],
             gaussians_per_class=[2, 2, 2, 4],
@@ -744,6 +717,9 @@ def do_subject_preproc(
             write_interp=1,
             jobtype='write',
             )
+
+        norm_result = norm_output["result"]
+        subject_data.func = norm_result.outputs.normalized_files
 
         if do_report:
             final_thumbnail.img.src = \
@@ -802,7 +778,12 @@ def do_subject_preproc(
             apply_to_files=norm_apply_to_files,
             write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
             write_voxel_sizes=get_vox_dims(norm_apply_to_files),
+            write_wrap=[0, 0, 0],
+            write_interp=1,
             jobtype='write')
+
+        norm_result = norm_output["result"]
+        subject_data.func = norm_result.outputs.normalized_files
 
         #####################################################
         # Warp anat into MNI space using learned deformation
@@ -823,6 +804,8 @@ def do_subject_preproc(
             apply_to_files=norm_apply_to_files,
             write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
             write_voxel_sizes=get_vox_dims(norm_apply_to_files),
+            write_wrap=[0, 0, 0],
+            write_interp=1,
             jobtype='write')
 
     # generate html report (for QA)
@@ -841,7 +824,8 @@ def do_subject_preproc(
             cv_tc_plot_after = os.path.join(
                 subject_data.output_dir, "cv_tc_after.png")
 
-            corrected_FMRIs = [subject_data.func]
+            corrected_FMRIs = list([subject_data.func])
+
             qa_mem.cache(
                 check_preprocessing.plot_cv_tc)(
                 corrected_FMRIs, [subject_data.session_id],
@@ -875,8 +859,9 @@ def do_subject_preproc(
 
 
 def do_group_preproc(subjects,
+                     delete_orientation=False,
                      do_report=True,
-                     do_export_report=True,
+                     do_export_report=False,
                      dataset_description=None,
                      report_filename=None,
                      do_bet=False,
@@ -907,8 +892,9 @@ def do_group_preproc(subjects,
                 ("You asked for reporting (do_report=True)  but specified"
                  " an invalid report_filename (None)"))
 
-    kwargs = {'do_realign': do_realign, 'do_coreg': do_coreg,
-                'do_segment': do_segment, 'do_cv_tc': do_cv_tc}
+    kwargs = {'delete_orientation': delete_orientation,
+              'do_realign': do_realign, 'do_coreg': do_coreg,
+              'do_segment': do_segment, 'do_cv_tc': do_cv_tc}
 
     # generate html report (for QA) as desired
     if do_report:
@@ -989,10 +975,10 @@ package</a>.</p>"""
             fd.close()
             print "HTML report (dynamic) written to %s" % report_filename
 
-    # preproc subjects
-    kwargs['parent_results_gallery'] = results_gallery
-    kwargs['main_page'] = "../../%s" % os.path.basename(report_filename)
+        kwargs['parent_results_gallery'] = results_gallery
+        kwargs['main_page'] = "../../%s" % os.path.basename(report_filename)
 
+    # preproc subjects
     joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
             do_subject_preproc)(
             subject_data, **kwargs) for subject_data in subjects)
