@@ -893,6 +893,7 @@ def do_group_preproc(subjects,
                  " an invalid report_filename (None)"))
 
     kwargs = {'delete_orientation': delete_orientation,
+              'do_report': do_report,
               'do_realign': do_realign, 'do_coreg': do_coreg,
               'do_segment': do_segment, 'do_cv_tc': do_cv_tc}
 
