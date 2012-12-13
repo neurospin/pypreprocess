@@ -653,7 +653,7 @@ def do_subject_preproc(
             results_gallery=results_gallery,
             in_files=subject_data.func,
             register_to_mean=True,
-            jobtype='estimate',
+            jobtype='estwrite',
             )
 
         # collect output
