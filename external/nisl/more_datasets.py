@@ -13,7 +13,7 @@ import collections
 import numpy as np
 from sklearn.datasets.base import Bunch
 
-from .datasets import _get_dataset
+from .datasets import _get_dataset, _get_dataset_dir
 
 
 def _filter_column(array, col, criteria):
@@ -66,6 +66,11 @@ def _filter_columns(array, filters):
     return filter
 
 
+def _remove_end_digit(site):
+    if site.endswith('1') or site.endswith('2'):
+        return site[:-2]
+
+
 def fetch_abide(data_dir=None, verbose=0,
                 **kwargs):
     """ Load ABIDE dataset
@@ -101,20 +106,21 @@ def fetch_abide(data_dir=None, verbose=0,
     """
 
     name_csv = 'Phenotypic_V1_0b.csv'
-    path_csv = _get_dataset('ABIDE', [name_csv])[0]
+    dataset_dir = _get_dataset_dir('ABIDE', data_dir=data_dir)
+    path_csv = _get_dataset('ABIDE', [name_csv], data_dir=data_dir)[0]
 
     pheno = np.genfromtxt(path_csv, names=True, delimiter=',', dtype=None)
     filter = _filter_columns(pheno, kwargs)
     pheno = pheno[filter]
 
     # Get the files for all remaining subjects
-    folders = [site + '_' + str(id) for (site, id)
+    folders = [_remove_end_digit(site) + '_' + str(id) for (site, id)
             in pheno[['SITE_ID', 'SUB_ID']]]
 
     anat = []
     func = []
     for folder in folders:
-        base = os.path.join(folder, folder, 'scans')
+        base = os.path.join(dataset_dir, folder, folder, 'scans')
         fanat = os.path.join(base, 'anat', 'resources', 'NIfTI', 'files',
                             'mprage.nii')
         ffunc = os.path.join(base, 'rest', 'resources', 'NIfTI', 'files',

@@ -19,10 +19,10 @@ DATASET_DESCRIPTION = """\
 
 if __name__ == '__main__':
     # sanitize cmd-line input
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         print ("\r\nUsage: source /etc/fsl/4.1/fsl.sh; python %s "
-               "<output_dir>\r\n") % sys.argv[0]
-        print ("Example:\r\nsource /etc/fsl/4.1/fsl.sh; python %s "
+               "<data_dir> <output_dir>\r\n") % sys.argv[0]
+        print ("Example:\r\nsource /etc/fsl/4.1/fsl.sh; python %s ~/ABIDE"
                "/volatile/home/aa013911/DED/ABIDE_runs") % sys.argv[0]
         sys.exit(1)
 
@@ -30,15 +30,19 @@ if __name__ == '__main__':
     if not os.path.isdir(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
 
-    abide = fetch_abide(SITE_ID='UM_1')
+    DATA_DIR = os.path.abspath(sys.argv[1])
+    if not os.path.isdir(DATA_DIR):
+        os.makedirs(DATA_DIR)
+
+    abide = fetch_abide(data_dir=DATA_DIR, SITE_ID='UM_1')
 
     # producer for MaxMun subjects
     def subject_factory():
         for i in range(len(abide['func'])):
             subject_data = nipype_preproc_spm_utils.SubjectData()
-            subject_data.subject_id = abide['pheno']['SUB_ID'][i]
+            subject_data.subject_id = str(abide['pheno']['SUB_ID'][i])
 
-            subject_data.func = abide['func'][i]
+            subject_data.func = [abide['func'][i]]
             subject_data.anat = abide['anat'][i]
             subject_data.session_id = 'abide'
 
