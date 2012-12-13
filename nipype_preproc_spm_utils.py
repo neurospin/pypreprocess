@@ -10,12 +10,14 @@ XXX TODO: re-factor the code!
 # standard imports
 import os
 import shutil
+import commands
 
 # imports for caching (yeah, we aint got time to loose!)
 from nipype.caching import Memory
 
 # imports for nifti manip
 import nibabel as ni
+import numpy as np
 
 # spm and matlab imports
 import nipype.interfaces.spm as spm
@@ -60,6 +62,30 @@ WM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/white.nii')
 CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
 
 
+def delete_orientation(imgs, output_dir):
+    """
+    Function to delete (corrupt) orientation meta-data in nifti.
+
+    XXX TODO: Do this without using fsl
+
+    """
+
+    output_imgs = []
+    if not type(output_imgs) is list:
+        output_imgs = [list]
+    for img in imgs:
+        output_img = os.path.join(
+            output_dir, "deleteorient_" + os.path.basename(img))
+        shutil.copy(img, output_img)
+        print commands.getoutput(
+            "fslorient -deleteorient %s" % output_img)
+        print "+++++++Done (deleteorient)."
+        print "Deleted orientation meta-data %s." % output_img
+        output_imgs.append(output_img)
+
+    return output_imgs
+
+
 class SubjectData(object):
     """
     Encapsulation for subject data, relative to preprocessing.
@@ -74,7 +100,19 @@ class SubjectData(object):
         self.func = None
 
     def delete_orientation(self):
-        pass
+        # prepare for smart caching
+        cache_dir = os.path.join(self.output_dir, 'deleteorient_cache')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        mem = joblib.Memory(cachedir=cache_dir, verbose=5)
+
+        # deleteorient for func
+        self.func = mem.cache(delete_orientation)(self.func, self.output_dir)
+
+        # deleteorient for anat
+        if not self.anat is None:
+            self.anat = mem.cache(delete_orientation)(
+                self.anat, self.output_dir)
 
 
 def get_vox_dims(volume):
@@ -925,8 +963,8 @@ package</a>.</p>"""
             preproc_undergone += (
                 "<li>"
                 "Motion correction has been done so as to detect artefacts"
-                " due to the subject's head motion during the acquisition, "
-                "after which the images have been resliced.</li>")
+                " due to the subject's head motion during the acquisition."
+                "</li>")
         if do_coreg:
             preproc_undergone += (
                 "<li>"

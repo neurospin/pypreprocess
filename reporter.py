@@ -151,6 +151,10 @@ class ResultsGallery(object):
         if os.path.isfile(self.loader_filename):
             os.remove(self.loader_filename)
 
+        # touch loader file
+        fd = open(self.loader_filename, 'a')
+        fd.close()
+
     def commit_thumbnails(self, thumbnails):
         if not type(thumbnails) is list:
             thumbnails = [thumbnails]
