@@ -1,6 +1,6 @@
 """
 :Module: nipype_preproc_spm_nyu
-:Synopsis: SPM use-case for preprocessing ABIDE MAxMun rest dataset
+:Synopsis: SPM use-case for preprocessing ABIDE auditory rest dataset
 :Author: dohmatob elvis dopgima
 
 """
@@ -14,15 +14,19 @@ import sys
 import nipype_preproc_spm_utils
 
 DATASET_DESCRIPTION = """\
-<p>ABIDE MaxMun dataset.</p>\
+<p>ABIDE rest auditory dataset.</p>\
 """
+
+# XXX change this to */* if preprocessing all ABIDE subjects
+subject_id_wildcard = "MaxMun_*/MaxMun_*"
 
 if __name__ == '__main__':
     # sanitize cmd-line input
     if len(sys.argv)  < 3:
-        print "\r\nUsage: python %s <path_to_ABIDE_folder> <output_dir>\r\n" \
-            % sys.argv[0]
-        print "Example:\r\npython %s ~/ABIDE ~/ABIDE_runs/MaxMun" % sys.argv[0]
+        print ("\r\nUsage: source /etc/fsl/4.1/fsl.sh; python %s "
+               "<path_to_ABIDE_folder> <output_dir>\r\n") % sys.argv[0]
+        print ("Example:\r\nsource /etc/fsl/4.1/fsl.sh; python %s ~/ABIDE "
+               "/volatile/home/aa013911/DED/ABIDE_runs") % sys.argv[0]
         sys.exit(1)
 
     ABIDE_DIR = os.path.abspath(sys.argv[1])
@@ -34,29 +38,25 @@ if __name__ == '__main__':
     # glob for MaxMun subject_ids
     subject_ids = [os.path.basename(x)
                    for x in glob.glob(
-            os.path.join(ABIDE_DIR, "MaxMun_*/MaxMun_*"))]
+            os.path.join(ABIDE_DIR, subject_id_wildcard))]
 
     # producer for MaxMun subjects
     def subject_factory():
-        for subject_id in ['MaxMun_51348']:  # subject_ids:
+        for subject_id in subject_ids:
             subject_data = nipype_preproc_spm_utils.SubjectData()
             subject_data.subject_id = subject_id
 
-            # subject_data.func = glob.glob(
-            #     os.path.join(
-            #         ABIDE_DIR,
-            #         "%s/%s/scans/rest/resources/NIfTI/files/rest.nii" % (
-            #             subject_id, subject_id)))
+            subject_data.func = glob.glob(
+                os.path.join(
+                    ABIDE_DIR,
+                    "%s/%s/scans/rest/resources/NIfTI/files/rest.nii" % (
+                        subject_id, subject_id)))
 
-            subject_data.func = '/tmp/rest.nii'
-
-            subject_data.anat = "/tmp/mprage.nii"
-
-            # subject_data.anat = glob.glob(
-            #     os.path.join(
-            #         ABIDE_DIR,
-            #         "%s/%s/scans/anat/resources/NIfTI/files/mprage.nii" % (
-            #             subject_id, subject_id)))
+            subject_data.anat = glob.glob(
+                os.path.join(
+                    ABIDE_DIR,
+                    "%s/%s/scans/anat/resources/NIfTI/files/mprage.nii" % (
+                        subject_id, subject_id)))
 
             subject_data.output_dir = os.path.join(
                 os.path.join(
@@ -70,5 +70,7 @@ if __name__ == '__main__':
                                    "_report.html")
     nipype_preproc_spm_utils.do_group_preproc(
         subject_factory(),
+        delete_orientation=True,
+        do_export_report=False,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename)
