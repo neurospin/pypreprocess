@@ -20,7 +20,7 @@ python nipype_preproc_spm_haxby.py
 import os
 
 # helper imports
-from nisl.datasets import fetch_haxby, _uncompress_file
+from external.nisl.datasets import fetch_haxby, _uncompress_file
 
 # import spm preproc utilities
 import nipype_preproc_spm_utils
