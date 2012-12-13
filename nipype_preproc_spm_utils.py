@@ -17,7 +17,6 @@ from nipype.caching import Memory
 
 # imports for nifti manip
 import nibabel as ni
-import numpy as np
 
 # spm and matlab imports
 import nipype.interfaces.spm as spm
@@ -637,6 +636,8 @@ def do_subject_preproc(
         with open(report_filename, 'w') as fd:
             fd.write(str(report))
             fd.close()
+    else:
+        results_gallery = None
 
     # brain extraction (bet)
     if do_bet:
