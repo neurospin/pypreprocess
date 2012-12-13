@@ -653,7 +653,7 @@ def do_subject_preproc(
             results_gallery=results_gallery,
             in_files=subject_data.func,
             register_to_mean=True,
-            jobtype='estwrite',
+            jobtype='estimate',
             )
 
         # collect output
@@ -962,8 +962,8 @@ package</a>.</p>"""
             preproc_undergone += (
                 "<li>"
                 "Motion correction has been done so as to detect artefacts"
-                " due to the subject's head motion during the acquisition, "
-                "after which the images have been resliced.</li>")
+                " due to the subject's head motion during the acquisition"
+                "</li>")
         if do_coreg:
             preproc_undergone += (
                 "<li>"
