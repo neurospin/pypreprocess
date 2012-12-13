@@ -181,9 +181,10 @@ def do_subject_realign(output_dir,
 
             results_gallery.commit_thumbnails(thumbnail)
 
+        output['rp_plot'] = rp_plot
+
     # collect ouput
     output['result'] = realign_result
-    output['rp_plot'] = rp_plot
 
     return output
 
