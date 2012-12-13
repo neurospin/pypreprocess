@@ -20,15 +20,10 @@ python nipype_preproc_spm_haxby.py
 import os
 
 # helper imports
-from nisl.datasets import fetch_haxby, unzip_nii_gz
+from nisl.datasets import fetch_haxby, _uncompress_file
 
 # import spm preproc utilities
 import nipype_preproc_spm_utils
-
-# set data dir
-if not 'DATA_DIR' in os.environ:
-    raise IOError("DATA_DIR is not in your environ; export it!")
-DATA_DIR = os.environ['DATA_DIR']
 
 # set output dir (never pollute data dir!!!)
 OUTPUT_DIR = os.getcwd()
@@ -53,21 +48,23 @@ here</a>.\
 
 if __name__ == '__main__':
     # fetch HAXBY dataset
-    haxby_data = fetch_haxby(data_dir=DATA_DIR)
+    n_subjects = 5
+    haxby_data = fetch_haxby(n_subjects=n_subjects)
 
     # producer
     def subject_factory():
-        for subject_id, _subject_data in haxby_data.iteritems():
+        for i in range(n_subjects):
             # pre-process data for all subjects
             subject_data = nipype_preproc_spm_utils.SubjectData()
-            session_id = "haxby2001"
-            subject_data.subject_id = subject_id
-            unzip_nii_gz(_subject_data['subject_dir'])
-            subject_data.anat = _subject_data["anat"].replace(".gz", "")
-            subject_data.func = _subject_data["bold"].replace(".gz", "")
+            subject_data.session_id = "haxby2001"
+            subject_data.subject_id = 'subj%d' % (i + 1)
+            _uncompress_file(haxby_data['anat'][i], delete_archive=False)
+            _uncompress_file(haxby_data['func'][i], delete_archive=False)
+            subject_data.anat = haxby_data['anat'][i].replace(".gz", "")
+            subject_data.func = haxby_data['func'][i].replace(".gz", "")
             subject_data.output_dir = os.path.join(
-                os.path.join(OUTPUT_DIR, session_id),
-                subject_id)
+                os.path.join(OUTPUT_DIR, subject_data.session_id),
+                'subj%d' % (i + 1))
 
             yield subject_data
 
