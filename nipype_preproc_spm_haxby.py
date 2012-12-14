@@ -58,10 +58,10 @@ if __name__ == '__main__':
             subject_data = nipype_preproc_spm_utils.SubjectData()
             subject_data.session_id = "haxby2001"
             subject_data.subject_id = 'subj%d' % (i + 1)
-            _uncompress_file(haxby_data['anat'][i], delete_archive=False)
-            _uncompress_file(haxby_data['func'][i], delete_archive=False)
-            subject_data.anat = haxby_data['anat'][i].replace(".gz", "")
-            subject_data.func = haxby_data['func'][i].replace(".gz", "")
+            _uncompress_file(haxby_data.anat[i], delete_archive=False)
+            _uncompress_file(haxby_data.func[i], delete_archive=False)
+            subject_data.anat = haxby_data.anat[i].replace(".gz", "")
+            subject_data.func = haxby_data.func[i].replace(".gz", "")
             subject_data.output_dir = os.path.join(
                 os.path.join(OUTPUT_DIR, subject_data.session_id),
                 'subj%d' % (i + 1))

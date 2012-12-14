@@ -3,7 +3,3 @@
 -e git+https://github.com/nipy/nipy.git#egg=nipy
 
 -e git+https://github.com/joblib/joblib.git#egg=joblib
-
--e hg+https://bitbucket.org/ianb/tempita#egg=tempita
-
--e git+https://github.com/dohmatob/tutorial.git#egg=nisl

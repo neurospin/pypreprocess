@@ -6,7 +6,7 @@
 XXX TODO: Document this module.
 """
 
-import tempita
+import external.tempita.tempita as tempita
 import sys
 import time
 import os

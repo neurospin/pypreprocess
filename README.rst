@@ -15,7 +15,6 @@ REQUIREMENTS
 First of all, you will need to have the following (standard) tools 
 installed on your system:
 	* **git**
-	* **mercurial (hg)**
 	* **pip**
 
 The requirements/dependencies (nipy, nipype, traits, nibabel, nisl, etc.) 

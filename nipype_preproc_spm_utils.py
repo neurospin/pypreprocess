@@ -17,7 +17,6 @@ from nipype.caching import Memory
 
 # imports for nifti manip
 import nibabel as ni
-import numpy as np
 
 # spm and matlab imports
 import nipype.interfaces.spm as spm
@@ -182,9 +181,10 @@ def do_subject_realign(output_dir,
 
             results_gallery.commit_thumbnails(thumbnail)
 
+        output['rp_plot'] = rp_plot
+
     # collect ouput
     output['result'] = realign_result
-    output['rp_plot'] = rp_plot
 
     return output
 
@@ -637,6 +637,8 @@ def do_subject_preproc(
         with open(report_filename, 'w') as fd:
             fd.write(str(report))
             fd.close()
+    else:
+        results_gallery = None
 
     # brain extraction (bet)
     if do_bet:
@@ -906,7 +908,8 @@ def do_group_preproc(subjects,
                      do_realign=True,
                      do_coreg=True,
                      do_segment=True,
-                     do_cv_tc=True):
+                     do_cv_tc=True,
+                     n_jobs=None):
 
     """
     This functions doe intra-subject fMRI preprocessing on a
@@ -931,6 +934,7 @@ def do_group_preproc(subjects,
                  " an invalid report_filename (None)"))
 
     kwargs = {'delete_orientation': delete_orientation,
+              'do_report': do_report,
               'do_realign': do_realign, 'do_coreg': do_coreg,
               'do_segment': do_segment, 'do_cv_tc': do_cv_tc}
 
@@ -1017,7 +1021,8 @@ package</a>.</p>"""
         kwargs['main_page'] = "../../%s" % os.path.basename(report_filename)
 
     # preproc subjects
-    joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
+    n_jobs_ = N_JOBS if n_jobs is None else n_jobs
+    joblib.Parallel(n_jobs=n_jobs_, verbose=100)(joblib.delayed(
             do_subject_preproc)(
             subject_data, **kwargs) for subject_data in subjects)
 

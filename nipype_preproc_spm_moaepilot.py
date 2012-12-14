@@ -56,6 +56,5 @@ if __name__ == '__main__':
                                    "_report.html")
     nipype_preproc_spm_utils.do_group_preproc(
         subject_factory(),
-        do_report=False,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename)

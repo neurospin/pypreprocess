@@ -1,0 +1,24 @@
+:mod:`tempita` -- A small templating language
+=============================================
+
+.. automodule:: tempita
+
+Module Contents
+---------------
+
+.. autoexception:: TemplateError
+.. autoclass:: Template
+.. autofunction:: sub
+.. autoclass:: bunch
+
+HTML Templates
+~~~~~~~~~~~~~~
+
+.. autoclass:: HTMLTemplate
+.. autofunction sub_html
+
+.. autoclass:: html
+.. autofunction:: html_quote
+.. autofunction:: url
+.. autofunction:: attr
+
