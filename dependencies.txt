@@ -3,5 +3,3 @@
 -e git+https://github.com/nipy/nipy.git#egg=nipy
 
 -e git+https://github.com/joblib/joblib.git#egg=joblib
-
--e git+https://github.com/dohmatob/tutorial.git#egg=nisl
