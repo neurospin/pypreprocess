@@ -69,7 +69,7 @@ def _filter_columns(array, filters):
 def _remove_end_digit(site):
     if site.endswith('1') or site.endswith('2'):
         return site[:-2]
-
+    return site
 
 def fetch_abide(data_dir=None, verbose=0,
                 **kwargs):
@@ -115,7 +115,7 @@ def fetch_abide(data_dir=None, verbose=0,
 
     # Get the files for all remaining subjects
     folders = [_remove_end_digit(site) + '_' + str(id) for (site, id)
-            in pheno[['SITE_ID', 'SUB_ID']]]
+               in pheno[['SITE_ID', 'SUB_ID']]]
 
     anat = []
     func = []
