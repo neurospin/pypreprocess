@@ -71,6 +71,7 @@ def _remove_end_digit(site):
         return site[:-2]
     return site
 
+
 def fetch_abide(data_dir=None, verbose=0,
                 **kwargs):
     """ Load ABIDE dataset
