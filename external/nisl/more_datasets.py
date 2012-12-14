@@ -66,12 +66,6 @@ def _filter_columns(array, filters):
     return filter
 
 
-def _remove_end_digit(site):
-    if site.endswith('1') or site.endswith('2'):
-        return site[:-2]
-    return site
-
-
 def fetch_abide(data_dir=None, verbose=0,
                 **kwargs):
     """ Load ABIDE dataset
@@ -114,8 +108,31 @@ def fetch_abide(data_dir=None, verbose=0,
     filter = _filter_columns(pheno, kwargs)
     pheno = pheno[filter]
 
+    site_id_to_path = {
+            'CALTECH': 'Caltech',
+            'CMU': 'CMU',
+            'KKI': 'KKI',
+            'LEUVEN_1': 'Leuven',
+            'LEUVEN_2': 'Leuven',
+            'MAX_MUN': 'MaxMun',
+            'NYU': 'NYU',
+            'OHSU': 'OHSU',
+            'OLIN': 'Olin',
+            'PITT': 'Pitt',
+            'SBL': 'SBL',
+            'SDSU': 'SDSU',
+            'STANFORD': 'Stanford',
+            'TRINITY': 'Trinity',
+            'UCLA_1': 'UCLA',
+            'UCLA_2': 'UCLA',
+            'UM_1': 'UM',
+            'UM_2': 'UM',
+            'USM': 'USM',
+            'YALE': 'Yale'
+    }
+
     # Get the files for all remaining subjects
-    folders = [_remove_end_digit(site) + '_' + str(id) for (site, id)
+    folders = [site_id_to_path[site] + '_' + str(id) for (site, id)
                in pheno[['SITE_ID', 'SUB_ID']]]
 
     anat = []
@@ -126,7 +143,7 @@ def fetch_abide(data_dir=None, verbose=0,
                             'mprage.nii')
         ffunc = os.path.join(base, 'rest', 'resources', 'NIfTI', 'files',
                             'rest.nii')
-        if (os.path.exists(fanat), os.path.exists(ffunc)):
+        if os.path.exists(fanat) and os.path.exists(ffunc):
             anat.append(fanat)
             func.append(ffunc)
 
