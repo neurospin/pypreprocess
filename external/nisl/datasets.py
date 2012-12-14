@@ -14,9 +14,9 @@ import sys
 import shutil
 import time
 import hashlib
+import collections
 
-from sklearn.datasets.base import Bunch
-
+from . import Bunch
 
 def _format_time(t):
     if t > 60:

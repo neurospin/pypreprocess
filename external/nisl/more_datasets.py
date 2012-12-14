@@ -11,7 +11,7 @@ import os
 import collections
 
 import numpy as np
-from sklearn.datasets.base import Bunch
+from . import Bunch
 
 from .datasets import _get_dataset, _get_dataset_dir
 

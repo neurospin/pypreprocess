@@ -38,12 +38,12 @@ if __name__ == '__main__':
 
     # producer for MaxMun subjects
     def subject_factory():
-        for i in range(len(abide['func'])):
+        for i in range(len(abide.func)):
             subject_data = nipype_preproc_spm_utils.SubjectData()
-            subject_data.subject_id = str(abide['pheno']['SUB_ID'][i])
+            subject_data.subject_id = str(abide.pheno['SUB_ID'][i])
 
-            subject_data.func = [abide['func'][i]]
-            subject_data.anat = [abide['anat'][i]]
+            subject_data.func = [abide.func[i]]
+            subject_data.anat = [abide.anat[i]]
             subject_data.session_id = 'abide'
 
             subject_data.output_dir = os.path.join(
