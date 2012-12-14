@@ -908,7 +908,8 @@ def do_group_preproc(subjects,
                      do_realign=True,
                      do_coreg=True,
                      do_segment=True,
-                     do_cv_tc=True):
+                     do_cv_tc=True,
+                     n_jobs=None):
 
     """
     This functions doe intra-subject fMRI preprocessing on a
@@ -1020,7 +1021,8 @@ package</a>.</p>"""
         kwargs['main_page'] = "../../%s" % os.path.basename(report_filename)
 
     # preproc subjects
-    joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
+    n_jobs_ = N_JOBS if n_jobs is None else n_jobs
+    joblib.Parallel(n_jobs=n_jobs_, verbose=100)(joblib.delayed(
             do_subject_preproc)(
             subject_data, **kwargs) for subject_data in subjects)
 
