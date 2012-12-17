@@ -146,6 +146,14 @@ def fetch_abide(data_dir=None, verbose=0,
         if os.path.exists(fanat) and os.path.exists(ffunc):
             anat.append(fanat)
             func.append(ffunc)
+        else:
+            # For OHSU, we take session 1 data if it exists.
+            # Thus we look into rest_1 folder
+            ffunc = os.path.join(base, 'rest_1', 'resources', 'NIfTI', 'files',
+                                'rest.nii')
+            if os.path.exists(fanat) and os.path.exists(ffunc):
+                anat.append(fanat)
+                func.append(ffunc)
 
     # return the data
     return Bunch(pheno=pheno, func=func, anat=anat)
