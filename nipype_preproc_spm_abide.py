@@ -18,7 +18,7 @@ DATASET_DESCRIPTION = """\
 """
 
 # XXX change this to */* if preprocessing all ABIDE subjects
-subject_id_wildcard = "MaxMun_*/MaxMun_*"
+subject_id_wildcard = "UM_*/UM_*"
 
 if __name__ == '__main__':
     # sanitize cmd-line input
@@ -35,12 +35,12 @@ if __name__ == '__main__':
     if not os.path.isdir(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
 
-    # glob for MaxMun subject_ids
+    # glob for subject ids
     subject_ids = [os.path.basename(x)
                    for x in glob.glob(
             os.path.join(ABIDE_DIR, subject_id_wildcard))]
 
-    # producer for MaxMun subjects
+    # producer subject data
     def subject_factory():
         for subject_id in subject_ids:
             subject_data = nipype_preproc_spm_utils.SubjectData()
