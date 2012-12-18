@@ -58,14 +58,14 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None,
 
     Parameters
     ----------
-    parameter_file: string,
-                    path of file containing the motion parameters
+    parameter_file: string
+        path of file containing the motion parameters
 
     subject_id: string (optional)
-                    subject id
+        subject id
 
     titile: string (optional)
-                    title to attribute to plotted figure
+        title to attribute to plotted figure
 
     """
     # load parameters

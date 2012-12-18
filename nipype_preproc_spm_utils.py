@@ -17,6 +17,7 @@ from nipype.caching import Memory
 
 # imports for nifti manip
 import nibabel as ni
+from nipype.interfaces.base import Bunch
 
 # spm and matlab imports
 import nipype.interfaces.spm as spm
@@ -37,7 +38,7 @@ if 'MATLAB_EXEC' in os.environ:
 assert os.path.exists(MATLAB_EXEC), \
     "nipype_preproc_smp_utils: MATLAB_EXEC: %s, \
 doesn't exist; you need to export MATLAB_EXEC" % MATLAB_EXEC
-# matlab.MatlabCommand.set_default_matlab_cmd(MATLAB_EXEC)
+matlab.MatlabCommand.set_default_matlab_cmd(MATLAB_EXEC)
 
 # set matlab SPM back-end path
 SPM_DIR = '/i2bm/local/spm8'
@@ -85,7 +86,7 @@ def delete_orientation(imgs, output_dir):
     return output_imgs
 
 
-class SubjectData(object):
+class SubjectData(Bunch):
     """
     Encapsulation for subject data, relative to preprocessing.
 
@@ -1086,16 +1087,11 @@ def do_group_preproc(subjects,
 
     """
 
-    do_normalize = False
-    do_report = False
-
     kwargs = {'delete_orientation': delete_orientation,
               'do_report': do_report,
               'do_realign': do_realign, 'do_coreg': do_coreg,
               'do_segment': do_segment, 'do_normalize': do_normalize,
               'do_cv_tc': do_cv_tc}
-
-    output_dir = os.path.abspath("runs_XYZ")
 
     # generate html report (for QA) as desired
     if do_report:
@@ -1105,8 +1101,6 @@ def do_group_preproc(subjects,
             raise RuntimeError(
                 ("You asked for reporting (do_report=True)  but specified"
                  " an invalid report_filename (None)"))
-
-        output_dir = os.path.dirname(report_filename)
 
         # do some sanity
         shutil.copy(
@@ -1187,84 +1181,9 @@ package</a>.</p>"""
         kwargs['main_page'] = "../../%s" % os.path.basename(report_filename)
 
     # preproc subjects
-    results = joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
+    joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
             do_subject_preproc)(
             subject_data, **kwargs) for subject_data in subjects)
-
-    # prepare for smart caching
-    cache_dir = os.path.join(output_dir, 'cache_dir')
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    mem = Memory(base_dir=cache_dir)
-
-    # # collect structural files (coregistered against resp. functionals)
-    # structural_files = [output.anat for output
-    #                     in results]
-
-    structural_files = [output['coreg_result'].outputs.coregistered_source
-                        for subject_id, output in results]
-
-    # set tissue files for NewSegment
-    newsegment = mem.cache(spm.NewSegment)
-    tissue1 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 1),
-               2, (True, True), (False, False))
-    tissue2 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 2),
-               2, (True, True), (False, False))
-    tissue3 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 3),
-               2, (True, False), (False, False))
-    tissue4 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 4),
-               3, (False, False), (False, False))
-    tissue5 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 5),
-               4, (False, False), (False, False))
-    tissue6 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 6),
-               2, (False, False), (False, False))
-
-    # run NewSegment node proper
-    newsegment_result = newsegment(
-        channel_files=structural_files,
-        tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6])
-
-    # run DARTEL
-    def get2classes(dartel_files):
-        class1images = []
-        class2images = []
-        for session in dartel_files:
-            if session:
-                for item in session:
-                    import re
-                    if re.search("c1", item):
-                        class1images.append(item)
-                    elif re.search("c2", item):
-                        class2images.append(item)
-
-                # class1images.extend(session[0])
-                # class2images.extend(session[1])
-
-        return [class1images, class2images]
-
-    def getclass1images(class_images):
-        class1images = []
-        for session in class_images:
-            class1images.extend(session[0])
-
-        return class1images
-
-    dartel = mem.cache(spm.DARTEL)
-    native_gm_images = [output['segment_result'].outputs.native_gm_image
-                        for subject_id, output in results]
-    native_wm_images = [output['segment_result'].outputs.native_wm_image
-                        for subject_id, output in results]
-    dartel_result = dartel(
-        image_files=get2classes(newsegment_result.outputs.dartel_input_images),
-        template_prefix="DartelPrefox")
-
-    # warp into MNI space
-    dnorm = mem.cache(spm.DARTELNORM2MNI)
-    dnorm_result = dnorm(
-        modulate=True,
-        apply_to_files=structural_files,
-        flow_field_files=dartel_result.outputs.flow_fields,
-        template_file=dartel_result.outputs.final_template_file)
 
     if do_report:
         print "HTML report (dynamic) written to %s" % report_filename
