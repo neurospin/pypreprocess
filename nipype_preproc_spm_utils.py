@@ -86,7 +86,7 @@ def delete_orientation(imgs, output_dir):
     return output_imgs
 
 
-class SubjectData(Bunch):
+class SubjectData(object):
     """
     Encapsulation for subject data, relative to preprocessing.
 
@@ -1055,7 +1055,7 @@ def do_subject_preproc(
         if parent_results_gallery:
             parent_results_gallery.commit_thumbnails(final_thumbnail)
 
-    return subject_data.subject_id, output
+    return subject_data, output
 
 
 def do_group_preproc(subjects,
@@ -1087,11 +1087,16 @@ def do_group_preproc(subjects,
 
     """
 
+    do_normalize = False
+    do_report = False
+
     kwargs = {'delete_orientation': delete_orientation,
               'do_report': do_report,
               'do_realign': do_realign, 'do_coreg': do_coreg,
               'do_segment': do_segment, 'do_normalize': do_normalize,
               'do_cv_tc': do_cv_tc}
+
+    output_dir = os.path.abspath("runs_XYZ")
 
     # generate html report (for QA) as desired
     if do_report:
@@ -1101,6 +1106,8 @@ def do_group_preproc(subjects,
             raise RuntimeError(
                 ("You asked for reporting (do_report=True)  but specified"
                  " an invalid report_filename (None)"))
+
+        output_dir = os.path.dirname(report_filename)
 
         # do some sanity
         shutil.copy(
@@ -1181,9 +1188,60 @@ package</a>.</p>"""
         kwargs['main_page'] = "../../%s" % os.path.basename(report_filename)
 
     # preproc subjects
-    joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
+    results = joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
             do_subject_preproc)(
             subject_data, **kwargs) for subject_data in subjects)
+
+    # prepare for smart caching
+    cache_dir = os.path.join(output_dir, 'cache_dir')
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    mem = Memory(base_dir=cache_dir)
+
+    if do_coreg:
+        structural_files = [output['coreg_result'].outputs.coregistered_source
+                            for _, output in results]
+    else:
+        structural_files = [subject_data.anat for subject_data, _ in results]
+
+    if do_realign:
+        functional_files = [output['realign_result'].outputs.realigned_files
+                        for subject_data, output in results]
+
+    # compute DARTEL template for group data
+    dartel = mem.cache(spm.DARTEL)
+    native_gm_images = [output['segment_result'].outputs.native_gm_image
+                        for subject_id, output in results]
+    native_wm_images = [output['segment_result'].outputs.native_wm_image
+                        for subject_id, output in results]
+    dartel_result = dartel(
+        image_files=[native_gm_images, native_wm_images])
+
+    # warp anat into MNI space
+    for j in xrange(len(structural_files)):
+        print "Normalizing %s into MNI space .." % structural_files[j]
+        dnorm = mem.cache(spm.DARTELNORM2MNI)
+        dnorm_result = dnorm(
+            modulate=True,
+            fwhm=2,
+            apply_to_files=structural_files[j],
+            flow_field_files=dartel_result.outputs.flow_fields[j],
+            template_file=dartel_result.outputs.final_template_file)
+        print "+++++++Done (normalized_files = %s)" % \
+            dnorm_result.outputs.normalized_files
+
+    # warp functional images into MNI space
+    for j in xrange(len(functional_files)):
+        print "Normalizing %s into MNI space .." % functional_files[j]
+        dnorm = mem.cache(spm.DARTELNORM2MNI)
+        dnorm_result = dnorm(
+            modulate=True,
+            fwhm=4,
+            apply_to_files=functional_files[j],
+            flow_field_files=dartel_result.outputs.flow_fields[j],
+            template_file=dartel_result.outputs.final_template_file)
+        print "+++++++Done (normalized_files = %s)" % \
+            dnorm_result.outputs.normalized_files
 
     if do_report:
         print "HTML report (dynamic) written to %s" % report_filename
