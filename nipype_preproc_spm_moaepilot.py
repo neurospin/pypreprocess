@@ -12,7 +12,7 @@ import sys
 # import spm preproc utilities
 import nipype_preproc_spm_utils
 
-from nisl.datasets import fetch_spm_auditory_data
+from external.nisl.datasets import fetch_spm_auditory_data
 
 DATASET_DESCRIPTION = """\
 <p>MoAEpilot <a href="http://www.fil.ion.ucl.ac.uk/spm/data/auditory/">\
