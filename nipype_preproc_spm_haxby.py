@@ -50,7 +50,7 @@ if __name__ == '__main__':
     # fetch HAXBY dataset
     n_subjects = 5
     haxby_data = fetch_haxby(
-        subject_ids=['subj1', 'subj2', 'subj3', 'subj4', 'subj5'])
+        subject_ids=['subj1', 'subj2'])
 
     # producer
     def subject_factory():
