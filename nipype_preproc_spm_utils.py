@@ -86,7 +86,7 @@ def delete_orientation(imgs, output_dir):
     return output_imgs
 
 
-class SubjectData(object):
+class SubjectData(Bunch):
     """
     Encapsulation for subject data, relative to preprocessing.
 
@@ -170,7 +170,6 @@ def do_subject_realign(output_dir,
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
     mem = Memory(base_dir=cache_dir)
-
     # run workflow
     realign = mem.cache(spm.Realign)
     realign_result = realign(**spm_realign_kwargs)
@@ -1058,6 +1057,101 @@ def do_subject_preproc(
     return subject_data, output
 
 
+def do_subject_dartelnorm2mni(output_dir,
+                              do_report=True,
+                              **dartelnorm2mni_kwargs):
+    """
+    Uses spm.DARTELNorm2MNI to warp subject brain into MNI space.
+
+    Parameters
+    ----------
+    output_dir: string
+        existing directory; results will be cache here
+
+    **dartelnorm2mni_kargs: parameter-value list
+        options to be passes to spm.DARTELNorm2MNI back-end
+
+    """
+
+    output = {}
+
+    # prepare for smart caching
+    cache_dir = os.path.join(output_dir, 'cache_dir')
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    mem = Memory(base_dir=cache_dir)
+
+    # do warping
+    dartelnorm2mni = mem.cache(spm.DARTELNorm2MNI)
+    dartelnorm2mni_result = dartelnorm2mni(**dartelnorm2mni_kwargs)
+
+    # do_QA
+    if do_report:
+        pass
+
+    output['dartelnorm2mni_result'] = dartelnorm2mni_result
+
+
+def do_group_DARTEL(output_dir,
+                    structural_files,
+                    subject_output_dirs=None,
+                    do_report=False,
+                    parent_results_gallery=None):
+    """
+    Undocumented API!
+
+    """
+
+    # prepare for smart caching
+    cache_dir = os.path.join(output_dir, 'cache_dir')
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    mem = Memory(base_dir=cache_dir)
+
+    # compute gm, wm, etc. structural segmentation using Newsegment
+    newsegment = mem.cache(spm.NewSegment)
+    tissue1 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 1),
+               2, (True, True), (False, False))
+    tissue2 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 2),
+               2, (True, True), (False, False))
+    tissue3 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 3),
+               2, (True, False), (False, False))
+    tissue4 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 4),
+               3, (False, False), (False, False))
+    tissue5 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 5),
+               4, (False, False), (False, False))
+    tissue6 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 6),
+               2, (False, False), (False, False))
+    newsegment_result = newsegment(
+        channel_files=structural_files,
+        tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6])
+
+    # compute DARTEL template for group data
+    dartel = mem.cache(spm.DARTEL)
+    dartel_input_images = [tpms for tpms in \
+                               newsegment_result.outputs.dartel_input_images
+                           if tpms]
+    dartel_result = dartel(
+        image_files=dartel_input_images,)
+
+    # warp individual structural brains into group (DARTEL) space
+    joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
+            do_subject_dartelnorm2mni)(
+            subject_output_dirs[j],
+            do_report=do_report,
+            modulate=True,
+            fwhm=2,
+            apply_to_files=structural_files[j],
+            flowfield_files=dartel_result.outputs.dartel_flow_fields[j],
+            template_file=dartel_result.outputs.final_template_file)
+                                                for j in xrange(
+            len(structural_files)))
+
+    # do QA
+    if do_report:
+        pass
+
+
 def do_group_preproc(subjects,
                      delete_orientation=False,
                      do_report=True,
@@ -1087,6 +1181,8 @@ def do_group_preproc(subjects,
 
     """
 
+    # XXX rm the following dirty hack when dartel workflow
+    # is more stable
     do_normalize = False
     do_report = False
 
@@ -1192,56 +1288,22 @@ package</a>.</p>"""
             do_subject_preproc)(
             subject_data, **kwargs) for subject_data in subjects)
 
-    # prepare for smart caching
-    cache_dir = os.path.join(output_dir, 'cache_dir')
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    mem = Memory(base_dir=cache_dir)
-
+    # collect structural files for DARTEL pipeline
     if do_coreg:
         structural_files = [output['coreg_result'].outputs.coregistered_source
                             for _, output in results]
     else:
         structural_files = [subject_data.anat for subject_data, _ in results]
 
-    if do_realign:
-        functional_files = [output['realign_result'].outputs.realigned_files
-                        for subject_data, output in results]
+    # collect subject output dirs
+    subject_output_dirs = [subject_data.output_dir
+                           for subject_data, _ in results]
 
-    # compute DARTEL template for group data
-    dartel = mem.cache(spm.DARTEL)
-    native_gm_images = [output['segment_result'].outputs.native_gm_image
-                        for subject_id, output in results]
-    native_wm_images = [output['segment_result'].outputs.native_wm_image
-                        for subject_id, output in results]
-    dartel_result = dartel(
-        image_files=[native_gm_images, native_wm_images])
-
-    # warp anat into MNI space
-    for j in xrange(len(structural_files)):
-        print "Normalizing %s into MNI space .." % structural_files[j]
-        dnorm = mem.cache(spm.DARTELNORM2MNI)
-        dnorm_result = dnorm(
-            modulate=True,
-            fwhm=2,
-            apply_to_files=structural_files[j],
-            flow_field_files=dartel_result.outputs.flow_fields[j],
-            template_file=dartel_result.outputs.final_template_file)
-        print "+++++++Done (normalized_files = %s)" % \
-            dnorm_result.outputs.normalized_files
-
-    # warp functional images into MNI space
-    for j in xrange(len(functional_files)):
-        print "Normalizing %s into MNI space .." % functional_files[j]
-        dnorm = mem.cache(spm.DARTELNORM2MNI)
-        dnorm_result = dnorm(
-            modulate=True,
-            fwhm=4,
-            apply_to_files=functional_files[j],
-            flow_field_files=dartel_result.outputs.flow_fields[j],
-            template_file=dartel_result.outputs.final_template_file)
-        print "+++++++Done (normalized_files = %s)" % \
-            dnorm_result.outputs.normalized_files
+    # normalize structual brains to their own template space (DARTEL)
+    do_group_DARTEL(output_dir,
+                    structural_files,
+                    subject_output_dirs,
+                    do_report=False)
 
     if do_report:
         print "HTML report (dynamic) written to %s" % report_filename
