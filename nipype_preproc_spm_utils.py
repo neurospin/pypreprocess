@@ -1007,11 +1007,6 @@ def do_subject_preproc(
 
     # generate html report (for QA)
     if do_report:
-        blablabla = "Generating QA reports for subject %s .."\
-            % subject_data.subject_id
-        dadada = "+" * len(blablabla)
-        print "\r\n%s\r\n%s\r\n%s\r\n" % (dadada, blablabla, dadada)
-
         if do_cv_tc:
             qa_cache_dir = os.path.join(subject_data.output_dir, "QA")
             if not os.path.exists(qa_cache_dir):
@@ -1181,11 +1176,6 @@ def do_group_preproc(subjects,
 
     """
 
-    # XXX rm the following dirty hack when dartel workflow
-    # is more stable
-    do_normalize = False
-    do_report = False
-
     kwargs = {'delete_orientation': delete_orientation,
               'do_report': do_report,
               'do_realign': do_realign, 'do_coreg': do_coreg,
@@ -1288,22 +1278,22 @@ package</a>.</p>"""
             do_subject_preproc)(
             subject_data, **kwargs) for subject_data in subjects)
 
-    # collect structural files for DARTEL pipeline
-    if do_coreg:
-        structural_files = [output['coreg_result'].outputs.coregistered_source
-                            for _, output in results]
-    else:
-        structural_files = [subject_data.anat for subject_data, _ in results]
+    # # collect structural files for DARTEL pipeline
+    # if do_coreg:
+    #     structural_files = [output['coreg_result'].outputs.coregistered_source
+    #                         for _, output in results]
+    # else:
+    #     structural_files = [subject_data.anat for subject_data, _ in results]
 
-    # collect subject output dirs
-    subject_output_dirs = [subject_data.output_dir
-                           for subject_data, _ in results]
+    # # collect subject output dirs
+    # subject_output_dirs = [subject_data.output_dir
+    #                        for subject_data, _ in results]
 
-    # normalize structual brains to their own template space (DARTEL)
-    do_group_DARTEL(output_dir,
-                    structural_files,
-                    subject_output_dirs,
-                    do_report=False)
+    # # normalize structual brains to their own template space (DARTEL)
+    # do_group_DARTEL(output_dir,
+    #                 structural_files,
+    #                 subject_output_dirs,
+    #                 do_report=False)
 
     if do_report:
         print "HTML report (dynamic) written to %s" % report_filename
