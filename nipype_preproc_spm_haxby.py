@@ -18,19 +18,13 @@ python nipype_preproc_spm_haxby.py
 
 # standard imports
 import os
+import sys
 
-# helper imports
-from external.nisl.datasets import fetch_haxby, _uncompress_file
+# data-grabbing imports
+from external.nisl.datasets import fetch_haxby, unzip_nii_gz
 
 # import spm preproc utilities
 import nipype_preproc_spm_utils
-
-# set output dir (never pollute data dir!!!)
-OUTPUT_DIR = os.getcwd()
-if 'OUTPUT_DIR' in os.environ:
-    OUTPUT_DIR = os.environ['OUTPUT_DIR']
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
 
 DATASET_DESCRIPTION = """\
 This is a block-design fMRI dataset from a study on face and object\
@@ -47,24 +41,38 @@ here</a>.\
 """
 
 if __name__ == '__main__':
+    # sanitize cmd-line
+    if len(sys.argv) < 3:
+        print "Usage: python %s <haxby_dir> <output_dir>" % sys.argv[0]
+        print ("Example:\r\npython %s ~/CODE/datasets/haxby"
+               " ~/CODE/FORKED/pypreprocess/haxby_runs") % sys.argv[0]
+        sys.exit(1)
+
+    DATA_DIR = sys.argv[1]
+
+    # set output dir
+    OUTPUT_DIR = sys.argv[2]
+    if not os.path.exists(OUTPUT_DIR):
+        os.makedirs(OUTPUT_DIR)
+
     # fetch HAXBY dataset
     n_subjects = 5
-    haxby_data = fetch_haxby(n_subjects=n_subjects)
+    haxby_data = fetch_haxby(
+        data_dir=DATA_DIR,
+        subject_ids=['subj1', 'subj2', 'subj3', 'subj4', 'subj5'])
 
-    # producer
+    # producer for subject (input) data
     def subject_factory():
-        for i in range(n_subjects):
-            # pre-process data for all subjects
+        for subject_id, sd in haxby_data.iteritems():
             subject_data = nipype_preproc_spm_utils.SubjectData()
             subject_data.session_id = "haxby2001"
-            subject_data.subject_id = 'subj%d' % (i + 1)
-            _uncompress_file(haxby_data.anat[i], delete_archive=False)
-            _uncompress_file(haxby_data.func[i], delete_archive=False)
-            subject_data.anat = haxby_data.anat[i].replace(".gz", "")
-            subject_data.func = haxby_data.func[i].replace(".gz", "")
+            subject_data.subject_id = subject_id
+            unzip_nii_gz(sd.subject_dir)
+            subject_data.anat = sd.anat.replace(".gz", "")
+            subject_data.func = sd.bold.replace(".gz", "")
             subject_data.output_dir = os.path.join(
                 os.path.join(OUTPUT_DIR, subject_data.session_id),
-                'subj%d' % (i + 1))
+                subject_data.subject_id)
 
             yield subject_data
 

@@ -17,6 +17,7 @@ from nipype.caching import Memory
 
 # imports for nifti manip
 import nibabel as ni
+from nipype.interfaces.base import Bunch
 
 # spm and matlab imports
 import nipype.interfaces.spm as spm
@@ -85,7 +86,7 @@ def delete_orientation(imgs, output_dir):
     return output_imgs
 
 
-class SubjectData(object):
+class SubjectData(Bunch):
     """
     Encapsulation for subject data, relative to preprocessing.
 
@@ -116,7 +117,12 @@ class SubjectData(object):
 
 def get_vox_dims(volume):
     """
-    Infer voxel dimensions.
+    Infer voxel dimensions of a nifti image.
+
+    Parameters
+    ----------
+    volume: string
+        image whose voxel dimensions we seek
 
     """
 
@@ -134,6 +140,29 @@ def do_subject_realign(output_dir,
                        do_report=True,
                        results_gallery=None,
                        **spm_realign_kwargs):
+    """
+    Wrapper for nipype.interfaces.spm.Realign.
+
+    Does realignment and generates QA plots (motion parameters, etc.).
+
+    Parameters
+    ----------
+    output_dir: string
+        An existing folder where all output files will be written.
+
+    subject_id: string (optional)
+        id of the subject being preprocessed
+
+    do_report: boolean (optional)
+        if true, then QA plots will be generated after executing the realign
+        node.
+
+    *spm_realign_kwargs: kwargs (paramete-value dict)
+        parameters to be passed to the nipype.interfaces.spm.Realign back-end
+        node
+
+    """
+
     output = {}
 
     # prepare for smart caching
@@ -141,7 +170,6 @@ def do_subject_realign(output_dir,
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
     mem = Memory(base_dir=cache_dir)
-
     # run workflow
     realign = mem.cache(spm.Realign)
     realign_result = realign(**spm_realign_kwargs)
@@ -195,6 +223,30 @@ def do_subject_coreg(output_dir,
                      results_gallery=None,
                      comments="",
                      **spm_coregister_kwargs):
+    """
+    Wrapper for nipype.interfaces.spm.Coregister.
+
+    Does coregistration and generates QA plots (outline of coregistered source
+    on target, etc.).
+
+    Parameters
+    ----------
+    output_dir: string
+        An existing folder where all output files will be written.
+
+    subject_id: string (optional)
+        id of the subject being preprocessed
+
+    do_report: boolean (optional)
+        if true, then QA plots will be generated after executing the coregister
+        node.
+
+    *spm_realign_kwargs: kwargs (paramete-value dict)
+        parameters to be passed to the nipype.interfaces.spm.Coregister
+        back-end node
+
+    """
+
     output = {}
 
     # prepare for smart caching
@@ -316,6 +368,30 @@ def do_subject_segment(output_dir,
                        subject_id=None,
                        do_report=True,
                        **spm_segment_kwargs):
+    """
+    Wrapper for nipype.interfaces.spm.Segment.
+
+    Does segmentation of brain into GM, WM, and CSF compartments and
+    generates QA plots.
+
+    Parameters
+    ----------
+    output_dir: string
+        An existing folder where all output files will be written.
+
+    subject_id: string (optional)
+        id of the subject being preprocessed
+
+    do_report: boolean (optional)
+        if true, then QA plots will be generated after executing the segment
+        node.
+
+    *spm_realign_kwargs: kwargs (paramete-value dict)
+        parameters to be passed to the nipype.interfaces.spm.Segment back-end
+        node
+
+    """
+
     output = {}
 
     # prepare for smart caching
@@ -347,6 +423,30 @@ def do_subject_normalize(output_dir,
                          brain="brain",
                          cmap=None,
                          **spm_normalize_kwargs):
+    """
+    Wrapper for nipype.interfaces.spm.Normalize.
+
+    Does normalization and generates QA plots (outlines of normalized files on
+    template, etc.).
+
+    Parameters
+    ----------
+    output_dir: string
+        An existing folder where all output files will be written.
+
+    subject_id: string (optional)
+        id of the subject being preprocessed
+
+    do_report: boolean (optional)
+        if true, then QA plots will be generated after executing the normalize
+        node.
+
+    *spm_realign_kwargs: kwargs (paramete-value dict)
+        parameters to be passed to the nipype.interfaces.spm.Normalize back-end
+        node
+
+    """
+
     output = {}
 
     # prepare for smart caching
@@ -592,13 +692,65 @@ def do_subject_preproc(
     do_realign=True,
     do_coreg=True,
     do_segment=True,
+    do_normalize=True,
     do_cv_tc=True,
     parent_results_gallery=None,
     main_page="#"):
     """
     Function preprocessing data for a single subject.
 
+    Parameters
+    ----------
+    subject_data: instance of SubjectData
+        Object containing information about the subject under inspection
+        (path to anat image, func image(s),
+        output directory, etc.)
+
+    delete_orientation: bool (optional)
+        if true, then orientation meta-data in all input image files for this
+        subject will be stripped-off
+
+    do_report: bool (optional)
+        if set, post-preprocessing QA report will be generated.
+
+    do_bet: bool (optional)
+        if set, brain-extraction will be applied to remove non-brain tissue
+        before preprocessing (this can help prevent the scull from aligning
+        with the cortical surface, for example)
+
+    do_slicetiming: bool (optional)
+        if set, slice-timing correct temporal mis-alignment of the functional
+        slices
+
+    do_realign: bool (optional)
+        if set, then the functional data will be realigned to correct for
+        head-motion
+
+    do_coreg: bool (optional)
+        if set, then subject anat image (of the spm EPI template, if the later
+        if not available) will be coregistered against the functional images
+        (i.e the mean thereof)
+
+    do_segment: bool (optional)
+        if set, then the subject's anat image will be segmented to produce GM,
+        WM, and CSF compartments (useful for both indirect normalization
+        (intra-subject) or DARTEL (inter-subject) alike
+
+
+    do_cv_tc: bool (optional)
+        if set, a summarizing the time-course of the coefficient of variation
+        in the preprocessed fMRI time-series will be generated
+
+    parent_results_gallery: reporter.ResulsGallery object (optional)
+        a handle to the results gallery to which the final QA thumail for this
+        subject will be committed
+
+     main_page: string (optional)
+        the href to the QA report main page
+
     """
+
+    output = {}
 
     # create subject_data.output_dir if dir doesn't exist
     if not os.path.exists(subject_data.output_dir):
@@ -663,6 +815,8 @@ def do_subject_preproc(
         subject_data.func = realign_result.outputs.realigned_files
         mean_func = realign_result.outputs.mean_image
 
+        output['realign_result'] = realign_result
+
         # generate report stub
         if do_report:
             final_thumbnail.img.src = realign_output['rp_plot']
@@ -704,6 +858,7 @@ def do_subject_preproc(
 
         # collect results
         coreg_result = coreg_output['result']
+        output['coreg_result'] = coreg_result
 
         # rest anat to coregistered version thereof
         subject_data.anat = coreg_result.outputs.coregistered_source
@@ -735,61 +890,63 @@ def do_subject_preproc(
             )
 
         segment_result = segment_output['result']
+        output['segment_result'] = segment_result
 
-        ##############################################################
-        # indirect normalization: warp fMRI images int into MNI space
-        # using the deformations learned by segmentation
-        ##############################################################
-        norm_parameter_file = segment_result.outputs.transformation_mat
-        norm_apply_to_files = subject_data.func
+        if do_normalize:
+            ##############################################################
+            # indirect normalization: warp fMRI images int into MNI space
+            # using the deformations learned by segmentation
+            ##############################################################
+            norm_parameter_file = segment_result.outputs.transformation_mat
+            norm_apply_to_files = subject_data.func
 
-        norm_output = do_subject_normalize(
-            subject_data.output_dir,
-            subject_id=subject_data.subject_id,
-            segment_result=segment_result,
-            do_report=True,
-            results_gallery=results_gallery,
-            brain='epi',
-            parameter_file=norm_parameter_file,
-            apply_to_files=norm_apply_to_files,
-            write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-            write_voxel_sizes=get_vox_dims(norm_apply_to_files),
-            write_interp=1,
-            jobtype='write',
-            )
+            norm_output = do_subject_normalize(
+                subject_data.output_dir,
+                subject_id=subject_data.subject_id,
+                segment_result=segment_result,
+                do_report=True,
+                results_gallery=results_gallery,
+                brain='epi',
+                parameter_file=norm_parameter_file,
+                apply_to_files=norm_apply_to_files,
+                write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
+                write_voxel_sizes=get_vox_dims(norm_apply_to_files),
+                write_interp=1,
+                jobtype='write',
+                )
 
-        norm_result = norm_output["result"]
-        subject_data.func = norm_result.outputs.normalized_files
+            norm_result = norm_output["result"]
+            subject_data.func = norm_result.outputs.normalized_files
 
-        if do_report:
-            final_thumbnail.img.src = \
-                norm_output['axial']
+            if do_report:
+                final_thumbnail.img.src = \
+                    norm_output['axial']
 
-        #############################################################
-        # indirect normalization: warp anat image int into MNI space
-        # using the deformations learned by segmentation
-        #############################################################
-        import pylab as pl
+            #############################################################
+            # indirect normalization: warp anat image int into MNI space
+            # using the deformations learned by segmentation
+            #############################################################
+            import pylab as pl
 
-        norm_parameter_file = segment_result.outputs.transformation_mat
-        norm_apply_to_files = subject_data.anat
+            norm_parameter_file = segment_result.outputs.transformation_mat
+            norm_apply_to_files = subject_data.anat
 
-        norm_output = do_subject_normalize(
-            subject_data.output_dir,
-            subject_id=subject_data.subject_id,
-            segment_result=segment_result,
-            brain="anat",
-            cmap=pl.cm.gray,
-            do_report=do_report,
-            results_gallery=results_gallery,
-            parameter_file=norm_parameter_file,
-            apply_to_files=norm_apply_to_files,
-            write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-            write_voxel_sizes=get_vox_dims(norm_apply_to_files),
-            write_wrap=[0, 0, 0],
-            write_interp=1,
-            jobtype='write')
-    else:
+            norm_output = do_subject_normalize(
+                subject_data.output_dir,
+                subject_id=subject_data.subject_id,
+                segment_result=segment_result,
+                brain="anat",
+                cmap=pl.cm.gray,
+                do_report=do_report,
+                results_gallery=results_gallery,
+                parameter_file=norm_parameter_file,
+                apply_to_files=norm_apply_to_files,
+                write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
+                write_voxel_sizes=get_vox_dims(norm_apply_to_files),
+                write_wrap=[0, 0, 0],
+                write_interp=1,
+                jobtype='write')
+    elif do_normalize:
         ############################################
         # learn T1 deformation without segmentation
         ############################################
@@ -850,11 +1007,6 @@ def do_subject_preproc(
 
     # generate html report (for QA)
     if do_report:
-        blablabla = "Generating QA reports for subject %s .."\
-            % subject_data.subject_id
-        dadada = "+" * len(blablabla)
-        print "\r\n%s\r\n%s\r\n%s\r\n" % (dadada, blablabla, dadada)
-
         if do_cv_tc:
             qa_cache_dir = os.path.join(subject_data.output_dir, "QA")
             if not os.path.exists(qa_cache_dir):
@@ -897,6 +1049,103 @@ def do_subject_preproc(
         if parent_results_gallery:
             parent_results_gallery.commit_thumbnails(final_thumbnail)
 
+    return subject_data, output
+
+
+def do_subject_dartelnorm2mni(output_dir,
+                              do_report=True,
+                              **dartelnorm2mni_kwargs):
+    """
+    Uses spm.DARTELNorm2MNI to warp subject brain into MNI space.
+
+    Parameters
+    ----------
+    output_dir: string
+        existing directory; results will be cache here
+
+    **dartelnorm2mni_kargs: parameter-value list
+        options to be passes to spm.DARTELNorm2MNI back-end
+
+    """
+
+    output = {}
+
+    # prepare for smart caching
+    cache_dir = os.path.join(output_dir, 'cache_dir')
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    mem = Memory(base_dir=cache_dir)
+
+    # do warping
+    dartelnorm2mni = mem.cache(spm.DARTELNorm2MNI)
+    dartelnorm2mni_result = dartelnorm2mni(**dartelnorm2mni_kwargs)
+
+    # do_QA
+    if do_report:
+        pass
+
+    output['dartelnorm2mni_result'] = dartelnorm2mni_result
+
+
+def do_group_DARTEL(output_dir,
+                    structural_files,
+                    subject_output_dirs=None,
+                    do_report=False,
+                    parent_results_gallery=None):
+    """
+    Undocumented API!
+
+    """
+
+    # prepare for smart caching
+    cache_dir = os.path.join(output_dir, 'cache_dir')
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    mem = Memory(base_dir=cache_dir)
+
+    # compute gm, wm, etc. structural segmentation using Newsegment
+    newsegment = mem.cache(spm.NewSegment)
+    tissue1 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 1),
+               2, (True, True), (False, False))
+    tissue2 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 2),
+               2, (True, True), (False, False))
+    tissue3 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 3),
+               2, (True, False), (False, False))
+    tissue4 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 4),
+               3, (False, False), (False, False))
+    tissue5 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 5),
+               4, (False, False), (False, False))
+    tissue6 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 6),
+               2, (False, False), (False, False))
+    newsegment_result = newsegment(
+        channel_files=structural_files,
+        tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6])
+
+    # compute DARTEL template for group data
+    dartel = mem.cache(spm.DARTEL)
+    dartel_input_images = [tpms for tpms in \
+                               newsegment_result.outputs.dartel_input_images
+                           if tpms]
+    dartel_result = dartel(
+        image_files=dartel_input_images,)
+
+    # warp individual structural brains into group (DARTEL) space
+    joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
+            do_subject_dartelnorm2mni)(
+            subject_output_dirs[j],
+            do_report=do_report,
+            modulate=True,
+            fwhm=2,
+            apply_to_files=structural_files[j],
+            flowfield_files=dartel_result.outputs.dartel_flow_fields[j],
+            template_file=dartel_result.outputs.final_template_file)
+                                                for j in xrange(
+            len(structural_files)))
+
+    # do QA
+    if do_report:
+        pass
+
 
 def do_group_preproc(subjects,
                      delete_orientation=False,
@@ -908,6 +1157,7 @@ def do_group_preproc(subjects,
                      do_realign=True,
                      do_coreg=True,
                      do_segment=True,
+                     do_normalize=True,
                      do_cv_tc=True,
                      n_jobs=None):
 
@@ -926,21 +1176,24 @@ def do_group_preproc(subjects,
 
     """
 
-    # sanitize input
+    kwargs = {'delete_orientation': delete_orientation,
+              'do_report': do_report,
+              'do_realign': do_realign, 'do_coreg': do_coreg,
+              'do_segment': do_segment, 'do_normalize': do_normalize,
+              'do_cv_tc': do_cv_tc}
+
+    output_dir = os.path.abspath("runs_XYZ")
+
+    # generate html report (for QA) as desired
     if do_report:
+        import reporter
+
         if report_filename is None:
             raise RuntimeError(
                 ("You asked for reporting (do_report=True)  but specified"
                  " an invalid report_filename (None)"))
 
-    kwargs = {'delete_orientation': delete_orientation,
-              'do_report': do_report,
-              'do_realign': do_realign, 'do_coreg': do_coreg,
-              'do_segment': do_segment, 'do_cv_tc': do_cv_tc}
-
-    # generate html report (for QA) as desired
-    if do_report:
-        import reporter
+        output_dir = os.path.dirname(report_filename)
 
         # do some sanity
         shutil.copy(
@@ -1021,12 +1274,29 @@ package</a>.</p>"""
         kwargs['main_page'] = "../../%s" % os.path.basename(report_filename)
 
     # preproc subjects
-    n_jobs_ = N_JOBS if n_jobs is None else n_jobs
-    joblib.Parallel(n_jobs=n_jobs_, verbose=100)(joblib.delayed(
+    results = joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
             do_subject_preproc)(
             subject_data, **kwargs) for subject_data in subjects)
 
-    print "HTML report (dynamic) written to %s" % report_filename
+    # # collect structural files for DARTEL pipeline
+    # if do_coreg:
+    #     structural_files = [output['coreg_result'].outputs.coregistered_source
+    #                         for _, output in results]
+    # else:
+    #     structural_files = [subject_data.anat for subject_data, _ in results]
+
+    # # collect subject output dirs
+    # subject_output_dirs = [subject_data.output_dir
+    #                        for subject_data, _ in results]
+
+    # # normalize structual brains to their own template space (DARTEL)
+    # do_group_DARTEL(output_dir,
+    #                 structural_files,
+    #                 subject_output_dirs,
+    #                 do_report=False)
+
+    if do_report:
+        print "HTML report (dynamic) written to %s" % report_filename
 
     # export report (so it can be emailed, for example)
     if do_report:
