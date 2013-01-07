@@ -57,4 +57,5 @@ if __name__ == '__main__':
     nipype_preproc_spm_utils.do_group_preproc(
         subject_factory(),
         dataset_description=DATASET_DESCRIPTION,
+        do_export_report=True,
         report_filename=report_filename)

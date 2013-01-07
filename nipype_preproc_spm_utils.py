@@ -71,8 +71,8 @@ def delete_orientation(imgs, output_dir):
     """
 
     output_imgs = []
-    if not type(output_imgs) is list:
-        output_imgs = [list]
+    if not type(imgs) is list:
+        imgs = [imgs]
     for img in imgs:
         output_img = os.path.join(
             output_dir, "deleteorient_" + os.path.basename(img))
@@ -192,7 +192,9 @@ def do_subject_realign(output_dir,
         nipype_report_filename = os.path.join(
             os.path.dirname(rp),
             "_report/report.rst")
-        nipype_html_report_filename = nipype_report_filename + '.html'
+        nipype_html_report_filename = os.path.join(
+            output_dir,
+            'realign_nipype_report.html')
         nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
@@ -204,8 +206,8 @@ def do_subject_realign(output_dir,
                                          height="500px",
                                          width="1200px")
             thumbnail.description = \
-                "Motion Correction (<a href=%s>see execution log</a>)" \
-                % nipype_html_report_filename
+                "Motion Correction (<a href=%s>see execution log</a>)" % \
+                os.path.basename(nipype_html_report_filename)
 
             results_gallery.commit_thumbnails(thumbnail)
 
@@ -221,6 +223,7 @@ def do_subject_coreg(output_dir,
                      subject_id=None,
                      do_report=True,
                      results_gallery=None,
+                     coreg_func_to_anat=False,
                      comments="",
                      **spm_coregister_kwargs):
     """
@@ -269,7 +272,9 @@ def do_subject_coreg(output_dir,
         nipype_report_filename = os.path.join(
             os.path.dirname(coreg_result.outputs.coregistered_source),
             "_report/report.rst")
-        nipype_html_report_filename = nipype_report_filename + '.html'
+        nipype_html_report_filename = os.path.join(
+            output_dir,
+            'coregister_nipype_report.html')
         nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
@@ -314,8 +319,8 @@ def do_subject_coreg(output_dir,
             thumbnail.img = reporter.img(src=os.path.basename(outline),
                                          height="500px")
             thumbnail.description = \
-                "Coregistration %s (<a href=%s>see execution log</a>)" \
-                % (comments, nipype_html_report_filename)
+                "Coregistration %s (<a href=%s>see execution log</a>)" % \
+                (comments, os.path.basename(nipype_html_report_filename))
 
             results_gallery.commit_thumbnails(thumbnail)
 
@@ -355,7 +360,7 @@ def do_subject_coreg(output_dir,
                                          height="500px")
             thumbnail.description = \
                 "Coregistration %s (<a href=%s>see execution log</a>)" \
-                % (comments, nipype_html_report_filename)
+                % (comments, os.path.basename(nipype_html_report_filename))
             results_gallery.commit_thumbnails(thumbnail)
 
     # collect ouput
@@ -479,7 +484,9 @@ def do_subject_normalize(output_dir,
         nipype_report_filename = os.path.join(
             os.path.dirname(normalized_files[0]),
             "_report/report.rst")
-        nipype_html_report_filename = nipype_report_filename + '.html'
+        nipype_html_report_filename = os.path.join(
+            output_dir,
+            'normalize_nipype_report.html')
         nipype_report = reporter.nipype2htmlreport(
             nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
@@ -515,7 +522,7 @@ def do_subject_normalize(output_dir,
                 src=os.path.basename(outline), height="500px")
             thumbnail.description = \
                 "Normalization (<a href=%s>see execution log</a>)" \
-                % nipype_html_report_filename
+                % os.path.basename(nipype_html_report_filename)
 
             results_gallery.commit_thumbnails(thumbnail)
 
@@ -560,7 +567,7 @@ def do_subject_normalize(output_dir,
                 src=os.path.basename(outline), height="500px")
             thumbnail.description = \
                 "Normalization (<a href=%s>see execution log</a>)" \
-                % nipype_html_report_filename
+                % os.path.basename(nipype_html_report_filename)
 
             results_gallery.commit_thumbnails(thumbnail)
 
@@ -628,7 +635,8 @@ def do_subject_normalize(output_dir,
                     height="500px")
                 thumbnail.description = (
                     "Normalization (<a href=%s>see "
-                    "execution log</a>)") % (nipype_html_report_filename)
+                    "execution log</a>)") % os.path.basename(
+                    nipype_html_report_filename)
 
                 results_gallery.commit_thumbnails(thumbnail)
 
@@ -691,6 +699,7 @@ def do_subject_preproc(
     do_slicetiming=False,
     do_realign=True,
     do_coreg=True,
+    func_to_anat=False,
     do_segment=True,
     do_normalize=True,
     do_cv_tc=True,
@@ -835,14 +844,20 @@ def do_subject_preproc(
     ################################################################
     if do_coreg:
         # specify input files for coregistration
-        coreg_target = mean_func
-        coreg_jobtype = 'estimate'
-        if subject_data.anat is None:
-            coreg_source = EPI_TEMPLATE
-            coreg_jobtype = 'estwrite'
-            do_segment = False
+        comments = "anat -> epi"
+        if func_to_anat:
+            comments = 'epi -> anat'
+            coreg_target = subject_data.anat
+            coreg_source = mean_func
         else:
-            coreg_source = subject_data.anat
+            coreg_target = mean_func
+            coreg_jobtype = 'estimate'
+            if subject_data.anat is None:
+                coreg_source = EPI_TEMPLATE
+                coreg_jobtype = 'estwrite'
+                do_segment = False
+            else:
+                coreg_source = subject_data.anat
 
         # run coreg proper
         coreg_output = do_subject_coreg(
@@ -850,7 +865,7 @@ def do_subject_preproc(
             subject_id=subject_data.subject_id,
             do_report=do_report,
             results_gallery=results_gallery,
-            comments="anat -> epi",
+            comments=comments,
             target=coreg_target,
             source=coreg_source,
             jobtype=coreg_jobtype,
@@ -1029,7 +1044,7 @@ def do_subject_preproc(
 
             # create thumbnail
             thumbnail = reporter.Thumbnail()
-            thumbnail.a = reporter.a(href=cv_tc_plot_after)
+            thumbnail.a = reporter.a(href=os.path.basename(cv_tc_plot_after))
             thumbnail.img = reporter.img(
                 src=os.path.basename(cv_tc_plot_after), height="500px",
                 width="1200px")
@@ -1053,6 +1068,8 @@ def do_subject_preproc(
 
 
 def do_subject_dartelnorm2mni(output_dir,
+                              structural_file,
+                              functional_file,
                               do_report=True,
                               **dartelnorm2mni_kwargs):
     """
@@ -1076,9 +1093,24 @@ def do_subject_dartelnorm2mni(output_dir,
         os.makedirs(cache_dir)
     mem = Memory(base_dir=cache_dir)
 
-    # do warping
+    # warp anat into MNI space
     dartelnorm2mni = mem.cache(spm.DARTELNorm2MNI)
-    dartelnorm2mni_result = dartelnorm2mni(**dartelnorm2mni_kwargs)
+    dartelnorm2mni_result = dartelnorm2mni(apply_to_files=structural_file,
+                                           **dartelnorm2mni_kwargs)
+
+    # warp functional image into MNI space
+    do_subject_normalize(
+        output_dir,
+        # brain="epi",
+        # do_report=do_report,
+        # results_gallery=results_gallery,
+        parameter_file=dartelnorm2mni_result.outputs.normalization_parameter_file,
+        apply_to_files=functional_file,
+        write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
+        # write_voxel_sizes=get_vox_dims(norm_apply_to_files),
+        write_wrap=[0, 0, 0],
+        write_interp=1,
+        jobtype='write')
 
     # do_QA
     if do_report:
@@ -1089,6 +1121,7 @@ def do_subject_dartelnorm2mni(output_dir,
 
 def do_group_DARTEL(output_dir,
                     structural_files,
+                    functional_files,
                     subject_output_dirs=None,
                     do_report=False,
                     parent_results_gallery=None):
@@ -1133,10 +1166,11 @@ def do_group_DARTEL(output_dir,
     joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
             do_subject_dartelnorm2mni)(
             subject_output_dirs[j],
+            structural_files[j],
+            functional_files[j],
             do_report=do_report,
             modulate=True,
             fwhm=2,
-            apply_to_files=structural_files[j],
             flowfield_files=dartel_result.outputs.dartel_flow_fields[j],
             template_file=dartel_result.outputs.final_template_file)
                                                 for j in xrange(
@@ -1158,6 +1192,7 @@ def do_group_preproc(subjects,
                      do_coreg=True,
                      do_segment=True,
                      do_normalize=True,
+                     do_dartel=False,
                      do_cv_tc=True,
                      n_jobs=None):
 
@@ -1278,22 +1313,35 @@ package</a>.</p>"""
             do_subject_preproc)(
             subject_data, **kwargs) for subject_data in subjects)
 
-    # # collect structural files for DARTEL pipeline
-    # if do_coreg:
-    #     structural_files = [output['coreg_result'].outputs.coregistered_source
-    #                         for _, output in results]
-    # else:
-    #     structural_files = [subject_data.anat for subject_data, _ in results]
+    if do_dartel:
+        # collect structural files for DARTEL pipeline
+        if do_coreg:
+            structural_files = [
+                output['coreg_result'].outputs.coregistered_source
+                                for _, output in results]
+        else:
+            structural_files = [
+                subject_data.anat for subject_data, _ in results]
 
-    # # collect subject output dirs
-    # subject_output_dirs = [subject_data.output_dir
-    #                        for subject_data, _ in results]
+        # collect functional iles for DARTEL pipeline
+        if do_realign:
+            functional_files = [
+                output['realign_result'].outputs.realigned_files
+                                for _, output in results]
+        else:
+            functional_files = [subject_data.func for subject_data,
+                                _ in results]
 
-    # # normalize structual brains to their own template space (DARTEL)
-    # do_group_DARTEL(output_dir,
-    #                 structural_files,
-    #                 subject_output_dirs,
-    #                 do_report=False)
+        # collect subject output dirs
+        subject_output_dirs = [subject_data.output_dir
+                               for subject_data, _ in results]
+
+        # normalize structual brains to their own template space (DARTEL)
+        do_group_DARTEL(output_dir,
+                        structural_files,
+                        functional_files,
+                        subject_output_dirs,
+                        do_report=False)
 
     if do_report:
         print "HTML report (dynamic) written to %s" % report_filename

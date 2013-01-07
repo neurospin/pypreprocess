@@ -218,7 +218,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
         if plot_diff:
             diff_cv_tc = np.hstack(([0], np.diff(cv_tc)))
             stuff.append(diff_cv_tc)
-            legends.append('Differential Coefficent of Variation')
+            legends.append('Differential Median Coefficent of Variation')
         legends = tuple(legends)
         pl.plot(np.vstack(stuff).T)
         pl.legend(legends, loc="center", prop={'size': 12})
