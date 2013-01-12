@@ -486,7 +486,7 @@ def do_subject_normalize(output_dir,
             "_report/report.rst")
         nipype_html_report_filename = os.path.join(
             output_dir,
-            'normalize_nipype_report.html')
+            '%s_normalize_nipype_report.html' % brain)
         nipype_report = reporter.nipype2htmlreport(
             nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
@@ -853,7 +853,10 @@ def do_subject_preproc(
             coreg_target = mean_func
             coreg_jobtype = 'estimate'
             if subject_data.anat is None:
-                coreg_source = EPI_TEMPLATE
+                if not subject_data.hires is None:
+                    coreg_source = subject_data.hires
+                else:
+                    coreg_source = EPI_TEMPLATE
                 coreg_jobtype = 'estwrite'
                 do_segment = False
             else:
@@ -1002,7 +1005,6 @@ def do_subject_preproc(
         #####################################################
         import pylab as pl
 
-        norm_parameter_file = norm_result.outputs.normalization_parameters
         norm_apply_to_files = subject_data.anat
 
         norm_output = do_subject_normalize(
@@ -1064,6 +1066,16 @@ def do_subject_preproc(
         if parent_results_gallery:
             parent_results_gallery.commit_thumbnails(final_thumbnail)
 
+    # create symbolic links to final nifti files
+    final = os.path.join(subject_data.output_dir,
+                         "final")
+    if not os.path.exists(final):
+        os.makedirs(final)
+    final_func_link = os.path.join(final, "preprocessed_rest.nii")
+
+    print commands.getoutput(
+        "ln -s %s %s" % (subject_data.func, final_func_link))
+
     return subject_data, output
 
 
@@ -1099,18 +1111,11 @@ def do_subject_dartelnorm2mni(output_dir,
                                            **dartelnorm2mni_kwargs)
 
     # warp functional image into MNI space
-    do_subject_normalize(
-        output_dir,
-        # brain="epi",
-        # do_report=do_report,
-        # results_gallery=results_gallery,
-        parameter_file=dartelnorm2mni_result.outputs.normalization_parameter_file,
-        apply_to_files=functional_file,
-        write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-        # write_voxel_sizes=get_vox_dims(norm_apply_to_files),
-        write_wrap=[0, 0, 0],
-        write_interp=1,
-        jobtype='write')
+    createwarped = mem.cache(spm.CreateWarped)
+    createwarped_result = createwarped(
+        image_files=functional_file,
+        flowfield_files=dartelnorm2mni_kwargs['flowfield_files'],
+        )
 
     # do_QA
     if do_report:
@@ -1163,18 +1168,21 @@ def do_group_DARTEL(output_dir,
         image_files=dartel_input_images,)
 
     # warp individual structural brains into group (DARTEL) space
-    joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
+    joblib.Parallel(
+        n_jobs=N_JOBS, verbose=100,
+        pre_dispatch='1.5*n_jobs', # for scalability over RAM
+        )(joblib.delayed(
             do_subject_dartelnorm2mni)(
-            subject_output_dirs[j],
-            structural_files[j],
-            functional_files[j],
-            do_report=do_report,
-            modulate=True,
-            fwhm=2,
-            flowfield_files=dartel_result.outputs.dartel_flow_fields[j],
-            template_file=dartel_result.outputs.final_template_file)
-                                                for j in xrange(
-            len(structural_files)))
+                subject_output_dirs[j],
+                structural_files[j],
+                functional_files[j],
+                do_report=do_report,
+                modulate=True,
+                fwhm=2,
+                flowfield_files=dartel_result.outputs.dartel_flow_fields[j],
+                template_file=dartel_result.outputs.final_template_file)
+          for j in xrange(
+                len(structural_files)))
 
     # do QA
     if do_report:
@@ -1194,7 +1202,7 @@ def do_group_preproc(subjects,
                      do_normalize=True,
                      do_dartel=False,
                      do_cv_tc=True,
-                     n_jobs=None):
+                     ):
 
     """
     This functions doe intra-subject fMRI preprocessing on a
@@ -1210,6 +1218,11 @@ def do_group_preproc(subjects,
     and more subjects are preprocessed.
 
     """
+
+    # sanitize input
+    if do_dartel:
+        do_segment = False
+        do_normalize = False
 
     kwargs = {'delete_orientation': delete_orientation,
               'do_report': do_report,
@@ -1309,9 +1322,12 @@ package</a>.</p>"""
         kwargs['main_page'] = "../../%s" % os.path.basename(report_filename)
 
     # preproc subjects
-    results = joblib.Parallel(n_jobs=N_JOBS, verbose=100)(joblib.delayed(
+    results = joblib.Parallel(
+        n_jobs=N_JOBS,
+        pre_dispatch='1.5*n_jobs', # for scalability over RAM
+        verbose=100)(joblib.delayed(
             do_subject_preproc)(
-            subject_data, **kwargs) for subject_data in subjects)
+                subject_data, **kwargs) for subject_data in subjects)
 
     if do_dartel:
         # collect structural files for DARTEL pipeline
