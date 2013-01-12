@@ -286,9 +286,13 @@ def plot_registration(reference, coregistered,
                   alpha=0)
 
     if not output_filename is None:
-        pl.savefig(output_filename, dpi=200, bbox_inches='tight',
-                     facecolor="k",
-                     edgecolor="k")
+        try:
+            pl.savefig(output_filename, dpi=200, bbox_inches='tight',
+                       facecolor="k",
+                       edgecolor="k")
+        except AttributeError:
+            # XXX TODO: handy this case!!
+            pass
 
 
 def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
