@@ -138,7 +138,7 @@ class ResultsGallery(object):
     """
 
     def __init__(self, loader_filename,
-                 refresh_timeout=5000,
+                 refresh_timeout=60000,  # reload every minute
                  title='Results',
                  description=None
                  ):
@@ -154,6 +154,15 @@ class ResultsGallery(object):
         # touch loader file
         fd = open(self.loader_filename, 'a')
         fd.close()
+
+    def commit_results_from_filename(self, filename):
+        with open(filename) as fd:
+            divs = fd.read()
+            fd.close()
+
+            loader_fd = open(self.loader_filename, 'a')
+            loader_fd.write(divs)
+            loader_fd.close()
 
     def commit_thumbnails(self, thumbnails):
         if not type(thumbnails) is list:
