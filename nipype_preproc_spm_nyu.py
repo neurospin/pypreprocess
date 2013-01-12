@@ -42,7 +42,10 @@ same participants.</p>
 if __name__ == '__main__':
     # sanitize input
     if len(sys.argv) < 3:
-        print "Usage: python %s <NYU_data_dir> <output_dir>" % sys.argv[0]
+        print ("\r\nUsage: source /etc/fsl/4.1/fsl.sh; python %s "
+               "<NYU_data_dir> <output_dir>") % sys.argv[0]
+        print ("Example: source /etc/fsl/4.1/fsl.sh; python %s "
+               "~/CODE/datasets/nyu_data nyu_runs\r\n") % sys.argv[0]
         sys.exit(-1)
 
     OUTPUT_DIR = os.path.abspath(sys.argv[2])
@@ -54,7 +57,7 @@ if __name__ == '__main__':
 
     # subject data factory
     def subject_factory():
-        for j in xrange(len(nyu_data.subject_ids)):
+        for j in list(xrange(len(nyu_data.subject_ids))):
             subject_data = nipype_preproc_spm_utils.SubjectData()
 
             subject_id = nyu_data.subject_ids[j]
@@ -79,5 +82,6 @@ if __name__ == '__main__':
     nipype_preproc_spm_utils.do_group_preproc(
         subject_factory(),
         delete_orientation=True,
+        do_dartel=True,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename)
