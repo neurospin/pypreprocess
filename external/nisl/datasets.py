@@ -417,7 +417,7 @@ def fetch_haxby(data_dir=None, subject_ids=None, redownload=False):
             yield data_dir, subject_id, url, redownload
 
     # parallel fetch
-    pairs = joblib.Parallel(n_jobs=-1)(
+    pairs = joblib.Parallel(n_jobs=-1, verbose=100)(
         joblib.delayed(fetch_haxby_subject_data)(x, y, z, w)\
             for x, y, z, w in url_factory())
 

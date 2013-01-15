@@ -7,6 +7,19 @@ XXX TODO: document the code!
 XXX TODO: re-factor the code!
 """
 
+# misc
+PYPREPROC_URL = "https://github.com/neurospin/pypreprocess"
+NIPYPE_URL = "http://www.mit.edu/~satra/nipype-nightly/"
+SPM_URL = "http://www.fil.ion.ucl.ac.uk/spm/"
+BANNER = """
+ #####    #   #  #####   #####   ######  #####   #####    ####    ####
+ #    #    # #   #    #  #    #  #       #    #  #    #  #    #  #    #
+ #    #     #    #    #  #    #  #####   #    #  #    #  #    #  #
+ #####      #    #####   #####   #       #####   #####   #    #  #
+ #          #    #       #   #   #       #       #   #   #    #  #    #
+ #          #    #       #    #  ######  #       #    #   ####    ####
+"""
+
 # standard imports
 import os
 import shutil
@@ -1195,6 +1208,7 @@ def do_group_preproc(subjects,
                      do_export_report=False,
                      dataset_description=None,
                      report_filename=None,
+                     output_dir=None,
                      do_bet=False,
                      do_realign=True,
                      do_coreg=True,
@@ -1219,7 +1233,9 @@ def do_group_preproc(subjects,
 
     """
 
-    # sanitize input
+    print BANNER
+
+  # sanitize input
     if do_dartel:
         do_segment = False
         do_normalize = False
@@ -1230,30 +1246,32 @@ def do_group_preproc(subjects,
               'do_segment': do_segment, 'do_normalize': do_normalize,
               'do_cv_tc': do_cv_tc}
 
-    output_dir = os.path.abspath("runs_XYZ")
+    if not output_dir:
+        if not do_report:
+            output_dir = os.path.abspath("runs_XYZ")
+        else:
+            if report_filename is None:
+                raise RuntimeError(
+                    ("You asked for reporting (do_report=True)  but specified"
+                     " an invalid report_filename (None)"))
+            output_dir = os.path.dirname(report_filename)
 
     # generate html report (for QA) as desired
     if do_report:
         import reporter
-
-        if report_filename is None:
-            raise RuntimeError(
-                ("You asked for reporting (do_report=True)  but specified"
-                 " an invalid report_filename (None)"))
-
-        output_dir = os.path.dirname(report_filename)
 
         # do some sanity
         shutil.copy(
             "css/styles.css", os.path.dirname(report_filename))
 
         # compute docstring explaining preproc steps undergone
-        preproc_undergone = """\
-<p>All preprocessing has been done using nipype's interface to the \
-<a href="http://www.fil.ion.ucl.ac.uk/spm/">SPM8
-package</a>.</p>"""
+        preproc_undergone = ("<p>All preprocessing has been done using "
+                             "<a href='%s'>pypreprocess</a>, a collection of "
+                             "scripts back-ended by <a href='%s'>nipype</a>'s "
+                             "interface to the <a href='%s'>spm8 package</a>."
+                             "</p>") % (PYPREPROC_URL, NIPYPE_URL, SPM_URL)
 
-        preproc_undergone = "<ul>"
+        preproc_undergone += "<ul>"
 
         if do_bet:
             preproc_undergone += (

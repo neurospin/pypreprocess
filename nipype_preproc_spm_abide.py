@@ -1,5 +1,5 @@
-"""
-:Module: nipype_preproc_spm_nyu
+B"""
+:1;3201;0cModule: nipype_preproc_spm_nyu
 :Synopsis: SPM use-case for preprocessing ABIDE auditory rest dataset
 :Author: dohmatob elvis dopgima
 
@@ -15,18 +15,26 @@ import random
 import nipype_preproc_spm_utils
 
 DATASET_DESCRIPTION = """\
-<p>ABIDE rest auditory dataset.</p>\
+<p><a href="http://fcon_1000.projects.nitrc.org/indi/abide/">ABIDE</a>\
+ rest auditory dataset.</p>\
 """
 
-# XXX change this to */* if preprocessing all ABIDE subjects
+# wildcard defining ABIDE directory structure
 subject_id_wildcard = "*_*/*_*"
+
+# I don't know the ABIDE sessions
+SESSION_ID = "UNKNOWN_SESSION"
+
+# DARTEL ?
+DO_DARTEL = False
 
 if __name__ == '__main__':
     # sanitize cmd-line input
     if len(sys.argv)  < 3:
         print ("\r\nUsage: source /etc/fsl/4.1/fsl.sh; python %s "
                "<path_to_ABIDE_folder> <output_dir>\r\n") % sys.argv[0]
-        print ("Example:\r\nsource /etc/fsl/4.1/fsl.sh; python %s ~/ABIDE "
+        print ("Example:\r\nsource /etc/fsl/4.1/fsl.sh; python %s "
+               "/volatile/home/aa013911/ABIDE "
                "/volatile/home/aa013911/DED/ABIDE_runs") % sys.argv[0]
         sys.exit(1)
 
@@ -47,9 +55,12 @@ if __name__ == '__main__':
 
     random.shuffle(subject_ids)
 
+    # XXX the following will save you re-calculating MD5s for results
+    # you know are already there
+
     def ignore_subject_id(subject_id):
         return os.path.exists(os.path.join(
-                OUTPUT_DIR, "UNKNOWN_SESSION/%s/final" % subject_id))
+                OUTPUT_DIR, "%s/%s/final" % (SESSION_ID, subject_id)))
 
     # producer subject data
     def subject_factory():
@@ -80,6 +91,9 @@ if __name__ == '__main__':
                         "%s/%s/scans/anat/resources/NIfTI/files/mprage.nii" % (
                             subject_id, subject_id)))[0]
             except IndexError:
+                if DO_DARTEL:
+                    continue
+
                 try:
                     subject_data.hires = glob.glob(
                         os.path.join(
@@ -106,8 +120,9 @@ if __name__ == '__main__':
                                    "_report.html")
     nipype_preproc_spm_utils.do_group_preproc(
         subject_factory(),
+        output_dir=OUTPUT_DIR,
         delete_orientation=True,
-        # do_export_report=True,
+        do_dartel=DO_DARTEL,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename)
 
