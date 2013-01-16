@@ -1,5 +1,5 @@
-B"""
-:1;3201;0cModule: nipype_preproc_spm_nyu
+"""
+:Module: nipype_preproc_spm_nyu
 :Synopsis: SPM use-case for preprocessing ABIDE auditory rest dataset
 :Author: dohmatob elvis dopgima
 
