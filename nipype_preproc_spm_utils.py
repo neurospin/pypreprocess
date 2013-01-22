@@ -892,7 +892,7 @@ def do_subject_preproc(
         coreg_result = coreg_output['result']
         output['coreg_result'] = coreg_result
 
-        # rest anat to coregistered version thereof
+        # set anat to coregistered version thereof
         subject_data.anat = coreg_result.outputs.coregistered_source
 
         # generate report stub
@@ -936,7 +936,7 @@ def do_subject_preproc(
                 subject_data.output_dir,
                 subject_id=subject_data.subject_id,
                 segment_result=segment_result,
-                do_report=True,
+                do_report=do_report,
                 results_gallery=results_gallery,
                 brain='epi',
                 parameter_file=norm_parameter_file,
@@ -1036,6 +1036,9 @@ def do_subject_preproc(
             write_interp=1,
             jobtype='write')
 
+    if type(subject_data.func[0]) is list:
+        subject_data.func = subject_data.func[0]
+
     # generate html report (for QA)
     if do_report:
         if do_cv_tc:
@@ -1046,36 +1049,50 @@ def do_subject_preproc(
 
             cv_tc_plot_after = os.path.join(
                 subject_data.output_dir, "cv_tc_after.png")
+            cv_plot_after = os.path.join(
+                subject_data.output_dir, "cv_after.png")
 
-            corrected_FMRIs = list([subject_data.func])
+            corrected_fMRI = subject_data.func
 
             qa_mem.cache(
                 check_preprocessing.plot_cv_tc)(
-                corrected_FMRIs, [subject_data.session_id],
-                subject_data.subject_id,
-                subject_data.output_dir,
+                corrected_fMRI,
+                subject_id=subject_data.subject_id,
+                session_id=subject_data.session_id,
                 cv_tc_plot_outfile=cv_tc_plot_after,
-                plot_diff=True,
-                title="")
+                cv_plot_outfile=cv_plot_after,
+                )
 
-            # create thumbnail
+            # create thumbnail for cv_tc
+            thumbnail = reporter.Thumbnail()
+            thumbnail.a = reporter.a(href=os.path.basename(cv_plot_after))
+            thumbnail.img = reporter.img(
+                src=os.path.basename(cv_plot_after), height="500px",
+                width="1200px")
+            thumbnail.description = "Coefficient of Variation map"
+            results_gallery.commit_thumbnails(thumbnail)
+
+            # create thumbnail for cv_tc
             thumbnail = reporter.Thumbnail()
             thumbnail.a = reporter.a(href=os.path.basename(cv_tc_plot_after))
             thumbnail.img = reporter.img(
                 src=os.path.basename(cv_tc_plot_after), height="500px",
                 width="1200px")
-            thumbnail.description = "Coefficient of Variation"
+            thumbnail.description = "Time-course Coefficient of Variation"
             results_gallery.commit_thumbnails(thumbnail)
+            if final_thumbnail.img.src is None:
+                final_thumbnail = thumbnail
 
-        final_thumbnail.img.height = "250px"
-        final_thumbnail.img.src = "%s/%s/%s" % (
-            subject_data.session_id,
-            subject_data.subject_id,
-            os.path.basename(final_thumbnail.img.src))
-        final_thumbnail.a.href = "%s/%s/%s" % (
-            subject_data.session_id,
-            subject_data.subject_id,
-            os.path.basename(final_thumbnail.a.href))
+        if not final_thumbnail.img.src is None:
+            final_thumbnail.img.height = "250px"
+            final_thumbnail.img.src = "%s/%s/%s" % (
+                subject_data.session_id,
+                subject_data.subject_id,
+                os.path.basename(final_thumbnail.img.src))
+            final_thumbnail.a.href = "%s/%s/%s" % (
+                subject_data.session_id,
+                subject_data.subject_id,
+                os.path.basename(final_thumbnail.a.href))
 
         if parent_results_gallery:
             parent_results_gallery.commit_thumbnails(final_thumbnail)
@@ -1385,3 +1402,5 @@ def do_group_preproc(subjects,
     if do_report:
         if do_export_report:
             reporter.export_report(os.path.dirname(report_filename))
+
+    return results
