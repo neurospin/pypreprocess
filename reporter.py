@@ -207,7 +207,9 @@ def lines2breaks(lines):
     if type(lines) is str:
         lines = lines.split('\n')
 
-    return tempita.HTMLTemplate("<br>".join(lines)).substitute()
+    log = "<br>".join(lines).format('hello, tempita!')
+
+    return tempita.HTMLTemplate(log).substitute()
 
 
 def nipype2htmlreport(nipype_report_filename):
