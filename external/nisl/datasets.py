@@ -447,6 +447,8 @@ def _glob_spm_auditory_data(subject_dir):
     _subject_data = {}
     _subject_data["func"] = [subject_data[x] for x in subject_data.keys()
                              if re.match(".+?fM00223_0\d\d\.img$", x)]
+    _subject_data["func"].sort()
+
     _subject_data["anat"] = [subject_data[x] for x in subject_data.keys()
                              if re.match(".+?sM00223_002\.img$", x)][0]
     return _subject_data
