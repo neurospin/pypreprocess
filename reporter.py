@@ -207,7 +207,7 @@ def lines2breaks(lines):
     if type(lines) is str:
         lines = lines.split('\n')
 
-    log = "<br>".join(lines).format('hello, tempita!')
+    log = "<br>".join(lines)
 
     return tempita.HTMLTemplate(log).substitute()
 
