@@ -7,20 +7,6 @@ XXX TODO: document the code!
 XXX TODO: re-factor the code!
 """
 
-# misc
-PYPREPROC_URL = "https://github.com/neurospin/pypreprocess"
-NIPYPE_URL = "http://www.mit.edu/~satra/nipype-nightly/"
-SPM_URL = "http://www.fil.ion.ucl.ac.uk/spm/"
-BANNER = """
-                                                          ###
- #####    #   #  #####   #####   ######  #####   #####   #   #    ####
- #    #    # #   #    #  #    #  #       #    #  #    # # #   #  #    #
- #    #     #    #    #  #    #  #####   #    #  #    # #  #  #  #
- #####      #    #####   #####   #       #####   #####  #   # #  #
- #          #    #       #   #   #       #       #   #   #   #   #    #
- #          #    #       #    #  ######  #       #    #   ###     ####
-"""
-
 # standard imports
 import os
 import shutil
@@ -892,7 +878,7 @@ def do_subject_preproc(
         coreg_result = coreg_output['result']
         output['coreg_result'] = coreg_result
 
-        # set anat to coregistered version thereof
+        # rest anat to coregistered version thereof
         subject_data.anat = coreg_result.outputs.coregistered_source
 
         # generate report stub
@@ -936,7 +922,7 @@ def do_subject_preproc(
                 subject_data.output_dir,
                 subject_id=subject_data.subject_id,
                 segment_result=segment_result,
-                do_report=do_report,
+                do_report=True,
                 results_gallery=results_gallery,
                 brain='epi',
                 parameter_file=norm_parameter_file,
@@ -1036,9 +1022,6 @@ def do_subject_preproc(
             write_interp=1,
             jobtype='write')
 
-    if type(subject_data.func[0]) is list:
-        subject_data.func = subject_data.func[0]
-
     # generate html report (for QA)
     if do_report:
         if do_cv_tc:
@@ -1049,50 +1032,36 @@ def do_subject_preproc(
 
             cv_tc_plot_after = os.path.join(
                 subject_data.output_dir, "cv_tc_after.png")
-            cv_plot_after = os.path.join(
-                subject_data.output_dir, "cv_after.png")
 
-            corrected_fMRI = subject_data.func
+            corrected_FMRIs = list([subject_data.func])
 
             qa_mem.cache(
                 check_preprocessing.plot_cv_tc)(
-                corrected_fMRI,
-                subject_id=subject_data.subject_id,
-                session_id=subject_data.session_id,
+                corrected_FMRIs, [subject_data.session_id],
+                subject_data.subject_id,
+                subject_data.output_dir,
                 cv_tc_plot_outfile=cv_tc_plot_after,
-                cv_plot_outfile=cv_plot_after,
-                )
+                plot_diff=True,
+                title="")
 
-            # create thumbnail for cv_tc
-            thumbnail = reporter.Thumbnail()
-            thumbnail.a = reporter.a(href=os.path.basename(cv_plot_after))
-            thumbnail.img = reporter.img(
-                src=os.path.basename(cv_plot_after), height="500px",
-                width="1200px")
-            thumbnail.description = "Coefficient of Variation map"
-            results_gallery.commit_thumbnails(thumbnail)
-
-            # create thumbnail for cv_tc
+            # create thumbnail
             thumbnail = reporter.Thumbnail()
             thumbnail.a = reporter.a(href=os.path.basename(cv_tc_plot_after))
             thumbnail.img = reporter.img(
                 src=os.path.basename(cv_tc_plot_after), height="500px",
                 width="1200px")
-            thumbnail.description = "Time-course Coefficient of Variation"
+            thumbnail.description = "Coefficient of Variation"
             results_gallery.commit_thumbnails(thumbnail)
-            if final_thumbnail.img.src is None:
-                final_thumbnail = thumbnail
 
-        if not final_thumbnail.img.src is None:
-            final_thumbnail.img.height = "250px"
-            final_thumbnail.img.src = "%s/%s/%s" % (
-                subject_data.session_id,
-                subject_data.subject_id,
-                os.path.basename(final_thumbnail.img.src))
-            final_thumbnail.a.href = "%s/%s/%s" % (
-                subject_data.session_id,
-                subject_data.subject_id,
-                os.path.basename(final_thumbnail.a.href))
+        final_thumbnail.img.height = "250px"
+        final_thumbnail.img.src = "%s/%s/%s" % (
+            subject_data.session_id,
+            subject_data.subject_id,
+            os.path.basename(final_thumbnail.img.src))
+        final_thumbnail.a.href = "%s/%s/%s" % (
+            subject_data.session_id,
+            subject_data.subject_id,
+            os.path.basename(final_thumbnail.a.href))
 
         if parent_results_gallery:
             parent_results_gallery.commit_thumbnails(final_thumbnail)
@@ -1153,6 +1122,9 @@ def do_subject_dartelnorm2mni(output_dir,
         pass
 
     output['dartelnorm2mni_result'] = dartelnorm2mni_result
+    output['createwarped_result'] = createwarped_result
+
+    return output
 
 
 def do_group_DARTEL(output_dir,
@@ -1198,8 +1170,8 @@ def do_group_DARTEL(output_dir,
     dartel_result = dartel(
         image_files=dartel_input_images,)
 
-    # warp individual structural brains into group (DARTEL) space
-    joblib.Parallel(
+    # warp individual brains into group (DARTEL) space
+    results = joblib.Parallel(
         n_jobs=N_JOBS, verbose=100,
         pre_dispatch='1.5*n_jobs', # for scalability over RAM
         )(joblib.delayed(
@@ -1219,14 +1191,16 @@ def do_group_DARTEL(output_dir,
     if do_report:
         pass
 
+    return results
+
 
 def do_group_preproc(subjects,
+                     output_dir=None,
                      delete_orientation=False,
                      do_report=True,
                      do_export_report=False,
                      dataset_description=None,
                      report_filename=None,
-                     output_dir=None,
                      do_bet=False,
                      do_realign=True,
                      do_coreg=True,
@@ -1251,9 +1225,7 @@ def do_group_preproc(subjects,
 
     """
 
-    print BANNER
-
-  # sanitize input
+    # sanitize input
     if do_dartel:
         do_segment = False
         do_normalize = False
@@ -1264,15 +1236,16 @@ def do_group_preproc(subjects,
               'do_segment': do_segment, 'do_normalize': do_normalize,
               'do_cv_tc': do_cv_tc}
 
-    if not output_dir:
-        if not do_report:
-            output_dir = os.path.abspath("runs_XYZ")
-        else:
+    if output_dir is None:
+        if do_report:
             if report_filename is None:
                 raise RuntimeError(
                     ("You asked for reporting (do_report=True)  but specified"
                      " an invalid report_filename (None)"))
-            output_dir = os.path.dirname(report_filename)
+            else:
+                output_dir = os.path.dirname(report_filename)
+        else:
+            output_dir = os.path.abspath("runs_XYZ")
 
     # generate html report (for QA) as desired
     if do_report:
@@ -1283,13 +1256,12 @@ def do_group_preproc(subjects,
             "css/styles.css", os.path.dirname(report_filename))
 
         # compute docstring explaining preproc steps undergone
-        preproc_undergone = ("<p>All preprocessing has been done using "
-                             "<a href='%s'>pypreprocess</a>, a collection of "
-                             "scripts back-ended by <a href='%s'>nipype</a>'s "
-                             "interface to the <a href='%s'>spm8 package</a>."
-                             "</p>") % (PYPREPROC_URL, NIPYPE_URL, SPM_URL)
+        preproc_undergone = """\
+<p>All preprocessing has been done using nipype's interface to the \
+<a href="http://www.fil.ion.ucl.ac.uk/spm/">SPM8
+package</a>.</p>"""
 
-        preproc_undergone += "<ul>"
+        preproc_undergone = "<ul>"
 
         if do_bet:
             preproc_undergone += (
@@ -1389,11 +1361,11 @@ def do_group_preproc(subjects,
                                for subject_data, _ in results]
 
         # normalize structual brains to their own template space (DARTEL)
-        do_group_DARTEL(output_dir,
-                        structural_files,
-                        functional_files,
-                        subject_output_dirs,
-                        do_report=False)
+        results = do_group_DARTEL(output_dir,
+                                  structural_files,
+                                  functional_files,
+                                  subject_output_dirs,
+                                  do_report=False)
 
     if do_report:
         print "HTML report (dynamic) written to %s" % report_filename
@@ -1403,4 +1375,5 @@ def do_group_preproc(subjects,
         if do_export_report:
             reporter.export_report(os.path.dirname(report_filename))
 
-    return results
+    for result in results:
+        print result['createwarped_result'].outputs.warped_files
