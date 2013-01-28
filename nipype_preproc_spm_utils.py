@@ -1033,7 +1033,9 @@ def do_subject_preproc(
             cv_tc_plot_after = os.path.join(
                 subject_data.output_dir, "cv_tc_after.png")
 
-            corrected_FMRIs = list([subject_data.func])
+            corrected_FMRIs = subject_data.func
+            if type(corrected_FMRIs) is str:
+                corrected_FMRIs = [corrected_FMRIs]
 
             qa_mem.cache(
                 check_preprocessing.plot_cv_tc)(
@@ -1041,8 +1043,7 @@ def do_subject_preproc(
                 subject_data.subject_id,
                 subject_data.output_dir,
                 cv_tc_plot_outfile=cv_tc_plot_after,
-                plot_diff=True,
-                title="")
+                plot_diff=True)
 
             # create thumbnail
             thumbnail = reporter.Thumbnail()
@@ -1374,6 +1375,3 @@ package</a>.</p>"""
     if do_report:
         if do_export_report:
             reporter.export_report(os.path.dirname(report_filename))
-
-    for result in results:
-        print result['createwarped_result'].outputs.warped_files

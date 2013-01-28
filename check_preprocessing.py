@@ -124,7 +124,7 @@ def plot_cv_tc(epi_data, subject_id, session_id="UNKNOWN_SESSION",
     if isinstance(mask, basestring):
         mask_array = nibabel.load(mask).get_data() > 0
     elif mask == True:
-        mask_array = compute_mask_files(epi_data)
+        mask_array = compute_mask_files(epi_data[0])
     else:
         mask_array = None
 
