@@ -209,7 +209,7 @@ def lines2breaks(lines):
 
     log = "<br>".join(lines)
 
-    return tempita.HTMLTemplate(log).substitute()
+    return tempita.HTMLTemplate(log).content
 
 
 def nipype2htmlreport(nipype_report_filename):
