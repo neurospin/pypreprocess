@@ -796,3 +796,87 @@ def fetch_poldrack_mixed_gambles(data_dir=None):
 
     # return the data
     return Bunch(data=files)
+
+
+def fetch_openfmri(accession_number, data_dir, redownload=False):
+    """ Downloads and extract datasets from www.openfmri.org
+
+        Parameters
+        ----------
+        accession_number: str
+            Dataset identifier, as displayed on https://openfmri.org/data-sets
+        data_dir: str
+            Destination directory.
+        redownload: boolean
+            Set to True to force redownload of already available data.
+            Defaults to False.
+
+        Datasets
+        --------
+        {accession_number}: {dataset name}
+        ds000001: Balloon Analog Risk-taking Task
+        ds000002: Classification learning
+        ds000003: Rhyme judgment
+        ds000005: Mixed-gambles task
+        ds000007: Stop-signal task with spoken & manual responses
+        ds000008: Stop-signal task with unselective and selective stopping
+        ds000011: Classification learning and tone-counting
+        ds000017: Classification learning and stop-signal (1 year test-retest)
+        ds000051: Cross-language repetition priming
+        ds000052: Classification learning and reversal
+        ds000101: Simon task dataset
+        ds000102: Flanker task (event-related)
+        ds000105: Visual object recognition
+        ds000107: Word and object processing
+
+        Returns
+        -------
+        ds_path: str
+            Path of the dataset.
+    """
+
+    datasets = {
+        'ds000001': 'Balloon Analog Risk-taking Task',
+        'ds000002': 'Classification learning',
+        'ds000003': 'Rhyme judgment',
+        'ds000005': 'Mixed-gambles task',
+        'ds000007': 'Stop-signal task with spoken & manual responses',
+        'ds000008': 'Stop-signal task with unselective and selective stopping',
+        'ds000011': 'Classification learning and tone-counting',
+        'ds000017': ('Classification learning and '
+                     'stop-signal (1 year test-retest)'),
+        'ds000051': 'Cross-language repetition priming',
+        'ds000052': 'Classification learning and reversal',
+        'ds000101': 'Simon task dataset',
+        'ds000102': 'Flanker task (event-related)',
+        'ds000105': 'Visual object recognition',
+        'ds000107': 'Word and object processing',
+    }
+
+    files = {
+        'ds000001': ['ds001_raw_fixed_1'],
+        'ds000002': ['ds002_raw_0'],
+        'ds000003': ['ds003_raw'],
+        'ds000005': ['ds005_raw'],
+        'ds000007': ['ds007_raw'],
+        'ds000008': ['ds008_raw'],
+        'ds000011': ['ds011_raw'],
+        'ds000017': ['ds017A_raw', 'ds017B_raw'],
+        'ds000051': ['ds051_raw'],
+        'ds000052': ['ds052_raw'],
+        'ds000101': ['ds101_raw'],
+        'ds000102': ['ds102_raw'],
+        'ds000105': ['ds105_raw'],
+        'ds000107': ['ds107_raw'],
+    }
+
+    ds_url = 'https://openfmri.org/system/files/%s.tgz'
+    ds_name = datasets[accession_number].lower().replace(' ', '_')
+    ds_urls = [ds_url % name for name in files[accession_number]]
+    ds_path = os.path.join(data_dir, ds_name)
+
+    if not os.path.exists(ds_path) or redownload:
+        if os.path.exists(ds_path):
+            shutil.rmtree(ds_path)
+        _fetch_dataset(ds_name, ds_urls, data_dir, verbose=1)
+    return ds_path
