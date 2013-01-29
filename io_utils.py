@@ -1,6 +1,32 @@
 import nibabel
 import os
 import joblib
+import shutil
+import commands
+
+
+def delete_orientation(imgs, output_dir):
+    """
+    Function to delete (corrupt) orientation meta-data in nifti.
+
+    XXX TODO: Do this without using fsl
+
+    """
+
+    output_imgs = []
+    if not type(imgs) is list:
+        imgs = [imgs]
+    for img in imgs:
+        output_img = os.path.join(
+            output_dir, "deleteorient_" + os.path.basename(img))
+        shutil.copy(img, output_img)
+        print commands.getoutput(
+            "fslorient -deleteorient %s" % output_img)
+        print "+++++++Done (deleteorient)."
+        print "Deleted orientation meta-data %s." % output_img
+        output_imgs.append(output_img)
+
+    return output_imgs
 
 
 def do_3Dto4D_merge(threeD_img_filenames):

@@ -164,7 +164,7 @@ class ResultsGallery(object):
             loader_fd.write(divs)
             loader_fd.close()
 
-    def commit_thumbnails(self, thumbnails):
+    def commit_thumbnails(self, thumbnails, id=None):
         if not type(thumbnails) is list:
             thumbnails = [thumbnails]
 

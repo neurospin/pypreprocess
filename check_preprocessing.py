@@ -20,7 +20,7 @@ from io_utils import do_3Dto4D_merge
 EPS = np.finfo(float).eps
 
 
-def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None,
+def plot_spm_motion_parameters(parameter_file, title=None,
                                output_filename=None):
     """ Plot motion parameters obtained with SPM software
 
@@ -36,6 +36,7 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None,
         title to attribute to plotted figure
 
     """
+
     # load parameters
     motion = np.loadtxt(parameter_file)
     motion[:, 3:] *= (180. / np.pi)
@@ -43,9 +44,8 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None,
     # do plotting
     pl.figure()
     pl.plot(motion)
-    if title is None:
-        title = "subject: %s" % subject_id
-    pl.title(title, fontsize=10)
+    if not title is None:
+        pl.title(title, fontsize=10)
     pl.xlabel('time(scans)', fontsize=10)
     pl.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'), prop={"size": 12},
               loc="upper left", ncol=2)
@@ -54,6 +54,17 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None,
     # dump image unto disk
     if not output_filename is None:
         pl.savefig(output_filename, bbox_inches="tight", dpi=200)
+
+
+def plot_multi_session_motion_parameters(parameter_files, subject_id=None,
+                                         session_ids=None, titles=None):
+
+    for parameter_file, session_id, title in zip(parameter_files,
+                                                 session_ids, titles):
+        plot_spm_motion_parameters(parameter_file,
+                                   subject_id=subject_id,
+                                   session_id=session_id,
+                                   title=title)
 
 
 def check_mask(epi_data):
@@ -154,7 +165,7 @@ def plot_cv_tc(epi_data, subject_id, session_id="UNKNOWN_SESSION",
         viz.plot_map(cv,
                      affine,
                      threshold=threshold,
-                     cut_coords=(-10, -28, 17),
+                     # cut_coords=(-2, -28, 17),
                      cmap=pl.cm.spectral,
                      title=title,
                      )
