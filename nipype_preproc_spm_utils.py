@@ -744,7 +744,7 @@ def do_subject_preproc(
 
     """
 
-    output = {}
+    output = {"subject_id": subject_data.subject_id}
 
     # create subject_data.output_dir if dir doesn't exist
     if not os.path.exists(subject_data.output_dir):
@@ -921,6 +921,7 @@ def do_subject_preproc(
 
             norm_result = norm_output["result"]
             subject_data.func = norm_result.outputs.normalized_files
+            output['func'] = norm_result.outputs.normalized_files
 
             if do_report:
                 final_thumbnail.img.src = \
@@ -950,6 +951,10 @@ def do_subject_preproc(
                 write_wrap=[0, 0, 0],
                 write_interp=1,
                 jobtype='write')
+
+            norm_result = norm_output['result']
+            output['anat'] = norm_result.outputs.normalized_files
+
     elif do_normalize:
         ############################################
         # learn T1 deformation without segmentation
@@ -985,6 +990,7 @@ def do_subject_preproc(
 
         norm_result = norm_output["result"]
         subject_data.func = norm_result.outputs.normalized_files
+        output['func'] = norm_result.outputs.normalized_files
 
         #####################################################
         # Warp anat into MNI space using learned deformation
@@ -1007,6 +1013,9 @@ def do_subject_preproc(
             write_wrap=[0, 0, 0],
             write_interp=1,
             jobtype='write')
+
+        norm_result = norm_output['result']
+        output['anat'] = norm_result.outputs.normalized_files
 
     # generate html report (for QA)
     if do_report:
@@ -1069,6 +1078,7 @@ def do_subject_preproc(
 def do_subject_dartelnorm2mni(output_dir,
                               structural_file,
                               functional_file,
+                              subject_id=None,
                               do_report=True,
                               **dartelnorm2mni_kwargs):
     """
@@ -1084,7 +1094,7 @@ def do_subject_dartelnorm2mni(output_dir,
 
     """
 
-    output = {}
+    output = {"subject_id": subject_id}
 
     # prepare for smart caching
     cache_dir = os.path.join(output_dir, 'cache_dir')
@@ -1110,11 +1120,14 @@ def do_subject_dartelnorm2mni(output_dir,
 
     output['dartelnorm2mni_result'] = dartelnorm2mni_result
     output['createwarped_result'] = createwarped_result
+    output['func'] = createwarped_result.outputs.warped_files
+    output['anat'] = dartelnorm2mni_result.outputs.normalized_files
 
     return output
 
 
 def do_group_DARTEL(output_dir,
+                    subject_ids,
                     structural_files,
                     functional_files,
                     subject_output_dirs=None,
@@ -1166,13 +1179,14 @@ def do_group_DARTEL(output_dir,
                 subject_output_dirs[j],
                 structural_files[j],
                 functional_files[j],
+                subject_id=subject_ids[j],
                 do_report=do_report,
                 modulate=True,
                 fwhm=2,
                 flowfield_files=dartel_result.outputs.dartel_flow_fields[j],
                 template_file=dartel_result.outputs.final_template_file)
           for j in xrange(
-                len(structural_files)))
+                len(subject_ids)))
 
     # do QA
     if do_report:
@@ -1209,6 +1223,9 @@ def do_group_preproc(subjects,
     if provided, an HTML report will be produced. This report is
     dynamic and its contents are updated automatically as more
     and more subjects are preprocessed.
+
+    returns list of Bunch objects with fields anat, func, and subject_id
+    for each preprocessed subject
 
     """
 
@@ -1315,7 +1332,7 @@ package</a>.</p>"""
         kwargs['parent_results_gallery'] = results_gallery
         kwargs['main_page'] = "../../%s" % os.path.basename(report_filename)
 
-    # preproc subjects
+    # preprocess the subjects proper
     results = joblib.Parallel(
         n_jobs=N_JOBS,
         pre_dispatch='1.5*n_jobs', # for scalability over RAM
@@ -1324,6 +1341,8 @@ package</a>.</p>"""
                 subject_data, **kwargs) for subject_data in subjects)
 
     if do_dartel:
+        # collect subject_ids
+        subject_ids = [output['subject_id'] for _, output in results]
         # collect structural files for DARTEL pipeline
         if do_coreg:
             structural_files = [
@@ -1348,10 +1367,24 @@ package</a>.</p>"""
 
         # normalize structual brains to their own template space (DARTEL)
         results = do_group_DARTEL(output_dir,
+                                  subject_ids,
                                   structural_files,
                                   functional_files,
                                   subject_output_dirs,
                                   do_report=False)
+
+        # housekeeping
+        _results = []
+        for item in results:
+            subject_result = Bunch(
+                subject_id=item['subject_id'],
+                func=item['createwarped_result'].outputs.warped_files,
+                anat=item[
+                    'dartelnorm2mni_result'].outputs.normalized_files
+                )
+            _results.append(subject_result)
+
+        results = _results
 
     if do_report:
         print "HTML report (dynamic) written to %s" % report_filename
