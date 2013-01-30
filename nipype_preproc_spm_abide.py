@@ -9,7 +9,6 @@
 import os
 import glob
 import sys
-import random
 
 # import spm preproc utilities
 import nipype_preproc_spm_utils
@@ -26,7 +25,7 @@ subject_id_wildcard = "*_*/*_*"
 SESSION_ID = "UNKNOWN_SESSION"
 
 # DARTEL ?
-DO_DARTEL = False
+DO_DARTEL = True
 
 if __name__ == '__main__':
     # sanitize cmd-line input
@@ -51,9 +50,10 @@ if __name__ == '__main__':
     subject_ids = [os.path.basename(x)
                    for x in glob.glob(
             os.path.join(ABIDE_DIR, subject_id_wildcard))]
-    ignored_subject_ids = []
 
-    random.shuffle(subject_ids)
+    subject_ids.sort()
+
+    ignored_subject_ids = []
 
     # XXX the following will save you re-calculating MD5s for results
     # you know are already there
@@ -65,8 +65,8 @@ if __name__ == '__main__':
     # producer subject data
     def subject_factory():
         for subject_id in subject_ids:
-            if ignore_subject_id(subject_id):
-                continue
+            # if ignore_subject_id(subject_id):
+            #     continue
 
             subject_data = nipype_preproc_spm_utils.SubjectData()
             subject_data.subject_id = subject_id

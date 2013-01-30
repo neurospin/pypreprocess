@@ -15,44 +15,12 @@ import nibabel
 from nipy.labs import compute_mask_files
 from nipy.labs import viz
 import joblib
+from io_utils import do_3Dto4D_merge
 
 EPS = np.finfo(float).eps
 
 
-def do_3Dto4D_merge(threeD_img_filenames):
-    """
-    This function produces a single 4D nifti image from several 3D.
-
-    """
-
-    if type(threeD_img_filenames) is str:
-        return threeD_img_filenames
-
-    output_dir = os.path.dirname(threeD_img_filenames[0])
-
-    # prepare for smart caching
-    merge_cache_dir = os.path.join(output_dir, "merge")
-    if not os.path.exists(merge_cache_dir):
-        os.makedirs(merge_cache_dir)
-    merge_mem = joblib.Memory(cachedir=merge_cache_dir, verbose=5)
-
-    # merging proper
-    fourD_img = merge_mem.cache(nibabel.concat_images)(threeD_img_filenames)
-    fourD_img_filename = os.path.join(output_dir,
-                                      "fourD_func.nii")
-
-    # sanity
-    if len(fourD_img.shape) == 5:
-        fourD_img = nibabel.Nifti1Image(
-            fourD_img.get_data()[..., ..., ..., 0, ...],
-            fourD_img.get_affine())
-
-    merge_mem.cache(nibabel.save)(fourD_img, fourD_img_filename)
-
-    return fourD_img_filename
-
-
-def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None,
+def plot_spm_motion_parameters(parameter_file, title=None,
                                output_filename=None):
     """ Plot motion parameters obtained with SPM software
 
@@ -68,6 +36,7 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None,
         title to attribute to plotted figure
 
     """
+
     # load parameters
     motion = np.loadtxt(parameter_file)
     motion[:, 3:] *= (180. / np.pi)
@@ -75,9 +44,8 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None,
     # do plotting
     pl.figure()
     pl.plot(motion)
-    if title is None:
-        title = "subject: %s" % subject_id
-    pl.title(title, fontsize=10)
+    if not title is None:
+        pl.title(title, fontsize=10)
     pl.xlabel('time(scans)', fontsize=10)
     pl.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'), prop={"size": 12},
               loc="upper left", ncol=2)
@@ -86,6 +54,17 @@ def plot_spm_motion_parameters(parameter_file, subject_id=None, title=None,
     # dump image unto disk
     if not output_filename is None:
         pl.savefig(output_filename, bbox_inches="tight", dpi=200)
+
+
+def plot_multi_session_motion_parameters(parameter_files, subject_id=None,
+                                         session_ids=None, titles=None):
+
+    for parameter_file, session_id, title in zip(parameter_files,
+                                                 session_ids, titles):
+        plot_spm_motion_parameters(parameter_file,
+                                   subject_id=subject_id,
+                                   session_id=session_id,
+                                   title=title)
 
 
 def check_mask(epi_data):
@@ -120,21 +99,22 @@ def compute_cv(data, mask_array=None):
     return cv
 
 
-def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
+def plot_cv_tc(epi_data, subject_id, session_id="UNKNOWN_SESSION",
+               output_dir=None, threshold=0.01,
                write_image=True, mask=True, bg_image=False,
-               cv_plot_outfiles=None, cv_tc_plot_outfile=None, plot_diff=False,
-               title=None):
+               cv_plot_outfile=None, cv_tc_plot_outfile=None, do_plot=True,
+               plot_diff=True):
+
     """
     Compute coefficient of variation of the data and plot it
 
     Parameters
     ----------
-    epi_data: list of strings, input fMRI 4D images
-    session_ids: list of strings of the same length as epi_data,
-                 session indexes (for figures)
-    subject_id: string, id of the subject (for figures)
-    do_plot: bool, optional,
-             should we plot the resulting time course
+    epi_data: epi data path(s) (string or list of strings)
+    subject_id : string
+                 id of subject under inspection
+    session_id:  string
+                 session id
     write_image: bool, optional,
                  should we write the cv image
     mask: bool or string, optional,
@@ -144,74 +124,78 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
               should we compute such an image as the mean across inputs.
               if no, an MNI template is used (works for normalized data)
     """
-    assert len(epi_data) == len(session_ids)
-    if not cv_plot_outfiles is None:
-        assert len(cv_plot_outfiles) == len(epi_data)
 
-    cv_tc_ = []
+    # sanity
+    if output_dir is None:
+        _tmp = epi_data
+        if not type(epi_data) is str:
+            _tmp = epi_data[0]
+        output_dir = os.path.dirname(_tmp)
+
     if isinstance(mask, basestring):
         mask_array = nibabel.load(mask).get_data() > 0
     elif mask == True:
         mask_array = compute_mask_files(epi_data[0])
     else:
         mask_array = None
-    count = 0
-    for (session_id, fmri_file) in zip(session_ids, epi_data):
-        nim = nibabel.load(do_3Dto4D_merge(fmri_file))
-        affine = nim.get_affine()
-        if len(nim.shape) == 4:
-            # get the data
-            data = nim.get_data()
+
+    nim = nibabel.load(do_3Dto4D_merge(epi_data))
+    affine = nim.get_affine()
+    if len(nim.shape) == 4:
+        # get the data
+        data = nim.get_data()
+    else:
+        raise RuntimeError("expecting 4D image, got %iD" % len(nim.shape))
+
+    # compute the CV for the session
+    cache_dir = os.path.join(output_dir, "CV")
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    mem = joblib.Memory(cachedir=cache_dir, verbose=5)
+    cv = mem.cache(compute_cv)(data, mask_array)
+
+    # write an image
+    if write_image:
+        nibabel.save(nibabel.Nifti1Image(cv, affine),
+                     os.path.join(output_dir, 'cv_%s.nii' % session_id))
+
+    # plot cv proper
+    if bg_image == False:
+        title = "CV map thresholded at %s" % (100 * threshold) + "%"
+        viz.plot_map(cv,
+                     affine,
+                     threshold=threshold,
+                     # cut_coords=(-2, -28, 17),
+                     cmap=pl.cm.spectral,
+                     title=title,
+                     )
+    else:
+        if isinstance(bg_image, basestring):
+            anat, anat_affine = (
+                nibabel.load(bg_image).get_data(),
+                nibabel.load(bg_image).get_affine())
         else:
-            raise RuntimeError("expecting 4D image, got %iD" % len(nim.shape))
+            anat, anat_affine = (data.mean(-1), affine)
+        viz.plot_map(
+            cv, affine, threshold=threshold,
+            cut_coords=(-10, -28, 17),
+            cmap=pl.cm.spectral,
+            anat=anat, anat_affine=anat_affine,
+            title=title
+            )
 
-        # compute the CV for the session
-        cache_dir = os.path.join(output_dir, "CV")
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
-        mem = joblib.Memory(cachedir=cache_dir, verbose=5)
-        cv = mem.cache(compute_cv)(data, mask_array)
+    if not cv_plot_outfile is None:
+        pl.savefig(cv_plot_outfile, dpi=200, bbox_inches='tight',
+                   facecolor="k",
+                   edgecolor="k")
 
-        if write_image:
-            # write an image
-            if type(fmri_file) is str:
-                data_dir = os.path.dirname(fmri_file)
-            else:
-                data_dir = os.path.dirname(fmri_file[0])
-            nibabel.save(nibabel.Nifti1Image(cv, affine),
-                 os.path.join(data_dir, 'cv_%s.nii' % session_id))
-            if bg_image == False:
-                viz.plot_map(cv,
-                             affine,
-                             threshold=.01,
-                             cmap=pl.cm.spectral,
-                             black_bg=True,
-                             title="subject: %s, session: %s" %\
-                                 (subject_id, session_id))
-            elif isinstance(bg_image, basestring):
-                anat, anat_affine = (
-                    nibabel.load(bg_image).get_data(),
-                    nibabel.load(bg_image).get_affine())
-            else:
-                anat, anat_affine = data.mean(-1), affine
-                viz.plot_map(cv, affine, threshold=.01,
-                             cmap=pl.cm.spectral,
-                             anat=anat, anat_affine=anat_affine)
+    # compute the time course of the cv
+    cv_tc = np.median(
+        np.sqrt((data[mask_array > 0].T /
+                 data[mask_array > 0].mean(-1) - 1) ** 2), 1)
 
-            if not cv_plot_outfiles is None:
-                pl.savefig(cv_plot_outfiles[count])
-                count += 1
-
-        # compute the time course of cv
-        cv_tc_sess = np.median(
-            np.sqrt((data[mask_array > 0].T /
-                     data[mask_array > 0].mean(-1) - 1) ** 2), 1)
-
-        cv_tc_.append(cv_tc_sess)
-    cv_tc = np.concatenate(cv_tc_)
-
+    # plot the time course of the cv
     if do_plot:
-        # plot the time course of cv for different subjects
         pl.figure()
         stuff = [cv_tc]
         legends = ['Median Coefficient of Variation']
@@ -226,9 +210,6 @@ def plot_cv_tc(epi_data, session_ids, subject_id, output_dir, do_plot=True,
         pl.xlabel('time(scans)')
         pl.ylabel('Median Coefficient of Variation')
         pl.axis('tight')
-
-        if title:
-            pl.title(title)
 
         if not cv_tc_plot_outfile is None:
             pl.savefig(cv_tc_plot_outfile, bbox_inches="tight", dpi=200)
@@ -266,7 +247,6 @@ def plot_registration(reference, coregistered,
     _slicer = viz.plot_anat(
         anat=coregistered_data,
         anat_affine=coregistered_affine,
-        black_bg=True,
         cmap=cmap,
         cut_coords=cut_coords,
         slicer=slicer
@@ -336,7 +316,7 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
         anat, anat_affine, cut_coords=cut_coords,
         slicer=slicer,
         cmap=cmap,
-        black_bg=True)
+        )
 
     # draw a GM contour map
     gm = nibabel.load(gm_filename)

@@ -164,7 +164,7 @@ class ResultsGallery(object):
             loader_fd.write(divs)
             loader_fd.close()
 
-    def commit_thumbnails(self, thumbnails):
+    def commit_thumbnails(self, thumbnails, id=None):
         if not type(thumbnails) is list:
             thumbnails = [thumbnails]
 
@@ -207,7 +207,9 @@ def lines2breaks(lines):
     if type(lines) is str:
         lines = lines.split('\n')
 
-    return tempita.HTMLTemplate("<br>".join(lines)).substitute()
+    log = "<br>".join(lines)
+
+    return tempita.HTMLTemplate(log).content
 
 
 def nipype2htmlreport(nipype_report_filename):
