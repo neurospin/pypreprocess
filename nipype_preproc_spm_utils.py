@@ -1050,12 +1050,10 @@ def do_subject_preproc(
             results_gallery.commit_thumbnails(thumbnail)
 
         final_thumbnail.img.height = "250px"
-        final_thumbnail.img.src = "%s/%s/%s" % (
-            subject_data.session_id,
+        final_thumbnail.img.src = "%s/%s" % (
             subject_data.subject_id,
             os.path.basename(final_thumbnail.img.src))
-        final_thumbnail.a.href = "%s/%s/%s" % (
-            subject_data.session_id,
+        final_thumbnail.a.href = "%s/%s" % (
             subject_data.subject_id,
             os.path.basename(final_thumbnail.a.href))
 
