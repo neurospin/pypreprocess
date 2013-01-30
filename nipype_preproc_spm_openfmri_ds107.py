@@ -17,7 +17,7 @@ import nipype_preproc_spm_utils
 from external.nisl.datasets import unzip_nii_gz
 
 DATASET_DESCRIPTION = """\
-<p><a href="https://openfmri.org/data-sets">openfmri.org datasets</a></p>
+<p><a href="https://openfmri.org/data-sets">openfmri.org datasets</a>.</p>
 """
 
 # wildcard defining directory structure
@@ -111,6 +111,7 @@ def main(DATA_DIR, OUTPUT_DIR):
         do_dartel=DO_DARTEL,
         do_cv_tc=False,
         # do_report=False,
+        # do_export_report=True,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename
         )

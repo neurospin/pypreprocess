@@ -114,6 +114,7 @@ def get_vox_dims(volume):
 
 def do_subject_realign(output_dir,
                        subject_id=None,
+                       sessions=[1],
                        do_report=True,
                        results_gallery=None,
                        **spm_realign_kwargs):
@@ -147,6 +148,7 @@ def do_subject_realign(output_dir,
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
     mem = Memory(base_dir=cache_dir)
+
     # run workflow
     realign = mem.cache(spm.Realign)
     realign_result = realign(**spm_realign_kwargs)
@@ -156,19 +158,15 @@ def do_subject_realign(output_dir,
         import check_preprocessing
         import reporter
 
-        rp = realign_result.outputs.realignment_parameters
-        if not type(rp) is str:
-            rp = rp[0]
+        rp_files = realign_result.outputs.realignment_parameters
+        if type(rp_files) is str:
+            rp_files = [rp_files]
 
-        rp_plot = os.path.join(output_dir, 'rp_plot.png')
-        check_preprocessing.plot_spm_motion_parameters(
-            rp,
-            title="Plot of motion parameters before realignment",
-            output_filename=rp_plot)
+        assert len(sessions) == len(rp_files)
 
         # nipype report
         nipype_report_filename = os.path.join(
-            os.path.dirname(rp),
+            os.path.dirname(rp_files[0]),
             "_report/report.rst")
         nipype_html_report_filename = os.path.join(
             output_dir,
@@ -176,18 +174,26 @@ def do_subject_realign(output_dir,
         nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
-        # create thumbnail
-        if results_gallery:
-            thumbnail = reporter.Thumbnail()
-            thumbnail.a = reporter.a(href=os.path.basename(rp_plot))
-            thumbnail.img = reporter.img(src=os.path.basename(rp_plot),
-                                         height="500px",
-                                         width="1200px")
-            thumbnail.description = \
-                "Motion Correction (<a href=%s>see execution log</a>)" % \
-                os.path.basename(nipype_html_report_filename)
+        for session_id, rp in zip(sessions, rp_files):
+            rp_plot = os.path.join(
+                output_dir, 'rp_plot_%s.png' % session_id)
+            check_preprocessing.plot_spm_motion_parameters(
+                rp,
+                title="Plot of Estimated motion for session %s" % session_id,
+                output_filename=rp_plot)
 
-            results_gallery.commit_thumbnails(thumbnail)
+            # create thumbnail
+            if results_gallery:
+                thumbnail = reporter.Thumbnail()
+                thumbnail.a = reporter.a(href=os.path.basename(rp_plot))
+                thumbnail.img = reporter.img(src=os.path.basename(rp_plot),
+                                             height="500px",
+                                             width="1200px")
+                thumbnail.description = \
+                    "Motion Correction (<a href=%s>see execution log</a>)" % \
+                    os.path.basename(nipype_html_report_filename)
+
+                results_gallery.commit_thumbnails(thumbnail)
 
         output['rp_plot'] = rp_plot
 
@@ -797,6 +803,7 @@ def do_subject_preproc(
         realign_output = do_subject_realign(
             subject_data.output_dir,
             subject_id=subject_data.subject_id,
+            sessions=subject_data.session_id,
             do_report=do_report,
             results_gallery=results_gallery,
             in_files=subject_data.func,
@@ -810,6 +817,8 @@ def do_subject_preproc(
         mean_func = realign_result.outputs.mean_image
 
         output['realign_result'] = realign_result
+        output['estimated_motion'
+               ] = realign_result.outputs.realignment_parameters
 
         # generate report stub
         if do_report:
@@ -1309,7 +1318,8 @@ package</a>.</p>"""
         tmpl = reporter.DATASET_PREPROC_REPORT_HTML_TEMPLATE()
 
         # prepare meta results
-        loader_filename = report_filename + ".loader"
+        loader_filename = os.path.join(os.path.dirname(report_filename),
+                                       "results_loader.php")
         results_gallery = reporter.ResultsGallery(
             loader_filename=loader_filename)
 
@@ -1369,17 +1379,18 @@ package</a>.</p>"""
                                   structural_files,
                                   functional_files,
                                   subject_output_dirs,
-                                  do_report=False)
+                                  do_report=False,  # XXX set this to do_report
+                                  )
 
         # housekeeping
         _results = []
         for item in results:
-            subject_result = Bunch(
-                subject_id=item['subject_id'],
-                func=item['createwarped_result'].outputs.warped_files,
-                anat=item[
-                    'dartelnorm2mni_result'].outputs.normalized_files
-                )
+            subject_result = Bunch(item)
+            subject_result.subject_id = item['subject_id']
+            subject_result.func = item['createwarped_result'
+                                           ].outputs.warped_files
+            subject_result.anat = item[
+                'dartelnorm2mni_result'].outputs.normalized_files
             _results.append(subject_result)
 
         results = _results
