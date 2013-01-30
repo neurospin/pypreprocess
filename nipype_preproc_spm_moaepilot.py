@@ -45,8 +45,7 @@ if __name__ == '__main__':
         subject_data.func = _subject_data["func"]
         subject_data.anat = _subject_data["anat"]
         subject_data.output_dir = os.path.join(
-            os.path.join(
-                OUTPUT_DIR, subject_data.session_id),
+            OUTPUT_DIR,
             subject_data.subject_id)
 
         yield subject_data
