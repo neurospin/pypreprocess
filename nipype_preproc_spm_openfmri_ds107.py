@@ -110,7 +110,7 @@ def main(DATA_DIR, OUTPUT_DIR):
         # delete_orientation=True,
         do_dartel=DO_DARTEL,
         do_cv_tc=False,
-        do_report=False,
+        # do_report=False,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename
         )
