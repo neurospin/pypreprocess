@@ -28,7 +28,7 @@ containing this README and then type (in your terminal):
 
 Use-case Examples
 =================
-We have written some examplary scripts for preprocessing some popular datasets.rudeboi
+We have written some examplary scripts for preprocessing some popular datasets.
 
 
 SPM auditory (single-subject)

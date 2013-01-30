@@ -85,8 +85,8 @@ if __name__ == '__main__':
     nipype_preproc_spm_utils.do_group_preproc(
         subject_factory(),
         output_dir=OUTPUT_DIR,
-        do_realign=False,
-        do_coreg=False,
+        # do_realign=False,
+        # do_coreg=False,
         do_dartel=DO_DARTEL,
         do_cv_tc=False,
         dataset_description=DATASET_DESCRIPTION,
