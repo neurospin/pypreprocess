@@ -27,7 +27,7 @@ from external.nisl.datasets import fetch_haxby, unzip_nii_gz
 import nipype_preproc_spm_utils
 
 # DARTEL ?
-DO_DARTEL = True
+DO_DARTEL = False
 
 DATASET_DESCRIPTION = """\
 This is a block-design fMRI dataset from a study on face and object\
@@ -74,8 +74,7 @@ if __name__ == '__main__':
             subject_data.anat = sd.anat.replace(".gz", "")
             subject_data.func = sd.bold.replace(".gz", "")
             subject_data.output_dir = os.path.join(
-                os.path.join(OUTPUT_DIR, subject_data.session_id),
-                subject_data.subject_id)
+                OUTPUT_DIR, subject_data.subject_id)
 
             yield subject_data
 

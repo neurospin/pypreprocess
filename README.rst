@@ -4,8 +4,8 @@ What is this ?
 **pypreprocess** is a collection of python scripts for preprocessing (motion 
 correction, spatial normalization, smoothing, etc.) fMRI data using 
 nipype's SPM and FSL interfaces. It also contains utilities for automatic 
-QA like registration checks (using nipy.labs), and html report generation 
-(using tempita and jquery).
+QA like registration checks (using nipy.labs), and template-based html report
+generation using (tempita, jquery, and home-grown css).
 
 Check out the wiki at https://github.com/neurospin/pypreprocess/wiki.
 
@@ -26,9 +26,10 @@ containing this README and then type (in your terminal):
 	python install_depenencies.py
 
 
-Example
-=======
-We have written some examplary scripts for preprocessing some popular datasets.
+Use-case Examples
+=================
+We have written some examplary scripts for preprocessing some popular datasets.rudeboi
+
 
 SPM auditory (single-subject)
 +++++++++++++++++++++++++++++
@@ -38,6 +39,11 @@ cd to the pypreprocess directory, and run the following command:
 
 Now open the file spm_auditory_runs/_report.html in you browser (firefox), to see
 the generate report (QA).
+
+Haxby 2001
+++++++++++
+Use the script:
+       nipype_preproc_spm_haxby.py
 
 TODO
 ====

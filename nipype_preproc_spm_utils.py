@@ -68,7 +68,7 @@ class SubjectData(Bunch):
 
     def __init__(self):
         self.subject_id = "subXYZ"
-        self.session_id = "UNKNOWN_SESSION"
+        self.session_id = ["UNKNOWN_SESSION"]
         self.anat = None
         self.func = None
         self.bad_orientation = False
