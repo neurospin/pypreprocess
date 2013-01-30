@@ -75,6 +75,7 @@ class SubjectData(Bunch):
         self.session_id = "UNKNOWN_SESSION"
         self.anat = None
         self.func = None
+        self.bad_orientation = False
 
     def delete_orientation(self):
         # prepare for smart caching
@@ -757,7 +758,7 @@ def do_subject_preproc(
         os.makedirs(subject_data.output_dir)
 
     # sanity
-    if delete_orientation:
+    if delete_orientation or subject_data.bad_orientation:
         subject_data.delete_orientation()
 
     if do_report:

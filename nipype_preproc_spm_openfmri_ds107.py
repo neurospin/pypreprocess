@@ -23,6 +23,10 @@ DATASET_DESCRIPTION = """\
 # wildcard defining directory structure
 subject_id_wildcard = "sub*"
 
+# subject ids to ignore
+ignore_these_subjects = ['sub003',  # garbage anat image
+                         ]
+
 # sessions we're interested in
 SESSION_IDs = ["task001_run001", "task001_run002"]
 SESSION_IDs.sort()
@@ -48,7 +52,7 @@ def main(DATA_DIR, OUTPUT_DIR):
 
     # callback for determining which subject's to skip
     def ignore_subject_id(subject_id):
-        return subject_id in ['sub003']
+        return subject_id in ignore_these_subjects
 
     # producer subject data
     def subject_factory():
@@ -61,6 +65,10 @@ def main(DATA_DIR, OUTPUT_DIR):
             subject_data.session_id = SESSION_IDs
             subject_data.subject_id = subject_id
             subject_data.func = []
+
+            # orientation meta-data for sub013 is garbage
+            if subject_id in ['sub013']:
+                subject_data.bad_orientation = True
 
             # glob for bold data
             for session_id in subject_data.session_id:
