@@ -127,10 +127,10 @@ def main(DATA_DIR, OUTPUT_DIR):
 if __name__ == '__main__':
     # sanitize cmd-line input
     if len(sys.argv)  < 3:
-        print ("\r\nUsage: python %s "
+        print ("\r\nUsage: source /etc/fsl/4.1/fsl.sh; python %s "
                "<path_to_openfmri_ds107_folder> <output_dir>\r\n"
                ) % sys.argv[0]
-        print ("Example:\r\npython %s "
+        print ("Example:\r\nsource /etc/fsl/4.1/fsl.sh; python %s "
                "/vaporific/edohmato/datasets/openfmri/ds107/ "
                "/vaporific/edohmato/pypreprocess_runs/openfmri/ds107"
                ) % sys.argv[0]

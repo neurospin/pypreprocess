@@ -26,6 +26,12 @@ containing this README and then type (in your terminal):
 	python install_depenencies.py
 
 
+Example
+=======
+cd to the pypreprocess directory, and run the following command:
+
+       python nipype_preproc_spm_moaepilot.py spm_auditory spm_auditory_runs/ 
+
 TODO
 ====
 Improve on this README.

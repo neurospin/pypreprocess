@@ -18,7 +18,7 @@ from nipype.caching import Memory
 # imports i/o
 import nibabel as ni
 from nipype.interfaces.base import Bunch
-from io_utils import delete_orientation
+from io_utils import delete_orientation, is_3D, is_4D
 
 # spm and matlab imports
 import nipype.interfaces.spm as spm
@@ -50,11 +50,6 @@ assert os.path.exists(SPM_DIR), \
  doesn't exist; you need to export SPM_DIR" % SPM_DIR
 matlab.MatlabCommand.set_default_paths(SPM_DIR)
 
-# set job count
-N_JOBS = -1
-if 'N_JOBS' in os.environ:
-    N_JOBS = int(os.environ['N_JOBS'])
-
 # set templates
 EPI_TEMPLATE = os.path.join(SPM_DIR, 'templates/EPI.nii')
 T1_TEMPLATE = os.path.join(SPM_DIR, 'templates/T1.nii')
@@ -67,7 +62,8 @@ class SubjectData(Bunch):
     """
     Encapsulation for subject data, relative to preprocessing.
 
-    XXX Why not inherit from Bunch ?
+    XXX Use custom objects (dicts, tuples, etc.) instead of this 'Bunch' stuff.
+
     """
 
     def __init__(self):
@@ -163,7 +159,7 @@ def do_subject_realign(output_dir,
         if type(rp_files) is str:
             rp_files = [rp_files]
 
-        assert len(sessions) == len(rp_files)
+        assert len(sessions) == len(rp_files), rp_files
 
         # nipype report
         nipype_report_filename = os.path.join(
@@ -459,6 +455,9 @@ def do_subject_normalize(output_dir,
         normalized_files = norm_result.outputs.normalized_files
         if type(normalized_files) is str:
             normalized_files = [normalized_files]
+        else:
+            if is_3D(normalized_files[0]):
+                normalized_files = [normalized_files]
 
         # prepare for smart caching
         qa_cache_dir = os.path.join(output_dir, "QA")
@@ -466,22 +465,28 @@ def do_subject_normalize(output_dir,
             os.makedirs(qa_cache_dir)
         qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
 
-        # nipype report
-        nipype_report_filename = os.path.join(
-            os.path.dirname(normalized_files[0]),
-            "_report/report.rst")
-        nipype_html_report_filename = os.path.join(
-            output_dir,
-            '%s_normalize_nipype_report.html' % brain)
-        nipype_report = reporter.nipype2htmlreport(
-            nipype_report_filename)
-        open(nipype_html_report_filename, 'w').write(str(nipype_report))
-
         for j in xrange(len(normalized_files)):
 
             normalized_file = normalized_files[j]
 
-            brain = os.path.basename(normalized_file)
+            first_image = normalized_file
+            if not type(first_image) is str:
+                first_image = first_image[0]
+            else:
+                brain = os.path.basename(first_image)
+
+            # nipype report
+            nipype_report_filename = os.path.join(
+                os.path.dirname(first_image),
+                "_report/report.rst")
+            nipype_html_report_filename = os.path.join(
+                output_dir,
+                '%s_normalize_nipype_report.html' % brain)
+            nipype_report = reporter.nipype2htmlreport(
+                nipype_report_filename)
+            open(nipype_html_report_filename,
+                 'w').write(str(nipype_report))
+
 
             #####################
             # check registration
@@ -495,7 +500,7 @@ def do_subject_normalize(output_dir,
             outline = os.path.join(
                 output_dir,
                 "%s_on_%s_outline.png" % (os.path.basename(target),
-                                          os.path.basename(normalized_file)))
+                                          brain))
 
             qa_mem.cache(check_preprocessing.plot_registration)(
                 target,
@@ -523,7 +528,7 @@ def do_subject_normalize(output_dir,
             source, target = (target, source)
             outline = os.path.join(
                 output_dir,
-                "%s_on_%s_outline.png" % (os.path.basename(normalized_file),
+                "%s_on_%s_outline.png" % (brain,
                                           os.path.basename(source)))
             outline_axial = os.path.join(
                 output_dir,
@@ -750,6 +755,10 @@ def do_subject_preproc(
         the href to the QA report main page
 
     """
+
+    # sanity
+    if type(subject_data.session_id) is str:
+        subject_data.session_id = [subject_data.session_id]
 
     output = {"subject_id": subject_data.subject_id}
 
@@ -1027,9 +1036,9 @@ def do_subject_preproc(
         norm_result = norm_output['result']
         output['anat'] = norm_result.outputs.normalized_files
 
-    # generate html report (for QA)
+    # generate cv plots
     if do_report:
-        if do_cv_tc:
+        if do_cv_tc and do_normalize:
             qa_cache_dir = os.path.join(subject_data.output_dir, "QA")
             if not os.path.exists(qa_cache_dir):
                 os.makedirs(qa_cache_dir)
@@ -1038,26 +1047,36 @@ def do_subject_preproc(
             cv_tc_plot_after = os.path.join(
                 subject_data.output_dir, "cv_tc_after.png")
 
-            corrected_FMRIs = subject_data.func
-            if type(corrected_FMRIs) is str:
-                corrected_FMRIs = [corrected_FMRIs]
+            corrected_FMRI = output['func']
 
-            qa_mem.cache(
-                check_preprocessing.plot_cv_tc)(
-                corrected_FMRIs, [subject_data.session_id],
-                subject_data.subject_id,
-                subject_data.output_dir,
-                cv_tc_plot_outfile=cv_tc_plot_after,
-                plot_diff=True)
+            if type(corrected_FMRI) is str:
+                corrected_FMRI = [corrected_FMRI]
+            else:
+                if is_3D(corrected_FMRI[0]):
+                    corrected_FMRI = [corrected_FMRI]
 
-            # create thumbnail
-            thumbnail = reporter.Thumbnail()
-            thumbnail.a = reporter.a(href=os.path.basename(cv_tc_plot_after))
-            thumbnail.img = reporter.img(
-                src=os.path.basename(cv_tc_plot_after), height="500px",
-                width="1200px")
-            thumbnail.description = "Coefficient of Variation"
-            results_gallery.commit_thumbnails(thumbnail)
+            assert len(subject_data.session_id) == len(corrected_FMRI)
+
+            for image, session_id in zip(corrected_FMRI,
+                                         subject_data.session_id):
+                qa_mem.cache(
+                    check_preprocessing.plot_cv_tc)(
+                    image, session_id,
+                    subject_data.subject_id,
+                    subject_data.output_dir,
+                    cv_tc_plot_outfile=cv_tc_plot_after,
+                    plot_diff=True)
+
+                # create thumbnail
+                thumbnail = reporter.Thumbnail()
+                thumbnail.a = reporter.a(
+                    href=os.path.basename(cv_tc_plot_after))
+                thumbnail.img = reporter.img(
+                    src=os.path.basename(cv_tc_plot_after), height="500px",
+                    width="1200px")
+                thumbnail.description = ("Coefficient of Variation "
+                                         "(session %s)" % session_id)
+                results_gallery.commit_thumbnails(thumbnail)
 
         final_thumbnail.img.height = "250px"
         final_thumbnail.img.src = "%s/%s" % (
