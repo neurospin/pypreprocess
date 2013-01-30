@@ -136,6 +136,10 @@ if __name__ == '__main__':
     if len(sys.argv) > 3:
         subject_id_wildcard = sys.argv[3]
 
+    # collect preprocessed results (one per subject)
     results = main(DATA_DIR, OUTPUT_DIR)
+
+    # start level 1 analysis here ;)
+    pass
 
     print results
