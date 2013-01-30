@@ -42,7 +42,6 @@ the generate report (QA).
 
 Haxby 2001
 ++++++++++
-Use the script:
        nipype_preproc_spm_haxby.py
 
 TODO
