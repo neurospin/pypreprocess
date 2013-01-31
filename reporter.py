@@ -40,7 +40,7 @@ def del_empty_dirs(s_dir):
     return b_empty
 
 
-def export_report(src, make_archive=True):
+def export_report(src, tag="", make_archive=True):
     """
     Exports a report (html, php, etc. files) , ignoring data
     files like *.nii, etc.
@@ -64,7 +64,7 @@ def export_report(src, make_archive=True):
                     os.path.join(folder, f)) and not check_extension(f))]
 
     # sanity
-    dst = os.path.join(src, "frozen_report")
+    dst = os.path.join(src, "frozen_report_%s" % tag)
 
     if os.path.exists(dst):
         print "Removing old %s." % dst

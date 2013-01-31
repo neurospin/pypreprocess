@@ -32,7 +32,7 @@ SESSION_IDs = ["task001_run001", "task001_run002"]
 SESSION_IDs.sort()
 
 # DARTEL ?
-DO_DARTEL = False
+DO_DARTEL = True
 
 
 def main(DATA_DIR, OUTPUT_DIR):
@@ -67,7 +67,7 @@ def main(DATA_DIR, OUTPUT_DIR):
             subject_data.func = []
 
             # orientation meta-data for sub013 is garbage
-            if subject_id in ['sub013']:
+            if subject_id in ['sub013'] and not DO_DARTEL:
                 subject_data.bad_orientation = True
 
             # glob for bold data
@@ -119,7 +119,7 @@ def main(DATA_DIR, OUTPUT_DIR):
         do_dartel=DO_DARTEL,
         do_cv_tc=False,
         # do_report=False,
-        # do_export_report=True,
+        do_export_report=True,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename
         )
