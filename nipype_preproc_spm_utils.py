@@ -57,6 +57,13 @@ GM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/grey.nii')
 WM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/white.nii')
 CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
 
+# MISC
+SPM8_URL = "http://www.fil.ion.ucl.ac.uk/spm/software/spm8/"
+PYPREPROCESS_URL = "https://github.com/neurospin/pypreprocess"
+DARTEL_URL = ("http://www.fil.ion.ucl.ac.uk/spm/software/spm8/"
+              "SPM8_Release_Notes.pdf")
+NIPYPE_URL = "http://nipy.sourceforge.net/nipype/"
+
 
 class SubjectData(Bunch):
     """
@@ -1466,11 +1473,11 @@ def do_group_preproc(subjects,
 
         # compute docstring explaining preproc steps undergone
         preproc_undergone = """\
-<p>All preprocessing has been done using nipype's interface to the \
-<a href="http://www.fil.ion.ucl.ac.uk/spm/">SPM8
-package</a>.</p>"""
+<p>All preprocessing has been done using <a href="%s">pypreprocess</a>,
+ which is powered by <a href="%s">nipype</a>, and <a href="%s">SPM8</a>.
+</p>""" % (PYPREPROCESS_URL, NIPYPE_URL, SPM8_URL)
 
-        preproc_undergone = "<ul>"
+        preproc_undergone += "<ul>"
 
         if do_bet:
             preproc_undergone += (
@@ -1513,13 +1520,16 @@ package</a>.</p>"""
         if do_dartel:
             preproc_undergone += (
                 "<li>"
-                "Normalization has been done using the SPM8 DARTEL tools."
+                "Group/Inter-subject Normalization has been done using the "
+                "SPM8 <a href='%s'>DARTEL</a> to warp subject brains into "
+                "MNI space. "
                 "The idea is to register images by computing a &ldquo;flow"
                 " field&rdquo; which can then be &ldquo;exponentiated"
                 "&rdquo; to generate both forward and backward deformation"
                 "s. Processing begins with the &ldquo;import&rdquo; "
                 "step. This involves taking the parameter files "
-                "produced by the segmentation, and writing out rigidly "
+                "produced by the segmentation (NewSegment), and writing "
+                "out rigidly "
                 "transformed versions of the tissue class images, "
                 "such that they are in as close alignment as possible with"
                 " the tissue probability maps. &nbsp; "
@@ -1534,10 +1544,10 @@ package</a>.</p>"""
                 "are computed, and the template is then re-generated"
                 " by applying the inverses of the deformations to "
                 "the images and averaging. This procedure is repeated a "
-                "number of times. &nbsp; Finally, warped "
+                "number of times. &nbsp;Finally, warped "
                 "versions of the images (or other images that are in "
                 "alignment with them) can be generated. "
-                "</li>")
+                "</li>") % DARTEL_URL
 
         preproc_undergone += "</ul>"
 
