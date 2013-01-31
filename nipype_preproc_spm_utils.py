@@ -10,7 +10,6 @@ XXX TODO: re-factor the code!
 # standard imports
 import os
 import shutil
-import commands
 
 # imports for caching (yeah, we aint got time to loose!)
 from nipype.caching import Memory
@@ -18,7 +17,7 @@ from nipype.caching import Memory
 # imports i/o
 import nibabel as ni
 from nipype.interfaces.base import Bunch
-from io_utils import delete_orientation, is_3D, is_4D
+from io_utils import delete_orientation, is_3D
 
 # spm and matlab imports
 import nipype.interfaces.spm as spm
