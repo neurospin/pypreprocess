@@ -52,6 +52,8 @@ matlab.MatlabCommand.set_default_paths(SPM_DIR)
 # set templates
 EPI_TEMPLATE = os.path.join(SPM_DIR, 'templates/EPI.nii')
 T1_TEMPLATE = "/usr/share/data/fsl-mni152-templates/avg152T1.nii"
+if not os.path.isfile(T1_TEMPLATE):
+    T1_TEMPLATE += '.gz'
 #os.path.join(SPM_DIR, 'templates/T1.nii')
 GM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/grey.nii')
 WM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/white.nii')
@@ -1391,8 +1393,8 @@ def do_group_DARTEL(output_dir,
                 final_thumbnail=subject_final_thumbs[j],
                 results_gallery=subject_results_galleries[j],
                 parent_results_gallery=parent_results_gallery,
-                modulate=True,
-                fwhm=2,
+                modulate=False,  # don't modulate
+                fwhm=0,  # don't smooth
                 flowfield_files=dartel_result.outputs.dartel_flow_fields[j],
                 template_file=dartel_result.outputs.final_template_file)
           for j in xrange(
