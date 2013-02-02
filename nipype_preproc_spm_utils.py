@@ -17,7 +17,8 @@ from nipype.caching import Memory
 # imports i/o
 import nibabel as ni
 from nipype.interfaces.base import Bunch
-from io_utils import delete_orientation, is_3D
+from io_utils import delete_orientation, is_3D, get_vox_dims,\
+    resample_img, do_3Dto4D_merge
 
 # spm and matlab imports
 import nipype.interfaces.spm as spm
@@ -96,26 +97,6 @@ class SubjectData(Bunch):
         if not self.anat is None:
             self.anat = mem.cache(delete_orientation)(
                 self.anat, self.output_dir)
-
-
-def get_vox_dims(volume):
-    """
-    Infer voxel dimensions of a nifti image.
-
-    Parameters
-    ----------
-    volume: string
-        image whose voxel dimensions we seek
-
-    """
-
-    if isinstance(volume, list):
-        volume = volume[0]
-    nii = ni.load(volume)
-    hdr = nii.get_header()
-    voxdims = hdr.get_zooms()
-
-    return [float(voxdims[0]), float(voxdims[1]), float(voxdims[2])]
 
 
 def generate_normalization_thumbnails(
@@ -766,7 +747,7 @@ def do_subject_normalize(output_dir,
                 # and with the MNI template too; else, we've got a failed
                 # normalization.
                 normalized_img = ni.load(
-                    check_preprocessing.do_3Dto4D_merge(normalized_file))
+                    do_3Dto4D_merge(normalized_file))
                 if len(normalized_img.shape) == 4:
                     mean_normalized_img = ni.Nifti1Image(
                         normalized_img.get_data().mean(-1),
@@ -1249,6 +1230,7 @@ def do_subject_dartelnorm2mni(output_dir,
                               structural_file,
                               functional_file,
                               subject_id=None,
+                              downsample_func=True,
                               do_report=True,
                               final_thumbnail=None,
                               results_gallery=None,
@@ -1276,18 +1258,43 @@ def do_subject_dartelnorm2mni(output_dir,
     mem = Memory(base_dir=cache_dir)
 
     # warp functional image into MNI space
+    functional_file = do_3Dto4D_merge(functional_file)
     createwarped = mem.cache(spm.CreateWarped)
     createwarped_result = createwarped(
         image_files=functional_file,
         flowfield_files=dartelnorm2mni_kwargs['flowfield_files'],
         )
 
+    warped_files = createwarped_result.outputs.warped_files
+
+    # down-sample warped epi to save disk space ?
+    if downsample_func:
+        import numpy as np
+
+        if type(warped_files) is str:
+            warped_files = [warped_files]
+
+        resampled_warped_files = []
+        for warped_file in warped_files:
+            warped_file = do_3Dto4D_merge(warped_file)
+
+            # compute new vox dims to down-sample to
+            new_vox_dims = (np.array(get_vox_dims(warped_file)) \
+                + np.array(get_vox_dims(functional_file))) / 2.0
+
+            # down-sample proper
+            resampled_warped_file = resample_img(
+                warped_file, new_vox_dims)
+            resampled_warped_files.apppend(resampled_warped_file)
+
+        warped_files = resampled_warped_files
+
     # do_QA
     if do_report and results_gallery:
         import pylab as pl
 
         thumbs = generate_normalization_thumbnails(
-            createwarped_result.outputs.warped_files,
+            warped_files,
             output_dir,
             brain='epi',
             cmap=pl.cm.spectral,
@@ -1382,7 +1389,7 @@ def do_group_DARTEL(output_dir,
     # warp individual brains into group (DARTEL) space
     results = joblib.Parallel(
         n_jobs=N_JOBS, verbose=100,
-        pre_dispatch='1.5*n_jobs', # for scalability over RAM
+        pre_dispatch='1.5*n_jobs',  # for scalability over RAM
         )(joblib.delayed(
             do_subject_dartelnorm2mni)(
                 subject_output_dirs[j],
@@ -1584,7 +1591,7 @@ def do_group_preproc(subjects,
     # preprocess the subjects proper
     results = joblib.Parallel(
         n_jobs=N_JOBS,
-        pre_dispatch='1.5*n_jobs', # for scalability over RAM
+        pre_dispatch='1.5*n_jobs',  # for scalability over RAM
         verbose=100)(joblib.delayed(
             do_subject_preproc)(
                 subject_data, **kwargs) for subject_data in subjects)
@@ -1601,7 +1608,7 @@ def do_group_preproc(subjects,
             structural_files = [
                 subject_data.anat for subject_data, _ in results]
 
-        # collect functional iles for DARTEL pipeline
+        # collect functional files for DARTEL pipeline
         if do_realign:
             functional_files = [
                 output['realign_result'].outputs.realigned_files
@@ -1620,7 +1627,7 @@ def do_group_preproc(subjects,
         subject_results_galleries = [output['results_gallery']
                                      for _, output in results]
 
-        # normalize structual brains to their own template space (DARTEL)
+        # normalize brains to their own template space (DARTEL)
         results = do_group_DARTEL(
             output_dir,
             subject_ids,

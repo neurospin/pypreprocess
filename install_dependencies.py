@@ -9,6 +9,9 @@ import os
 import sys
 
 if __name__ == '__main__':
+    os.chdir(os.path.dirname(
+            os.path.abspath(sys.argv[0])))
+
     other_options_for_pip = "--user"
     if len(sys.argv) > 1:
         other_options_for_pip = " ".join(sys.argv[1:])
