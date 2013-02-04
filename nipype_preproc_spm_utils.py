@@ -185,7 +185,7 @@ def generate_normalization_thumbnails(
             target,
             source,
             output_filename=outline,
-            cmap=pl.cm.gray,
+            cmap=cmap,
             title="Outline of SPM MNI %s template on %s" % (
                 os.path.basename(target),
                 brain))
@@ -230,7 +230,7 @@ def generate_normalization_thumbnails(
             target,
             source,
             output_filename=outline,
-            cmap=pl.cm.gray,
+            cmap=cmap,
             title="Outline of %s on MNI %s template" % (
                 brain,
                 os.path.basename(source)))
