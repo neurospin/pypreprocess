@@ -74,8 +74,7 @@ if __name__ == '__main__':
             subject_data.anat = sd.anat.replace(".gz", "")
             subject_data.func = sd.bold.replace(".gz", "")
             subject_data.output_dir = os.path.join(
-                os.path.join(OUTPUT_DIR, subject_data.session_id),
-                subject_data.subject_id)
+                OUTPUT_DIR, subject_data.subject_id)
 
             yield subject_data
 

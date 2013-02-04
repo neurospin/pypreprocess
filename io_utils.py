@@ -5,6 +5,14 @@ import shutil
 import commands
 
 
+def is_3D(image_filename):
+    return len(nibabel.load(image_filename).shape) == 3
+
+
+def is_4D(image_filename):
+    return len(nibabel.load(image_filename).shape) == 4
+
+
 def delete_orientation(imgs, output_dir):
     """
     Function to delete (corrupt) orientation meta-data in nifti.

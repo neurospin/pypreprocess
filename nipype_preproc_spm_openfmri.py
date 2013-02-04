@@ -91,6 +91,10 @@ def main(DATA_DIR, OUTPUT_DIR, exclusions=None):
             subject_data.subject_id = subject_id
             subject_data.func = []
 
+            # orientation meta-data for sub013 is garbage
+            if subject_id in ['sub013'] and not DO_DARTEL:
+                subject_data.bad_orientation = True
+
             # glob for bold data
             for session_id in subject_data.session_id:
                 bold_dir = os.path.join(
@@ -140,7 +144,7 @@ def main(DATA_DIR, OUTPUT_DIR, exclusions=None):
         do_dartel=DO_DARTEL,
         do_cv_tc=False,
         # do_report=False,
-        # do_export_report=True,
+        do_export_report=True,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename
         )

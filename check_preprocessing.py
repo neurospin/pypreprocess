@@ -126,6 +126,9 @@ def plot_cv_tc(epi_data, subject_id, session_id="UNKNOWN_SESSION",
     """
 
     # sanity
+    if type(epi_data) is str:
+        epi_data = [epi_data]
+
     if output_dir is None:
         _tmp = epi_data
         if not type(epi_data) is str:
