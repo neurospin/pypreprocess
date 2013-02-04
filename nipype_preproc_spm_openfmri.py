@@ -9,6 +9,7 @@
 import os
 import glob
 import sys
+import json
 
 # import spm preproc utilities
 import nipype_preproc_spm_utils
@@ -23,46 +24,70 @@ DATASET_DESCRIPTION = """\
 # wildcard defining directory structure
 subject_id_wildcard = "sub*"
 
-# subject ids to ignore
-ignore_these_subjects = ['sub003',  # garbage anat image
-                         ]
-
-# sessions we're interested in
-SESSION_IDs = ["task001_run001", "task001_run002"]
-SESSION_IDs.sort()
-
 # DARTEL ?
 DO_DARTEL = True
 
 
-def main(DATA_DIR, OUTPUT_DIR):
+datasets = {
+    'ds001': 'Balloon Analog Risk-taking Task',
+    'ds002': 'Classification learning',
+    'ds003': 'Rhyme judgment',
+    'ds005': 'Mixed-gambles task',
+    'ds007': 'Stop-signal task with spoken & manual responses',
+    'ds008': 'Stop-signal task with unselective and selective stopping',
+    'ds011': 'Classification learning and tone-counting',
+    'ds017A': ('Classification learning and '
+               'stop-signal (1 year test-retest)'),
+    'ds017B': ('Classification learning and '
+               'stop-signal (1 year test-retest)'),
+    'ds051': 'Cross-language repetition priming',
+    'ds052': 'Classification learning and reversal',
+    'ds101': 'Simon task dataset',
+    'ds102': 'Flanker task (event-related)',
+    'ds105': 'Visual object recognition',
+    'ds107': 'Word and object processing',
+    }
+
+datasets_exclusions = {
+    'ds017A': ['sub003'],
+    'ds017B': ['sub003'],
+    'ds007': ['sub009', 'sub018'],
+    'ds051': ['sub006'],
+}
+
+
+def main(DATA_DIR, OUTPUT_DIR, exclusions=None):
     """
     returns list of Bunch objects with fields anat, func, and subject_id
     for each preprocessed subject
 
     """
+    exclusions = [] if exclusions is None else exclusions
 
     # glob for subject ids
-    subject_ids = [os.path.basename(x)
-                   for x in glob.glob(
-            os.path.join(DATA_DIR, subject_id_wildcard))]
+    subject_ids = [
+        os.path.basename(x)
+        for x in glob.glob(os.path.join(DATA_DIR, subject_id_wildcard))]
 
-    # always sort such thinks ;)
+    model_dirs = glob.glob(os.path.join(
+        DATA_DIR, subject_ids[0], 'model', '*'))
+
+    session_ids = [
+        os.path.basename(x)
+        for x in glob.glob(os.path.join(model_dirs[0], 'onsets', '*'))]
+
+    session_ids.sort()
     subject_ids.sort()
-
-    # callback for determining which subject's to skip
-    def ignore_subject_id(subject_id):
-        return subject_id in ignore_these_subjects
 
     # producer subject data
     def subject_factory():
         for subject_id in subject_ids:
-            if ignore_subject_id(subject_id):
+            if subject_id in exclusions:
                 continue
 
             # construct subject data structure
             subject_data = nipype_preproc_spm_utils.SubjectData()
-            subject_data.session_id = SESSION_IDs
+            subject_data.session_id = session_ids
             subject_data.subject_id = subject_id
             subject_data.func = []
 
@@ -76,7 +101,7 @@ def main(DATA_DIR, OUTPUT_DIR):
                     DATA_DIR,
                     "%s/BOLD/%s" % (subject_id, session_id))
 
-                # extract .nii.gz to .ni
+                # extract .nii.gz to .nii
                 unzip_nii_gz(bold_dir)
 
                 # glob bold data proper
@@ -125,30 +150,42 @@ def main(DATA_DIR, OUTPUT_DIR):
         )
 
 if __name__ == '__main__':
-    # sanitize cmd-line input
-    if len(sys.argv)  < 3:
-        print ("\r\nUsage: source /etc/fsl/4.1/fsl.sh; python %s "
-               "<path_to_openfmri_ds107_folder> <output_dir>\r\n"
-               ) % sys.argv[0]
-        print ("Example:\r\nsource /etc/fsl/4.1/fsl.sh; python %s "
-               "/vaporific/edohmato/datasets/openfmri/ds107/ "
-               "/vaporific/edohmato/pypreprocess_runs/openfmri/ds107"
-               ) % sys.argv[0]
-        sys.exit(1)
+    data_root_dir = '/volatile/openfmri'
+    out_root_dir = '/neurospin/tmp/havoc/openfmri'
 
-    DATA_DIR = os.path.abspath(sys.argv[1])
+    ds_ids = [
+        # 'ds001',
+        # 'ds002',
+        # 'ds003',
+        # 'ds005',
+        # 'ds007',
+        # 'ds008',
+        # 'ds011',
+        # 'ds017A',
+        # 'ds017B',
+        'ds051',
+        # 'ds052',
+        # 'ds101',
+        # 'ds102',
+        # 'ds105',
+        # 'ds107'
+        ]
 
-    OUTPUT_DIR = os.path.abspath(sys.argv[2])
-    if not os.path.isdir(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
+    for ds_id in ds_ids:
+        ds_name = datasets[ds_id].lower().replace(' ', '_')
+        data_dir = os.path.join(data_root_dir, ds_name, ds_id)
+        out_dir = os.path.join(out_root_dir, ds_id)
 
-    if len(sys.argv) > 3:
-        subject_id_wildcard = sys.argv[3]
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
 
-    # collect preprocessed results (one per subject)
-    results = main(DATA_DIR, OUTPUT_DIR)
+        results = main(data_dir, out_dir, datasets_exclusions.get(ds_id))
 
-    # start level 1 analysis here ;)
-    pass
-
-    print results
+        for res in results:
+            infos = {}
+            infos['anat'] = res[1]['anat']
+            infos['estimated_motion'] = res[1]['estimated_motion']
+            infos['bold'] = res[1]['func']
+            infos['subject'] = res[1]['subject_id']
+            path = os.path.join(out_dir, infos['subject'], 'infos.json')
+            json.dump(infos, open(path, 'wb'))
