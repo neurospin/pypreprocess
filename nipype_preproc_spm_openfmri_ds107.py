@@ -32,7 +32,7 @@ SESSION_IDs = ["task001_run001", "task001_run002"]
 SESSION_IDs.sort()
 
 # DARTEL ?
-DO_DARTEL = True
+DO_DARTEL = False
 
 
 def main(DATA_DIR, OUTPUT_DIR):

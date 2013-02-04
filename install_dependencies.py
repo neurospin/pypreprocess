@@ -16,8 +16,6 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         other_options_for_pip = " ".join(sys.argv[1:])
 
-    os.chdir(os.path.dirname(sys.argv[0]))
-
     cmd1 = 'pip install -r urgent_dependencies.txt %s' % other_options_for_pip
 
     cmd2 = 'pip install -r questionable_dependencies.txt %s' \
