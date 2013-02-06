@@ -36,16 +36,25 @@ datasets = {
 
 
 def load_glm_params(data_dir, model_id,
+                    subject_ids=None,
                     hrf_model='canonical',
                     drift_model='cosine',
                     motion_params=None,
                     is_event_paradigm=True):
+    """Load GLM parameters
+
+    """
 
     docs = []
     study_id = os.path.split(data_dir)[-1]
     tr = float(open(os.path.join(data_dir, 'scan_key.txt')).read().split()[1])
 
-    subject_dirs = sorted(glob.glob(os.path.join(data_dir, 'sub*')))
+    if subject_ids is None:
+        subject_dirs = sorted(glob.glob(os.path.join(data_dir, 'sub*')))
+    else:
+        subject_dirs = sorted([os.path.join(data_dir, subject_id)
+                               for subject_id in subject_ids])
+
     for subject_dir in subject_dirs:
         params = {}
         subject_id = os.path.split(subject_dir)[1]
@@ -144,18 +153,50 @@ def load_glm_params(data_dir, model_id,
     return docs
 
 
-def load_preproc(data_dir):
+def load_preproc_data(data_dir, subject_ids=None):
+    """Load preprocessed data from given data directory
+
+    Parameters
+    ----------
+    data_dir: string
+        directory containg data to be loaded
+
+    subject_ids: list (optional)
+        list of subject ids we are interested in (only data
+        for this subjects will be loaded)
+
+    Returns
+    -------
+    data: dict
+       dict of lists of preprocessed bold data (4D numpy arrays),
+       one per subject
+
+    motion: dict
+       dict of lists of estimated motion (2D arrays of shape n_scans x 6),
+       one per subject
+
+    """
+
     motion = {}
     data = {}
 
-    for subject_dir in glob.glob(os.path.join(data_dir, 'sub*')):
+    # glob subject directory names
+    if subject_ids is None:
+        subject_dirs = sorted(glob.glob(os.path.join(data_dir, 'sub*')))
+    else:
+        subject_dirs = sorted([os.path.join(data_dir, subject_id)
+                               for subject_id in subject_ids])
+
+    # load data for each subject
+    for subject_dir in subject_dirs:
         infos = json.load(open(os.path.join(subject_dir, 'infos.json'), 'rb'))
         if not isinstance(infos['estimated_motion'], list):
             infos['estimated_motion'] = [infos['estimated_motion']]
         if not isinstance(infos['bold'], list):
             infos['bold'] = [infos['bold']]
         for fname in infos['estimated_motion']:
-            motion.setdefault(subject_id, []).append(np.loadtxt(fname))
+            motion.setdefault(
+                infos['subject_id'], []).append(np.loadtxt(fname))
 
         data[infos['subject_id']] = [nb.load(x) for x in infos['bold']]
 
@@ -163,21 +204,27 @@ def load_preproc(data_dir):
 
 
 if __name__ == '__main__':
+    # set hard coded data paths
     preproc_root_dir = '/volatile/home/edohmato/openfmri_pypreproc_runs'
     data_root_dir = '/neurospin/tmp/havoc/openfmri_raw'
     out_root_dir = '/volatile/protocols/glm_open'
 
-    ds_id = 'ds011'
+    # more data path business
+    ds_id = 'ds107'
     model_id = 'model001'
-
     ds_name = datasets[ds_id].lower().replace(' ', '_')
-
     data_dir = os.path.join(data_root_dir, ds_name, ds_id)
     preproc_dir = os.path.join(preproc_root_dir, ds_id)
     out_dir = os.path.join(out_root_dir, ds_name, ds_id)
 
-    preproc_data, motion_params = load_preproc(preproc_dir)
+    # load preproc data
+    preproc_data, motion_params = load_preproc_data(
+        preproc_dir)
+
+    # load glm params
     glm_params = load_glm_params(data_dir, model_id,
+                                 subject_ids=preproc_data.keys(),
                                  motion_params=motion_params)
 
+    # apply glm
     apply_glm(out_dir, preproc_data, glm_params, n_jobs=-1)
