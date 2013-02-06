@@ -169,25 +169,26 @@ def main(data_dir, output_dir, exclusions=None):
         )
 
 if __name__ == '__main__':
+    # this is on is150118, run from there (caching!) to save time and space
     output_root_dir = '/volatile/home/edohmato/openfmri_pypreproc_runs'
 
-    ds_ids = [
-        'ds001',
-        'ds002',
-        'ds003',
-        'ds005',
-        'ds007',
-        'ds008',
-        'ds011',
-        'ds017A',
-        'ds017B',
-        'ds051',
-        'ds052',
-        'ds101',
-        'ds102',
-        'ds105',
-        'ds107'
-        ]
+    ds_ids = sorted([
+            'ds001',
+            'ds002',
+            'ds003',
+            'ds005',
+            'ds007',
+            'ds008',
+            'ds011',
+            'ds017A',
+            'ds017B',
+            'ds051',
+            'ds052',
+            'ds101',
+            'ds102',
+            'ds105',
+            'ds107'
+            ])
 
     # /!\ Don't try to 'parallelize' this loop!!!
     for ds_id in ds_ids:
@@ -202,13 +203,12 @@ if __name__ == '__main__':
             results = main(data_dir, output_dir,
                            datasets_exclusions.get(ds_id))
 
-            print results
-
             # dump results to json file (one per subject)
             for result in results:
                 result['bold'] = result.pop('func')
+                result['subject'] = result.pop('subject_id')
                 path = os.path.join(
-                    output_dir, result['subject_id'], 'infos.json')
+                    output_dir, result['subject'], 'infos.json')
                 json.dump(result, open(path, 'wb'))
         except:
             print traceback.format_exc()

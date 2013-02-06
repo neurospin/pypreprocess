@@ -1,4 +1,3 @@
-
 """
 :Module: nipype_preproc_spm_utils
 :Synopsis: routine functions for SPM preprocessing business
@@ -1803,6 +1802,8 @@ def do_group_preproc(subjects,
                                            ].outputs.warped_files
             subject_result['anat'] = item[
                 'dartelnorm2mni_result'].outputs.normalized_files
+            subject_result['estimated_motion'] = item['estimated_motion']
+
             _results.append(subject_result)
 
         results = _results
@@ -1818,6 +1819,8 @@ def do_group_preproc(subjects,
             subject_result['subject_id'] = item['subject_id']
             subject_result['func'] = item['func']
             subject_result['anat'] = item['anat']
+            subject_result['estimated_motion'] = item['estimated_motion']
+
             _results.append(subject_result)
 
         results = _results

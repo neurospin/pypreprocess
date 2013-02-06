@@ -196,9 +196,9 @@ def load_preproc_data(data_dir, subject_ids=None):
             infos['bold'] = [infos['bold']]
         for fname in infos['estimated_motion']:
             motion.setdefault(
-                infos['subject_id'], []).append(np.loadtxt(fname))
+                infos['subject'], []).append(np.loadtxt(fname))
 
-        data[infos['subject_id']] = [nb.load(x) for x in infos['bold']]
+        data[infos['subject']] = [nb.load(x) for x in infos['bold']]
 
     return data, motion
 
@@ -210,7 +210,7 @@ if __name__ == '__main__':
     out_root_dir = '/volatile/protocols/glm_open'
 
     # more data path business
-    ds_id = 'ds107'
+    ds_id = 'ds052' # XXX ds011 has have model101...
     model_id = 'model001'
     ds_name = datasets[ds_id].lower().replace(' ', '_')
     data_dir = os.path.join(data_root_dir, ds_name, ds_id)

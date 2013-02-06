@@ -27,10 +27,8 @@ def get_vox_dims(volume):
 
     """
 
-    print volume
     if not type(volume) is str:
         volume = volume[0]
-    print volume
     nii = nibabel.load(volume)
     hdr = nii.get_header()
     voxdims = hdr.get_zooms()
