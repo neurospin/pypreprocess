@@ -143,7 +143,7 @@ def main(DATA_DIR, OUTPUT_DIR, exclusions=None):
         # delete_orientation=True,
         do_dartel=DO_DARTEL,
         do_cv_tc=False,
-        # do_report=False,
+        do_report=False,
         do_export_report=True,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename
@@ -151,7 +151,7 @@ def main(DATA_DIR, OUTPUT_DIR, exclusions=None):
 
 if __name__ == '__main__':
     data_root_dir = '/volatile/openfmri'
-    out_root_dir = '/neurospin/tmp/havoc/openfmri'
+    out_root_dir = '/havoc/openfmri/preproc'
 
     ds_ids = [
         # 'ds001',
@@ -163,9 +163,9 @@ if __name__ == '__main__':
         # 'ds011',
         # 'ds017A',
         # 'ds017B',
-        'ds051',
+        # 'ds051',
         # 'ds052',
-        # 'ds101',
+        'ds101',
         # 'ds102',
         # 'ds105',
         # 'ds107'
