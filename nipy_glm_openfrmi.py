@@ -164,8 +164,8 @@ def load_preproc(data_dir):
 
 
 if __name__ == '__main__':
-    preproc_root_dir = '/neurospin/tmp/havoc/openfmri'
-    data_root_dir = '/volatile/openfmri'
+    preproc_root_dir = '/volatile/home/edohmato/openfmri_pypreproc_runs'
+    data_root_dir = '/neurospin/tmp/havoc/openfmri_raw'
     out_root_dir = '/volatile/protocols/glm_open'
 
     ds_id = 'ds011'

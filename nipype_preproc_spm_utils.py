@@ -1331,8 +1331,8 @@ def do_subject_preproc(
                 subject_data.subject_id,
                 parent_results_gallery)
 
-    output['final_thumbnail'] = final_thumbnail
-    output['results_gallery'] = results_gallery
+        output['final_thumbnail'] = final_thumbnail
+        output['results_gallery'] = results_gallery
 
     return subject_data, output
 
