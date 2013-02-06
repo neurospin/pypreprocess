@@ -150,7 +150,6 @@ def load_preproc(data_dir):
 
     for subject_dir in glob.glob(os.path.join(data_dir, 'sub*')):
         infos = json.load(open(os.path.join(subject_dir, 'infos.json'), 'rb'))
-        subject_id = infos['subject']
         if not isinstance(infos['estimated_motion'], list):
             infos['estimated_motion'] = [infos['estimated_motion']]
         if not isinstance(infos['bold'], list):
