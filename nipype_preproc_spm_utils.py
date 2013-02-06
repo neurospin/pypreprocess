@@ -1576,7 +1576,7 @@ def do_group_DARTEL(output_dir,
 
 def do_subjects_preproc(subjects,
                      output_dir=None,
-                     do_deleteorient=False,
+                     do_deleteorient=True,
                      do_report=True,
                      do_export_report=False,
                      dataset_description=None,
@@ -1651,13 +1651,20 @@ def do_subjects_preproc(subjects,
 
         preproc_undergone += "<ul>"
 
+        if do_deleteorient:
+            preproc_undergone += (
+                "<li>"
+                "Orientation-specific meta-data in the image headers have "
+                "been suspected as garbage and stripped-off to prevent severe "
+                "mis-registration problems."
+                "</li>")
         if do_bet:
             preproc_undergone += (
                 "<li>"
                 "Brain extraction has been applied to strip-off the skull"
-                " and other non-brain components from the subject's "
-                "anatomical image. This prevents later registration problems "
-                "like the skull been (mis-)aligned unto the cortical surface, "
+                " and other non-brain tissues. This prevents later "
+                "registration problems like the skull been (mis-)aligned "
+                "unto the cortical surface, "
                 "etc.</li>")
         if do_realign:
             preproc_undergone += (
@@ -1671,8 +1678,8 @@ def do_subjects_preproc(subjects,
                 "The subject's anatomical image has been coregistered "
                 "against their fMRI images (precisely, to the mean thereof). "
                 "Coregistration is important as it allows deformations of the "
-                "anatomy (learned by registration against other images, "
-                "templates for example) to be directly applicable to the fMRI."
+                "anatomy to be directly applicable to the fMRI, or for ROIs "
+                "to be defined on the anatomy."
                 "</li>")
         if do_segment:
             preproc_undergone += (

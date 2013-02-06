@@ -76,14 +76,16 @@ def delete_orientation(imgs, output_dir, output_tag=''):
     """
 
     output_imgs = []
+    not_list = False
     if not type(imgs) is list:
         not_list = True
         imgs = [imgs]
+
     for img in imgs:
         output_img = os.path.join(
             output_dir,
             "deleteorient_%s_" % (output_tag) + os.path.basename(img))
-        shutil.copy(img, output_img)
+        nibabel.save(nibabel.load(img), output_img)
         print commands.getoutput(
             "fslorient -deleteorient %s" % output_img)
         print "+++++++Done (deleteorient)."
