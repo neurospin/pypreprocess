@@ -1,6 +1,6 @@
 """
-:Module: nipype_preproc_spm_openfmri_ds107
-:Synopsis: Preprocessing Openfmri ds107
+:Module: nipype_preproc_spm_openfmri
+:Synopsis: Preprocessing Openfmri
 :Author: yannick schwartz, dohmatob elvis dopgima
 
 """
