@@ -1,3 +1,4 @@
+
 """
 :Module: nipype_preproc_spm_utils
 :Synopsis: routine functions for SPM preprocessing business
@@ -91,12 +92,27 @@ class SubjectData(Bunch):
         mem = joblib.Memory(cachedir=cache_dir, verbose=5)
 
         # deleteorient for func
-        self.func = mem.cache(delete_orientation)(self.func, self.output_dir)
+        self.func = [mem.cache(delete_orientation)(
+                self.func[j],
+                self.output_dir,
+                output_tag=self.session_id[j])
+                     for j in xrange(len(self.session_id))]
 
         # deleteorient for anat
         if not self.anat is None:
             self.anat = mem.cache(delete_orientation)(
                 self.anat, self.output_dir)
+
+    def sanitize(self, do_deleteorient=False):
+        if type(self.session_id) is str:
+            self.session_id = [self.session_id]
+        if type(self.func) is str:
+            self.func = [self.func]
+
+        assert len(self.func) == len(self.session_id)
+
+        if do_deleteorient or self.bad_orientation:
+            self.delete_orientation()
 
 
 def generate_normalization_thumbnails(
@@ -128,7 +144,6 @@ def generate_normalization_thumbnails(
     """
 
     import check_preprocessing
-    import pylab as pl
     import reporter
 
     if type(normalized_files) is str:
@@ -657,7 +672,7 @@ def do_subject_coreg(output_dir,
         if true, then QA plots will be generated after executing the coregister
         node.
 
-    *spm_realign_kwargs: kwargs (paramete-value dict)
+    *spm_coregister_kwargs: kwargs (paramete-value dict)
         parameters to be passed to the nipype.interfaces.spm.Coregister
         back-end node
 
@@ -804,7 +819,7 @@ def do_subject_segment(output_dir,
         if true, then QA plots will be generated after executing the segment
         node.
 
-    *spm_realign_kwargs: kwargs (paramete-value dict)
+    *spm_segment_kwargs: kwargs (paramete-value dict)
         parameters to be passed to the nipype.interfaces.spm.Segment back-end
         node
 
@@ -860,7 +875,7 @@ def do_subject_normalize(output_dir,
         if true, then QA plots will be generated after executing the normalize
         node.
 
-    *spm_realign_kwargs: kwargs (paramete-value dict)
+    *spm_normalize_kwargs: kwargs (paramete-value dict)
         parameters to be passed to the nipype.interfaces.spm.Normalize back-end
         node
 
@@ -916,7 +931,7 @@ def do_subject_normalize(output_dir,
 
 def do_subject_preproc(
     subject_data,
-    delete_orientation=False,
+    do_deleteorient=False,
     do_report=True,
     do_bet=True,
     do_slicetiming=False,
@@ -983,18 +998,13 @@ def do_subject_preproc(
     """
 
     # sanity
-    if type(subject_data.session_id) is str:
-        subject_data.session_id = [subject_data.session_id]
+    subject_data.sanitize(do_deleteorient=do_deleteorient)
 
     output = {"subject_id": subject_data.subject_id}
 
     # create subject_data.output_dir if dir doesn't exist
     if not os.path.exists(subject_data.output_dir):
         os.makedirs(subject_data.output_dir)
-
-    # sanity
-    if delete_orientation or subject_data.bad_orientation:
-        subject_data.delete_orientation()
 
     if do_report:
         import reporter
@@ -1044,10 +1054,16 @@ def do_subject_preproc(
             in_files=subject_data.func,
             register_to_mean=True,
             jobtype='estwrite',
+            ignore_exception=True,
             )
 
         # collect output
         realign_result = realign_output['result']
+
+        # if failed to realign, return
+        if realign_result.outputs is None:
+            return
+
         subject_data.func = realign_result.outputs.realigned_files
         mean_func = realign_result.outputs.mean_image
 
@@ -1101,11 +1117,16 @@ def do_subject_preproc(
             target=coreg_target,
             source=coreg_source,
             jobtype=coreg_jobtype,
+            ignore_exception=True
             )
 
         # collect results
         coreg_result = coreg_output['result']
         output['coreg_result'] = coreg_result
+
+        # if failed to coregister, return
+        if coreg_result.outputs is None:
+            return
 
         # rest anat to coregistered version thereof
         subject_data.anat = coreg_result.outputs.coregistered_source
@@ -1134,10 +1155,16 @@ def do_subject_preproc(
             bias_regularization=0.0001,
             bias_fwhm=60,
             warping_regularization=1,
+            ignore_exception=True
             )
 
         segment_result = segment_output['result']
-        output['segment_result'] = segment_result
+
+        # if failed to segment, return
+        if segment_result.outputs is None:
+            return
+
+        # output['segment_result'] = segment_result
 
         if do_normalize:
             ##############################################################
@@ -1161,6 +1188,7 @@ def do_subject_preproc(
                 write_voxel_sizes=get_vox_dims(norm_apply_to_files),
                 write_interp=1,
                 jobtype='write',
+                ignore_exception=True
                 )
 
             norm_result = norm_output["result"]
@@ -1194,9 +1222,16 @@ def do_subject_preproc(
                 write_voxel_sizes=get_vox_dims(norm_apply_to_files),
                 write_wrap=[0, 0, 0],
                 write_interp=1,
-                jobtype='write')
+                jobtype='write',
+                ignore_exception=True
+                )
 
             norm_result = norm_output['result']
+
+            # if failed to normalize, return None
+            if norm_result.outputs is None:
+                return
+
             output['anat'] = norm_result.outputs.normalized_files
 
     elif do_normalize:
@@ -1211,6 +1246,10 @@ def do_subject_preproc(
             _report=False)
 
         norm_result = norm_output['result']
+
+        # if failed to normalize, return None
+        if norm_result.outputs is None:
+            return
 
         ####################################################
         # Warp EPI into MNI space using learned deformation
@@ -1230,9 +1269,16 @@ def do_subject_preproc(
             write_voxel_sizes=get_vox_dims(norm_apply_to_files),
             write_wrap=[0, 0, 0],
             write_interp=1,
-            jobtype='write')
+            jobtype='write',
+            ignore_exception=True
+            )
 
         norm_result = norm_output["result"]
+
+        # if failed to normalize, return None
+        if norm_result.outputs is None:
+            return
+
         subject_data.func = norm_result.outputs.normalized_files
         output['func'] = norm_result.outputs.normalized_files
 
@@ -1256,9 +1302,16 @@ def do_subject_preproc(
             write_voxel_sizes=get_vox_dims(norm_apply_to_files),
             write_wrap=[0, 0, 0],
             write_interp=1,
-            jobtype='write')
+            jobtype='write',
+            ignore_exception=True
+            )
 
         norm_result = norm_output['result']
+
+        # if failed to normalize, return None
+        if norm_result.outputs is None:
+            return
+
         output['anat'] = norm_result.outputs.normalized_files
 
     # generate cv plots
@@ -1333,7 +1386,12 @@ def do_subject_dartelnorm2mni(output_dir,
     createwarped_result = createwarped(
         image_files=functional_file,
         flowfield_files=dartelnorm2mni_kwargs['flowfield_files'],
+        ignore_exception=True
         )
+
+    # if node failed, return None
+    if createwarped_result.outputs is None:
+        return
 
     warped_files = createwarped_result.outputs.warped_files
 
@@ -1380,7 +1438,13 @@ def do_subject_dartelnorm2mni(output_dir,
 
     # warp anat into MNI space
     dartelnorm2mni_result = dartelnorm2mni(apply_to_files=structural_file,
-                                           **dartelnorm2mni_kwargs)
+                                           **dartelnorm2mni_kwargs
+                                           )
+
+    # if node failed, return None
+    if dartelnorm2mni_result.outputs is None:
+        return
+
     # do_QA
     if do_report and results_gallery:
         import pylab as pl
@@ -1456,7 +1520,13 @@ def do_group_DARTEL(output_dir,
                2, (False, False), (False, False))
     newsegment_result = newsegment(
         channel_files=structural_files,
-        tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6])
+        tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6],
+        ignore_exception=True
+        )
+
+    # if node failed, return None
+    if newsegment_result.outputs is None:
+        return
 
     # compute DARTEL template for group data
     dartel = mem.cache(spm.DARTEL)
@@ -1485,7 +1555,9 @@ def do_group_DARTEL(output_dir,
                 modulate=False,  # don't modulate
                 fwhm=0,  # don't smooth
                 flowfield_files=dartel_result.outputs.dartel_flow_fields[j],
-                template_file=dartel_result.outputs.final_template_file)
+                template_file=dartel_result.outputs.final_template_file,
+                ignore_exception=True
+                )
           for j in xrange(
                 len(subject_ids)))
 
@@ -1498,7 +1570,7 @@ def do_group_DARTEL(output_dir,
 
 def do_group_preproc(subjects,
                      output_dir=None,
-                     delete_orientation=False,
+                     do_deleteorient=False,
                      do_report=True,
                      do_export_report=False,
                      dataset_description=None,
@@ -1541,7 +1613,7 @@ def do_group_preproc(subjects,
             ("You asked for reporting (do_report=True)  but specified"
              " an invalid report_filename (None)"))
 
-    kwargs = {'delete_orientation': delete_orientation,
+    kwargs = {'do_deleteorient': do_deleteorient,
               'do_report': do_report,
               'do_realign': do_realign, 'do_coreg': do_coreg,
               'do_segment': do_segment, 'do_normalize': do_normalize,
@@ -1725,12 +1797,27 @@ def do_group_preproc(subjects,
         # housekeeping
         _results = []
         for item in results:
-            subject_result = Bunch(item)
-            subject_result.subject_id = item['subject_id']
-            subject_result.func = item['createwarped_result'
+            subject_result = {}
+            subject_result['subject_id'] = item['subject_id']
+            subject_result['func'] = item['createwarped_result'
                                            ].outputs.warped_files
-            subject_result.anat = item[
+            subject_result['anat'] = item[
                 'dartelnorm2mni_result'].outputs.normalized_files
+            _results.append(subject_result)
+
+        results = _results
+    else:
+        # housekeeping
+        _results = []
+        for x in results:
+            if x is None:
+                continue
+            else:
+                item = x[1]
+            subject_result = {}
+            subject_result['subject_id'] = item['subject_id']
+            subject_result['func'] = item['func']
+            subject_result['anat'] = item['anat']
             _results.append(subject_result)
 
         results = _results

@@ -27,8 +27,10 @@ def get_vox_dims(volume):
 
     """
 
-    if isinstance(volume, list):
+    print volume
+    if not type(volume) is str:
         volume = volume[0]
+    print volume
     nii = nibabel.load(volume)
     hdr = nii.get_header()
     voxdims = hdr.get_zooms()
@@ -36,7 +38,7 @@ def get_vox_dims(volume):
     return [float(voxdims[0]), float(voxdims[1]), float(voxdims[2])]
 
 
-def delete_orientation(imgs, output_dir):
+def delete_orientation(imgs, output_dir, output_tag=''):
     """
     Function to delete (corrupt) orientation meta-data in nifti.
 
@@ -46,16 +48,21 @@ def delete_orientation(imgs, output_dir):
 
     output_imgs = []
     if not type(imgs) is list:
+        not_list = True
         imgs = [imgs]
     for img in imgs:
         output_img = os.path.join(
-            output_dir, "deleteorient_" + os.path.basename(img))
+            output_dir,
+            "deleteorient_%s_" % (output_tag) + os.path.basename(img))
         shutil.copy(img, output_img)
         print commands.getoutput(
             "fslorient -deleteorient %s" % output_img)
         print "+++++++Done (deleteorient)."
         print "Deleted orientation meta-data %s." % output_img
         output_imgs.append(output_img)
+
+    if not_list:
+        output_imgs = output_imgs[0]
 
     return output_imgs
 
