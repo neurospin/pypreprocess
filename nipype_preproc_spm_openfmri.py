@@ -156,7 +156,7 @@ def main(data_dir, output_dir, exclusions=None):
     # do preprocessing proper
     report_filename = os.path.join(output_dir,
                                    "_report.html")
-    return nipype_preproc_spm_utils.do_group_preproc(
+    return nipype_preproc_spm_utils.do_subjects_preproc(
         subject_factory(),
         output_dir=output_dir,
         do_deleteorient=True,  # some openfmri data have garbage orientation

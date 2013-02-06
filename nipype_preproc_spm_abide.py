@@ -118,7 +118,7 @@ if __name__ == '__main__':
     # do preprocessing proper
     report_filename = os.path.join(OUTPUT_DIR,
                                    "_report.html")
-    nipype_preproc_spm_utils.do_group_preproc(
+    nipype_preproc_spm_utils.do_subjects_preproc(
         subject_factory(),
         output_dir=OUTPUT_DIR,
         delete_orientation=True,

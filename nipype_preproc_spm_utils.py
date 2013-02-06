@@ -107,6 +107,8 @@ class SubjectData(Bunch):
             self.session_id = [self.session_id]
         if type(self.func) is str:
             self.func = [self.func]
+        if is_3D(self.func[0]):
+            self.func = [self.func]
 
         assert len(self.func) == len(self.session_id)
 
@@ -555,7 +557,7 @@ def generate_cv_tc_thumbnail(
         results_gallery.commit_thumbnails(thumbnail)
 
 
-def do_subject_realign(output_dir,
+def _do_subject_realign(output_dir,
                        subject_id=None,
                        sessions=[1],
                        do_report=True,
@@ -646,7 +648,7 @@ def do_subject_realign(output_dir,
     return output
 
 
-def do_subject_coreg(output_dir,
+def _do_subject_coreg(output_dir,
                      subject_id=None,
                      do_report=True,
                      results_gallery=None,
@@ -796,7 +798,7 @@ def do_subject_coreg(output_dir,
     return output
 
 
-def do_subject_segment(output_dir,
+def _do_subject_segment(output_dir,
                        subject_id=None,
                        do_report=True,
                        **spm_segment_kwargs):
@@ -847,7 +849,7 @@ def do_subject_segment(output_dir,
     return output
 
 
-def do_subject_normalize(output_dir,
+def _do_subject_normalize(output_dir,
                          subject_id=None,
                          sessions=[1],
                          do_report=True,
@@ -928,7 +930,7 @@ def do_subject_normalize(output_dir,
     return output
 
 
-def do_subject_preproc(
+def _do_subject_preproc(
     subject_data,
     do_deleteorient=False,
     do_report=True,
@@ -941,7 +943,8 @@ def do_subject_preproc(
     do_normalize=True,
     do_cv_tc=True,
     parent_results_gallery=None,
-    main_page="#"):
+    main_page="#",
+    ignore_exception=True):
     """
     Function preprocessing data for a single subject.
 
@@ -1044,7 +1047,7 @@ def do_subject_preproc(
     #  motion correction
     #####################
     if do_realign:
-        realign_output = do_subject_realign(
+        realign_output = _do_subject_realign(
             subject_data.output_dir,
             subject_id=subject_data.subject_id,
             sessions=subject_data.session_id,
@@ -1053,7 +1056,7 @@ def do_subject_preproc(
             in_files=subject_data.func,
             register_to_mean=True,
             jobtype='estwrite',
-            ignore_exception=True,
+            ignore_exception=ignore_exception,
             )
 
         # collect output
@@ -1107,7 +1110,7 @@ def do_subject_preproc(
                 coreg_source = subject_data.anat
 
         # run coreg proper
-        coreg_output = do_subject_coreg(
+        coreg_output = _do_subject_coreg(
             subject_data.output_dir,
             subject_id=subject_data.subject_id,
             do_report=do_report,
@@ -1116,7 +1119,7 @@ def do_subject_preproc(
             target=coreg_target,
             source=coreg_source,
             jobtype=coreg_jobtype,
-            ignore_exception=True
+            ignore_exception=ignore_exception
             )
 
         # collect results
@@ -1139,7 +1142,7 @@ def do_subject_preproc(
     ###################################
     if do_segment:
         segment_data = subject_data.anat
-        segment_output = do_subject_segment(
+        segment_output = _do_subject_segment(
             subject_data.output_dir,
             subject_id=subject_data.subject_id,
             do_report=False,  # XXX why ?
@@ -1154,7 +1157,7 @@ def do_subject_preproc(
             bias_regularization=0.0001,
             bias_fwhm=60,
             warping_regularization=1,
-            ignore_exception=True
+            ignore_exception=ignore_exception
             )
 
         segment_result = segment_output['result']
@@ -1173,7 +1176,7 @@ def do_subject_preproc(
             norm_parameter_file = segment_result.outputs.transformation_mat
             norm_apply_to_files = subject_data.func
 
-            norm_output = do_subject_normalize(
+            norm_output = _do_subject_normalize(
                 subject_data.output_dir,
                 subject_id=subject_data.subject_id,
                 segment_result=segment_result,
@@ -1187,7 +1190,7 @@ def do_subject_preproc(
                 write_voxel_sizes=get_vox_dims(norm_apply_to_files),
                 write_interp=1,
                 jobtype='write',
-                ignore_exception=True
+                ignore_exception=ignore_exception
                 )
 
             norm_result = norm_output["result"]
@@ -1207,7 +1210,7 @@ def do_subject_preproc(
             norm_parameter_file = segment_result.outputs.transformation_mat
             norm_apply_to_files = subject_data.anat
 
-            norm_output = do_subject_normalize(
+            norm_output = _do_subject_normalize(
                 subject_data.output_dir,
                 subject_id=subject_data.subject_id,
                 segment_result=segment_result,
@@ -1222,7 +1225,7 @@ def do_subject_preproc(
                 write_wrap=[0, 0, 0],
                 write_interp=1,
                 jobtype='write',
-                ignore_exception=True
+                ignore_exception=ignore_exception
                 )
 
             norm_result = norm_output['result']
@@ -1237,7 +1240,7 @@ def do_subject_preproc(
         ############################################
         # learn T1 deformation without segmentation
         ############################################
-        norm_output = do_subject_normalize(
+        norm_output = _do_subject_normalize(
             subject_data.output_dir,
             subject_id=subject_data.subject_id,
             source=subject_data.anat,
@@ -1256,7 +1259,7 @@ def do_subject_preproc(
         norm_parameter_file = norm_result.outputs.normalization_parameters
         norm_apply_to_files = subject_data.func
 
-        norm_output = do_subject_normalize(
+        norm_output = _do_subject_normalize(
             subject_data.output_dir,
             subject_id=subject_data.subject_id,
             brain="epi",
@@ -1269,7 +1272,7 @@ def do_subject_preproc(
             write_wrap=[0, 0, 0],
             write_interp=1,
             jobtype='write',
-            ignore_exception=True
+            ignore_exception=ignore_exception
             )
 
         norm_result = norm_output["result"]
@@ -1288,7 +1291,7 @@ def do_subject_preproc(
 
         norm_apply_to_files = subject_data.anat
 
-        norm_output = do_subject_normalize(
+        norm_output = _do_subject_normalize(
             subject_data.output_dir,
             subject_id=subject_data.subject_id,
             brain="anat",
@@ -1302,7 +1305,7 @@ def do_subject_preproc(
             write_wrap=[0, 0, 0],
             write_interp=1,
             jobtype='write',
-            ignore_exception=True
+            ignore_exception=ignore_exception
             )
 
         norm_result = norm_output['result']
@@ -1336,7 +1339,7 @@ def do_subject_preproc(
     return subject_data, output
 
 
-def do_subject_dartelnorm2mni(output_dir,
+def _do_subject_dartelnorm2mni(output_dir,
                               structural_file,
                               functional_file,
                               native_gm_image=None,
@@ -1346,6 +1349,7 @@ def do_subject_dartelnorm2mni(output_dir,
                               final_thumbnail=None,
                               results_gallery=None,
                               parent_results_gallery=None,
+                              ignore_exception=True,
                               **dartelnorm2mni_kwargs):
     """
     Uses spm.DARTELNorm2MNI to warp subject brain into MNI space.
@@ -1385,7 +1389,7 @@ def do_subject_dartelnorm2mni(output_dir,
     createwarped_result = createwarped(
         image_files=functional_file,
         flowfield_files=dartelnorm2mni_kwargs['flowfield_files'],
-        ignore_exception=True
+        ignore_exception=ignore_exception
         )
 
     # if node failed, return None
@@ -1436,9 +1440,11 @@ def do_subject_dartelnorm2mni(output_dir,
                 results_gallery=results_gallery)
 
     # warp anat into MNI space
-    dartelnorm2mni_result = dartelnorm2mni(apply_to_files=structural_file,
-                                           **dartelnorm2mni_kwargs
-                                           )
+    dartelnorm2mni_result = dartelnorm2mni(
+        apply_to_files=structural_file,
+        ignore_exception=ignore_exception,
+        **dartelnorm2mni_kwargs
+        )
 
     # if node failed, return None
     if dartelnorm2mni_result.outputs is None:
@@ -1491,7 +1497,8 @@ def do_group_DARTEL(output_dir,
                     do_report=False,
                     subject_final_thumbs=None,
                     subject_results_galleries=None,
-                    parent_results_gallery=None):
+                    parent_results_gallery=None,
+                    ignore_exception=True):
     """
     Undocumented API!
 
@@ -1520,7 +1527,7 @@ def do_group_DARTEL(output_dir,
     newsegment_result = newsegment(
         channel_files=structural_files,
         tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6],
-        ignore_exception=True
+        ignore_exception=ignore_exception
         )
 
     # if node failed, return None
@@ -1541,7 +1548,7 @@ def do_group_DARTEL(output_dir,
         n_jobs=N_JOBS, verbose=100,
         pre_dispatch='1.5*n_jobs',  # for scalability over RAM
         )(joblib.delayed(
-            do_subject_dartelnorm2mni)(
+            _do_subject_dartelnorm2mni)(
                 subject_output_dirs[j],
                 structural_files[j],
                 functional_files[j],
@@ -1551,11 +1558,11 @@ def do_group_DARTEL(output_dir,
                 final_thumbnail=subject_final_thumbs[j],
                 results_gallery=subject_results_galleries[j],
                 parent_results_gallery=parent_results_gallery,
+                ignore_exception=ignore_exception,
                 modulate=False,  # don't modulate
                 fwhm=0,  # don't smooth
                 flowfield_files=dartel_result.outputs.dartel_flow_fields[j],
                 template_file=dartel_result.outputs.final_template_file,
-                ignore_exception=True
                 )
           for j in xrange(
                 len(subject_ids)))
@@ -1567,7 +1574,7 @@ def do_group_DARTEL(output_dir,
     return results
 
 
-def do_group_preproc(subjects,
+def do_subjects_preproc(subjects,
                      output_dir=None,
                      do_deleteorient=False,
                      do_report=True,
@@ -1581,6 +1588,7 @@ def do_group_preproc(subjects,
                      do_normalize=True,
                      do_dartel=False,
                      do_cv_tc=True,
+                     ignore_exception=True
                      ):
 
     """This functions doe intra-subject fMRI preprocessing on a
@@ -1597,7 +1605,7 @@ def do_group_preproc(subjects,
 
     Returns
     -------
-    list of Bunch objects with fields anat, func, and subject_id
+    list of Bunch dicts with keys: anat, func, and subject_id, etc.
     for each preprocessed subject
 
     """
@@ -1616,7 +1624,9 @@ def do_group_preproc(subjects,
               'do_report': do_report,
               'do_realign': do_realign, 'do_coreg': do_coreg,
               'do_segment': do_segment, 'do_normalize': do_normalize,
-              'do_cv_tc': do_cv_tc}
+              'do_cv_tc': do_cv_tc,
+              'ignore_exception': ignore_exception
+              }
 
     if output_dir is None:
         if do_report:
@@ -1746,7 +1756,7 @@ def do_group_preproc(subjects,
         n_jobs=N_JOBS,
         pre_dispatch='1.5*n_jobs',  # for scalability over RAM
         verbose=100)(joblib.delayed(
-            do_subject_preproc)(
+            _do_subject_preproc)(
                 subject_data, **kwargs) for subject_data in subjects)
 
     if do_dartel:
@@ -1791,6 +1801,7 @@ def do_group_preproc(subjects,
             subject_final_thumbs=subject_final_thumbs,
             subject_results_galleries=subject_results_galleries,
             parent_results_gallery=parent_results_gallery,
+            ignore_exception=ignore_exception,
             )
 
         # housekeeping

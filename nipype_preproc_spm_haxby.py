@@ -83,7 +83,7 @@ if __name__ == '__main__':
     report_filename = os.path.join(OUTPUT_DIR,
                                    "_report.html")
 
-    results = nipype_preproc_spm_utils.do_group_preproc(
+    results = nipype_preproc_spm_utils.do_subjects_preproc(
         subject_factory(),
         output_dir=OUTPUT_DIR,
         do_realign=False,
