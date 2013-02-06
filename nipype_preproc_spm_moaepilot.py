@@ -32,14 +32,13 @@ if __name__ == '__main__':
     if not os.path.isdir(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
 
+    # fetch spm auditory data
+    _subject_data = fetch_spm_auditory_data(DATA_DIR)
+
     def subject_factory():
-        '''
-        Producer for subject data.
+        '''Producer for subject data
 
         '''
-
-        # fetch spm auditory data
-        _subject_data = fetch_spm_auditory_data(DATA_DIR)
 
         subject_data = nipype_preproc_spm_utils.SubjectData()
         subject_data.func = _subject_data["func"]
@@ -53,7 +52,8 @@ if __name__ == '__main__':
     # do preprocessing proper
     report_filename = os.path.join(OUTPUT_DIR,
                                    "_report.html")
-    nipype_preproc_spm_utils.do_group_preproc(
+    nipype_preproc_spm_utils.do_subjects_preproc(
         subject_factory(),
+        ignore_exception=False,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename)

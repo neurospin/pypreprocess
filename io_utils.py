@@ -1,3 +1,10 @@
+"""
+:Module: io_utils
+:Synopsis: routine business related to image i/o manips
+:Author: dohmatob elvis dopgima
+
+"""
+
 import os
 import joblib
 import shutil
@@ -9,10 +16,20 @@ from nisl import resampling
 
 
 def is_3D(image_filename):
-    return len(nibabel.load(image_filename).shape) == 3
+    """Check whether image is 3D"""
+
+    shape = nibabel.load(image_filename).shape
+
+    if len(shape) == 3:
+        return True
+    else:
+        return len(shape) == 4 and shape[-1] == 1
 
 
 def is_4D(image_filename):
+    """Check whether image is 4D
+    """
+
     return len(nibabel.load(image_filename).shape) == 4
 
 
@@ -37,10 +54,24 @@ def get_vox_dims(volume):
 
 
 def delete_orientation(imgs, output_dir, output_tag=''):
-    """
-    Function to delete (corrupt) orientation meta-data in nifti.
+    """Function to delete (corrupt) orientation meta-data in nifti
 
     XXX TODO: Do this without using fsl
+
+    Parameters
+    ----------
+    imgs: string or list of string
+       path (paths) to 4D (3D) image (images) under inspection
+
+    output_dir: string
+       directory to which output will be written
+
+    output_tag: string (optional)
+       tag to append output image filename(s) with
+
+    Returns
+    -------
+    output images
 
     """
 
@@ -68,6 +99,13 @@ def delete_orientation(imgs, output_dir, output_tag=''):
 def do_3Dto4D_merge(threeD_img_filenames):
     """
     This function produces a single 4D nifti image from several 3D.
+
+    threeD_img_filenames: list of string
+        paths to images to be merged
+
+    Returns
+    -------
+    path to resultant 4D image on disk
 
     """
 
