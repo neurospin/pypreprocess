@@ -54,7 +54,7 @@ if __name__ == '__main__':
                                    "_report.html")
     nipype_preproc_spm_utils.do_subjects_preproc(
         subject_factory(),
-        # do_deleteorient=False,
+        do_deleteorient=False,
         ignore_exception=False,  # don't mask SPM excptions
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename)
