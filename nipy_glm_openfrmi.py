@@ -158,7 +158,7 @@ def load_preproc(data_dir):
         for fname in infos['estimated_motion']:
             motion.setdefault(subject_id, []).append(np.loadtxt(fname))
 
-        data[subject_id] = [nb.load(x) for x in infos['bold']]
+        data[infos['subject_id']] = [nb.load(x) for x in infos['bold']]
 
     return data, motion
 

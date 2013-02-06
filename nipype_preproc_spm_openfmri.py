@@ -10,6 +10,7 @@ import os
 import glob
 import sys
 import json
+import traceback
 
 # import spm preproc utilities
 import nipype_preproc_spm_utils
@@ -112,7 +113,8 @@ def main(data_dir, output_dir, exclusions=None):
             #     subject_data.bad_orientation = True
 
             # glob for bold data
-            for session_id in subject_data.session_id:
+            sessions = list(subject_data.session_id)
+            for session_id in sessions:
                 bold_dir = os.path.join(
                     data_dir,
                     "%s/BOLD/%s" % (subject_id, session_id))
@@ -121,12 +123,15 @@ def main(data_dir, output_dir, exclusions=None):
                 unzip_nii_gz(bold_dir)
 
                 # glob bold data proper
-                func = glob.glob(
-                    os.path.join(
-                        data_dir,
-                        "%s/BOLD/%s/bold.nii" % (
-                            subject_id, session_id)))[0]
-                subject_data.func.append(func)
+                func = glob.glob(os.path.join(bold_dir, "bold.nii"))
+
+                # for example, sub005 of ds017A has the problem
+                # below
+                if not func:
+                    subject_data.session_id.remove(session_id)
+                    continue
+
+                subject_data.func.append(func[0])
 
             # glob for anatomical data
             anat_dir = os.path.join(
@@ -201,8 +206,10 @@ if __name__ == '__main__':
 
             # dump results to json file (one per subject)
             for result in results:
+                result['bold'] = result.pop('func')
                 path = os.path.join(
                     output_dir, result['subject_id'], 'infos.json')
                 json.dump(result, open(path, 'wb'))
         except:
+            print traceback.format_exc()
             pass
