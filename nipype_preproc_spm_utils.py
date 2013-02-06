@@ -17,7 +17,8 @@ from nipype.caching import Memory
 # imports i/o
 import nibabel as ni
 from nipype.interfaces.base import Bunch
-from io_utils import delete_orientation, is_3D
+from io_utils import delete_orientation, is_3D, get_vox_dims,\
+    resample_img, do_3Dto4D_merge
 
 # spm and matlab imports
 import nipype.interfaces.spm as spm
@@ -90,32 +91,27 @@ class SubjectData(Bunch):
         mem = joblib.Memory(cachedir=cache_dir, verbose=5)
 
         # deleteorient for func
-        self.func = mem.cache(delete_orientation)(self.func, self.output_dir)
+        self.func = [mem.cache(delete_orientation)(
+                self.func[j],
+                self.output_dir,
+                output_tag=self.session_id[j])
+                     for j in xrange(len(self.session_id))]
 
         # deleteorient for anat
         if not self.anat is None:
             self.anat = mem.cache(delete_orientation)(
                 self.anat, self.output_dir)
 
+    def sanitize(self, do_deleteorient=False):
+        if type(self.session_id) is str:
+            self.session_id = [self.session_id]
+        if type(self.func) is str:
+            self.func = [self.func]
 
-def get_vox_dims(volume):
-    """
-    Infer voxel dimensions of a nifti image.
+        assert len(self.func) == len(self.session_id)
 
-    Parameters
-    ----------
-    volume: string
-        image whose voxel dimensions we seek
-
-    """
-
-    if isinstance(volume, list):
-        volume = volume[0]
-    nii = ni.load(volume)
-    hdr = nii.get_header()
-    voxdims = hdr.get_zooms()
-
-    return [float(voxdims[0]), float(voxdims[1]), float(voxdims[2])]
+        if do_deleteorient or self.bad_orientation:
+            self.delete_orientation()
 
 
 def generate_normalization_thumbnails(
@@ -147,7 +143,6 @@ def generate_normalization_thumbnails(
     """
 
     import check_preprocessing
-    import pylab as pl
     import reporter
 
     if type(normalized_files) is str:
@@ -204,7 +199,7 @@ def generate_normalization_thumbnails(
             target,
             source,
             output_filename=outline,
-            cmap=pl.cm.gray,
+            cmap=cmap,
             title="Outline of SPM MNI %s template on %s" % (
                 os.path.basename(target),
                 brain))
@@ -249,7 +244,7 @@ def generate_normalization_thumbnails(
             target,
             source,
             output_filename=outline,
-            cmap=pl.cm.gray,
+            cmap=cmap,
             title="Outline of %s on MNI %s template" % (
                 brain,
                 os.path.basename(source)))
@@ -265,6 +260,199 @@ def generate_normalization_thumbnails(
                 % os.path.basename(nipype_html_report_filename)
 
             results_gallery.commit_thumbnails(thumbnail)
+
+    return output
+
+
+def generate_segmentation_thumbnails(
+    normalized_files,
+    output_dir,
+    subject_gm_file=None,
+    subject_wm_file=None,
+    subject_csf_file=None,
+    brain='epi',
+    cmap=None,
+    results_gallery=None):
+    """Generates thumbnails after indirect normalization
+    (segmentation + normalization)
+
+    Parameters
+    ----------
+    normalized_file: list
+        paths to normalized images (3Ds or 4Ds)
+
+    output_dir: string
+        dir to which all output will be written
+
+    subject_gm_file: string (optional)
+        path to subject GM file
+
+    subject_csf_file: string (optional)
+        path to subject WM file
+
+    subject_csf_file: string (optional)
+        path to subject CSF file
+
+    brain: string (optional)
+        a short commeent/tag like 'epi', or 'anat'
+
+    cmap: optional
+        cmap (color map) to use for plots
+
+    result_gallery: reporter.ResultsGallery instance (optional)
+        gallery to which thumbnails will be committed
+
+    """
+
+    import check_preprocessing
+    import reporter
+
+    output = {}
+
+    if type(normalized_files) is str:
+        first_image = normalized_files
+        normalized_files = [normalized_files]
+    else:
+        first_image = normalized_files[0]
+        if is_3D(normalized_files[0]):
+            normalized_files = [normalized_files]
+
+    # nipype report
+    nipype_report_filename = os.path.join(
+        os.path.dirname(first_image),
+        "_report/report.rst")
+    nipype_html_report_filename = os.path.join(
+        output_dir,
+        '%s_normalize_nipype_report.html' % brain)
+    nipype_report = reporter.nipype2htmlreport(
+        nipype_report_filename)
+    open(nipype_html_report_filename,
+         'w').write(str(nipype_report))
+
+    qa_cache_dir = os.path.join(output_dir, "QA")
+    if not os.path.exists(qa_cache_dir):
+        os.makedirs(qa_cache_dir)
+    qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
+
+    for j in xrange(len(normalized_files)):
+
+        normalized_file = normalized_files[j]
+
+        first_image = normalized_file
+        if not type(first_image) is str:
+            first_image = first_image[0]
+        else:
+            brain = os.path.basename(first_image)
+
+        normalized_img = ni.load(
+            do_3Dto4D_merge(normalized_file))
+        if len(normalized_img.shape) == 4:
+            mean_normalized_img = ni.Nifti1Image(
+                normalized_img.get_data().mean(-1),
+                normalized_img.get_affine())
+            if type(normalized_file) is str:
+                tmp = os.path.dirname(normalized_file)
+            else:
+                tmp = os.path.dirname(normalized_file[0])
+            mean_normalized_file = os.path.join(
+                tmp,
+                'mean%s.nii' % brain)
+            ni.save(mean_normalized_img, mean_normalized_file)
+            normalized_file = mean_normalized_file
+
+        # plot contours of template compartments on subject's brain
+        template_compartments_contours = os.path.join(
+            output_dir,
+            "template_tmps_contours_on_%s.png" % brain)
+        template_compartments_contours_axial = os.path.join(
+            output_dir,
+            "template_compartments_contours_on_%s_axial.png" % brain)
+
+        qa_mem.cache(check_preprocessing.plot_segmentation)(
+            normalized_file,
+            GM_TEMPLATE,
+            wm_filename=WM_TEMPLATE,
+            csf_filename=CSF_TEMPLATE,
+            output_filename=template_compartments_contours_axial,
+            slicer='z',
+            cmap=cmap,
+            title="template TPMs")
+
+        qa_mem.cache(check_preprocessing.plot_segmentation)(
+            normalized_file,
+            gm_filename=GM_TEMPLATE,
+            wm_filename=WM_TEMPLATE,
+            csf_filename=CSF_TEMPLATE,
+            output_filename=template_compartments_contours,
+            cmap=cmap,
+            title=("Template GM, WM, and CSF contours on "
+                   "subject's %s") % brain)
+
+        # create thumbnail
+        if results_gallery:
+            thumbnail = reporter.Thumbnail()
+            thumbnail.a = reporter.a(
+                href=os.path.basename(template_compartments_contours))
+            thumbnail.img = reporter.img(
+                src=os.path.basename(template_compartments_contours),
+                height="500px")
+            thumbnail.description = (
+                "Normalization (<a href=%s>see "
+                "execution log</a>)") % os.path.basename(
+                nipype_html_report_filename)
+
+            results_gallery.commit_thumbnails(thumbnail)
+
+        # plot contours of subject's compartments on subject's brain
+        if subject_gm_file:
+            subject_compartments_contours = os.path.join(
+                output_dir,
+                "subject_tmps_contours_on_subject_%s.png" % brain)
+            subject_compartments_contours_axial = os.path.join(
+                output_dir,
+                "subject_tmps_contours_on_subject_%s_axial.png" % brain)
+
+            qa_mem.cache(check_preprocessing.plot_segmentation)(
+                normalized_file,
+                subject_gm_file,
+                wm_filename=subject_wm_file,
+                csf_filename=subject_csf_file,
+                output_filename=subject_compartments_contours_axial,
+                slicer='z',
+                cmap=cmap,
+                title="subject TPMs")
+
+            title_prefix = "Subject's GM"
+            if subject_wm_file:
+                title_prefix += ", WM"
+            if subject_csf_file:
+                title_prefix += ", and CSF"
+            qa_mem.cache(check_preprocessing.plot_segmentation)(
+                normalized_file,
+                subject_gm_file,
+                wm_filename=subject_wm_file,
+                csf_filename=subject_csf_file,
+                output_filename=subject_compartments_contours,
+                cmap=cmap,
+                title=("%s contours on "
+                   "subject's %s") % (title_prefix, brain))
+
+            # create thumbnail
+            if results_gallery:
+                thumbnail = reporter.Thumbnail()
+                thumbnail.a = reporter.a(
+                    href=os.path.basename(subject_compartments_contours))
+                thumbnail.img = reporter.img(
+                    src=os.path.basename(subject_compartments_contours),
+                    height="500px")
+                thumbnail.description = \
+                    "Normalization (<a href=%s>see execution log</a>)" \
+                    % os.path.basename(nipype_html_report_filename)
+
+                results_gallery.commit_thumbnails(thumbnail)
+
+        output['axials'] = {}
+        output['axial'] = template_compartments_contours_axial
 
     return output
 
@@ -483,7 +671,7 @@ def do_subject_coreg(output_dir,
         if true, then QA plots will be generated after executing the coregister
         node.
 
-    *spm_realign_kwargs: kwargs (paramete-value dict)
+    *spm_coregister_kwargs: kwargs (paramete-value dict)
         parameters to be passed to the nipype.interfaces.spm.Coregister
         back-end node
 
@@ -630,7 +818,7 @@ def do_subject_segment(output_dir,
         if true, then QA plots will be generated after executing the segment
         node.
 
-    *spm_realign_kwargs: kwargs (paramete-value dict)
+    *spm_segment_kwargs: kwargs (paramete-value dict)
         parameters to be passed to the nipype.interfaces.spm.Segment back-end
         node
 
@@ -686,7 +874,7 @@ def do_subject_normalize(output_dir,
         if true, then QA plots will be generated after executing the normalize
         node.
 
-    *spm_realign_kwargs: kwargs (paramete-value dict)
+    *spm_normalize_kwargs: kwargs (paramete-value dict)
         parameters to be passed to the nipype.interfaces.spm.Normalize back-end
         node
 
@@ -706,11 +894,9 @@ def do_subject_normalize(output_dir,
 
     # generate gallery for HTML report
     if do_report:
-        import check_preprocessing
-        import reporter
-
         normalized_files = norm_result.outputs.normalized_files
 
+        # generate normalization thumbs
         output.update(generate_normalization_thumbnails(
                 normalized_files,
                 output_dir,
@@ -718,156 +904,23 @@ def do_subject_normalize(output_dir,
                 cmap=cmap,
                 results_gallery=results_gallery))
 
-        if type(normalized_files) is str:
-            first_image = normalized_files
-            normalized_files = [normalized_files]
+        # generate segmentation thumbs
+        if segment_result:
+            subject_gm_file = segment_result.outputs.modulated_gm_image
+            subject_wm_file = segment_result.outputs.modulated_wm_image
+            subject_csf_file = segment_result.outputs.modulated_csf_image
         else:
-            first_image = normalized_files[0]
-            if is_3D(normalized_files[0]):
-                normalized_files = [normalized_files]
-
-        # nipype report
-        nipype_report_filename = os.path.join(
-            os.path.dirname(first_image),
-            "_report/report.rst")
-        nipype_html_report_filename = os.path.join(
-            output_dir,
-            '%s_normalize_nipype_report.html' % brain)
-        nipype_report = reporter.nipype2htmlreport(
-            nipype_report_filename)
-        open(nipype_html_report_filename,
-             'w').write(str(nipype_report))
-
-        #####################
-        # check segmentation
-        #####################
-        # XXX factor away the following code into check_preprocessing, etc.!!!
-        # prepare for smart caching
-        qa_cache_dir = os.path.join(output_dir, "QA")
-        if not os.path.exists(qa_cache_dir):
-            os.makedirs(qa_cache_dir)
-        qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
-
-        for j in xrange(len(normalized_files)):
-
-            normalized_file = normalized_files[j]
-
-            first_image = normalized_file
-            if not type(first_image) is str:
-                first_image = first_image[0]
-            else:
-                brain = os.path.basename(first_image)
-
-            if not segment_result is None:
-                # /!\
-                # If the normalized data is 4D, then do QA on it's mean (along)
-                # (the time axis) instead; if we did well, then the mean should
-                # align with the template gm, wm, csf compartments pretty well,
-                # and with the MNI template too; else, we've got a failed
-                # normalization.
-                normalized_img = ni.load(
-                    check_preprocessing.do_3Dto4D_merge(normalized_file))
-                if len(normalized_img.shape) == 4:
-                    mean_normalized_img = ni.Nifti1Image(
-                        normalized_img.get_data().mean(-1),
-                        normalized_img.get_affine())
-                    if type(normalized_file) is str:
-                        tmp = os.path.dirname(normalized_file)
-                    else:
-                        tmp = os.path.dirname(normalized_file[0])
-                    mean_normalized_file = os.path.join(
-                        tmp,
-                        'mean%s.nii' % brain)
-                    ni.save(mean_normalized_img, mean_normalized_file)
-                    normalized_file = mean_normalized_file
-
-                # plot contours of template compartments on subject's brain
-                template_compartments_contours = os.path.join(
-                    output_dir,
-                    "template_tmps_contours_on_%s.png" % brain)
-                template_compartments_contours_axial = os.path.join(
-                    output_dir,
-                    "template_compartments_contours_on_%s_axial.png" % brain)
-
-                qa_mem.cache(check_preprocessing.plot_segmentation)(
-                    normalized_file,
-                    GM_TEMPLATE,
-                    WM_TEMPLATE,
-                    CSF_TEMPLATE,
-                    output_filename=template_compartments_contours_axial,
-                    slicer='z',
-                    cmap=cmap,
-                    title="template TPMs")
-
-                qa_mem.cache(check_preprocessing.plot_segmentation)(
-                    normalized_file,
-                    GM_TEMPLATE,
-                    WM_TEMPLATE,
-                    CSF_TEMPLATE,
-                    output_filename=template_compartments_contours,
-                    cmap=cmap,
-                    title=("Template GM, WM, and CSF contours on "
-                           "subject's %s") % brain)
-
-                # create thumbnail
-                if results_gallery:
-                    thumbnail = reporter.Thumbnail()
-                    thumbnail.a = reporter.a(
-                        href=os.path.basename(template_compartments_contours))
-                    thumbnail.img = reporter.img(
-                        src=os.path.basename(template_compartments_contours),
-                        height="500px")
-                    thumbnail.description = (
-                        "Normalization (<a href=%s>see "
-                        "execution log</a>)") % os.path.basename(
-                        nipype_html_report_filename)
-
-                    results_gallery.commit_thumbnails(thumbnail)
-
-                # plot contours of subject's compartments on subject's brain
-                subject_compartments_contours = os.path.join(
-                    output_dir,
-                    "subject_tmps_contours_on_subject_%s.png" % brain)
-                subject_compartments_contours_axial = os.path.join(
-                    output_dir,
-                    "subject_tmps_contours_on_subject_%s_axial.png" % brain)
-
-                qa_mem.cache(check_preprocessing.plot_segmentation)(
-                    normalized_file,
-                    segment_result.outputs.modulated_gm_image,
-                    segment_result.outputs.modulated_wm_image,
-                    segment_result.outputs.modulated_csf_image,
-                    output_filename=subject_compartments_contours_axial,
-                    slicer='z',
-                    cmap=cmap,
-                    title="subject TPMs")
-
-                qa_mem.cache(check_preprocessing.plot_segmentation)(
-                    normalized_file,
-                    segment_result.outputs.modulated_gm_image,
-                    segment_result.outputs.modulated_wm_image,
-                    segment_result.outputs.modulated_csf_image,
-                    output_filename=subject_compartments_contours,
-                    cmap=cmap,
-                    title=("Subject's GM, WM, and CSF contours on "
-                       "subject's %s") % brain)
-
-                # create thumbnail
-                if results_gallery:
-                    thumbnail = reporter.Thumbnail()
-                    thumbnail.a = reporter.a(
-                        href=os.path.basename(subject_compartments_contours))
-                    thumbnail.img = reporter.img(
-                        src=os.path.basename(subject_compartments_contours),
-                        height="500px")
-                    thumbnail.description = \
-                        "Normalization (<a href=%s>see execution log</a>)" \
-                        % os.path.basename(nipype_html_report_filename)
-
-                    results_gallery.commit_thumbnails(thumbnail)
-
-                output['axials'] = {}
-                output['axial'] = template_compartments_contours_axial
+            subject_gm_file = None
+            subject_wm_file = None
+            subject_csf_file = None
+        output.update(generate_segmentation_thumbnails(
+                normalized_files,
+                output_dir,
+                subject_gm_file=subject_gm_file,
+                subject_wm_file=subject_wm_file,
+                subject_csf_file=subject_csf_file,
+                brain=brain,
+                results_gallery=results_gallery))
 
     # collect ouput
     output['result'] = norm_result
@@ -877,7 +930,7 @@ def do_subject_normalize(output_dir,
 
 def do_subject_preproc(
     subject_data,
-    delete_orientation=False,
+    do_deleteorient=False,
     do_report=True,
     do_bet=True,
     do_slicetiming=False,
@@ -944,18 +997,13 @@ def do_subject_preproc(
     """
 
     # sanity
-    if type(subject_data.session_id) is str:
-        subject_data.session_id = [subject_data.session_id]
+    subject_data.sanitize(do_deleteorient=do_deleteorient)
 
     output = {"subject_id": subject_data.subject_id}
 
     # create subject_data.output_dir if dir doesn't exist
     if not os.path.exists(subject_data.output_dir):
         os.makedirs(subject_data.output_dir)
-
-    # sanity
-    if delete_orientation or subject_data.bad_orientation:
-        subject_data.delete_orientation()
 
     if do_report:
         import reporter
@@ -1005,10 +1053,16 @@ def do_subject_preproc(
             in_files=subject_data.func,
             register_to_mean=True,
             jobtype='estwrite',
+            ignore_exception=True,
             )
 
         # collect output
         realign_result = realign_output['result']
+
+        # if failed to realign, return
+        if realign_result.outputs is None:
+            return
+
         subject_data.func = realign_result.outputs.realigned_files
         mean_func = realign_result.outputs.mean_image
 
@@ -1062,11 +1116,16 @@ def do_subject_preproc(
             target=coreg_target,
             source=coreg_source,
             jobtype=coreg_jobtype,
+            ignore_exception=True
             )
 
         # collect results
         coreg_result = coreg_output['result']
         output['coreg_result'] = coreg_result
+
+        # if failed to coregister, return
+        if coreg_result.outputs is None:
+            return
 
         # rest anat to coregistered version thereof
         subject_data.anat = coreg_result.outputs.coregistered_source
@@ -1095,10 +1154,16 @@ def do_subject_preproc(
             bias_regularization=0.0001,
             bias_fwhm=60,
             warping_regularization=1,
+            ignore_exception=True
             )
 
         segment_result = segment_output['result']
-        output['segment_result'] = segment_result
+
+        # if failed to segment, return
+        if segment_result.outputs is None:
+            return
+
+        # output['segment_result'] = segment_result
 
         if do_normalize:
             ##############################################################
@@ -1122,6 +1187,7 @@ def do_subject_preproc(
                 write_voxel_sizes=get_vox_dims(norm_apply_to_files),
                 write_interp=1,
                 jobtype='write',
+                ignore_exception=True
                 )
 
             norm_result = norm_output["result"]
@@ -1155,9 +1221,16 @@ def do_subject_preproc(
                 write_voxel_sizes=get_vox_dims(norm_apply_to_files),
                 write_wrap=[0, 0, 0],
                 write_interp=1,
-                jobtype='write')
+                jobtype='write',
+                ignore_exception=True
+                )
 
             norm_result = norm_output['result']
+
+            # if failed to normalize, return None
+            if norm_result.outputs is None:
+                return
+
             output['anat'] = norm_result.outputs.normalized_files
 
     elif do_normalize:
@@ -1172,6 +1245,10 @@ def do_subject_preproc(
             _report=False)
 
         norm_result = norm_output['result']
+
+        # if failed to normalize, return None
+        if norm_result.outputs is None:
+            return
 
         ####################################################
         # Warp EPI into MNI space using learned deformation
@@ -1191,9 +1268,16 @@ def do_subject_preproc(
             write_voxel_sizes=get_vox_dims(norm_apply_to_files),
             write_wrap=[0, 0, 0],
             write_interp=1,
-            jobtype='write')
+            jobtype='write',
+            ignore_exception=True
+            )
 
         norm_result = norm_output["result"]
+
+        # if failed to normalize, return None
+        if norm_result.outputs is None:
+            return
+
         subject_data.func = norm_result.outputs.normalized_files
         output['func'] = norm_result.outputs.normalized_files
 
@@ -1217,9 +1301,16 @@ def do_subject_preproc(
             write_voxel_sizes=get_vox_dims(norm_apply_to_files),
             write_wrap=[0, 0, 0],
             write_interp=1,
-            jobtype='write')
+            jobtype='write',
+            ignore_exception=True
+            )
 
         norm_result = norm_output['result']
+
+        # if failed to normalize, return None
+        if norm_result.outputs is None:
+            return
+
         output['anat'] = norm_result.outputs.normalized_files
 
     # generate cv plots
@@ -1239,8 +1330,8 @@ def do_subject_preproc(
                 subject_data.subject_id,
                 parent_results_gallery)
 
-    output['final_thumbnail'] = final_thumbnail
-    output['results_gallery'] = results_gallery
+        output['final_thumbnail'] = final_thumbnail
+        output['results_gallery'] = results_gallery
 
     return subject_data, output
 
@@ -1248,7 +1339,9 @@ def do_subject_preproc(
 def do_subject_dartelnorm2mni(output_dir,
                               structural_file,
                               functional_file,
+                              native_gm_image=None,
                               subject_id=None,
+                              downsample_func=True,
                               do_report=True,
                               final_thumbnail=None,
                               results_gallery=None,
@@ -1275,48 +1368,105 @@ def do_subject_dartelnorm2mni(output_dir,
         os.makedirs(cache_dir)
     mem = Memory(base_dir=cache_dir)
 
+    dartelnorm2mni = mem.cache(spm.DARTELNorm2MNI)
+
+    subject_gm_file = None
+
+    if native_gm_image:
+        # warp subject gm image (produced by Segment or NewSegment)
+        # into MNI space
+        dartelnorm2mni_result = dartelnorm2mni(apply_to_files=native_gm_image,
+                                               **dartelnorm2mni_kwargs)
+        subject_gm_file = dartelnorm2mni_result.outputs.normalized_files
+
     # warp functional image into MNI space
+    # functional_file = do_3Dto4D_merge(functional_file)
     createwarped = mem.cache(spm.CreateWarped)
     createwarped_result = createwarped(
         image_files=functional_file,
         flowfield_files=dartelnorm2mni_kwargs['flowfield_files'],
+        ignore_exception=True
         )
+
+    # if node failed, return None
+    if createwarped_result.outputs is None:
+        return
+
+    warped_files = createwarped_result.outputs.warped_files
+
+    # down-sample warped epi to save disk space ?
+    if downsample_func:
+        import numpy as np
+
+        if type(warped_files) is str:
+            warped_files = [warped_files]
+
+        resampled_warped_files = []
+        for warped_file in warped_files:
+            warped_file = do_3Dto4D_merge(warped_file)
+
+            # compute new vox dims to down-sample to
+            new_vox_dims = (np.array(get_vox_dims(warped_file)) \
+                + np.array(get_vox_dims(functional_file))) / 2.0
+
+            # down-sample proper
+            resampled_warped_file = resample_img(
+                warped_file, new_vox_dims)
+            resampled_warped_files.append(resampled_warped_file)
+
+        warped_files = resampled_warped_files
 
     # do_QA
     if do_report and results_gallery:
         import pylab as pl
 
-        thumbs = generate_normalization_thumbnails(
-            createwarped_result.outputs.warped_files,
+        generate_normalization_thumbnails(
+            warped_files,
             output_dir,
             brain='epi',
             cmap=pl.cm.spectral,
             results_gallery=results_gallery)
 
-        # if parent_results_gallery:
-        #     final_thumbnail.img.src = thumbs['axial']
-        #     commit_subject_thumnbail_to_parent_gallery(
-        #         final_thumbnail,
-        #         subject_id,
-        #         parent_results_gallery)
+        # generate segmentation thumbs
+        epi_thumbs = generate_segmentation_thumbnails(
+                warped_files,
+                output_dir,
+                subject_gm_file=subject_gm_file,
+                brain='epi',
+                results_gallery=results_gallery)
 
     # warp anat into MNI space
-    dartelnorm2mni = mem.cache(spm.DARTELNorm2MNI)
     dartelnorm2mni_result = dartelnorm2mni(apply_to_files=structural_file,
-                                           **dartelnorm2mni_kwargs)
+                                           **dartelnorm2mni_kwargs
+                                           )
+
+    # if node failed, return None
+    if dartelnorm2mni_result.outputs is None:
+        return
+
     # do_QA
     if do_report and results_gallery:
         import pylab as pl
 
-        thumbs = generate_normalization_thumbnails(
+        generate_normalization_thumbnails(
             dartelnorm2mni_result.outputs.normalized_files,
             output_dir,
             brain='anat',
             cmap=pl.cm.gray,
             results_gallery=results_gallery)
 
+        # generate segmentation thumbs
+        generate_segmentation_thumbnails(
+            dartelnorm2mni_result.outputs.normalized_files,
+            output_dir,
+            subject_gm_file=subject_gm_file,
+            brain='anat',
+            cmap=pl.cm.gray,
+            results_gallery=results_gallery)
+
+    if do_report:
         if parent_results_gallery:
-            final_thumbnail.img.src = thumbs['axial']
+            final_thumbnail.img.src = epi_thumbs['axial']
             commit_subject_thumnbail_to_parent_gallery(
                 final_thumbnail,
                 subject_id,
@@ -1369,7 +1519,13 @@ def do_group_DARTEL(output_dir,
                2, (False, False), (False, False))
     newsegment_result = newsegment(
         channel_files=structural_files,
-        tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6])
+        tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6],
+        ignore_exception=True
+        )
+
+    # if node failed, return None
+    if newsegment_result.outputs is None:
+        return
 
     # compute DARTEL template for group data
     dartel = mem.cache(spm.DARTEL)
@@ -1380,14 +1536,16 @@ def do_group_DARTEL(output_dir,
         image_files=dartel_input_images,)
 
     # warp individual brains into group (DARTEL) space
+    native_gm_images = newsegment_result.outputs.native_class_images[0]
     results = joblib.Parallel(
         n_jobs=N_JOBS, verbose=100,
-        pre_dispatch='1.5*n_jobs', # for scalability over RAM
+        pre_dispatch='1.5*n_jobs',  # for scalability over RAM
         )(joblib.delayed(
             do_subject_dartelnorm2mni)(
                 subject_output_dirs[j],
                 structural_files[j],
                 functional_files[j],
+                native_gm_image=native_gm_images[j],
                 subject_id=subject_ids[j],
                 do_report=do_report,
                 final_thumbnail=subject_final_thumbs[j],
@@ -1396,7 +1554,9 @@ def do_group_DARTEL(output_dir,
                 modulate=False,  # don't modulate
                 fwhm=0,  # don't smooth
                 flowfield_files=dartel_result.outputs.dartel_flow_fields[j],
-                template_file=dartel_result.outputs.final_template_file)
+                template_file=dartel_result.outputs.final_template_file,
+                ignore_exception=True
+                )
           for j in xrange(
                 len(subject_ids)))
 
@@ -1409,7 +1569,7 @@ def do_group_DARTEL(output_dir,
 
 def do_group_preproc(subjects,
                      output_dir=None,
-                     delete_orientation=False,
+                     do_deleteorient=False,
                      do_report=True,
                      do_export_report=False,
                      dataset_description=None,
@@ -1452,7 +1612,7 @@ def do_group_preproc(subjects,
             ("You asked for reporting (do_report=True)  but specified"
              " an invalid report_filename (None)"))
 
-    kwargs = {'delete_orientation': delete_orientation,
+    kwargs = {'do_deleteorient': do_deleteorient,
               'do_report': do_report,
               'do_realign': do_realign, 'do_coreg': do_coreg,
               'do_segment': do_segment, 'do_normalize': do_normalize,
@@ -1584,7 +1744,7 @@ def do_group_preproc(subjects,
     # preprocess the subjects proper
     results = joblib.Parallel(
         n_jobs=N_JOBS,
-        pre_dispatch='1.5*n_jobs', # for scalability over RAM
+        pre_dispatch='1.5*n_jobs',  # for scalability over RAM
         verbose=100)(joblib.delayed(
             do_subject_preproc)(
                 subject_data, **kwargs) for subject_data in subjects)
@@ -1601,7 +1761,7 @@ def do_group_preproc(subjects,
             structural_files = [
                 subject_data.anat for subject_data, _ in results]
 
-        # collect functional iles for DARTEL pipeline
+        # collect functional files for DARTEL pipeline
         if do_realign:
             functional_files = [
                 output['realign_result'].outputs.realigned_files
@@ -1620,7 +1780,7 @@ def do_group_preproc(subjects,
         subject_results_galleries = [output['results_gallery']
                                      for _, output in results]
 
-        # normalize structual brains to their own template space (DARTEL)
+        # normalize brains to their own template space (DARTEL)
         results = do_group_DARTEL(
             output_dir,
             subject_ids,
@@ -1636,12 +1796,31 @@ def do_group_preproc(subjects,
         # housekeeping
         _results = []
         for item in results:
-            subject_result = Bunch(item)
-            subject_result.subject_id = item['subject_id']
-            subject_result.func = item['createwarped_result'
+            subject_result = {}
+            subject_result['subject_id'] = item['subject_id']
+            subject_result['func'] = item['createwarped_result'
                                            ].outputs.warped_files
-            subject_result.anat = item[
+            subject_result['anat'] = item[
                 'dartelnorm2mni_result'].outputs.normalized_files
+            subject_result['estimated_motion'] = item['estimated_motion']
+
+            _results.append(subject_result)
+
+        results = _results
+    else:
+        # housekeeping
+        _results = []
+        for x in results:
+            if x is None:
+                continue
+            else:
+                item = x[1]
+            subject_result = {}
+            subject_result['subject_id'] = item['subject_id']
+            subject_result['func'] = item['func']
+            subject_result['anat'] = item['anat']
+            subject_result['estimated_motion'] = item['estimated_motion']
+
             _results.append(subject_result)
 
         results = _results

@@ -278,7 +278,8 @@ def plot_registration(reference, coregistered,
             pass
 
 
-def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
+def plot_segmentation(img_filename, gm_filename, wm_filename=None,
+                      csf_filename=None,
                       output_filename=None, cut_coords=None,
                       slicer='ortho',
                       cmap=None,
@@ -294,10 +295,10 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
     gm_filename: string
                  path of file containing Grey Matter template
 
-    wm_filename: string
+    wm_filename: string (optional)
                  path of file containing White Matter template
 
-    csf_filename: string
+    csf_filename: string (optional)
                  path of file containing Cerebro-Spinal Fluid template
 
 
@@ -328,16 +329,19 @@ def plot_segmentation(img_filename, gm_filename, wm_filename, csf_filename,
     _slicer.contour_map(gm_template, gm_affine, levels=[.51], colors=["r"])
 
     # draw a WM contour map
-    wm = nibabel.load(wm_filename)
-    wm_template = wm.get_data()
-    wm_affine = wm.get_affine()
-    _slicer.contour_map(wm_template, wm_affine, levels=[.51], colors=["g"])
+    if not wm_filename is None:
+        wm = nibabel.load(wm_filename)
+        wm_template = wm.get_data()
+        wm_affine = wm.get_affine()
+        _slicer.contour_map(wm_template, wm_affine, levels=[.51], colors=["g"])
 
     # draw a CSF contour map
-    csf = nibabel.load(csf_filename)
-    csf_template = csf.get_data()
-    csf_affine = csf.get_affine()
-    _slicer.contour_map(csf_template, csf_affine, levels=[.51], colors=['b'])
+    if not csf_filename is None:
+        csf = nibabel.load(csf_filename)
+        csf_template = csf.get_data()
+        csf_affine = csf.get_affine()
+        _slicer.contour_map(
+            csf_template, csf_affine, levels=[.51], colors=['b'])
 
     # misc
     _slicer.title(title, size=12, color='w',

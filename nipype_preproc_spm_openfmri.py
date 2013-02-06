@@ -1,7 +1,7 @@
 """
 :Module: nipype_preproc_spm_openfmri_ds107
 :Synopsis: Preprocessing Openfmri ds107
-:Author: dohmatob elvis dopgima
+:Author: yannick schwartz, dohmatob elvis dopgima
 
 """
 
@@ -10,6 +10,7 @@ import os
 import glob
 import sys
 import json
+import traceback
 
 # import spm preproc utilities
 import nipype_preproc_spm_utils
@@ -21,13 +22,16 @@ DATASET_DESCRIPTION = """\
 <p><a href="https://openfmri.org/data-sets">openfmri.org datasets</a>.</p>
 """
 
+# location of openfmri dataset on disk
+DATA_ROOT_DIR = '/neurospin/tmp/havoc/openfmri_raw'
+
 # wildcard defining directory structure
 subject_id_wildcard = "sub*"
 
 # DARTEL ?
 DO_DARTEL = False
 
-
+# openfmri datasets we are interested in
 datasets = {
     'ds001': 'Balloon Analog Risk-taking Task',
     'ds002': 'Classification learning',
@@ -48,16 +52,28 @@ datasets = {
     'ds107': 'Word and object processing',
     }
 
+# subjects per dataset we want to exclude
 datasets_exclusions = {
-    'ds017A': ['sub003'],
+    'ds017A': ['sub003'],  # XXX why ?
     'ds017B': ['sub003'],
     'ds007': ['sub009', 'sub018'],
-    'ds051': ['sub006'],
-}
+    'ds051': ['sub006',
+              'sub011',  # Running 'Realign: Estimate & Reslice'
+              # Failed  'Realign: Estimate & Reslice'
+              # Error using spm_bsplinc
+              # File too small.
+              ],
+    'ds107': ['sub003',  # garbage anat
+              ],
+    }
 
 
-def main(DATA_DIR, OUTPUT_DIR, exclusions=None):
-    """
+def main(data_dir, output_dir, exclusions=None):
+    """Main function for preprocessing (and analysis ?)
+
+    Parameters
+    ----------
+
     returns list of Bunch objects with fields anat, func, and subject_id
     for each preprocessed subject
 
@@ -67,10 +83,10 @@ def main(DATA_DIR, OUTPUT_DIR, exclusions=None):
     # glob for subject ids
     subject_ids = [
         os.path.basename(x)
-        for x in glob.glob(os.path.join(DATA_DIR, subject_id_wildcard))]
+        for x in glob.glob(os.path.join(data_dir, subject_id_wildcard))]
 
     model_dirs = glob.glob(os.path.join(
-        DATA_DIR, subject_ids[0], 'model', '*'))
+        data_dir, subject_ids[0], 'model', '*'))
 
     session_ids = [
         os.path.basename(x)
@@ -91,30 +107,35 @@ def main(DATA_DIR, OUTPUT_DIR, exclusions=None):
             subject_data.subject_id = subject_id
             subject_data.func = []
 
-            # orientation meta-data for sub013 is garbage
-            if subject_id in ['sub013'] and not DO_DARTEL:
-                subject_data.bad_orientation = True
+            # # orientation meta-data for sub013 of ds 107 is garbage
+            # if ds_id == 'ds107' and subject_id in ['sub013'] \
+            #         and not DO_DARTEL:
+            #     subject_data.bad_orientation = True
 
             # glob for bold data
-            for session_id in subject_data.session_id:
+            sessions = list(subject_data.session_id)
+            for session_id in sessions:
                 bold_dir = os.path.join(
-                    DATA_DIR,
+                    data_dir,
                     "%s/BOLD/%s" % (subject_id, session_id))
 
                 # extract .nii.gz to .nii
                 unzip_nii_gz(bold_dir)
 
                 # glob bold data proper
-                func = glob.glob(
-                    os.path.join(
-                        DATA_DIR,
-                        "%s/BOLD/%s/bold.nii" % (
-                            subject_id, session_id)))[0]
-                subject_data.func.append(func)
+                func = glob.glob(os.path.join(bold_dir, "bold.nii"))
+
+                # for example, sub005 of ds017A has the problem
+                # below
+                if not func:
+                    subject_data.session_id.remove(session_id)
+                    continue
+
+                subject_data.func.append(func[0])
 
             # glob for anatomical data
             anat_dir = os.path.join(
-                DATA_DIR,
+                data_dir,
                 "%s/anatomy" % subject_id)
 
             # extract .nii.gz to .ni
@@ -123,69 +144,72 @@ def main(DATA_DIR, OUTPUT_DIR, exclusions=None):
             # glob anatomical data proper
             subject_data.anat = glob.glob(
                 os.path.join(
-                    DATA_DIR,
+                    data_dir,
                     "%s/anatomy/highres001_brain.nii" % subject_id))[0]
 
             # set subject output dir (all calculations for
             # this subject go here)
             subject_data.output_dir = os.path.join(
-                    OUTPUT_DIR,
+                    output_dir,
                     subject_id)
 
             yield subject_data
 
     # do preprocessing proper
-    report_filename = os.path.join(OUTPUT_DIR,
+    report_filename = os.path.join(output_dir,
                                    "_report.html")
     return nipype_preproc_spm_utils.do_group_preproc(
         subject_factory(),
-        output_dir=OUTPUT_DIR,
-        # delete_orientation=True,
+        output_dir=output_dir,
+        do_deleteorient=True,
         do_dartel=DO_DARTEL,
         do_cv_tc=False,
-        do_report=False,
-        do_export_report=True,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename
         )
 
 if __name__ == '__main__':
-    data_root_dir = '/volatile/openfmri'
-    out_root_dir = '/havoc/openfmri/preproc'
+    # this is on is150118, run from there (caching!) to save time and space
+    output_root_dir = '/volatile/home/edohmato/openfmri_pypreproc_runs'
 
-    ds_ids = [
-        # 'ds001',
-        # 'ds002',
-        # 'ds003',
-        # 'ds005',
-        # 'ds007',
-        # 'ds008',
-        # 'ds011',
-        # 'ds017A',
-        # 'ds017B',
-        # 'ds051',
-        # 'ds052',
-        'ds101',
-        # 'ds102',
-        # 'ds105',
-        # 'ds107'
-        ]
+    ds_ids = sorted([
+            'ds001',
+            'ds002',
+            'ds003',
+            'ds005',
+            'ds007',
+            'ds008',
+            'ds011',
+            'ds017A',
+            'ds017B',
+            'ds051',
+            'ds052',
+            'ds101',
+            'ds102',
+            'ds105',
+            'ds107'
+            ])
 
+    # /!\ Don't try to 'parallelize' this loop!!!
     for ds_id in ds_ids:
-        ds_name = datasets[ds_id].lower().replace(' ', '_')
-        data_dir = os.path.join(data_root_dir, ds_name, ds_id)
-        out_dir = os.path.join(out_root_dir, ds_id)
+        try:
+            ds_name = datasets[ds_id].lower().replace(' ', '_')
+            data_dir = os.path.join(DATA_ROOT_DIR, ds_name, ds_id)
+            output_dir = os.path.join(output_root_dir, ds_id)
 
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
 
-        results = main(data_dir, out_dir, datasets_exclusions.get(ds_id))
+            results = main(data_dir, output_dir,
+                           datasets_exclusions.get(ds_id))
 
-        for res in results:
-            infos = {}
-            infos['anat'] = res[1]['anat']
-            infos['estimated_motion'] = res[1]['estimated_motion']
-            infos['bold'] = res[1]['func']
-            infos['subject'] = res[1]['subject_id']
-            path = os.path.join(out_dir, infos['subject'], 'infos.json')
-            json.dump(infos, open(path, 'wb'))
+            # dump results to json file (one per subject)
+            for result in results:
+                result['bold'] = result.pop('func')
+                result['subject'] = result.pop('subject_id')
+                path = os.path.join(
+                    output_dir, result['subject'], 'infos.json')
+                json.dump(result, open(path, 'wb'))
+        except:
+            print traceback.format_exc()
+            pass
