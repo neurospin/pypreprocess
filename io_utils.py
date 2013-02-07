@@ -195,9 +195,8 @@ def compute_mean_3D_image(images, output_filename=None):
 
     Parameters
     ----------
-    images: list of strings/image objects
-        images whose mean we seek (each element could be a 3D/4D image
-        filename or object)
+    images: string/image object, or list (-like) of
+        image(s) whose mean we seek
 
     Returns
     -------
@@ -205,12 +204,18 @@ def compute_mean_3D_image(images, output_filename=None):
 
     """
 
+    # sanitize
+    if not hasattr(images, '__iter__') or type(images) is str:
+        images = [images]
+
     # make list of data an affines
     all_data = []
     all_affine = []
     for image in images:
         if type(image) is str:
             image = nibabel.load(image)
+        else:
+            raise IOError(type(image))
         data = image.get_data()
 
         if is_4D(image):

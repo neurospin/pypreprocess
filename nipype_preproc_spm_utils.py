@@ -151,7 +151,7 @@ def generate_normalization_thumbnails(
         nipype_report_filename = os.path.join(
             os.path.dirname(normalized_files),
             "_report/report.rst")
-        normalized_file = normalized_files
+        normalized = normalized_files
     else:
         brain = "mean" + brain
 
@@ -159,13 +159,8 @@ def generate_normalization_thumbnails(
             os.path.dirname(normalized_files[0]),
             "_report/report.rst")
 
-        mean_normalized_file = os.path.join(
-            os.path.dirname(normalized_files[0]),
-            "mean%s.nii" % brain)
-
-        compute_mean_3D_image(normalized_files,
-                           output_filename=mean_normalized_file)
-        normalized_file = mean_normalized_file
+        mean_normalized_img = compute_mean_3D_image(normalized_files)
+        normalized = mean_normalized_img
 
     # nipype report
     nipype_html_report_filename = os.path.join(
@@ -186,7 +181,7 @@ def generate_normalization_thumbnails(
     # plot outline (edge map) of SPM MNI template on the
     # normalized image
     target = T1_TEMPLATE
-    source = normalized_file
+    source = normalized
 
     outline = os.path.join(
         output_dir,
@@ -470,10 +465,11 @@ def commit_subject_thumnbail_to_parent_gallery(
 
 def generate_cv_tc_thumbnail(
     image_files,
-    output_dir,
-    subject_id,
     sessions,
-    results_gallery):
+    subject_id,
+    output_dir,
+    plot_diff=True,
+    results_gallery=None):
     """Generate cv tc thumbnails
 
     Parameters
@@ -511,28 +507,29 @@ def generate_cv_tc_thumbnail(
 
     assert len(sessions) == len(image_files)
 
-    for image, session_id in zip(image_files,
-                                 sessions):
-        cv_tc_plot_after = os.path.join(
-            output_dir,
-            "cv_tc_session_%s.png" % session_id)
-        qa_mem.cache(
-            check_preprocessing.plot_cv_tc)(
-            image, session_id,
-            subject_id,
-            output_dir,
-            cv_tc_plot_outfile=cv_tc_plot_after,
-            plot_diff=True)
+    cv_tc_plot_output_file = os.path.join(
+        output_dir,
+        "cv_tc_plot%s.png")
 
-        # create thumbnail
-        thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(
-            href=os.path.basename(cv_tc_plot_after))
-        thumbnail.img = reporter.img(
-            src=os.path.basename(cv_tc_plot_after), height="500px",
-            width="1200px")
-        thumbnail.description = ("Coefficient of Variation "
-                                 "(session %s)" % session_id)
+    qa_mem.cache(
+        check_preprocessing.plot_cv_tc)(
+        image_files,
+        sessions,
+        subject_id,
+        cv_tc_plot_outfile=cv_tc_plot_output_file,
+        plot_diff=True)
+
+    # create thumbnail
+    thumbnail = reporter.Thumbnail()
+    thumbnail.a = reporter.a(
+        href=os.path.basename(cv_tc_plot_output_file))
+    thumbnail.img = reporter.img(
+        src=os.path.basename(cv_tc_plot_output_file), height="500px",
+        width="1200px")
+    thumbnail.description = "Coefficient of Variation (%d sessions)"\
+                                 % len(sessions)
+
+    if results_gallery:
         results_gallery.commit_thumbnails(thumbnail)
 
 
@@ -901,6 +898,7 @@ def _do_subject_normalize(output_dir,
                 subject_wm_file=subject_wm_file,
                 subject_csf_file=subject_csf_file,
                 brain=brain,
+                cmap=cmap,
                 results_gallery=results_gallery))
 
     # collect ouput
@@ -1301,10 +1299,10 @@ def _do_subject_preproc(
             corrected_FMRI = output['func']
 
             generate_cv_tc_thumbnail(corrected_FMRI,
-                                     subject_data.output_dir,
-                                     subject_data.subject_id,
                                      subject_data.session_id,
-                                     results_gallery)
+                                     subject_data.subject_id,
+                                     subject_data.output_dir,
+                                     results_gallery=results_gallery)
 
         if parent_results_gallery:
             commit_subject_thumnbail_to_parent_gallery(
