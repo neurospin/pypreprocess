@@ -7,7 +7,6 @@
 
 import os
 import joblib
-import shutil
 import commands
 
 import numpy as np
@@ -15,22 +14,29 @@ import nibabel
 from nisl import resampling
 
 
-def is_3D(image_filename):
+def is_3D(image):
     """Check whether image is 3D"""
 
-    shape = nibabel.load(image_filename).shape
+    if type(image) is str:
+        image = nibabel.load(image)
 
-    if len(shape) == 3:
+    if len(image.shape) == 3:
         return True
     else:
-        return len(shape) == 4 and shape[-1] == 1
+        return len(image.shape) == 4 and image.shape[-1] == 1
 
 
-def is_4D(image_filename):
+def is_4D(image):
     """Check whether image is 4D
     """
 
-    return len(nibabel.load(image_filename).shape) == 4
+    if type(image) is str:
+        image = nibabel.load(image)
+
+    if len(image.shape) == 4:
+        return True
+    else:
+        return len(image.shape) == 5 and image.shape[-1] == 1
 
 
 def get_vox_dims(volume):
@@ -182,3 +188,45 @@ def resample_img(input_img_filename,
     nibabel.save(resampled_img, output_img_filename)
 
     return output_img_filename
+
+
+def compute_mean_3D_image(images, output_filename=None):
+    """Computes the mean of --perhaps differently shaped-- images
+
+    Parameters
+    ----------
+    images: list of strings/image objects
+        images whose mean we seek (each element could be a 3D/4D image
+        filename or object)
+
+    Returns
+    -------
+    mean nifti image object
+
+    """
+
+    # make list of data an affines
+    all_data = []
+    all_affine = []
+    for image in images:
+        if type(image) is str:
+            image = nibabel.load(image)
+        data = image.get_data()
+
+        if is_4D(image):
+            data = data.mean(-1)
+
+        all_data.append(data)
+        all_affine.append(image.get_affine())
+
+    # compute mean
+    mean_data = np.mean(all_data, axis=0)
+    mean_affine = np.mean(all_affine, axis=0)
+    mean_image = nibabel.Nifti1Image(mean_data, mean_affine)
+
+    # save mean image
+    if output_filename:
+        nibabel.save(mean_image, output_filename)
+
+    # return return result
+    return mean_image
