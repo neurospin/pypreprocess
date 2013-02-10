@@ -40,7 +40,7 @@ def del_empty_dirs(s_dir):
     return b_empty
 
 
-def export_report(src, make_archive=True):
+def export_report(src, tag="", make_archive=True):
     """
     Exports a report (html, php, etc. files) , ignoring data
     files like *.nii, etc.
@@ -64,7 +64,7 @@ def export_report(src, make_archive=True):
                     os.path.join(folder, f)) and not check_extension(f))]
 
     # sanity
-    dst = os.path.join(src, "frozen_report")
+    dst = os.path.join(src, "frozen_report_%s" % tag)
 
     if os.path.exists(dst):
         print "Removing old %s." % dst
@@ -138,7 +138,7 @@ class ResultsGallery(object):
     """
 
     def __init__(self, loader_filename,
-                 refresh_timeout=5000,
+                 refresh_timeout=60000,  # reload every minute
                  title='Results',
                  description=None
                  ):
@@ -155,7 +155,16 @@ class ResultsGallery(object):
         fd = open(self.loader_filename, 'a')
         fd.close()
 
-    def commit_thumbnails(self, thumbnails):
+    def commit_results_from_filename(self, filename):
+        with open(filename) as fd:
+            divs = fd.read()
+            fd.close()
+
+            loader_fd = open(self.loader_filename, 'a')
+            loader_fd.write(divs)
+            loader_fd.close()
+
+    def commit_thumbnails(self, thumbnails, id=None):
         if not type(thumbnails) is list:
             thumbnails = [thumbnails]
 
@@ -198,7 +207,9 @@ def lines2breaks(lines):
     if type(lines) is str:
         lines = lines.split('\n')
 
-    return tempita.HTMLTemplate("<br>".join(lines)).substitute()
+    log = "<br>".join(lines)
+
+    return tempita.HTMLTemplate(log).content
 
 
 def nipype2htmlreport(nipype_report_filename):

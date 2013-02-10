@@ -13,7 +13,7 @@ import glob
 import re
 import gzip
 
-from joblib import Parallel, delayed
+import joblib
 from scipy import io
 from nipype.interfaces.base import Bunch
 import numpy as np
@@ -292,24 +292,28 @@ def _fetch_dataset(dataset_name, urls, data_dir=None, uncompress=True,
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
 
-    files = []
-    for url in urls:
-        full_name = _fetch_file(url, data_dir)
-        if not full_name:
-            print 'An error occured, abort fetching'
-            shutil.rmtree(data_dir)
-        if uncompress:
-            try:
-                _uncompress_file(full_name)
-            except Exception:
-                # We are giving it a second try, but won't try a third
-                # time :)
-                print 'archive corrupted, trying to download it again'
-                _fetch_file(url, data_dir, overwrite=True)
-                _uncompress_file(full_name)
-        files.append(full_name)
+    files = joblib.Parallel(n_jobs=-1, verbose=100)(joblib.delayed(
+            _fetch_dataset_url)(url, data_dir, uncompress) for url in urls)
 
     return files
+
+
+def _fetch_dataset_url(url, data_dir, uncompress):
+    full_name = _fetch_file(url, data_dir)
+    if not full_name:
+        print 'An error occured, abort fetching'
+        shutil.rmtree(data_dir)
+    if uncompress:
+        try:
+            _uncompress_file(full_name)
+        except Exception:
+            # We are giving it a second try, but won't try a third
+            # time :)
+            print 'archive corrupted, trying to download it again'
+            _fetch_file(url, data_dir, overwrite=True)
+            _uncompress_file(full_name)
+
+    return full_name
 
 
 def _get_dataset(dataset_name, file_names, data_dir=None, folder=None):
@@ -413,8 +417,9 @@ def fetch_haxby(data_dir=None, subject_ids=None, redownload=False):
             yield data_dir, subject_id, url, redownload
 
     # parallel fetch
-    pairs = Parallel(n_jobs=-1)(delayed(fetch_haxby_subject_data)(x, y, z, w)\
-                                    for x, y, z, w in url_factory())
+    pairs = joblib.Parallel(n_jobs=-1, verbose=100)(
+        joblib.delayed(fetch_haxby_subject_data)(x, y, z, w)\
+            for x, y, z, w in url_factory())
 
     # pack pairs in to a dict
     for subject_id, subject_data in pairs:
@@ -442,6 +447,8 @@ def _glob_spm_auditory_data(subject_dir):
     _subject_data = {}
     _subject_data["func"] = [subject_data[x] for x in subject_data.keys()
                              if re.match(".+?fM00223_0\d\d\.img$", x)]
+    _subject_data["func"].sort()
+
     _subject_data["anat"] = [subject_data[x] for x in subject_data.keys()
                              if re.match(".+?sM00223_002\.img$", x)][0]
     return _subject_data
@@ -728,6 +735,7 @@ def fetch_nyu_rest(n_subjects=None, sessions=[1], data_dir=None):
     anat_skull = []
     func = []
     session = []
+    subject_ids = []
     # Loading session by session
     for session_id in sessions:
         session_path = "session" + str(session_id)
@@ -750,16 +758,18 @@ def fetch_nyu_rest(n_subjects=None, sessions=[1], data_dir=None):
                 _fetch_dataset('nyu_rest', [url], data_dir=data_dir,
                         folder=session_path)
                 files = _get_dataset("nyu_rest", paths, data_dir=data_dir)
-            for i in range(len(subjects)):
-                # We are considering files 3 by 3
-                i *= 3
-                anat_anon.append(files[i])
-                anat_skull.append(files[i + 1])
-                func.append(files[i + 2])
-                session.append(session_id)
+        for i in range(len(subjects)):
+            # We are considering files 3 by 3
+            i *= 3
+            anat_anon.append(files[i])
+            anat_skull.append(files[i + 1])
+            func.append(files[i + 2])
+            subject_ids.append(os.path.basename(os.path.dirname(
+                        os.path.dirname(files[i]))))
+        session.append(session_id)
 
     return Bunch(anat_anon=anat_anon, anat_skull=anat_skull, func=func,
-            session=session)
+            session=session, subject_ids=subject_ids)
 
 
 def fetch_poldrack_mixed_gambles(data_dir=None):
@@ -788,3 +798,87 @@ def fetch_poldrack_mixed_gambles(data_dir=None):
 
     # return the data
     return Bunch(data=files)
+
+
+def fetch_openfmri(accession_number, data_dir, redownload=False):
+    """ Downloads and extract datasets from www.openfmri.org
+
+        Parameters
+        ----------
+        accession_number: str
+            Dataset identifier, as displayed on https://openfmri.org/data-sets
+        data_dir: str
+            Destination directory.
+        redownload: boolean
+            Set to True to force redownload of already available data.
+            Defaults to False.
+
+        Datasets
+        --------
+        {accession_number}: {dataset name}
+        ds000001: Balloon Analog Risk-taking Task
+        ds000002: Classification learning
+        ds000003: Rhyme judgment
+        ds000005: Mixed-gambles task
+        ds000007: Stop-signal task with spoken & manual responses
+        ds000008: Stop-signal task with unselective and selective stopping
+        ds000011: Classification learning and tone-counting
+        ds000017: Classification learning and stop-signal (1 year test-retest)
+        ds000051: Cross-language repetition priming
+        ds000052: Classification learning and reversal
+        ds000101: Simon task dataset
+        ds000102: Flanker task (event-related)
+        ds000105: Visual object recognition
+        ds000107: Word and object processing
+
+        Returns
+        -------
+        ds_path: str
+            Path of the dataset.
+    """
+
+    datasets = {
+        'ds000001': 'Balloon Analog Risk-taking Task',
+        'ds000002': 'Classification learning',
+        'ds000003': 'Rhyme judgment',
+        'ds000005': 'Mixed-gambles task',
+        'ds000007': 'Stop-signal task with spoken & manual responses',
+        'ds000008': 'Stop-signal task with unselective and selective stopping',
+        'ds000011': 'Classification learning and tone-counting',
+        'ds000017': ('Classification learning and '
+                     'stop-signal (1 year test-retest)'),
+        'ds000051': 'Cross-language repetition priming',
+        'ds000052': 'Classification learning and reversal',
+        'ds000101': 'Simon task dataset',
+        'ds000102': 'Flanker task (event-related)',
+        'ds000105': 'Visual object recognition',
+        'ds000107': 'Word and object processing',
+    }
+
+    files = {
+        'ds000001': ['ds001_raw_fixed_1'],
+        'ds000002': ['ds002_raw_0'],
+        'ds000003': ['ds003_raw'],
+        'ds000005': ['ds005_raw'],
+        'ds000007': ['ds007_raw'],
+        'ds000008': ['ds008_raw'],
+        'ds000011': ['ds011_raw'],
+        'ds000017': ['ds017A_raw', 'ds017B_raw'],
+        'ds000051': ['ds051_raw'],
+        'ds000052': ['ds052_raw'],
+        'ds000101': ['ds101_raw'],
+        'ds000102': ['ds102_raw'],
+        'ds000105': ['ds105_raw'],
+        'ds000107': ['ds107_raw'],
+    }
+
+    ds_url = 'https://openfmri.org/system/files/%s.tgz'
+    ds_name = datasets[accession_number].lower().replace(' ', '_')
+    ds_urls = [ds_url % name for name in files[accession_number]]
+    ds_path = os.path.join(data_dir, ds_name)
+
+    if not os.path.exists(ds_path) or redownload:
+        if os.path.exists(ds_path):
+            shutil.rmtree(ds_path)
+        _fetch_dataset(ds_name, ds_urls, data_dir, verbose=1)
+    return ds_path

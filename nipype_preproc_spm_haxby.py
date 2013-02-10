@@ -19,12 +19,16 @@ python nipype_preproc_spm_haxby.py
 # standard imports
 import os
 import sys
+import json
 
 # data-grabbing imports
 from external.nisl.datasets import fetch_haxby, unzip_nii_gz
 
 # import spm preproc utilities
 import nipype_preproc_spm_utils
+
+# DARTEL ?
+DO_DARTEL = False
 
 DATASET_DESCRIPTION = """\
 This is a block-design fMRI dataset from a study on face and object\
@@ -71,8 +75,7 @@ if __name__ == '__main__':
             subject_data.anat = sd.anat.replace(".gz", "")
             subject_data.func = sd.bold.replace(".gz", "")
             subject_data.output_dir = os.path.join(
-                os.path.join(OUTPUT_DIR, subject_data.session_id),
-                subject_data.subject_id)
+                OUTPUT_DIR, subject_data.subject_id)
 
             yield subject_data
 
@@ -80,10 +83,16 @@ if __name__ == '__main__':
     report_filename = os.path.join(OUTPUT_DIR,
                                    "_report.html")
 
-    nipype_preproc_spm_utils.do_group_preproc(
+    results = nipype_preproc_spm_utils.do_subjects_preproc(
         subject_factory(),
+        output_dir=OUTPUT_DIR,
         do_realign=False,
         do_coreg=False,
+        do_dartel=DO_DARTEL,
         do_cv_tc=False,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename)
+
+    for result in results:
+        path = os.path.join(OUTPUT_DIR, result['subject_id'], 'infos.json')
+        json.dump(result, open(path, 'wb'))
