@@ -65,6 +65,8 @@ datasets_exclusions = {
               ],
     'ds107': ['sub003',  # garbage anat
               ],
+    'ds105': ['sub005',  # missing run012
+              ]
     }
 
 
@@ -168,25 +170,25 @@ def main(data_dir, output_dir, exclusions=None):
 
 if __name__ == '__main__':
     # where output will be spat; replace as necessary
-    output_root_dir = '/volatile/home/edohmato/openfmri_pypreproc_runs'
+    output_root_dir = '/havoc/openfmri/preproc'
 
     # dataset ids we're interested in
     ds_ids = sorted([
-            'ds001',
-            'ds002',
-            'ds003',
-            'ds005',
-            'ds007',
-            'ds008',
-            'ds011',
+            # 'ds001',
+            # 'ds002',
+            # 'ds003',
+            # 'ds005',
+            # 'ds007',
+            # 'ds008',
+            # 'ds011',
             'ds017A',
-            'ds017B',
-            'ds051',
-            'ds052',
-            'ds101',
-            'ds102',
-            'ds105',
-            'ds107'
+            # 'ds017B',
+            # 'ds051',
+            # 'ds052',
+            # 'ds101',
+            # 'ds102',
+            # 'ds105',
+            # 'ds107'
             ])
 
     # /!\ Don't try to 'parallelize' this loop!!!

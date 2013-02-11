@@ -1,4 +1,5 @@
 import os
+import warnings
 import multiprocessing
 
 import nibabel as nb
@@ -8,12 +9,16 @@ from nipy.modalities.fmri.glm import FMRILinearModel
 
 def apply_glm(out_dir, data, params, n_jobs=1):
     n_jobs = multiprocessing.cpu_count() if n_jobs == -1 else n_jobs
+    out_dir = os.path.join(out_dir, 'subjects')
 
     pool = multiprocessing.Pool(n_jobs)
 
     for doc in params:
         subject_id = doc['subject']
-
+        if subject_id not in data:
+            warnings.warn('Missing data for %s, '
+                          'subject is skipped.' % subject_id)
+            continue
         if n_jobs == 1:
             _apply_glm(os.path.join(out_dir, subject_id), data[subject_id],
                        doc['design_matrices'], doc['contrasts'])
@@ -30,9 +35,8 @@ def apply_glm(out_dir, data, params, n_jobs=1):
 def _apply_glm(out_dir, data, design_matrices,
                contrasts, mask='compute', model_id=None):
 
-    print out_dir
-
-    bold_dir = os.path.join(out_dir, 'frmi')
+    # print out_dir
+    bold_dir = os.path.join(out_dir, 'fmri')
     if not os.path.exists(bold_dir):
         os.makedirs(bold_dir)
     for i, img in enumerate(data):
@@ -42,7 +46,10 @@ def _apply_glm(out_dir, data, design_matrices,
     glm = FMRILinearModel(data, design_matrices, mask=mask)
     glm.fit(do_scaling=True, model='ar1')
 
+    nb.save(glm.mask, os.path.join(out_dir, 'mask.nii.gz'))
+
     for contrast_id in contrasts:
+        print out_dir, contrast_id
         z_map, t_map, c_map, var_map = glm.contrast(
             contrasts[contrast_id],
             con_id=contrast_id,
