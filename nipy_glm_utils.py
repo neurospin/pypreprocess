@@ -14,7 +14,7 @@ def apply_glm(out_dir, data, params, n_jobs=1):
     pool = multiprocessing.Pool(n_jobs)
 
     for doc in params:
-        subject_id = doc['subject']
+        subject_id = doc['subject_id']
         if subject_id not in data:
             warnings.warn('Missing data for %s, '
                           'subject is skipped.' % subject_id)
