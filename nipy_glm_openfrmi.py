@@ -13,6 +13,8 @@ from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 
 from nipy_glm_utils import apply_glm
 
+import pylab as pl
+
 
 datasets = {
     'ds001': 'Balloon Analog Risk-taking Task',
@@ -42,6 +44,8 @@ def load_glm_params(data_dir, model_id,
                     motion_params=None,
                     is_event_paradigm=True):
     """Load GLM parameters
+
+    XXX document this code!
 
     """
 
@@ -116,6 +120,16 @@ def load_glm_params(data_dir, model_id,
                     frametimes, paradigm, hrf_model=hrf_model,
                     drift_model=drift_model,
                     add_regs=add_regs, add_reg_names=add_reg_names)
+
+                # plot and save dmat
+                ax = design_matrix.show()
+                ax.set_position([.05, .25, .9, .65])
+                ax.set_title('Design matrix (%s, %s)' % (subject_id,
+                                                         session_id))
+                dmat_outfile = os.path.join(session_dir, 'design_matrix.png')
+                print "Saving design matrix %s" % dmat_outfile
+                pl.savefig(dmat_outfile)
+
             params.setdefault('design_matrices', []).append(
                 design_matrix.matrix)
 
@@ -224,7 +238,8 @@ if __name__ == '__main__':
     # load glm params
     glm_params = load_glm_params(data_dir, model_id,
                                  subject_ids=preproc_data.keys(),
-                                 motion_params=motion_params)
+                                 motion_params=motion_params,
+                                 )
 
     # apply glm
     apply_glm(out_dir, preproc_data, glm_params, n_jobs=-1)

@@ -988,6 +988,9 @@ def _do_subject_preproc(
     if do_report:
         import reporter
 
+        shutil.copy(os.path.join(
+                os.path.dirname(subject_data.output_dir), "failed.png"),
+                    subject_data.output_dir)
         report_filename = os.path.join(subject_data.output_dir, "_report.html")
         final_thumbnail = reporter.Thumbnail()
         final_thumbnail.a = reporter.a(href=report_filename)
@@ -1013,6 +1016,13 @@ def _do_subject_preproc(
         with open(report_filename, 'w') as fd:
             fd.write(str(report))
             fd.close()
+
+        def finalize_report():
+            if parent_results_gallery:
+                commit_subject_thumnbail_to_parent_gallery(
+                    final_thumbnail,
+                    subject_data.subject_id,
+                    parent_results_gallery)
     else:
         results_gallery = None
 
@@ -1041,6 +1051,10 @@ def _do_subject_preproc(
 
         # if failed to realign, return
         if realign_result.outputs is None:
+            if do_report:
+                final_thumbnail.img.src = 'failed.png'
+                final_thumbnail.description += ' (failed realignment)'
+                finalize_report()
             return
 
         subject_data.func = realign_result.outputs.realigned_files
@@ -1105,6 +1119,10 @@ def _do_subject_preproc(
 
         # if failed to coregister, return
         if coreg_result.outputs is None:
+            if do_report:
+                final_thumbnail.img.src = 'failed.png'
+                final_thumbnail.description += ' (failed coregistration)'
+                finalize_report()
             return
 
         # rest anat to coregistered version thereof
@@ -1141,6 +1159,10 @@ def _do_subject_preproc(
 
         # if failed to segment, return
         if segment_result.outputs is None:
+            if do_report:
+                final_thumbnail.img.src = 'failed.png'
+                final_thumbnail.description += ' (failed segmentation)'
+                finalize_report()
             return
 
         # output['segment_result'] = segment_result
@@ -1171,6 +1193,15 @@ def _do_subject_preproc(
                 )
 
             norm_result = norm_output["result"]
+
+            # if failed to normalize, return None
+            if norm_result.outputs is None:
+                if do_report:
+                    final_thumbnail.img.src = 'failed.png'
+                    final_thumbnail.description += ' (failed normalization)'
+                    finalize_report()
+                return
+
             subject_data.func = norm_result.outputs.normalized_files
             output['func'] = norm_result.outputs.normalized_files
 
@@ -1209,6 +1240,10 @@ def _do_subject_preproc(
 
             # if failed to normalize, return None
             if norm_result.outputs is None:
+                if do_report:
+                    final_thumbnail.img.src = 'failed.png'
+                    final_thumbnail.description += ' (failed normalization)'
+                    finalize_report()
                 return
 
             output['anat'] = norm_result.outputs.normalized_files
@@ -1228,6 +1263,9 @@ def _do_subject_preproc(
 
         # if failed to normalize, return None
         if norm_result.outputs is None:
+            if do_report:
+                final_thumbnail.img.src = 'failed.png'
+                finalize_report()
             return
 
         ####################################################
@@ -1256,6 +1294,10 @@ def _do_subject_preproc(
 
         # if failed to normalize, return None
         if norm_result.outputs is None:
+            if do_report:
+                final_thumbnail.img.src = 'failed.png'
+                final_thumbnail.description += ' (failed normalization)'
+                finalize_report()
             return
 
         subject_data.func = norm_result.outputs.normalized_files
@@ -1289,12 +1331,16 @@ def _do_subject_preproc(
 
         # if failed to normalize, return None
         if norm_result.outputs is None:
+            if do_report:
+                final_thumbnail.img.src = 'failed.png'
+                final_thumbnail.description += ' (failed normalization)'
+                finalize_report()
             return
 
         output['anat'] = norm_result.outputs.normalized_files
 
-    # generate cv plots
     if do_report:
+        # generate cv plots
         if do_cv_tc and do_normalize:
             corrected_FMRI = output['func']
 
@@ -1304,14 +1350,7 @@ def _do_subject_preproc(
                                      subject_data.output_dir,
                                      results_gallery=results_gallery)
 
-        if parent_results_gallery:
-            commit_subject_thumnbail_to_parent_gallery(
-                final_thumbnail,
-                subject_data.subject_id,
-                parent_results_gallery)
-
-        output['final_thumbnail'] = final_thumbnail
-        output['results_gallery'] = results_gallery
+        finalize_report()
 
     return subject_data, output
 
@@ -1619,6 +1658,9 @@ def do_subjects_preproc(subjects,
         # do some sanity
         shutil.copy(
             "css/styles.css", os.path.dirname(report_filename))
+
+        shutil.copy(
+            "css/failed.png", os.path.dirname(report_filename))
 
         # compute docstring explaining preproc steps undergone
         preproc_undergone = """\

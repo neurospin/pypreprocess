@@ -36,6 +36,8 @@ def _apply_glm(out_dir, data, design_matrices,
     if not os.path.exists(bold_dir):
         os.makedirs(bold_dir)
     for i, img in enumerate(data):
+        if type(img) is str:
+            img = nb.load(img)
         nb.save(img, os.path.join(bold_dir, 'bold_session_%i.nii.gz' % i))
 
     # fit glm

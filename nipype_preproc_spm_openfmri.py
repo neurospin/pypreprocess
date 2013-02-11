@@ -54,17 +54,18 @@ datasets = {
 # subjects per dataset we want to exclude
 # XXX please, justify each exclusion below (comments, etc.)
 datasets_exclusions = {
-    'ds017A': ['sub003'],  # XXX why ?
-    'ds017B': ['sub003'],
-    'ds007': ['sub009', 'sub018'],
-    'ds051': ['sub006',
-              'sub011',  # Running 'Realign: Estimate & Reslice'
-              # Failed  'Realign: Estimate & Reslice'
-              # Error using spm_bsplinc
-              # File too small.
-              ],
-    'ds107': ['sub003',  # garbage anat
-              ],
+    # let the pipeline find out itself what is evil --or not-- about the data
+    # 'ds017A': ['sub003'],  # XXX why ?
+    # 'ds017B': ['sub003'],
+    # 'ds007': ['sub009', 'sub018'],
+    # 'ds051': ['sub006',
+    #           'sub011',  # Running 'Realign: Estimate & Reslice'
+    #           # Failed  'Realign: Estimate & Reslice'
+    #           # Error using spm_bsplinc
+    #           # File too small.
+    #           ],
+    # 'ds107': ['sub003',  # garbage anat
+    #           ],
     }
 
 
