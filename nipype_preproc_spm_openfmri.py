@@ -161,7 +161,7 @@ def main(data_dir, output_dir, exclusions=None):
         output_dir=output_dir,
         do_deleteorient=True,  # some openfmri data have garbage orientation
         do_dartel=DO_DARTEL,
-        do_cv_tc=False,
+        # do_cv_tc=False,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename
         )
