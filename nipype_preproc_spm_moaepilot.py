@@ -8,6 +8,7 @@
 # standard imports
 import os
 import sys
+import json
 
 # import spm preproc utilities
 import nipype_preproc_spm_utils
@@ -52,7 +53,7 @@ if __name__ == '__main__':
     # do preprocessing proper
     report_filename = os.path.join(OUTPUT_DIR,
                                    "_report.html")
-    nipype_preproc_spm_utils.do_subjects_preproc(
+    results = nipype_preproc_spm_utils.do_subjects_preproc(
         subject_factory(),
         do_deleteorient=False,
         ignore_exception=False,  # don't mask SPM excptions

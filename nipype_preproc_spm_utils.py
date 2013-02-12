@@ -10,6 +10,7 @@ XXX TODO: re-factor the code!
 # standard imports
 import os
 import shutil
+import json
 
 # imports for caching (yeah, we aint got time to loose!)
 from nipype.caching import Memory
@@ -979,7 +980,8 @@ def _do_subject_preproc(
     # sanity
     subject_data.sanitize(do_deleteorient=do_deleteorient)
 
-    output = {"subject_id": subject_data.subject_id}
+    output = {"subject_id": subject_data.subject_id,
+              "output_dir": subject_data.output_dir}
 
     # create subject_data.output_dir if dir doesn't exist
     if not os.path.exists(subject_data.output_dir):
@@ -1380,7 +1382,8 @@ def _do_subject_dartelnorm2mni(output_dir,
 
     """
 
-    output = {"subject_id": subject_id}
+    output = {"subject_id": subject_id,
+              "output_dir": output_dir}
 
     # prepare for smart caching
     cache_dir = os.path.join(output_dir, 'cache_dir')
@@ -1591,21 +1594,21 @@ def do_group_DARTEL(output_dir,
 
 
 def do_subjects_preproc(subjects,
-                     output_dir=None,
-                     do_deleteorient=True,
-                     do_report=True,
-                     do_export_report=False,
-                     dataset_description=None,
-                     report_filename=None,
-                     do_bet=False,
-                     do_realign=True,
-                     do_coreg=True,
-                     do_segment=True,
-                     do_normalize=True,
-                     do_dartel=False,
-                     do_cv_tc=True,
-                     ignore_exception=True
-                     ):
+                        output_dir=None,
+                        do_deleteorient=True,
+                        do_report=True,
+                        do_export_report=False,
+                        dataset_description=None,
+                        report_filename=None,
+                        do_bet=False,
+                        do_realign=True,
+                        do_coreg=True,
+                        do_segment=True,
+                        do_normalize=True,
+                        do_dartel=False,
+                        do_cv_tc=True,
+                        ignore_exception=True
+                        ):
 
     """This functions doe intra-subject fMRI preprocessing on a
     group os subjects.
@@ -1840,6 +1843,12 @@ def do_subjects_preproc(subjects,
             subject_result['anat'] = item[
                 'dartelnorm2mni_result'].outputs.normalized_files
             subject_result['estimated_motion'] = item['estimated_motion']
+            subject_result['output_dir'] = item['output_dir']
+
+            # dump result to json output file
+            json_outfile = os.path.join(
+                subject_result['output_dir'], 'infos.json')
+            json.dump(subject_result, open(json_outfile, 'wb'))
 
             _results.append(subject_result)
 
@@ -1857,6 +1866,12 @@ def do_subjects_preproc(subjects,
             subject_result['func'] = item['func']
             subject_result['anat'] = item['anat']
             subject_result['estimated_motion'] = item['estimated_motion']
+            subject_result['output_dir'] = item['output_dir']
+
+            # dump result to json output file
+            json_outfile = os.path.join(
+                subject_result['output_dir'], 'infos.json')
+            json.dump(subject_result, open(json_outfile, 'wb'))
 
             _results.append(subject_result)
 
@@ -1875,4 +1890,5 @@ def do_subjects_preproc(subjects,
             reporter.export_report(os.path.dirname(report_filename),
                                    tag=tag)
 
+    # return results (caller may need this)
     return results

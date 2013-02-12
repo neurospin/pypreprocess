@@ -202,14 +202,6 @@ if __name__ == '__main__':
 
             results = main(data_dir, output_dir,
                            datasets_exclusions.get(ds_id))
-
-            # dump results to json file (one per subject)
-            for result in results:
-                result['bold'] = result.pop('func')
-                result['subject'] = result.pop('subject_id')
-                path = os.path.join(
-                    output_dir, result['subject'], 'infos.json')
-                json.dump(result, open(path, 'wb'))
         except:
             print traceback.format_exc()
             pass

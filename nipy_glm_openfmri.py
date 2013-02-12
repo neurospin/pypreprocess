@@ -206,13 +206,13 @@ def load_preproc_data(data_dir, subject_ids=None):
         infos = json.load(open(os.path.join(subject_dir, 'infos.json'), 'rb'))
         if not isinstance(infos['estimated_motion'], list):
             infos['estimated_motion'] = [infos['estimated_motion']]
-        if not isinstance(infos['bold'], list):
-            infos['bold'] = [infos['bold']]
+        if not isinstance(infos['func'], list):
+            infos['func'] = [infos['func']]
         for fname in infos['estimated_motion']:
             motion.setdefault(
-                infos['subject'], []).append(np.loadtxt(fname))
+                infos['subject_id'], []).append(np.loadtxt(fname))
 
-        data[infos['subject']] = [nb.load(x) for x in infos['bold']]
+        data[infos['subject_id']] = [nb.load(x) for x in infos['func']]
 
     return data, motion
 
