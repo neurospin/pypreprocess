@@ -8,7 +8,7 @@ from utils import apply_preproc, load_preproc, load_glm_params
 sys.path.append('..')
 
 from nipy_glm_utils import apply_glm
-from external.nisl.datasets import fetch_openfmri
+from datasets import fetch_openfmri
 
 FULL_ID = 'ds000001'
 SHORT_ID = 'ds001'
