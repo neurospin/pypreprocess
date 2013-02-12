@@ -1,13 +1,19 @@
 import os
+import glob
 import warnings
 import multiprocessing
 
 import nibabel as nb
+import numpy as np
 
 from nipy.modalities.fmri.glm import FMRILinearModel
+from nisl import resampling
 
 
-def apply_glm(out_dir, data, params, n_jobs=1):
+def apply_glm(dataset_id, out_dir, data, params, resample=True, n_jobs=1):
+    out_dir = os.path.join(out_dir, dataset_id)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
     n_jobs = multiprocessing.cpu_count() if n_jobs == -1 else n_jobs
     out_dir = os.path.join(out_dir, 'subjects')
 
@@ -21,19 +27,21 @@ def apply_glm(out_dir, data, params, n_jobs=1):
             continue
         if n_jobs == 1:
             _apply_glm(os.path.join(out_dir, subject_id), data[subject_id],
-                       doc['design_matrices'], doc['contrasts'])
+                       doc['design_matrices'], doc['contrasts'],
+                       resample=resample)
         else:
             pool.apply_async(
                 _apply_glm,
                 args=(os.path.join(out_dir, subject_id), data[subject_id],
-                      doc['design_matrices'], doc['contrasts']))
+                      doc['design_matrices'], doc['contrasts']),
+                      kwds={'resample': resample})
 
     pool.close()
     pool.join()
 
 
 def _apply_glm(out_dir, data, design_matrices,
-               contrasts, mask='compute', model_id=None):
+               contrasts, mask='compute', model_id=None, resample=True):
 
     # print out_dir
     bold_dir = os.path.join(out_dir, 'fmri')
@@ -47,6 +55,8 @@ def _apply_glm(out_dir, data, design_matrices,
     glm.fit(do_scaling=True, model='ar1')
 
     nb.save(glm.mask, os.path.join(out_dir, 'mask.nii.gz'))
+    if resample:
+        resample_niimg(os.path.join(out_dir, 'mask.nii.gz'))
 
     for contrast_id in contrasts:
         print out_dir, contrast_id
@@ -70,3 +80,40 @@ def _apply_glm(out_dir, data, design_matrices,
                 map_path = os.path.join(
                     map_dir, '%s.nii.gz' % contrast_id)
             nb.save(out_map, map_path)
+            if resample:
+                resample_niimg(map_path)
+
+
+def resample_niimg(niimg):
+    target_affine = np.array([[-3., 0., 0., 78.],
+                              [0., 3., 0., -111.],
+                              [0., 0., 3., -51.],
+                              [0., 0., 0., 1., ]])
+    target_shape = (53, 63, 46)
+
+    if (_get_shape(niimg) != target_shape or
+        _get_affine(niimg) != target_affine):
+        img = resampling.resample_img(niimg, target_affine, target_shape)
+        nb.save(img, niimg)
+
+
+def _get_affine(niimg):
+    if hasattr(niimg, 'get_affine'):
+        return niimg.get_affine()
+    elif os.path.exists(niimg):
+        return nb.load(niimg).get_affine()
+    else:
+        raise Exception('`niimg` must either be a valid '
+                        'image path or an object exposing the '
+                        '`get_affine` method. Got %s instead' % niimg)
+
+
+def _get_shape(niimg):
+    if hasattr(niimg, 'shape'):
+        return niimg.shape
+    elif os.path.exists(niimg):
+        return nb.load(niimg).shape
+    else:
+        raise Exception('`niimg` must either be a valid '
+                        'image path or an object having a '
+                        '`shape` attribute. Got %s instead' % niimg)
