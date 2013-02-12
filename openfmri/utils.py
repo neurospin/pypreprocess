@@ -27,7 +27,7 @@ from nipy.modalities.fmri.experimental_paradigm import EventRelatedParadigm
 from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 
 # misc
-from external.nisl.datasets import unzip_nii_gz
+from datasets_extras import unzip_nii_gz
 
 
 DATASET_DESCRIPTION = """\
