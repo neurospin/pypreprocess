@@ -45,6 +45,7 @@ if __name__ == '__main__':
     # download data
     data_dir = fetch_openfmri(FULL_ID, root_dir)
 
+    # this dataset does not contain contrast definitions
     dest = os.path.join(data_dir, SHORT_ID,
                         'models', MODEL_ID, 'task_contrasts.txt')
     shutil.copy('%s_task_contrasts.txt' % SHORT_ID, dest)
