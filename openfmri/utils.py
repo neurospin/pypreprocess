@@ -139,8 +139,7 @@ def apply_preproc(dataset_id, data_dir, output_dir, ignore_list=None):
             yield subject_data
 
     # do preprocessing proper
-    report_filename = os.path.join(output_dir,
-                                   "_report.html")
+    report_filename = os.path.join(output_dir, "_report.html")
     for results in  nipype_preproc_spm_utils.do_subjects_preproc(
         subject_factory(),
         output_dir=output_dir,
@@ -148,11 +147,11 @@ def apply_preproc(dataset_id, data_dir, output_dir, ignore_list=None):
         do_dartel=DO_DARTEL,
         # do_cv_tc=False,
         dataset_description=DATASET_DESCRIPTION,
-        do_report=False,
-        # report_filename=report_filename
+        # do_report=False,
+        report_filename=report_filename
         ):
-        json_path = os.path.join(
-            output_dir, results['subject_id'], 'infos.json')
+        json_path = os.path.join(output_dir,
+                                 results['subject_id'], 'infos.json')
         json.dump(results, open(json_path, 'wb'))
 
 

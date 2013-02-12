@@ -15,6 +15,10 @@ import commands
 import re
 
 
+# find package path
+root_dir = os.path.split(os.path.abspath(__file__))[0]
+
+
 def del_empty_dirs(s_dir):
     """
     Recursively deletes all empty subdirs fo given dir.
@@ -181,8 +185,8 @@ def SUBJECT_PREPROC_REPORT_HTML_TEMPLATE():
 
     """
 
-    with open(
-        "template_reports/subject_preproc_report_template.tmpl.html") as fd:
+    with open(os.path.join(root_dir, 'template_reports',
+                           'subject_preproc_report_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
 
@@ -192,8 +196,8 @@ def DATASET_PREPROC_REPORT_HTML_TEMPLATE():
     Returns report template for dataset preproc.
 
     """
-    with open(
-        "template_reports/dataset_preproc_report_template.tmpl.html") as fd:
+    with open(os.path.join(root_dir, 'template_reports',
+                           'dataset_preproc_report_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
 
@@ -225,9 +229,8 @@ def nipype2htmlreport(nipype_report_filename):
 # DEMO
 #######
 if __name__ == '__main__':
-    with open(("template_reports/dataset_preproc_report"
-               "_template.tmpl.html")
-              ) as fd:
+    with open(os.path.join(root_dir, 'template_reports',
+                           'dataset_preproc_report_template.tmpl.html')) as fd:
 
         # read template
         tmpl = tempita.HTMLTemplate(fd.read())

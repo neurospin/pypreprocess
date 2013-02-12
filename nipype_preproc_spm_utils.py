@@ -27,6 +27,9 @@ import nipype.interfaces.matlab as matlab
 # parallelism imports
 import joblib
 
+# find package path
+root_dir = os.path.split(os.path.abspath(__file__))[0]
+
 # set job count
 N_JOBS = -1
 if 'N_JOBS' in os.environ:
@@ -1617,8 +1620,8 @@ def do_subjects_preproc(subjects,
         import reporter
 
         # do some sanity
-        shutil.copy(
-            "css/styles.css", os.path.dirname(report_filename))
+        shutil.copy(os.path.join(root_dir, 'css', 'styles.css'),
+                    os.path.dirname(report_filename))
 
         # compute docstring explaining preproc steps undergone
         preproc_undergone = """\
