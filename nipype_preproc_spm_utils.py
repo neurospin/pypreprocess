@@ -19,7 +19,7 @@ from nipype.caching import Memory
 import nibabel as ni
 from nipype.interfaces.base import Bunch
 from io_utils import delete_orientation, is_3D, get_vox_dims,\
-    resample_img, do_3Dto4D_merge, compute_mean_3D_image
+    resample_img, do_3Dto4D_merge, compute_mean_3D_image, compute_mean_image
 
 # spm and matlab imports
 import nipype.interfaces.spm as spm
@@ -1074,13 +1074,10 @@ def _do_subject_preproc(
             final_thumbnail.img.src = realign_output['rp_plot']
     else:
         # manually compute mean (along time axis) of fMRI images
-        func_images = ni.load(subject_data.func)
-        mean_func_image = ni.Nifti1Image(
-            func_images.get_data().mean(-1), func_images.get_affine())
-        mean_func = os.path.join(
-            os.path.dirname(subject_data.func),
-            'mean' + os.path.basename(subject_data.func))
-        ni.save(mean_func_image, mean_func)
+        # XXX derive a more sensible path for the mean_func
+        mean_func = os.path.join(subject_data.output_dir,
+            'meanfunc')
+        compute_mean_image(subject_data.func, output_filename=mean_func)
 
     ################################################################
     # co-registration of structural (anatomical) against functional
