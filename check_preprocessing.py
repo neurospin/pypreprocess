@@ -47,7 +47,7 @@ def plot_spm_motion_parameters(parameter_file, title=None,
     if not title is None:
         pl.title(title, fontsize=10)
     pl.xlabel('time(scans)', fontsize=10)
-    pl.legend(('Ty', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'), prop={"size": 12},
+    pl.legend(('Tx', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'), prop={"size": 12},
               loc="upper left", ncol=2)
     pl.ylabel('Estimated motion (mm/degrees)', fontsize=10)
 
