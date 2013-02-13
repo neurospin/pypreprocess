@@ -1842,7 +1842,8 @@ def do_subjects_preproc(subjects,
                                            ].outputs.warped_files
             subject_result['anat'] = item[
                 'dartelnorm2mni_result'].outputs.normalized_files
-            subject_result['estimated_motion'] = item['estimated_motion']
+            if do_realign:
+                subject_result['estimated_motion'] = item['estimated_motion']
             subject_result['output_dir'] = item['output_dir']
 
             # dump result to json output file
@@ -1865,7 +1866,8 @@ def do_subjects_preproc(subjects,
             subject_result['subject_id'] = item['subject_id']
             subject_result['func'] = item['func']
             subject_result['anat'] = item['anat']
-            subject_result['estimated_motion'] = item['estimated_motion']
+            if do_realign:
+                subject_result['estimated_motion'] = item['estimated_motion']
             subject_result['output_dir'] = item['output_dir']
 
             # dump result to json output file
