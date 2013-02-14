@@ -1,0 +1,2 @@
+task003 probabilistic_vs_deterministic_classification 1 -1
+task003 deterministic_vs_probabilistic_classification -1 1
