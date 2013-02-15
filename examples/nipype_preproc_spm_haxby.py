@@ -9,6 +9,12 @@
 import os
 import sys
 
+"""chdir to script dir"""
+os.chdir(os.path.dirname(sys.argv[0]))
+
+# pypreprocess dir
+sys.path.append("..")
+
 # data-grabbing imports
 from datasets_extras import unzip_nii_gz, fetch_haxby
 

@@ -1,5 +1,4 @@
 import os
-import glob
 import warnings
 import multiprocessing
 
@@ -19,6 +18,7 @@ def apply_glm(dataset_id, out_dir, data, params, resample=True, n_jobs=1):
 
     pool = multiprocessing.Pool(n_jobs)
 
+    stat_maps = {}
     for doc in params:
         subject_id = doc['subject_id']
         if subject_id not in data:
@@ -26,18 +26,21 @@ def apply_glm(dataset_id, out_dir, data, params, resample=True, n_jobs=1):
                           'subject is skipped.' % subject_id)
             continue
         if n_jobs == 1:
-            _apply_glm(os.path.join(out_dir, subject_id), data[subject_id],
-                       doc['design_matrices'], doc['contrasts'],
-                       resample=resample)
+            stat_maps[subject_id] = _apply_glm(
+                os.path.join(out_dir, subject_id), data[subject_id],
+                doc['design_matrices'], doc['contrasts'],
+                resample=resample)
         else:
-            pool.apply_async(
+            stat_maps[subject_id] = pool.apply_async(
                 _apply_glm,
                 args=(os.path.join(out_dir, subject_id), data[subject_id],
                       doc['design_matrices'], doc['contrasts']),
-                      kwds={'resample': resample})
+                kwds={'resample': resample})
 
     pool.close()
     pool.join()
+
+    return stat_maps
 
 
 def _apply_glm(out_dir, data, design_matrices,
@@ -60,8 +63,9 @@ def _apply_glm(out_dir, data, design_matrices,
     if resample:
         resample_niimg(os.path.join(out_dir, 'mask.nii.gz'))
 
+    stat_maps = {}
     for contrast_id in contrasts:
-        print out_dir, contrast_id
+        stat_maps[contrast_id] = {}
         z_map, t_map, c_map, var_map = glm.contrast(
             contrasts[contrast_id],
             con_id=contrast_id,
@@ -84,6 +88,11 @@ def _apply_glm(out_dir, data, design_matrices,
             nb.save(out_map, map_path)
             if resample:
                 resample_niimg(map_path)
+
+            stat_maps[contrast_id][dtype] = map_path
+
+
+    return stat_maps
 
 
 def resample_niimg(niimg):

@@ -9,6 +9,11 @@
 import os
 import sys
 
+"""chdir to script dir"""
+os.chdir(os.path.dirname(sys.argv[0]))
+
+sys.path.append("..")
+
 """import dataset-fetching utilities"""
 from datasets_extras import fetch_spm_auditory_data
 
