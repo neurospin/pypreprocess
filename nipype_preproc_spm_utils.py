@@ -16,7 +16,6 @@ import json
 from nipype.caching import Memory
 
 # imports i/o
-import nibabel as ni
 from nipype.interfaces.base import Bunch
 from io_utils import delete_orientation, is_3D, get_vox_dims,\
     resample_img, do_3Dto4D_merge, compute_mean_3D_image, compute_mean_image
@@ -149,7 +148,7 @@ def generate_normalization_thumbnails(
     """
 
     import check_preprocessing
-    import reporter
+    import reporting.reporter as reporter
 
     if type(normalized_files) is str:
         nipype_report_filename = os.path.join(
@@ -302,7 +301,7 @@ def generate_segmentation_thumbnails(
     """
 
     import check_preprocessing
-    import reporter
+    import reporting.reporter as reporter
 
     if type(normalized_files) is str:
         nipype_report_filename = os.path.join(
@@ -495,7 +494,7 @@ def generate_cv_tc_thumbnail(
 
     """
 
-    import reporter
+    import reporting.reporter as reporter
     import check_preprocessing
 
     qa_cache_dir = os.path.join(output_dir, "QA")
@@ -581,7 +580,7 @@ def _do_subject_realign(output_dir,
     # generate gallery for HTML report
     if do_report:
         import check_preprocessing
-        import reporter
+        import reporting.reporter as reporter
 
         rp_files = realign_result.outputs.realignment_parameters
         if type(rp_files) is str:
@@ -674,7 +673,7 @@ def _do_subject_coreg(output_dir,
     # generate gallery for HTML report
     if do_report:
         import check_preprocessing
-        import reporter
+        import reporting.reporter as reporter
         import pylab as pl
 
         # nipype report
@@ -837,6 +836,7 @@ def _do_subject_normalize(output_dir,
                          segment_result=None,
                          brain="epi",
                          cmap=None,
+                          fwhm=0,
                          **spm_normalize_kwargs):
     """
     Wrapper for nipype.interfaces.spm.Normalize.
@@ -873,11 +873,28 @@ def _do_subject_normalize(output_dir,
     # run workflow
     normalize = mem.cache(spm.Normalize)
     norm_result = normalize(**spm_normalize_kwargs)
+    normalized_files = norm_result.outputs.normalized_files
+
+    # collect ouput
+    output['result'] = norm_result
+    if not norm_result.outputs is None:
+        normalized_files = norm_result.outputs.normalized_files
+        output['normalized_files'] = normalized_files
+
+    if fwhm:
+        smooth = mem.cache(spm.Smooth)
+        smooth_result = smooth(
+            in_files=normalized_files,
+            fwhm=fwhm)
+
+        # collect ouput
+        output['result'] = smooth_result
+        if not smooth_result.outputs is None:
+            normalized_files = smooth_result.outputs.smoothed_files
+            output['normalized_files'] = normalized_files
 
     # generate gallery for HTML report
     if do_report:
-        normalized_files = norm_result.outputs.normalized_files
-
         # generate normalization thumbs
         output.update(generate_normalization_thumbnails(
                 normalized_files,
@@ -905,8 +922,48 @@ def _do_subject_normalize(output_dir,
                 cmap=cmap,
                 results_gallery=results_gallery))
 
+    return output
+
+
+def _do_subject_smooth(output_dir,
+                       subject_id=None,
+                       sessions=[1],
+                       **spm_smooth_kwargs):
+    """
+    Wrapper for nipype.interfaces.spm.Smooth.
+
+    Parameters
+    ----------
+    output_dir: string
+        An existing folder where all output files will be written.
+
+    subject_id: string (optional)
+        id of the subject being preprocessed
+
+    do_report: boolean (optional)
+        if true, then QA plots will be generated after executing the normalize
+        node.
+
+    *spm_smooth_kwargs: kwargs (paramete-value dict)
+        parameters to be passed to the nipype.interfaces.spm.Smooth back-end
+        node
+
+    """
+
+    output = {}
+
+    # prepare for smart caching
+    cache_dir = os.path.join(output_dir, 'cache_dir')
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    mem = Memory(base_dir=cache_dir)
+
+    # run workflow
+    smooth = mem.cache(spm.Smooth)
+    smooth_result = smooth(**spm_smooth_kwargs)
+
     # collect ouput
-    output['result'] = norm_result
+    output['result'] = smooth_result
 
     return output
 
@@ -922,6 +979,7 @@ def _do_subject_preproc(
     func_to_anat=False,
     do_segment=True,
     do_normalize=True,
+    fwhm=0,
     do_cv_tc=True,
     parent_results_gallery=None,
     main_page="#",
@@ -991,7 +1049,7 @@ def _do_subject_preproc(
         os.makedirs(subject_data.output_dir)
 
     if do_report:
-        import reporter
+        import reporting.reporter as reporter
 
         shutil.copy(os.path.join(
                 os.path.dirname(subject_data.output_dir), "failed.png"),
@@ -1185,6 +1243,7 @@ def _do_subject_preproc(
                 results_gallery=results_gallery,
                 brain='epi',
                 sessions=subject_data.session_id,
+                fwhm=fwhm,
                 parameter_file=norm_parameter_file,
                 apply_to_files=norm_apply_to_files,
                 write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
@@ -1204,8 +1263,7 @@ def _do_subject_preproc(
                     finalize_report()
                 return
 
-            subject_data.func = norm_result.outputs.normalized_files
-            output['func'] = norm_result.outputs.normalized_files
+            output['func'] = norm_output['normalized_files']
 
             if do_report:
                 final_thumbnail.img.src = \
@@ -1248,7 +1306,7 @@ def _do_subject_preproc(
                     finalize_report()
                 return
 
-            output['anat'] = norm_result.outputs.normalized_files
+            output['anat'] = norm_output['normalized_files']
 
     elif do_normalize:
         ############################################
@@ -1282,6 +1340,7 @@ def _do_subject_preproc(
             brain="epi",
             do_report=do_report,
             results_gallery=results_gallery,
+            fwhm=fwhm,
             parameter_file=norm_parameter_file,
             apply_to_files=norm_apply_to_files,
             write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
@@ -1302,8 +1361,7 @@ def _do_subject_preproc(
                 finalize_report()
             return
 
-        subject_data.func = norm_result.outputs.normalized_files
-        output['func'] = norm_result.outputs.normalized_files
+        output['func'] = norm_output['normalized_files']
 
         #####################################################
         # Warp anat into MNI space using learned deformation
@@ -1339,7 +1397,7 @@ def _do_subject_preproc(
                 finalize_report()
             return
 
-        output['anat'] = norm_result.outputs.normalized_files
+        output['anat'] = norm_output['normalized_files']
 
     if do_report:
         # generate cv plots
@@ -1605,6 +1663,7 @@ def do_subjects_preproc(subjects,
                         do_coreg=True,
                         do_segment=True,
                         do_normalize=True,
+                        fwhm=0,
                         do_dartel=False,
                         do_cv_tc=True,
                         ignore_exception=True
@@ -1643,6 +1702,7 @@ def do_subjects_preproc(subjects,
               'do_report': do_report,
               'do_realign': do_realign, 'do_coreg': do_coreg,
               'do_segment': do_segment, 'do_normalize': do_normalize,
+              'fwhm': fwhm,
               'do_cv_tc': do_cv_tc,
               'ignore_exception': ignore_exception
               }
@@ -1656,7 +1716,7 @@ def do_subjects_preproc(subjects,
     # generate html report (for QA) as desired
     parent_results_gallery = None
     if do_report:
-        import reporter
+        import reporting.reporter as reporter
 
         # do some sanity
         shutil.copy(os.path.join(root_dir, 'css', 'styles.css'),

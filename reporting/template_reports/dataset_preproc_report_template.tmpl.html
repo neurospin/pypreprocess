@@ -1,0 +1,91 @@
+{{default done = 0}}
+{{default preproc_undergone = None}}
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>fMRI preproc front-end</title>
+    <meta name="Description" content="Max Design - standards based web design, development and training" />
+    <meta name="robots" content="all, index, follow" />
+    <meta name="distribution" content="global" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+
+    <link href="styles.css" rel="stylesheet">
+
+  </head>
+
+  <body>
+    <div id="container">
+      <div id="header">
+	<h1>
+	  <font color="white">fMRI PREPROC REPORT</font>
+	</h1>
+      </div>
+      <div id="navigation">
+	<ul>
+	  <li><a href="#">Main Page</a></li>
+	  <li><a href="#">Execution Log</a></li>
+	  <li><a href="#">About</a></li>
+	  <li><a href="#">FAQs</a></li>
+	</ul>
+      </div>
+      <div id="content-container1">
+	<div id="content-container2">
+	  <div id="section-navigation">
+	  </div>
+	  <div id="content">
+	    <script type="text/javascript">
+	      window.onload = startInterval;
+	      function startInterval()
+	      {
+	      setInterval("startTime();",1000);
+	      }
+	      
+	      function startTime()
+	      {
+	      document.getElementById('time').innerHTML = Date();
+	      }
+	    </script>
+	    <h2><div id='time' style='display: inline;'></div>{{if done:}}<font color="green">   Done</font>.{{else}}<font color="red"><i>   STILL RUNNING ..</i></font>{{endif}}</h2>
+	    <hr/>
+	    {{if dataset_description}}
+	    <h3>Dataset Description</h3>
+	    {{dataset_description | html}}
+	    <hr/>
+	    {{endif}}
+	    {{if preproc_undergone}}
+	    <h3>Preprocessing steps undergone</h3>
+	    {{preproc_undergone | html}}
+	    <hr/>
+	    {{endif}}
+	    <script type="text/javascript">
+	      var auto_refresh = setInterval(
+
+	      function() {
+	      {{py: import os; loader=os.path.basename(results.loader_filename);}}
+	      $('#results').load("{{loader}}").fadeIn("slow");
+	      }, {{results.refresh_timeout}});
+	    </script>
+	    <h3>{{results.title | html}}</h3>
+	    {{results.description | html}}
+	    <div id="results">
+	    </div>
+	  </div>
+	  <div id="footer">
+	  </div>
+	</div>
+      </div>
+    </div>
+
+    <!-- It's time for javascript, folks -->
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script type='text/javascript'>
+      $(document).ready(function(){
+            {{py: import os; loader=os.path.basename(results.loader_filename);}}
+            $('#results').load("{{loader}}").fadeIn("slow");
+      });
+    </script>
+  </body>
+</html>
