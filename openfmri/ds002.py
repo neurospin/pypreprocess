@@ -46,7 +46,7 @@ if __name__ == '__main__':
     data_dir = fetch_openfmri(FULL_ID, root_dir)
 
     # this dataset does not contain contrast definitions
-    contrasts_file = '%s_task_contrasts.txt' % SHORT_ID  # XXX path correct?
+    contrasts_file = '%s_task_contrasts.txt' % SHORT_ID
     assert os.path.isfile(contrasts_file), \
         "No contrasts file: %s" % contrasts_file
     dest = os.path.join(data_dir, SHORT_ID,
@@ -58,8 +58,7 @@ if __name__ == '__main__':
     apply_preproc(SHORT_ID, data_dir, preproc_dir, ignore_list)
 
     # prepare GLM (get data and design)
-    preproc_data, motion_params = load_preproc(SHORT_ID, preproc_dir,
-                                               dataset_description=DESCRIPTION)
+    preproc_data, motion_params = load_preproc(SHORT_ID, preproc_dir)
 
     glm_params = load_glm_params(SHORT_ID, data_dir, MODEL_ID,
                                  subject_ids=preproc_data.keys(),
