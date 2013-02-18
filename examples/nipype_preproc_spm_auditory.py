@@ -19,6 +19,7 @@ from datasets_extras import fetch_spm_auditory_data
 
 """import spm preproc utilities"""
 import nipype_preproc_spm_utils
+
 DATASET_DESCRIPTION = """\
 <p>MoAEpilot <a href="http://www.fil.ion.ucl.ac.uk/spm/data/auditory/">\
 SPM auditory dataset</a>.</p>\

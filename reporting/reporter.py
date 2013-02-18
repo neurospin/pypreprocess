@@ -7,7 +7,6 @@ XXX TODO: Document this module.
 """
 
 import sys
-import time
 import os
 import shutil
 import commands
@@ -187,7 +186,7 @@ def SUBJECT_PREPROC_REPORT_HTML_TEMPLATE():
 
     """
 
-    with open(os.path.join(root_dir, 'template_reports',
+    with open(os.path.join(root_dir, 'reporting/template_reports',
                            'subject_preproc_report_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
@@ -198,7 +197,7 @@ def DATASET_PREPROC_REPORT_HTML_TEMPLATE():
     Returns report template for dataset preproc.
 
     """
-    with open(os.path.join(root_dir, 'template_reports',
+    with open(os.path.join(root_dir, 'reporting/template_reports',
                            'dataset_preproc_report_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)

@@ -55,7 +55,6 @@ report_filename = os.path.join(OUTPUT_DIR,
                                "_report.html")
 results = nipype_preproc_spm_utils.do_subjects_preproc(
     [subject_data],
-    do_report=False,
     do_deleteorient=False,
     fwhm=[6, 6, 6],
     dataset_description=DATASET_DESCRIPTION,
