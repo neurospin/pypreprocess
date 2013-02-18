@@ -12,7 +12,6 @@ import re
 import csv
 import glob
 import json
-import traceback
 import warnings
 
 # import spm preproc utilities
@@ -46,7 +45,8 @@ DO_DARTEL = False
 os.curdir = '..'
 
 
-def apply_preproc(dataset_id, data_dir, output_dir, ignore_list=None):
+def apply_preproc(dataset_id, data_dir, output_dir, ignore_list=None,
+                  dataset_description=None):
     """Main function for preprocessing (and analysis ?)
 
     Parameters
@@ -62,6 +62,9 @@ def apply_preproc(dataset_id, data_dir, output_dir, ignore_list=None):
     output_dir = os.path.join(output_dir, dataset_id)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+
+    dataset_description = DATASET_DESCRIPTION if \
+        dataset_description is None else dataset_description
 
     ignore_list = [] if ignore_list is None else ignore_list
 
@@ -146,7 +149,7 @@ def apply_preproc(dataset_id, data_dir, output_dir, ignore_list=None):
         do_deleteorient=True,  # some openfmri data have garbage orientation
         do_dartel=DO_DARTEL,
         # do_cv_tc=False,
-        dataset_description=DATASET_DESCRIPTION,
+        dataset_description=dataset_description,
         # do_report=False,
         report_filename=report_filename
         ):

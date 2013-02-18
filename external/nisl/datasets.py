@@ -14,7 +14,7 @@ import shutil
 import time
 import hashlib
 
-from sklearn.datasets.base import Bunch
+from nipype.interfaces.base import Bunch
 
 
 def _format_time(t):
@@ -61,6 +61,7 @@ class ResumeURLOpener(urllib.FancyURLopener):
        This was adapted from:
        http://code.activestate.com/recipes/83208-resuming-download-of-a-file/
     """
+
     def http_error_206(self, url, fp, errcode, errmsg, headers, data=None):
         pass
 
@@ -178,7 +179,7 @@ def _get_dataset_dir(dataset_name, data_dir=None):
     3. "nisl_data" directory into the current working directory
     """
     if not data_dir:
-        data_dir = os.getenv("NISL_DATA",  os.path.join(os.getcwd(),
+        data_dir = os.getenv("NISL_DATA", os.path.join(os.getcwd(),
                              'nisl_data'))
     data_dir = os.path.join(data_dir, dataset_name)
     if not os.path.exists(data_dir):

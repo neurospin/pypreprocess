@@ -1,4 +1,3 @@
-import os
 import sys
 
 # local imports
@@ -15,11 +14,11 @@ SHORT_ID = 'ds001'
 NAME = 'Balloon Analog Risk-taking Task'
 DESCRIPTION = """
 Subjects perform the Balloon Analog Risk-taking Task in an event-related
-design. Note: The original highres image for sub004 was not available,
-so the skull-stripped version is included as highres001.nii.gz
+design. Get full description <a href="https://openfmri.org/dataset/ds000001">\
+here</a>.
 
-Get full description <a href="https://openfmri.org/dataset/ds000001">\
-here</a>.\
+<b>Note</b>: The original highres image for sub004 was not \
+available, so the skull-stripped version is included as highres001.nii.gz
 """
 
 MODEL_ID = 'model001'
@@ -41,7 +40,8 @@ if __name__ == '__main__':
     data_dir = fetch_openfmri(FULL_ID, root_dir)
 
     # apply SPM preprocessing
-    apply_preproc(SHORT_ID, data_dir, preproc_dir, ignore_list)
+    apply_preproc(SHORT_ID, data_dir, preproc_dir, ignore_list,
+                  dataset_description=DESCRIPTION)
 
     # prepare GLM (get data and design)
     preproc_data, motion_params = load_preproc(SHORT_ID, preproc_dir)

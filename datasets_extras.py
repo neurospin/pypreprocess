@@ -9,11 +9,13 @@ import re
 import gzip
 import glob
 import shutil
-
+import joblib
 import numpy as np
 
-from sklearn.datasets.base import Bunch
-from external.nisl.datasets import _get_dataset, _fetch_dataset
+from nipype.interfaces.base import Bunch
+
+from external.nisl.datasets import _get_dataset, _fetch_dataset, \
+    _uncompress_file, _fetch_file
 
 # definition of consituent files for spm auditory data
 SPM_AUDITORY_DATA_FILES = ["fM00223/fM00223_%03i.img" % index
@@ -50,6 +52,208 @@ def unzip_nii_gz(dirname):
             f_out.close()
             f_in.close()
             # os.remove(filename)  # XXX why ?
+
+
+def _glob_spm_auditory_data(subject_dir):
+    if not os.path.exists(subject_dir):
+        return None
+
+    subject_data = dict()
+    subject_data["subject_dir"] = subject_dir
+    for file_name in SPM_AUDITORY_DATA_FILES:
+        file_path = os.path.join(subject_dir, file_name)
+        if os.path.exists(file_path) or os.path.exists(
+            file_path.rstrip(".gz")):
+            file_name = re.sub("(?:\.nii\.gz|\.txt)", "", file_name)
+            subject_data[file_name] = file_path
+        else:
+            print "%s missing from filelist!" % file_name
+            return None
+
+    _subject_data = {}
+    _subject_data["func"] = [subject_data[x] for x in subject_data.keys()
+                             if re.match(".+?fM00223_0\d\d\.img$", x)]
+    _subject_data["func"].sort()
+
+    _subject_data["anat"] = [subject_data[x] for x in subject_data.keys()
+                             if re.match(".+?sM00223_002\.img$", x)][0]
+    return _subject_data
+
+
+def fetch_haxby_subject_data(data_dir, subject_id, url, redownload=False):
+    archive_name = os.path.basename(url)
+    archive_path = os.path.join(data_dir, archive_name)
+    subject_dir = os.path.join(data_dir, subject_id)
+    if redownload:
+        try:
+            print "Zapping all old downloads .."
+            shutil.rmtree(subject_dir)
+            os.remove(archive_path)
+        except OSError:
+            pass
+        finally:
+            print "Done."
+    if os.path.exists(subject_dir):
+        subject_data = _glob_haxby_subject_data(subject_dir)
+        if subject_data is None:
+            shutil.rmtree(subject_dir)
+            return fetch_haxby_subject_data(data_dir, subject_id, url)
+        else:
+            return subject_id, subject_data
+    elif os.path.exists(archive_path):
+        try:
+            _uncompress_file(archive_path)
+        except:
+            print "Archive corrupted, trying to download it again."
+            os.remove(archive_path)
+            return fetch_haxby_subject_data(data_dir, subject_id, url)
+    else:
+        _fetch_file(url, data_dir)
+        try:
+            _uncompress_file(archive_path)
+        except:
+            print "Archive corrupted, trying to download it again."
+            os.remove(archive_path)
+            return fetch_haxby_subject_data(data_dir, subject_id, url)
+        return subject_id, _glob_haxby_subject_data(subject_dir)
+
+
+def _glob_haxby_subject_data(subject_dir):
+    if not os.path.exists(subject_dir):
+        return None
+
+    subject_data = dict()
+    subject_data["subject_dir"] = subject_dir
+    for file_name in HAXBY_SUBJECT_FILES:
+        file_path = os.path.join(subject_dir, file_name)
+        if os.path.exists(file_path) or os.path.exists(
+            file_path.rstrip(".gz")):
+            file_name = re.sub("(?:\.nii\.gz|\.txt)", "", file_name)
+            subject_data[file_name] = file_path
+        else:
+            print "%s missing from filelist!" % file_name
+            return None
+
+    return Bunch(subject_data)
+
+
+def fetch_haxby(data_dir=None, subject_ids=None, redownload=False,
+                n_jobs=1):
+    """
+    Download and loads the haxby dataset
+
+    Parameters
+    ----------
+    data_dir: string, optional
+    Path of the data directory. Used to force data storage in a specified
+    location. Default: None
+
+    subject_ids: list of string, option
+    Only download data for these subjects
+
+    redownload: bool, optional
+    Delete all local file copies on disk and re-download
+
+    Returns
+    -------
+    data: dictionary, keys are subject ids (subj1, subj2, etc.)
+    'bold': string
+    Path to nifti file with bold data
+    'session_target': string
+    Path to text file containing session and target data
+    'mask*': string
+    Path to correspoding nifti mask file
+    'labels': string
+    Path to text file containing labels (can be used for LeaveOneLabelOut
+    cross validation for example)
+
+    References
+    ----------
+    `Haxby, J., Gobbini, M., Furey, M., Ishai, A., Schouten, J.,
+    and Pietrini, P. (2001). Distributed and overlapping representations of
+    faces and objects in ventral temporal cortex. Science 293, 2425-2430.`
+
+    Notes
+    -----
+    PyMVPA provides a tutorial using this dataset :
+    http://www.pymvpa.org/tutorial.html
+
+    More informations about its structure :
+    http://dev.pymvpa.org/datadb/haxby2001.html
+
+    See `additional information
+    <http://www.sciencemag.org/content/293/5539/2425>`_
+    """
+
+    data_dir = os.path.join(data_dir, "haxby2001")
+
+    subjects = dict()
+    if subject_ids is None:
+        subject_ids = HAXBY_SUBJECT_IDS
+    else:
+        subject_ids = [subject_id for subject_id in subject_ids \
+                           if subject_id in HAXBY_SUBJECT_IDS]
+
+    # url spitter
+    def url_factory():
+        for subject_id in subject_ids:
+            url = ('http://data.pymvpa.org'
+                   '/datasets/haxby2001/%s-2010.01.14.tar.gz') % subject_id
+            yield data_dir, subject_id, url, redownload
+
+    # parallel fetch
+    pairs = joblib.Parallel(n_jobs=n_jobs, verbose=100)(
+        joblib.delayed(fetch_haxby_subject_data)(x, y, z, w)\
+            for x, y, z, w in url_factory())
+
+    # pack pairs in to a dict
+    for subject_id, subject_data in pairs:
+        subjects[subject_id] = subject_data
+
+    return subjects
+
+
+def fetch_spm_auditory_data(data_dir, redownload=False):
+    '''
+Function to fetch SPM auditory data.
+
+'''
+
+    url = "ftp://ftp.fil.ion.ucl.ac.uk/spm/data/MoAEpilot/MoAEpilot.zip"
+    subject_dir = data_dir
+    archive_path = os.path.join(subject_dir, os.path.basename(url))
+    if redownload:
+        try:
+            print "Zapping all old downloads .."
+            shutil.rmtree(subject_dir)
+            os.remove(archive_path)
+        except OSError:
+            pass
+        finally:
+            print "Done."
+    if os.path.exists(subject_dir):
+        subject_data = _glob_spm_auditory_data(subject_dir)
+        if subject_data is None:
+            shutil.rmtree(subject_dir)
+            return fetch_spm_auditory_data(data_dir)
+        else:
+            return subject_data
+    elif os.path.exists(archive_path):
+        try:
+            _uncompress_file(archive_path)
+        except:
+            print "Archive corrupted, trying to download it again."
+            os.remove(archive_path)
+            return fetch_spm_auditory_data(data_dir)
+    else:
+        _fetch_file(url, data_dir)
+        try:
+            _uncompress_file(archive_path)
+        except:
+            print "Archive corrupted, trying to download it again."
+            os.remove(archive_path)
+            return fetch_spm_auditory_data(data_dir)
+        return _glob_spm_auditory_data(subject_dir)
 
 
 def fetch_poldrack_mixed_gambles(data_dir=None):

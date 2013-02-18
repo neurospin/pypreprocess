@@ -10,6 +10,7 @@ XXX TODO: re-factor the code!
 # standard imports
 import os
 import shutil
+import json
 
 # imports for caching (yeah, we aint got time to loose!)
 from nipype.caching import Memory
@@ -18,7 +19,7 @@ from nipype.caching import Memory
 import nibabel as ni
 from nipype.interfaces.base import Bunch
 from io_utils import delete_orientation, is_3D, get_vox_dims,\
-    resample_img, do_3Dto4D_merge, compute_mean_3D_image
+    resample_img, do_3Dto4D_merge, compute_mean_3D_image, compute_mean_image
 
 # spm and matlab imports
 import nipype.interfaces.spm as spm
@@ -982,7 +983,8 @@ def _do_subject_preproc(
     # sanity
     subject_data.sanitize(do_deleteorient=do_deleteorient)
 
-    output = {"subject_id": subject_data.subject_id}
+    output = {"subject_id": subject_data.subject_id,
+              "output_dir": subject_data.output_dir}
 
     # create subject_data.output_dir if dir doesn't exist
     if not os.path.exists(subject_data.output_dir):
@@ -991,6 +993,9 @@ def _do_subject_preproc(
     if do_report:
         import reporter
 
+        shutil.copy(os.path.join(
+                os.path.dirname(subject_data.output_dir), "failed.png"),
+                    subject_data.output_dir)
         report_filename = os.path.join(subject_data.output_dir, "_report.html")
         final_thumbnail = reporter.Thumbnail()
         final_thumbnail.a = reporter.a(href=report_filename)
@@ -1016,6 +1021,13 @@ def _do_subject_preproc(
         with open(report_filename, 'w') as fd:
             fd.write(str(report))
             fd.close()
+
+        def finalize_report():
+            if parent_results_gallery:
+                commit_subject_thumnbail_to_parent_gallery(
+                    final_thumbnail,
+                    subject_data.subject_id,
+                    parent_results_gallery)
     else:
         results_gallery = None
 
@@ -1044,6 +1056,10 @@ def _do_subject_preproc(
 
         # if failed to realign, return
         if realign_result.outputs is None:
+            if do_report:
+                final_thumbnail.img.src = 'failed.png'
+                final_thumbnail.description += ' (failed realignment)'
+                finalize_report()
             return
 
         subject_data.func = realign_result.outputs.realigned_files
@@ -1058,13 +1074,10 @@ def _do_subject_preproc(
             final_thumbnail.img.src = realign_output['rp_plot']
     else:
         # manually compute mean (along time axis) of fMRI images
-        func_images = ni.load(subject_data.func)
-        mean_func_image = ni.Nifti1Image(
-            func_images.get_data().mean(-1), func_images.get_affine())
-        mean_func = os.path.join(
-            os.path.dirname(subject_data.func),
-            'mean' + os.path.basename(subject_data.func))
-        ni.save(mean_func_image, mean_func)
+        # XXX derive a more sensible path for the mean_func
+        mean_func = os.path.join(subject_data.output_dir,
+            'meanfunc')
+        compute_mean_image(subject_data.func, output_filename=mean_func)
 
     ################################################################
     # co-registration of structural (anatomical) against functional
@@ -1108,6 +1121,10 @@ def _do_subject_preproc(
 
         # if failed to coregister, return
         if coreg_result.outputs is None:
+            if do_report:
+                final_thumbnail.img.src = 'failed.png'
+                final_thumbnail.description += ' (failed coregistration)'
+                finalize_report()
             return
 
         # rest anat to coregistered version thereof
@@ -1144,6 +1161,10 @@ def _do_subject_preproc(
 
         # if failed to segment, return
         if segment_result.outputs is None:
+            if do_report:
+                final_thumbnail.img.src = 'failed.png'
+                final_thumbnail.description += ' (failed segmentation)'
+                finalize_report()
             return
 
         # output['segment_result'] = segment_result
@@ -1174,6 +1195,15 @@ def _do_subject_preproc(
                 )
 
             norm_result = norm_output["result"]
+
+            # if failed to normalize, return None
+            if norm_result.outputs is None:
+                if do_report:
+                    final_thumbnail.img.src = 'failed.png'
+                    final_thumbnail.description += ' (failed normalization)'
+                    finalize_report()
+                return
+
             subject_data.func = norm_result.outputs.normalized_files
             output['func'] = norm_result.outputs.normalized_files
 
@@ -1212,6 +1242,10 @@ def _do_subject_preproc(
 
             # if failed to normalize, return None
             if norm_result.outputs is None:
+                if do_report:
+                    final_thumbnail.img.src = 'failed.png'
+                    final_thumbnail.description += ' (failed normalization)'
+                    finalize_report()
                 return
 
             output['anat'] = norm_result.outputs.normalized_files
@@ -1231,6 +1265,9 @@ def _do_subject_preproc(
 
         # if failed to normalize, return None
         if norm_result.outputs is None:
+            if do_report:
+                final_thumbnail.img.src = 'failed.png'
+                finalize_report()
             return
 
         ####################################################
@@ -1259,6 +1296,10 @@ def _do_subject_preproc(
 
         # if failed to normalize, return None
         if norm_result.outputs is None:
+            if do_report:
+                final_thumbnail.img.src = 'failed.png'
+                final_thumbnail.description += ' (failed normalization)'
+                finalize_report()
             return
 
         subject_data.func = norm_result.outputs.normalized_files
@@ -1292,12 +1333,16 @@ def _do_subject_preproc(
 
         # if failed to normalize, return None
         if norm_result.outputs is None:
+            if do_report:
+                final_thumbnail.img.src = 'failed.png'
+                final_thumbnail.description += ' (failed normalization)'
+                finalize_report()
             return
 
         output['anat'] = norm_result.outputs.normalized_files
 
-    # generate cv plots
     if do_report:
+        # generate cv plots
         if do_cv_tc and do_normalize:
             corrected_FMRI = output['func']
 
@@ -1307,14 +1352,7 @@ def _do_subject_preproc(
                                      subject_data.output_dir,
                                      results_gallery=results_gallery)
 
-        if parent_results_gallery:
-            commit_subject_thumnbail_to_parent_gallery(
-                final_thumbnail,
-                subject_data.subject_id,
-                parent_results_gallery)
-
-        output['final_thumbnail'] = final_thumbnail
-        output['results_gallery'] = results_gallery
+        finalize_report()
 
     return subject_data, output
 
@@ -1344,7 +1382,8 @@ def _do_subject_dartelnorm2mni(output_dir,
 
     """
 
-    output = {"subject_id": subject_id}
+    output = {"subject_id": subject_id,
+              "output_dir": output_dir}
 
     # prepare for smart caching
     cache_dir = os.path.join(output_dir, 'cache_dir')
@@ -1555,21 +1594,21 @@ def do_group_DARTEL(output_dir,
 
 
 def do_subjects_preproc(subjects,
-                     output_dir=None,
-                     do_deleteorient=True,
-                     do_report=True,
-                     do_export_report=False,
-                     dataset_description=None,
-                     report_filename=None,
-                     do_bet=False,
-                     do_realign=True,
-                     do_coreg=True,
-                     do_segment=True,
-                     do_normalize=True,
-                     do_dartel=False,
-                     do_cv_tc=True,
-                     ignore_exception=True
-                     ):
+                        output_dir=None,
+                        do_deleteorient=False,
+                        do_report=True,
+                        do_export_report=False,
+                        dataset_description=None,
+                        report_filename=None,
+                        do_bet=False,
+                        do_realign=True,
+                        do_coreg=True,
+                        do_segment=True,
+                        do_normalize=True,
+                        do_dartel=False,
+                        do_cv_tc=True,
+                        ignore_exception=True
+                        ):
 
     """This functions doe intra-subject fMRI preprocessing on a
     group os subjects.
@@ -1622,6 +1661,9 @@ def do_subjects_preproc(subjects,
         # do some sanity
         shutil.copy(os.path.join(root_dir, 'css', 'styles.css'),
                     os.path.dirname(report_filename))
+
+        shutil.copy(os.path.join(root_dir, "css/failed.png"),
+                                 os.path.dirname(report_filename))
 
         # compute docstring explaining preproc steps undergone
         preproc_undergone = """\
@@ -1800,7 +1842,14 @@ def do_subjects_preproc(subjects,
                                            ].outputs.warped_files
             subject_result['anat'] = item[
                 'dartelnorm2mni_result'].outputs.normalized_files
-            subject_result['estimated_motion'] = item['estimated_motion']
+            if do_realign:
+                subject_result['estimated_motion'] = item['estimated_motion']
+            subject_result['output_dir'] = item['output_dir']
+
+            # dump result to json output file
+            json_outfile = os.path.join(
+                subject_result['output_dir'], 'infos.json')
+            json.dump(subject_result, open(json_outfile, 'wb'))
 
             _results.append(subject_result)
 
@@ -1817,7 +1866,14 @@ def do_subjects_preproc(subjects,
             subject_result['subject_id'] = item['subject_id']
             subject_result['func'] = item['func']
             subject_result['anat'] = item['anat']
-            subject_result['estimated_motion'] = item['estimated_motion']
+            if do_realign:
+                subject_result['estimated_motion'] = item['estimated_motion']
+            subject_result['output_dir'] = item['output_dir']
+
+            # dump result to json output file
+            json_outfile = os.path.join(
+                subject_result['output_dir'], 'infos.json')
+            json.dump(subject_result, open(json_outfile, 'wb'))
 
             _results.append(subject_result)
 
@@ -1836,4 +1892,5 @@ def do_subjects_preproc(subjects,
             reporter.export_report(os.path.dirname(report_filename),
                                    tag=tag)
 
+    # return results (caller may need this)
     return results

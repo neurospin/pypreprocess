@@ -11,7 +11,7 @@ import commands
 
 import numpy as np
 import nibabel
-from nisl import resampling
+from external.nisl import resampling
 
 
 def is_3D(image):
@@ -190,7 +190,7 @@ def resample_img(input_img_filename,
     return output_img_filename
 
 
-def compute_mean_3D_image(images, output_filename=None):
+def compute_mean_image(images, output_filename=None, threeD=False):
     """Computes the mean of --perhaps differently shaped-- images
 
     Parameters
@@ -218,8 +218,9 @@ def compute_mean_3D_image(images, output_filename=None):
             raise IOError(type(image))
         data = image.get_data()
 
-        if is_4D(image):
-            data = data.mean(-1)
+        if threeD:
+            if is_4D(image):
+                data = data.mean(-1)
 
         all_data.append(data)
         all_affine.append(image.get_affine())
@@ -235,3 +236,21 @@ def compute_mean_3D_image(images, output_filename=None):
 
     # return return result
     return mean_image
+
+
+def compute_mean_3D_image(images, output_filename=None):
+    """Computes the mean of --perhaps differently shaped-- images
+
+    Parameters
+    ----------
+    images: string/image object, or list (-like) of
+        image(s) whose mean we seek
+
+    Returns
+    -------
+    mean nifti image object
+
+    """
+
+    return compute_mean_image(images, output_filename=output_filename,
+                              threeD=True)
