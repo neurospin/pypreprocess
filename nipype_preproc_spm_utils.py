@@ -1863,6 +1863,8 @@ def do_subjects_preproc(subjects,
         # do some sanity
         shutil.copy(os.path.join(root_dir, 'reporting/css', 'fsl.css'),
                     os.path.dirname(report_filename))
+        shutil.copy(os.path.join(root_dir, 'reporting/css', 'styles.css'),
+                    os.path.dirname(report_filename))
         shutil.copy(os.path.join(root_dir, "reporting/images/failed.png"),
                                  os.path.dirname(report_filename))
         shutil.copy(os.path.join(root_dir, "reporting/images/logo.jpeg"),
