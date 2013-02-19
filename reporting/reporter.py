@@ -11,13 +11,13 @@ import os
 import shutil
 import commands
 import re
+import time
 
 sys.path.append("..")
 import external.tempita.tempita as tempita
 
 # find package path
-root_dir = os.path.dirname(
-    os.path.split(os.path.abspath(__file__))[0])
+root_dir = os.path.split(os.path.abspath(__file__))[0]
 
 
 def del_empty_dirs(s_dir):
@@ -143,7 +143,7 @@ class ResultsGallery(object):
     """
 
     def __init__(self, loader_filename,
-                 refresh_timeout=60000,  # reload every minute
+                 refresh_timeout=10,  # seconds
                  title='Results',
                  description=None
                  ):
@@ -186,7 +186,7 @@ def SUBJECT_PREPROC_REPORT_HTML_TEMPLATE():
 
     """
 
-    with open(os.path.join(root_dir, 'reporting/template_reports',
+    with open(os.path.join(root_dir, 'template_reports',
                            'subject_preproc_report_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
@@ -197,8 +197,41 @@ def DATASET_PREPROC_REPORT_HTML_TEMPLATE():
     Returns report template for dataset preproc.
 
     """
-    with open(os.path.join(root_dir, 'reporting/template_reports',
+    with open(os.path.join(root_dir, 'template_reports',
                            'dataset_preproc_report_template.tmpl.html')) as fd:
+        _text = fd.read()
+        return tempita.HTMLTemplate(_text)
+
+
+def FSL_SUBJECT_REPORT_LOG_HTML_TEMPLATE():
+    """
+
+    """
+    with open(os.path.join(
+            root_dir, 'template_reports',
+            'fsl_subject_report_log_template.tmpl.html')) as fd:
+        _text = fd.read()
+        return tempita.HTMLTemplate(_text)
+
+
+def FSL_SUBJECT_REPORT_HTML_TEMPLATE():
+    """
+
+    """
+    with open(os.path.join(
+            root_dir, 'template_reports',
+                           'fsl_subject_report_template.tmpl.html')) as fd:
+        _text = fd.read()
+        return tempita.HTMLTemplate(_text)
+
+
+def FSL_SUBJECT_REPORT_PREPROC_HTML_TEMPLATE():
+    """
+
+    """
+    with open(os.path.join(
+            root_dir, 'template_reports',
+            'fsl_subject_report_preproc_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
 
@@ -217,6 +250,47 @@ def lines2breaks(lines):
     return tempita.HTMLTemplate(log).content
 
 
+class ProgressReport(object):
+
+    def __init__(self, report_filename, other_watched_files=[]):
+        self.report_filename = report_filename
+        self.other_watched_files = other_watched_files
+
+    def log(self, msg):
+        with open(self.report_filename, 'r') as i_fd:
+            content = i_fd.read()
+            i_fd.close()
+            marker = '<!-- log_next_thing_here -->'
+            content = content.replace(marker, msg + marker)
+            with open(self.report_filename, 'w') as o_fd:
+                o_fd.write(content)
+                o_fd.close()
+
+    def finish(self, report_filename=None):
+        if report_filename is None:
+            report_filename = self.report_filename
+
+        with open(report_filename, 'r') as i_fd:
+            content = i_fd.read()
+            i_fd.close()
+
+            # prevent pages from reloaded automaticall henceforth
+            meta_reloader = "<meta http\-equiv=refresh content=.+?>"
+            content = re.sub(meta_reloader, "", content)
+
+            old_state = ("<font color=red><i>STILL RUNNING .."
+                         "</i><blink>.</blink></font>")
+            new_state = "Ended: %s" % time.ctime()
+            new_content = content.replace(old_state, new_state)
+            with open(report_filename, 'w') as o_fd:
+                o_fd.write(new_content)
+                o_fd.close()
+
+    def finish_all(self):
+        for filename in [self.report_filename] + self.other_watched_files:
+            self.finish(filename)
+
+
 def nipype2htmlreport(nipype_report_filename):
     """
     Converts a nipype.caching report (.rst) to html.
@@ -224,3 +298,112 @@ def nipype2htmlreport(nipype_report_filename):
     """
     with open(nipype_report_filename, 'r') as fd:
         return lines2breaks(fd.readlines())
+
+
+def generate_level1_report(zmap, mask,
+                           output_html_path, threshold=0.001,
+                           method='fpr', cluster_th=0, null_zmax='bonferroni',
+                           null_smax=None, null_s=None, nmaxima=4,
+                           cluster_pval=.05):
+    """
+    Parameters
+    ----------
+    zmap: image object
+        z-map data image
+    mask: image object
+        brain mask defining ROI
+    output_html_path, string,
+                      path where the output html should be written
+    threshold, float, optional
+               (p-variate) frequentist threshold of the activation image
+    method, string, optional
+            to be chosen as height_control in
+            nipy.labs.statistical_mapping
+    cluster_th, scalar, optional,
+             cluster size threshold
+    null_zmax: optional,
+               parameter for cluster level statistics (?)
+    null_s: optional,
+             parameter for cluster level statistics (?)
+    nmaxima: optional,
+             number of local maxima reported per supra-threshold cluster
+    """
+    import nipy.labs.statistical_mapping as sm
+
+
+    # Compute cluster statistics
+    nulls = {'zmax': null_zmax, 'smax': null_smax, 's': null_s}
+
+    """
+    if null_smax is not None:
+        print "a"
+        clusters, info = sm.cluster_stats(zmap, mask, height_th=threshold,
+                                          nulls=nulls)
+        clusters = [c for c in clusters if c['cluster_pvalue']<cluster_pval]
+    else:
+        print "b"
+        clusters, info = sm.cluster_stats(zmap, mask, height_th=threshold,
+                                          height_control=method.lower(),
+                                          cluster_th=cluster_th, nulls=nulls)
+    """
+    clusters, info = sm.cluster_stats(zmap, mask, height_th=threshold,
+                                      nulls=nulls, cluster_th=cluster_th,)
+    if clusters is not None:
+        clusters = [c for c in clusters if c['cluster_pvalue'] < cluster_pval]
+
+    #if clusters == None or info == None:
+    #    print "No results were written for %s" % zmap_file_path
+    #    return
+    if clusters == None:
+        clusters = []
+
+    # Make HTML page
+    output = open(output_html_path, mode="w")
+    output.write("<html><head><title> Result Sheet.\
+    </title></head><body><center>\n")
+    output.write("<h2> Results</h2>\n")
+    output.write("<table border = 1>\n")
+    output.write("<tr><th colspan=4> Voxel significance </th>\
+    <th colspan=3> Coordinates in MNI referential</th>\
+    <th>Cluster Size</th></tr>\n")
+    output.write("<tr><th>p FWE corr<br>(Bonferroni)</th>\
+    <th>p FDR corr</th><th>Z</th><th>p uncorr</th>")
+    output.write("<th> x (mm) </th><th> y (mm) </th><th> z (mm) </th>\
+    <th>(voxels)</th></tr>\n")
+
+    for cluster in clusters:
+        maxima = cluster['maxima']
+        size = cluster['size']
+        for j in range(min(len(maxima), nmaxima)):
+            temp = ["%.3f" % cluster['fwer_pvalue'][j]]
+            temp.append("%.3f" % cluster['fdr_pvalue'][j])
+            temp.append("%.2f" % cluster['zscore'][j])
+            temp.append("%.3f" % cluster['pvalue'][j])
+            for it in range(3):
+                temp.append("%.0f" % maxima[j][it])
+            if j == 0:
+                # Main local maximum
+                temp.append('%i' % size)
+                output.write('<tr><th align="center">' + '</th>\
+                <th align="center">'.join(temp) + '</th></tr>')
+            else:
+                # Secondary local maxima
+                output.write('<tr><td align="center">' + '</td>\
+                <td align="center">'.join(temp) + '</td><td></td></tr>\n')
+
+    nclust = len(clusters)
+    nvox = sum([clusters[k]['size'] for k in range(nclust)])
+
+    output.write("</table>\n")
+    output.write("Number of voxels: %i<br>\n" % nvox)
+    output.write("Number of clusters: %i<br>\n" % nclust)
+
+    if info is not None:
+        output.write("Threshold Z = %.2f (%s control at %.3f)<br>\n" \
+                     % (info['threshold_z'], method, threshold))
+        output.write("Cluster size threshold p<0.05")
+    else:
+        output.write("Cluster size threshold = %i voxels" % cluster_th)
+
+    output.write("</center></body></html>\n")
+    output.close()

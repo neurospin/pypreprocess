@@ -33,16 +33,12 @@ We have written some examplary scripts for preprocessing some popular datasets.
 
 SPM auditory (single-subject)
 -----------------------------
-cd to the pypreprocess directory, and run the following command:
+cd to the pypreprocess/examples directory, and run the following command:
 
-       python nipype_preproc_spm_moaepilot.py spm_auditory spm_auditory_runs/ 
+       python nipy_glm_spm_auditory.py spm_auditory spm_auditory_runs/ 
 
-Now open the file spm_auditory_runs/_report.html in you browser (firefox), to see
+Now open the file spm_auditory_runs/subXYZ/report.html in your browser (firefox), to see
 the generate report (QA).
-
-Haxby 2001
-----------
-       nipype_preproc_spm_haxby.py
 
 TODO
 ====

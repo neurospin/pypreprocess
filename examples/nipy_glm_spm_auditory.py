@@ -1,6 +1,6 @@
-"""
-:Synopsis: Demo script for nipy's GLM tools
-:Author: dohmatob elvis dopgima
+B"""
+:1;3201;0c1;3201;0cSynopsis: Demo script for nipy's GLM tools
+:1;3201;0cAuthor: dohmatob elvis dopgima
 
 """
 
@@ -14,11 +14,11 @@ from nipy.modalities.fmri.glm import FMRILinearModel
 from nipy.labs import viz
 import nibabel
 
-"""chdir to script dir"""
-os.chdir(os.path.dirname(sys.argv[0]))
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
-sys.path.append("..")
 import nipype_preproc_spm_utils
+import reporting.reporter as reporter
 from datasets_extras import fetch_spm_auditory_data
 from io_utils import do_3Dto4D_merge
 
@@ -55,10 +55,31 @@ report_filename = os.path.join(OUTPUT_DIR,
                                "_report.html")
 results = nipype_preproc_spm_utils.do_subjects_preproc(
     [subject_data],
-    do_deleteorient=False,
     fwhm=[6, 6, 6],
     dataset_description=DATASET_DESCRIPTION,
-    report_filename=report_filename)
+    report_filename=report_filename,
+    )
+
+"""prepare for stats reporting"""
+progress_logger = results[0]['progress_logger']
+stats_report_filename = os.path.join(subject_data.output_dir,
+                                     "report_stats.html")
+# level1_loader_filename = os.path.join(
+#     subject_data.output_dir, "level1_thumbs.html")
+# level1_thumbs = reporter.ResultsGallery(
+#     loader_filename=level1_loader_filename,
+#     )
+# import time
+# level1_html_markup = reporter.FSL_SUBJECT_REPORT_PREPROC_HTML_TEMPLATE(
+#     ).substitute(
+#     results=level1_thumbs,
+#     start_time=time.ctime(),
+#     subject_id=subject_data.subject_id
+#     )
+# with open(stats_report_filename, 'w') as fd:
+#     fd.write(str(level1_html_markup))
+#     fd.close()
+progress_logger.log("<b>Level 1 statistics</b><br/><br/>")
 
 """collect preprocessed data"""
 fmri_data = results[0]['func']
@@ -88,7 +109,15 @@ design_matrix = make_dmtx(frametimes,
 ax = design_matrix.show()
 ax.set_position([.05, .25, .9, .65])
 ax.set_title('Design matrix')
-pl.savefig(os.path.join(OUTPUT_DIR, 'design_matrix.png'))
+dmat_outfile = os.path.join(subject_data.output_dir, 'design_matrix.png')
+pl.savefig(dmat_outfile)
+# thumb = reporter.Thumbnail()
+# thumb.a = reporter.a(href=os.path.basename(dmat_outfile))
+# thumb.img = reporter.img(src=os.path.basename(dmat_outfile),
+#                          height="250px",
+#                          width="600px")
+# thumb.description = "DMAT"
+# level1_thumbs.commit_thumbnails(thumb)
 
 """specify contrasts"""
 contrasts = {}
@@ -96,11 +125,12 @@ n_columns = len(design_matrix.names)
 for i in xrange(paradigm.n_conditions):
     contrasts['%s' % design_matrix.names[2 * i]] = np.eye(n_columns)[2 * i]
 
-# more interesting contrasts
+"""more interesting contrasts"""
 contrasts['active-rest'] = contrasts['active'] - contrasts['rest']
 
-# fit GLM
+"""fit GLM"""
 print('\r\nFitting a GLM (this takes time) ..')
+progress_logger.log("Fitting GLM ..<br/>")
 fmri_glm = FMRILinearModel(fmri_data, design_matrix.matrix,
            mask='compute')
 fmri_glm.fit(do_scaling=True, model='ar1')
@@ -112,6 +142,7 @@ nibabel.save(fmri_glm.mask, mask_path)
 
 """level 1 (within subject) inference"""
 print "Computing contrasts .."
+progress_logger.log("Computing contrats ..<br/>")
 for contrast_id in contrasts:
     print "\tcontrast id: %s" % contrast_id
     z_map, t_map, eff_map, var_map = fmri_glm.contrast(
@@ -132,7 +163,15 @@ for contrast_id in contrasts:
                      cmap=pl.cm.spectral,
                      vmin=vmin,
                      vmax=vmax,
-                     threshold=z_threshold)
+                     threshold=z_threshold,
+                     slicer='z',
+                     cut_coords=range(-17, 20, 3))
+
+        reporter.generate_level1_report(
+            z_map, fmri_glm.mask,
+            stats_report_filename, threshold=0.001,
+            cluster_th=50)
+
 
     for dtype, out_map in zip(['z', 't', 'effects', 'variance'],
                               [z_map, t_map, eff_map, var_map]):
@@ -147,6 +186,11 @@ for contrast_id in contrasts:
         print "\t\t%s map: %s" % (dtype, map_path)
 
     print
+
+
+"""We're done"""
+progress_logger.log('<hr/>')
+progress_logger.finish_all()
 
 """show all generated plots this far"""
 pl.show()

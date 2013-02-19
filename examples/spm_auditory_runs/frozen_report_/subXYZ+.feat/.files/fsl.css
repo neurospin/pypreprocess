@@ -1,0 +1,50 @@
+
+body { 
+     background-image: url("images/fsl-bg.jpg");
+     font-family: 'Arial';
+     margin-top: 0px;
+     padding-top: 0px;
+}
+
+object	{ width: 100% ; height: 170px }
+iframe	{ width: 100% ; height: 170px }
+
+a:link {text-decoration: none}
+a:visited {text-decoration: none}
+a:active {text-decoration: none}
+a:hover {text-decoration: underline; color: red;}
+
+ul { margin-top: 0px; }
+img { border-style: hidden; }
+
+.floatright {float: right; margin: 2em 0em 2em 2em; }
+.floatleft {float: left; margin: 2em 2em 0em 2em; }
+.centred {text-align: center; margin-left: auto; margin-right: auto; }
+
+#header {
+	margin-top: 2px;
+	font-family: 'Arial';
+}
+
+#header h1.fslheader {
+	font-family: 'Arial';
+	font-weight: bold;
+	font-size: 200%;
+	margin: 0em;
+	padding: 0em;
+}
+
+#header img.logo {
+	margin-top: 5px;
+	margin-left: 5px;
+	float: right;
+}
+
+#header table {
+	text-align: center;
+	border-style: hidden;
+	margin-top: 0em;
+	margin-bottom: 0em;
+	padding-top: 0em;
+	padding-bottom: 0em;
+}

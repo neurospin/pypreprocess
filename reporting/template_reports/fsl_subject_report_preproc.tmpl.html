@@ -1,0 +1,37 @@
+{{default done = 0}}
+{{default preproc_undergone = None}}
+
+<html>
+  <head>
+    <!--refreshstart-->
+    <meta http-equiv=refresh content=5>
+      <!--refreshstop-->
+      <link rel=stylesheet type=text/css href=../css/fsl.css>
+	<title>fsl</title>
+  </head>
+
+  <body>
+    <object data=report.html></object>
+    <h2>Progress report / log</h2>
+    started at put_start_time_here<p>
+      <script type="text/javascript">
+	<!-- var auto_refresh = setInterval( -->
+
+	<!-- function() { -->
+	<!-- {{py: import os; loader=os.path.basename(results.loader_filename);}} -->
+	$('#results').load("{{loader}}").fadeIn("slow");
+	<!-- }, {{results.refresh_timeout}}); -->
+      </script>
+      {{results.description | html}}
+      <div id="results">
+      </div>
+      <!-- It's time for javascript, folks -->
+      <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+      <script type='text/javascript'>
+	$(document).ready(function(){
+        {{py: import os; loader=os.path.basename(results.loader_filename);}}
+        $('#results').load("{{loader}}").fadeIn("slow");
+	});
+      </script>
+  </body>
+</html>

@@ -1,0 +1,39 @@
+
+<html>
+  <head>
+    <!--refreshstart-->
+    
+      <!--refreshstop-->
+      <link rel=stylesheet type=text/css href=../fsl.css>
+	<title>fMRI report</title>
+  </head>
+
+  <body>
+    <object data=report.html></object>
+    <h2>Data pre-preprocessing</h2>
+    Started: Tue Feb 19 14:35:43 2013
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Ended: Tue Feb 19 14:36:05 2013
+    <hr/>
+    <b>Methods used</b>
+    <p>All preprocessing has been done using <a href="https://github.com/neurospin/pypreprocess">pypreprocess</a>,
+ which is powered by <a href="http://nipy.sourceforge.net/nipype/">nipype</a>, and <a href="http://www.fil.ion.ucl.ac.uk/spm/software/spm8/">SPM8</a>.
+</p><ul><li>Motion correction has been done so as to detect artefacts due to the subject's head motion during the acquisition.</li><li>The subject's anatomical image has been coregistered against their fMRI images (precisely, to the mean thereof). Coregistration is important as it allows deformations of the anatomy to be directly applicable to the fMRI, or for ROIs to be defined on the anatomy.</li><li>Tissue Segmentation has been employed to segment the anatomical image into GM, WM, and CSF compartments by using TPMs (Tissue Probability Maps) as priors.</li><li>The segmented anatomical image has been warped into the MNI template space by applying the deformations learned during segmentation. The same deformations have been applied to the fMRI images.</li><li>The normalized fMRI images have been smoothed with a 6mm x 6mm x 6mm Gaussian kernel.</li></ul>
+    <hr/>
+    <script type="text/javascript">
+      <!-- var auto_refresh = setInterval( -->
+
+      $('#results').load("results_loader.php").fadeIn("slow");
+    </script>
+    <b>Results</b>
+    <br/><br/>
+    <div id="results">
+    </div>
+    <!-- It's time for javascript, folks -->
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script type='text/javascript'>
+      $(document).ready(function(){
+      $('#results').load("results_loader.php").fadeIn("slow");
+      });
+    </script>
+  </body>
+</html>

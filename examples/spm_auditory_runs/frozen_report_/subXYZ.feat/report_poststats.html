@@ -1,0 +1,32 @@
+<HTML><HEAD><link REL=stylesheet TYPE=text/css href=.files/fsl.css>
+<TITLE>FSL</TITLE></HEAD><BODY><OBJECT data=report.html></OBJECT>
+<h2>Post-stats</h2>
+<!--poststatspsstart-->
+<hr><p><b>Analysis methods</b><br>FMRI data processing was carried out using FEAT (FMRI Expert Analysis Tool) Version 5.98, part of FSL (FMRIB's Software Library, www.fmrib.ox.ac.uk/fsl). Z (Gaussianised T/F) statistic images were thresholded using clusters determined by Z>5.0 and a (corrected) cluster significance threshold of P=0.05 [Worsley 2001].
+<!--poststatspsstop-->
+<!--poststatsrsstart-->
+<p><b>References</b><br>[Worsley 2001] K.J. Worsley. Statistical analysis of activation images. Ch 14, in Functional MRI: An Introduction to Methods,
+eds. P. Jezzard, P.M. Matthews and S.M. Smith. OUP, 2001.<br>
+
+<!--poststatsrsstop-->
+<!--poststatspicsstart-->
+
+<hr><b>Thresholded activation images</b>
+&nbsp; &nbsp; &nbsp; &nbsp; 
+2.3
+<IMG BORDER=0 SRC=.ramp.gif>
+8.0
+<p>Z-stat images were masked with /home/edohmato/CODE/FORKED/pypreprocess/spm_auditory_runs/subXYZ/mask.nii.gz before thresholding.<br>
+
+<p>zstat1 &nbsp;&nbsp;-&nbsp;&nbsp; C1 (active>rest)<br>
+    <a href=cluster_zstat1.html><IMG BORDER=0 SRC=rendered_thresh_zstat1.png></a>
+    
+<!--poststatspicsstop-->
+<!--poststatstsplotstart-->
+<hr><b>Time series plots</b><p>
+<a href=tsplot/tsplot_zstat1.html><IMG BORDER=0 SRC=tsplot/tsplot_zstat1.png></a><br><br>
+
+
+<!--poststatstsplotstop-->
+
+</BODY></HTML>

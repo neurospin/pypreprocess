@@ -1,6 +1,6 @@
-"""
+B"""
 :Module: nipype_preproc_spm_haxby
-:Synopsis: SPM use-case for preprocessing HAXBY 2001 dataset
+:1;3201;0cSynopsis: SPM use-case for preprocessing HAXBY 2001 dataset
 :Author: dohmatob elvis dopgima
 
 """
@@ -9,11 +9,9 @@
 import os
 import sys
 
-"""chdir to script dir"""
-os.chdir(os.path.dirname(sys.argv[0]))
-
 # pypreprocess dir
-sys.path.append("..")
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
 # data-grabbing imports
 from datasets_extras import unzip_nii_gz, fetch_haxby
