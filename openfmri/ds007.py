@@ -25,7 +25,9 @@ here</a>.\
 
 MODEL_ID = 'model001'
 
-ignore_list = []
+ignore_list = [
+    'sub009',  # missing task002 sessions
+    ]
 
 
 if __name__ == '__main__':
@@ -41,15 +43,12 @@ if __name__ == '__main__':
     # download data
     data_dir = fetch_openfmri(FULL_ID, root_dir)
 
-    # condition_key file in tarball is incomplete
-    _fetch_file('https://openfmri.org/system/files/condition_key.txt',
-                os.path.join(data_dir, SHORT_ID, 'models', MODEL_ID))
-
     # apply SPM preprocessing
     apply_preproc(SHORT_ID, data_dir, preproc_dir, ignore_list,
                   dataset_description=DESCRIPTION)
 
     # prepare GLM (get data and design)
+
     preproc_data, motion_params = load_preproc(SHORT_ID, preproc_dir)
 
     glm_params = load_glm_params(SHORT_ID, data_dir, MODEL_ID,
