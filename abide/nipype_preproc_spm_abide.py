@@ -10,10 +10,8 @@ import os
 import glob
 import sys
 
-"""chdir to script dir"""
-os.chdir(os.path.dirname(sys.argv[0]))
-
-sys.path.append("..")
+sys.path.append(os.path.dirname(
+        os.path.dirname(os.path.abspath(sys.argv[0]))))
 
 # import spm preproc utilities
 import nipype_preproc_spm_utils
