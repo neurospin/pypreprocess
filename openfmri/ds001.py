@@ -1,4 +1,6 @@
+import os
 import sys
+import shutil
 
 # local imports
 from utils import apply_preproc, load_preproc, load_glm_params

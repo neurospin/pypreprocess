@@ -10,20 +10,18 @@ sys.path.append('..')
 
 from nipy_glm_utils import apply_glm
 from datasets_extras import fetch_openfmri
+from external.nisl.datasets import _fetch_file
 
-FULL_ID = 'ds000002'
-SHORT_ID = 'ds002'
-NAME = 'Classification learning'
+FULL_ID = 'ds000005'
+SHORT_ID = 'ds005'
+NAME = 'Mixed-gambles task'
 DESCRIPTION = """
-Subjects performed a classification learning task with two different problems
-(across different runs), using a "weather prediction" task.  In one
-(probabilistic) problem, the labels were probabilistically related to each
-set of cards.  In another (deterministic) problem, the labels were
-deterministically related to each set of cards.  After learning, subjects
-participated in an event-related block of judgment only (no feedback) in
-which they were presented with stimuli from both of the training problems.
+Subjects were presented with mixed (gain/loss) gambles, and decided
+whether they would accept each gamble.  No outcomes of these gambles
+were presented during scanning, but after the scan three gambles were
+selected at random and played for real money.
 
-Get full description <a href="https://openfmri.org/dataset/ds000002">\
+Get full description <a href="https://openfmri.org/dataset/ds000005">\
 here</a>.\
 """
 
@@ -45,6 +43,10 @@ if __name__ == '__main__':
     # download data
     data_dir = fetch_openfmri(FULL_ID, root_dir)
 
+    # condition_key file in tarball is incomplete
+    _fetch_file('https://openfmri.org/system/files/condition_key.txt',
+                os.path.join(data_dir, SHORT_ID, 'models', MODEL_ID))
+
     # this dataset does not contain contrast definitions
     contrasts_file = '%s_task_contrasts.txt' % SHORT_ID
     assert os.path.isfile(contrasts_file), \
@@ -59,8 +61,7 @@ if __name__ == '__main__':
                   dataset_description=DESCRIPTION)
 
     # prepare GLM (get data and design)
-    preproc_data, motion_params = load_preproc(SHORT_ID, preproc_dir,
-                                               dataset_description=DESCRIPTION)
+    preproc_data, motion_params = load_preproc(SHORT_ID, preproc_dir)
 
     glm_params = load_glm_params(SHORT_ID, data_dir, MODEL_ID,
                                  subject_ids=preproc_data.keys(),

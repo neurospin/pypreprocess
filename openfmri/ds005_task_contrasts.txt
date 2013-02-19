@@ -1,0 +1,4 @@
+task001 gain_vs_loss 0 1 -1 0
+task001 loss_vs_gain 0 -1 1 0
+task001 gain_vs_indifference 0 1 0 -1
+task001 loss_vs_indifference 0 0 1 -1

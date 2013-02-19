@@ -1,6 +1,4 @@
-import os
 import sys
-import shutil
 
 # local imports
 from utils import apply_preproc, load_preproc, load_glm_params
@@ -11,19 +9,14 @@ sys.path.append('..')
 from nipy_glm_utils import apply_glm
 from datasets_extras import fetch_openfmri
 
-FULL_ID = 'ds000002'
-SHORT_ID = 'ds002'
-NAME = 'Classification learning'
+FULL_ID = 'ds000003'
+SHORT_ID = 'ds003'
+NAME = 'Rhyme judgment'
 DESCRIPTION = """
-Subjects performed a classification learning task with two different problems
-(across different runs), using a "weather prediction" task.  In one
-(probabilistic) problem, the labels were probabilistically related to each
-set of cards.  In another (deterministic) problem, the labels were
-deterministically related to each set of cards.  After learning, subjects
-participated in an event-related block of judgment only (no feedback) in
-which they were presented with stimuli from both of the training problems.
+Subjects were presented with pairs of either words or pseudowords, and
+made rhyming judgments for each pair.
 
-Get full description <a href="https://openfmri.org/dataset/ds000002">\
+Get full description <a href="https://openfmri.org/dataset/ds000003">\
 here</a>.\
 """
 
@@ -45,18 +38,8 @@ if __name__ == '__main__':
     # download data
     data_dir = fetch_openfmri(FULL_ID, root_dir)
 
-    # this dataset does not contain contrast definitions
-    contrasts_file = '%s_task_contrasts.txt' % SHORT_ID
-    assert os.path.isfile(contrasts_file), \
-        "No contrasts file: %s" % contrasts_file
-    dest = os.path.join(data_dir, SHORT_ID,
-                        'models', MODEL_ID, 'task_contrasts.txt')
-
-    shutil.copy(contrasts_file, dest)
-
     # apply SPM preprocessing
-    apply_preproc(SHORT_ID, data_dir, preproc_dir, ignore_list,
-                  dataset_description=DESCRIPTION)
+    apply_preproc(SHORT_ID, data_dir, preproc_dir, ignore_list)
 
     # prepare GLM (get data and design)
     preproc_data, motion_params = load_preproc(SHORT_ID, preproc_dir,
