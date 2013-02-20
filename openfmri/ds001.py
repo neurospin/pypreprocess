@@ -1,11 +1,12 @@
 import sys
+import os
 
 # local imports
 from utils import apply_preproc, load_preproc, load_glm_params
 
 # parent dir imports
-sys.path.append('..')
-
+sys.path.append(os.path.dirname(
+        os.path.dirname(os.path.abspath(sys.argv[0]))))
 from nipy_glm_utils import apply_glm
 from datasets_extras import fetch_openfmri
 
