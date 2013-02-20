@@ -236,6 +236,17 @@ def FSL_SUBJECT_REPORT_PREPROC_HTML_TEMPLATE():
         return tempita.HTMLTemplate(_text)
 
 
+def FSL_SUBJECT_REPORT_STATS_HTML_TEMPLATE():
+    """
+
+    """
+    with open(os.path.join(
+            root_dir, 'template_reports',
+            'fsl_subject_report_stats_template.tmpl.html')) as fd:
+        _text = fd.read()
+        return tempita.HTMLTemplate(_text)
+
+
 def lines2breaks(lines):
     """
     Converts line breaks to HTML breaks.
@@ -290,6 +301,9 @@ class ProgressReport(object):
         for filename in [self.report_filename] + self.other_watched_files:
             self.finish(filename)
 
+    def watch_file(self, filename):
+        self.other_watched_files.append(filename)
+
 
 def nipype2htmlreport(nipype_report_filename):
     """
@@ -301,7 +315,9 @@ def nipype2htmlreport(nipype_report_filename):
 
 
 def generate_level1_report(zmap, mask,
-                           output_html_path, threshold=0.001,
+                           output_html_path,
+                           title="level 1 stats",
+                           threshold=0.001,
                            method='fpr', cluster_th=0, null_zmax='bonferroni',
                            null_smax=None, null_s=None, nmaxima=4,
                            cluster_pval=.05):
@@ -359,9 +375,8 @@ def generate_level1_report(zmap, mask,
 
     # Make HTML page
     output = open(output_html_path, mode="w")
-    output.write("<html><head><title> Result Sheet.\
-    </title></head><body><center>\n")
-    output.write("<h2> Results</h2>\n")
+    output.write("<center>\n")
+    output.write("<b>%s</b>\n" % title)
     output.write("<table border = 1>\n")
     output.write("<tr><th colspan=4> Voxel significance </th>\
     <th colspan=3> Coordinates in MNI referential</th>\
@@ -405,5 +420,5 @@ def generate_level1_report(zmap, mask,
     else:
         output.write("Cluster size threshold = %i voxels" % cluster_th)
 
-    output.write("</center></body></html>\n")
+    output.write("</center>\n")
     output.close()
