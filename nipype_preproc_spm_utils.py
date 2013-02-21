@@ -1092,8 +1092,8 @@ def _do_subject_preproc(
         if do_realign:
             preproc_undergone += (
                 "<li>"
-                "Motion correction has been done so as to detect artefacts"
-                " due to the subject's head motion during the acquisition."
+                "Motion correction has been done so as to correct for "
+                "subject's head motion during the acquisition."
                 "</li>")
         if do_coreg:
             preproc_undergone += (
@@ -1187,6 +1187,8 @@ def _do_subject_preproc(
             fd.close()
 
         def finalize_report():
+            output['final_thumbnail'] = final_thumbnail
+
             if parent_results_gallery:
                 commit_subject_thumnbail_to_parent_gallery(
                     final_thumbnail,
