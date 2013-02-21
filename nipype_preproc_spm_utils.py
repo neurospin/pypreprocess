@@ -156,9 +156,6 @@ def generate_normalization_thumbnails(
 
     _brain = brain
 
-    if progress_logger:
-        progress_logger.log('<b>Normalization of %s</b><br/><br/>' % _brain)
-
     if type(normalized_files) is str:
         nipype_report_filename = os.path.join(
             os.path.dirname(normalized_files),
@@ -282,7 +279,8 @@ def generate_segmentation_thumbnails(
     subject_csf_file=None,
     brain='epi',
     cmap=None,
-    results_gallery=None):
+    results_gallery=None,
+    progress_logger=None):
     """Generates thumbnails after indirect normalization
     (segmentation + normalization)
 
@@ -318,6 +316,9 @@ def generate_segmentation_thumbnails(
     import reporting.reporter as reporter
 
     _brain = brain
+
+    if progress_logger:
+        progress_logger.log('<b>Normalization of %s</b><br/><br/>' % _brain)
 
     if type(normalized_files) is str:
         nipype_report_filename = os.path.join(
@@ -913,6 +914,9 @@ def _do_subject_normalize(output_dir,
     """
 
     output = {}
+
+    if progress_logger:
+        progress_logger.log('<b>Normalization of %s</b><br/><br/>' % brain)
 
     # prepare for smart caching
     cache_dir = os.path.join(output_dir, 'cache_dir')
