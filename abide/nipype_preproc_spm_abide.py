@@ -5,7 +5,7 @@
 
 """
 
-# standard imports
+"""standard imports"""
 import os
 import glob
 import sys
@@ -13,27 +13,136 @@ import sys
 sys.path.append(os.path.dirname(
         os.path.dirname(os.path.abspath(sys.argv[0]))))
 
-# import spm preproc utilities
+"""import spm preproc utilities"""
 import nipype_preproc_spm_utils
 
 DATASET_DESCRIPTION = """\
-<p><a href="http://fcon_1000.projects.nitrc.org/indi/abide/">ABIDE</a>\
- rest auditory dataset.</p>\
+<p><a href="http://fcon_1000.projects.nitrc.org/indi/abide/">Institute %s, \
+ABIDE</a> rest auditory dataset.</p>\
 """
 
-# wildcard defining ABIDE directory structure
-subject_id_wildcard = "*_*/*_*"
+"""DARTEL ?"""
+DO_DARTEL = True
 
-# DARTEL ?
-DO_DARTEL = False
+"""institutes we're insterested in"""
+INSTITUTES = [
+    "KKI",
+    "Leuven",
+    "NYU",
+    "MaxMun",
+    ]
 
-# sanitize cmd-line input
+
+def preproc_abide_institute(institute_id, abide_data_dir, abide_output_dir,
+                            do_dartel=False,
+                            do_report=True):
+    """Preprocesses a given ABIDE institute
+
+    """
+
+    # set institute output dir
+    institute_output_dir = os.path.join(abide_output_dir, institute_id)
+    if not os.path.exists(institute_output_dir):
+        os.makedirs(institute_output_dir)
+
+    # set subject id wildcard for globbing institute subjects
+    subject_id_wildcard = "%s_*/%s_*" % (institute_id, institute_id)
+
+    # glob for subject ids
+    subject_ids = [os.path.basename(x)
+                   for x in glob.glob(
+            os.path.join(abide_data_dir, subject_id_wildcard))]
+
+    # sort the ids
+    subject_ids.sort()
+
+    ignored_subject_ids = []
+
+    # producer subject data
+    def subject_factory():
+        for subject_id in subject_ids:
+            subject_data = nipype_preproc_spm_utils.SubjectData()
+            subject_data.subject_id = subject_id
+
+            try:
+                subject_data.func = glob.glob(
+                    os.path.join(
+                        abide_data_dir,
+                        "%s/%s/scans/rest*/resources/NIfTI/files/rest.nii" % (
+                            subject_id, subject_id)))[0]
+            except IndexError:
+                ignored_because = "no rest data found"
+                print "Ignoring subject %s (%s)" % (subject_id,
+                                                    ignored_because)
+                ignored_subject_ids.append((subject_id, ignored_because))
+                continue
+
+            try:
+                subject_data.anat = glob.glob(
+                    os.path.join(
+                        abide_data_dir,
+                        "%s/%s/scans/anat/resources/NIfTI/files/mprage.nii" % (
+                            subject_id, subject_id)))[0]
+            except IndexError:
+                if do_dartel:
+                    # can't do DARTEL in under such conditions
+                    continue
+
+                try:
+                    subject_data.hires = glob.glob(
+                        os.path.join(
+                            abide_data_dir,
+                            ("%s/%s/scans/hires/resources/NIfTI/"
+                             "files/hires.nii") % (
+                                subject_id, subject_id)))[0]
+                except IndexError:
+                    ignored_because = "no anat/hires data found"
+                    print "Ignoring subject %s (%s)" % (subject_id,
+                                                        ignored_because)
+                    ignored_subject_ids.append((subject_id, ignored_because))
+                    continue
+
+            subject_data.output_dir = os.path.join(
+                os.path.join(
+                    institute_output_dir, subject_id))
+
+            yield subject_data
+
+    # do preprocessing proper
+    report_filename = os.path.join(institute_output_dir,
+                                   "_report.html")
+    results = nipype_preproc_spm_utils.do_subjects_preproc(
+        subject_factory(),
+        dataset_id=institute_id,
+        output_dir=institute_output_dir,
+        do_deleteorient=True,
+        do_report=do_report,
+        do_dartel=False,
+        dataset_description="%s" % DATASET_DESCRIPTION.replace("%s",
+                                                               institute_id),
+        report_filename=report_filename,
+        do_export_report=True)
+
+    for subject_id, ignored_because in ignored_subject_ids:
+        print "Ignored %s because %s" % (subject_id, ignored_because)
+
+    # we're done
+    if do_report:
+        for subject_result in results:
+            subject_result['progress_logger'].finish_all()
+
+"""sanitize cmd-line input"""
 if len(sys.argv)  < 3:
     print ("\r\nUsage: source /etc/fsl/4.1/fsl.sh; python %s "
-           "<path_to_ABIDE_folder> <output_dir>\r\n") % sys.argv[0]
-    print ("Example:\r\nsource /etc/fsl/4.1/fsl.sh; python %s "
+           "<path_to_ABIDE_folder> <output_dir> [comma-separated institute"
+           " ids]\r\n") % sys.argv[0]
+    print ("Examples:\r\nsource /etc/fsl/4.1/fsl.sh; python %s "
            "/volatile/home/aa013911/ABIDE "
            "/volatile/home/aa013911/DED/ABIDE_runs") % sys.argv[0]
+    print ("source /etc/fsl/4.1/fsl.sh; python %s "
+           "/volatile/home/aa013911/ABIDE "
+           "/volatile/home/aa013911/DED/ABIDE_runs Leveun,KKI,NYU"
+           ) % sys.argv[0]
     sys.exit(1)
 
 ABIDE_DIR = os.path.abspath(sys.argv[1])
@@ -43,80 +152,8 @@ if not os.path.isdir(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
 if len(sys.argv) > 3:
-    subject_id_wildcard = sys.argv[3]
+    INSTITUTES = sys.argv[3].split(",")
 
-# glob for subject ids
-subject_ids = [os.path.basename(x)
-               for x in glob.glob(
-        os.path.join(ABIDE_DIR, subject_id_wildcard))]
-
-subject_ids.sort()
-
-ignored_subject_ids = []
-
-# XXX the following will save you re-calculating MD5s for results
-# you know are already there
-
-
-# producer subject data
-def subject_factory():
-    for subject_id in subject_ids:
-        subject_data = nipype_preproc_spm_utils.SubjectData()
-        subject_data.subject_id = subject_id
-
-        try:
-            subject_data.func = glob.glob(
-                os.path.join(
-                    ABIDE_DIR,
-                    "%s/%s/scans/rest*/resources/NIfTI/files/rest.nii" % (
-                        subject_id, subject_id)))[0]
-        except IndexError:
-            ignored_because = "no rest data found"
-            print "Ignoring subject %s (%s)" % (subject_id,
-                                                ignored_because)
-            ignored_subject_ids.append((subject_id, ignored_because))
-            continue
-
-        try:
-            subject_data.anat = glob.glob(
-                os.path.join(
-                    ABIDE_DIR,
-                    "%s/%s/scans/anat/resources/NIfTI/files/mprage.nii" % (
-                        subject_id, subject_id)))[0]
-        except IndexError:
-            if DO_DARTEL:
-                continue
-
-            try:
-                subject_data.hires = glob.glob(
-                    os.path.join(
-                        ABIDE_DIR,
-                        ("%s/%s/scans/hires/resources/NIfTI/"
-                         "files/hires.nii") % (
-                            subject_id, subject_id)))[0]
-            except IndexError:
-                ignored_because = "no anat/hires data found"
-                print "Ignoring subject %s (%s)" % (subject_id,
-                                                    ignored_because)
-                ignored_subject_ids.append((subject_id, ignored_because))
-                continue
-
-        subject_data.output_dir = os.path.join(
-            os.path.join(
-                OUTPUT_DIR, subject_id))
-
-        yield subject_data
-
-# do preprocessing proper
-report_filename = os.path.join(OUTPUT_DIR,
-                               "_report.html")
-nipype_preproc_spm_utils.do_subjects_preproc(
-    subject_factory(),
-    output_dir=OUTPUT_DIR,
-    do_deleteorient=True,
-    do_dartel=DO_DARTEL,
-    dataset_description=DATASET_DESCRIPTION,
-    report_filename=report_filename)
-
-for subject_id, ignored_because in ignored_subject_ids:
-    print "Ignored %s because %s" % (subject_id, ignored_because)
+for institute_id in INSTITUTES:
+    preproc_abide_institute(institute_id, ABIDE_DIR, OUTPUT_DIR,
+                            do_dartel=DO_DARTEL)
