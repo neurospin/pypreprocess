@@ -1064,6 +1064,7 @@ def _do_subject_preproc(
         os.makedirs(subject_data.output_dir)
 
     if do_report:
+        import time
         import reporting.reporter as reporter
 
         # compute docstring explaining preproc steps undergone
@@ -1156,7 +1157,6 @@ def _do_subject_preproc(
         output['progress_logger'] = subject_progress_logger
 
         # html markup
-        import time
         log = reporter.FSL_SUBJECT_REPORT_LOG_HTML_TEMPLATE().substitute(
             results=results_gallery,
             start_time=time.ctime(),
@@ -1796,6 +1796,7 @@ def do_group_DARTEL(output_dir,
 
 def do_subjects_preproc(subjects,
                         output_dir=None,
+                        dataset_id="UNNAMED DATASET!",
                         do_deleteorient=False,
                         do_report=True,
                         do_export_report=False,
@@ -1860,6 +1861,7 @@ def do_subjects_preproc(subjects,
     # generate html report (for QA) as desired
     parent_results_gallery = None
     if do_report:
+        import time
         import reporting.reporter as reporter
 
         # do some sanity
@@ -1871,6 +1873,13 @@ def do_subjects_preproc(subjects,
                                  os.path.dirname(report_filename))
         shutil.copy(os.path.join(root_dir, "reporting/images/logo.jpeg"),
                                  os.path.dirname(report_filename))
+
+        preproc_undergone = """\
+<p>All preprocessing has been done using <a href="%s">pypreprocess</a>,
+ which is powered by <a href="%s">nipype</a>, and <a href="%s">SPM8</a>.
+</p>""" % (PYPREPROCESS_URL, NIPYPE_URL, SPM8_URL)
+
+        preproc_undergone += "<ul>"
 
         additional_preproc_undergone = ""
         if do_dartel:
@@ -1905,30 +1914,60 @@ def do_subjects_preproc(subjects,
                 "alignment with them) can be generated. "
                 "</li>") % DARTEL_URL
 
+        preproc_undergone += additional_preproc_undergone + "</ul>"
+
         kwargs['additional_preproc_undergone'] = additional_preproc_undergone
 
-        # initialize code for reporter from template
-        tmpl = reporter.DATASET_PREPROC_REPORT_HTML_TEMPLATE()
+        report_log_filename = os.path.join(
+            output_dir, 'report_log.html')
+        report_preproc_filename = os.path.join(
+            output_dir, 'report_preproc.html')
+        report_filename = os.path.join(
+            output_dir, 'report.html')
 
-        # prepare meta results
-        loader_filename = os.path.join(os.path.dirname(report_filename),
-                                       "results_loader.php")
+        # initialize results gallery
+        loader_filename = os.path.join(
+            output_dir, "results_loader.php")
         parent_results_gallery = reporter.ResultsGallery(
             loader_filename=loader_filename,
             refresh_timeout=30000,   # 30 seconds
             )
 
-        # write initial content for reporting
-        report = tmpl.substitute(
-            dataset_description=dataset_description,
-            results=parent_results_gallery)
-        print ">" * 80 + "BEGIN HTML"
-        print report
-        print "<" * 80 + "END HTML\r\n"
+        # initialize progress bar
+        progress_logger = reporter.ProgressReport(
+            report_log_filename,
+            other_watched_files=[report_filename,
+                                 report_preproc_filename])
 
-        with open(report_filename, 'w') as fd:
-            fd.write(str(report))
+        # html markup
+        log = reporter.FSL_DATASET_REPORT_LOG_HTML_TEMPLATE().substitute(
+            start_time=time.ctime(),
+            )
+        preproc = reporter.FSL_DATASET_REPORT_PREPROC_HTML_TEMPLATE(
+            ).substitute(
+            results=parent_results_gallery,
+            start_time=time.ctime(),
+            preproc_undergone=preproc_undergone,
+            )
+        main_html = reporter.FSL_DATASET_REPORT_HTML_TEMPLATE(
+            ).substitute(
+            results=parent_results_gallery,
+            start_time=time.ctime(),
+            dataset_id=dataset_id,
+            )
+
+        with open(report_log_filename, 'w') as fd:
+            fd.write(str(log))
             fd.close()
+        with open(report_preproc_filename, 'w') as fd:
+            fd.write(str(preproc))
+            fd.close()
+        with open(report_filename, 'w') as fd:
+            fd.write(str(main_html))
+            fd.close()
+
+        def finalize_report():
+            progress_logger.finish(report_preproc_filename)
             print "HTML report (dynamic) written to %s" % report_filename
 
         kwargs['main_page'] = "../../%s" % os.path.basename(report_filename)
@@ -2050,6 +2089,8 @@ def do_subjects_preproc(subjects,
         results = _results
 
     if do_report:
+        finalize_report()
+
         print "HTML report (dynamic) written to %s" % report_filename
 
     # export report (so it can be emailed and QA'ed offline, for example)

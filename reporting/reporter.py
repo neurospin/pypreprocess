@@ -17,7 +17,11 @@ sys.path.append("..")
 import external.tempita.tempita as tempita
 
 # find package path
-root_dir = os.path.split(os.path.abspath(__file__))[0]
+ROOT_DIR = os.path.split(os.path.abspath(__file__))[0]
+
+# extention of web-related files (increment this as we support more
+# and more file extensions for web business)
+WEBBY_EXTENSION_PATTERN = ".*\.(?:png|jpeg|html|php|css)$"
 
 
 def del_empty_dirs(s_dir):
@@ -61,7 +65,7 @@ def export_report(src, tag="", make_archive=True):
     """
 
     def check_extension(f):
-        return re.match(".*\.(?:png|html|php|css)$", f)
+        return re.match(WEBBY_EXTENSION_PATTERN, f)
 
     def ignore_these(folder, files):
         return [f for f in files if \
@@ -186,7 +190,7 @@ def SUBJECT_PREPROC_REPORT_HTML_TEMPLATE():
 
     """
 
-    with open(os.path.join(root_dir, 'template_reports',
+    with open(os.path.join(ROOT_DIR, 'template_reports',
                            'subject_preproc_report_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
@@ -197,7 +201,7 @@ def DATASET_PREPROC_REPORT_HTML_TEMPLATE():
     Returns report template for dataset preproc.
 
     """
-    with open(os.path.join(root_dir, 'template_reports',
+    with open(os.path.join(ROOT_DIR, 'template_reports',
                            'dataset_preproc_report_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
@@ -208,7 +212,7 @@ def FSL_SUBJECT_REPORT_LOG_HTML_TEMPLATE():
 
     """
     with open(os.path.join(
-            root_dir, 'template_reports',
+            ROOT_DIR, 'template_reports',
             'fsl_subject_report_log_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
@@ -219,7 +223,7 @@ def FSL_SUBJECT_REPORT_HTML_TEMPLATE():
 
     """
     with open(os.path.join(
-            root_dir, 'template_reports',
+            ROOT_DIR, 'template_reports',
                            'fsl_subject_report_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
@@ -230,7 +234,7 @@ def FSL_SUBJECT_REPORT_PREPROC_HTML_TEMPLATE():
 
     """
     with open(os.path.join(
-            root_dir, 'template_reports',
+            ROOT_DIR, 'template_reports',
             'fsl_subject_report_preproc_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
@@ -241,8 +245,52 @@ def FSL_SUBJECT_REPORT_STATS_HTML_TEMPLATE():
 
     """
     with open(os.path.join(
-            root_dir, 'template_reports',
+            ROOT_DIR, 'template_reports',
             'fsl_subject_report_stats_template.tmpl.html')) as fd:
+        _text = fd.read()
+        return tempita.HTMLTemplate(_text)
+
+
+def FSL_DATASET_REPORT_HTML_TEMPLATE():
+    """
+
+    """
+    with open(os.path.join(
+            ROOT_DIR, 'template_reports',
+                           'fsl_dataset_report_template.tmpl.html')) as fd:
+        _text = fd.read()
+        return tempita.HTMLTemplate(_text)
+
+
+def FSL_DATASET_REPORT_PREPROC_HTML_TEMPLATE():
+    """
+
+    """
+    with open(os.path.join(
+            ROOT_DIR, 'template_reports',
+            'fsl_dataset_report_preproc_template.tmpl.html')) as fd:
+        _text = fd.read()
+        return tempita.HTMLTemplate(_text)
+
+
+def FSL_DATASET_REPORT_STATS_HTML_TEMPLATE():
+    """
+
+    """
+    with open(os.path.join(
+            ROOT_DIR, 'template_reports',
+            'fsl_dataset_report_stats_template.tmpl.html')) as fd:
+        _text = fd.read()
+        return tempita.HTMLTemplate(_text)
+
+
+def FSL_DATASET_REPORT_LOG_HTML_TEMPLATE():
+    """
+
+    """
+    with open(os.path.join(
+            ROOT_DIR, 'template_reports',
+            'fsl_dataset_report_log_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
 
@@ -268,6 +316,15 @@ class ProgressReport(object):
         self.other_watched_files = other_watched_files
 
     def log(self, msg):
+        """Logs an html-formated stub to the report file
+
+        Parameters
+        ----------
+        msg: string
+            message to log
+
+        """
+
         with open(self.report_filename, 'r') as i_fd:
             content = i_fd.read()
             i_fd.close()
@@ -278,6 +335,16 @@ class ProgressReport(object):
                 o_fd.close()
 
     def finish(self, report_filename=None):
+        """Stops the automatic reloading (by the browser, etc.) of a given
+         report page
+
+         Parameters
+         ----------
+         report_filename: string (optinal)
+             file URL of page to stop re-loading
+
+        """
+
         if report_filename is None:
             report_filename = self.report_filename
 
@@ -298,7 +365,13 @@ class ProgressReport(object):
                 o_fd.close()
 
     def finish_all(self):
-        for filename in [self.report_filename] + self.other_watched_files:
+        """Stops the automatic re-loading of watched pages
+
+        """
+
+        self.finish()
+
+        for filename in self.other_watched_files:
             self.finish(filename)
 
     def watch_file(self, filename):
