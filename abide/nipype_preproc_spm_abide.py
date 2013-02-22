@@ -117,7 +117,7 @@ def preproc_abide_institute(institute_id, abide_data_dir, abide_output_dir,
         output_dir=institute_output_dir,
         do_deleteorient=True,
         do_report=do_report,
-        do_dartel=False,
+        do_dartel=do_dartel,
         dataset_description="%s" % DATASET_DESCRIPTION.replace(
             "%s",
             institute_id),
