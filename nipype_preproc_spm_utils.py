@@ -2024,6 +2024,8 @@ def do_subjects_preproc(subjects,
                                          for _, output in results]
             subject_progress_loggers = [output['progress_logger']
                                          for _, output in results]
+            estimated_motion = dict((output["subject_id"], output['estimated_motion'])
+                                     for _, output in results)
 
         # normalize brains to their own template space (DARTEL)
         results = do_group_DARTEL(
@@ -2040,7 +2042,7 @@ def do_subjects_preproc(subjects,
             ignore_exception=ignore_exception,
             )
 
-        # housekeeping
+        # dump json results
         _results = []
         for item in results:
             subject_result = {}
@@ -2050,7 +2052,7 @@ def do_subjects_preproc(subjects,
             subject_result['anat'] = item[
                 'dartelnorm2mni_result'].outputs.normalized_files
             if do_realign:
-                subject_result['estimated_motion'] = item['estimated_motion']
+                subject_result['estimated_motion'] = estimated_motion[item['subject_id']]
             subject_result['output_dir'] = item['output_dir']
 
             # dump result to json output file
@@ -2065,7 +2067,7 @@ def do_subjects_preproc(subjects,
 
         results = _results
     else:
-        # housekeeping
+        # dump json results
         _results = []
         for x in results:
             if x is None:
