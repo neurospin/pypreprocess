@@ -1687,8 +1687,10 @@ def _do_subject_dartelnorm2mni(output_dir,
                 subject_id,
                 parent_results_gallery)
 
-            if last_stage:
-                subject_progress_logger.finish()
+
+    if do_report:
+        if last_stage:
+            subject_progress_logger.finish()
 
     # collect results and return
     output['dartelnorm2mni_result'] = dartelnorm2mni_result
@@ -1806,6 +1808,7 @@ def do_subjects_preproc(subjects,
                         do_export_report=False,
                         dataset_description=None,
                         report_filename=None,
+                        do_shutdown_reloaders=False,
                         fwhm=0,
                         do_bet=False,
                         do_realign=True,
@@ -2061,6 +2064,9 @@ def do_subjects_preproc(subjects,
             json.dump(subject_result, open(json_outfile, 'wb'))
 
             if do_report:
+                if do_shutdown_reloaders:
+                    subject_result['progress_logger'].finish_all()
+
                 subject_result['progress_logger'] = item['progress_logger']
 
             _results.append(subject_result)
@@ -2088,6 +2094,9 @@ def do_subjects_preproc(subjects,
             json.dump(subject_result, open(json_outfile, 'wb'))
 
             if do_report:
+                if do_shutdown_reloaders:
+                    subject_result['progress_logger'].finish_all()
+
                 subject_result['progress_logger'] = item['progress_logger']
 
             _results.append(subject_result)

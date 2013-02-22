@@ -111,25 +111,22 @@ def preproc_abide_institute(institute_id, abide_data_dir, abide_output_dir,
     # do preprocessing proper
     report_filename = os.path.join(institute_output_dir,
                                    "_report.html")
-    results = nipype_preproc_spm_utils.do_subjects_preproc(
+    nipype_preproc_spm_utils.do_subjects_preproc(
         subject_factory(),
         dataset_id=institute_id,
         output_dir=institute_output_dir,
         do_deleteorient=True,
         do_report=do_report,
         do_dartel=False,
-        dataset_description="%s" % DATASET_DESCRIPTION.replace("%s",
-                                                               institute_id),
+        dataset_description="%s" % DATASET_DESCRIPTION.replace(
+            "%s",
+            institute_id),
         report_filename=report_filename,
+        do_shutdown_reloaders=True,
         do_export_report=True)
 
     for subject_id, ignored_because in ignored_subject_ids:
         print "Ignored %s because %s" % (subject_id, ignored_because)
-
-    # we're done
-    if do_report:
-        for subject_result in results:
-            subject_result['progress_logger'].finish_all()
 
 """sanitize cmd-line input"""
 if len(sys.argv)  < 3:
