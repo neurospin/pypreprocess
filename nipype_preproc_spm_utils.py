@@ -1694,9 +1694,7 @@ def _do_subject_dartelnorm2mni(output_dir,
     if do_report:
         # generate cv plots
         if do_cv_tc:
-            corrected_FMRI = output['func']
-
-            generate_cv_tc_thumbnail(corrected_FMRI,
+            generate_cv_tc_thumbnail(createwarped_result.outputs.warped_files,
                                      sessions,
                                      subject_id,
                                      output_dir,
