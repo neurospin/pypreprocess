@@ -529,7 +529,7 @@ def generate_cv_tc_thumbnail(
 
     cv_tc_plot_output_file = os.path.join(
         output_dir,
-        "cv_tc_plot%s.png")
+        "cv_tc_plot.png")
 
     qa_mem.cache(
         check_preprocessing.plot_cv_tc)(
@@ -1061,6 +1061,7 @@ def _do_subject_preproc(
     subject_data.sanitize(do_deleteorient=do_deleteorient)
 
     output = {"subject_id": subject_data.subject_id,
+              "session_id": subject_data.session_id,
               "output_dir": subject_data.output_dir}
 
     # create subject_data.output_dir if dir doesn't exist
@@ -1543,9 +1544,11 @@ def _do_subject_dartelnorm2mni(output_dir,
                                structural_file,
                                functional_file,
                                native_gm_image=None,
+                               sessions=None,
                                subject_id=None,
                                downsample_func=True,
                                do_report=True,
+                               do_cv_tc=True,
                                final_thumbnail=None,
                                results_gallery=None,
                                parent_results_gallery=None,
@@ -1689,6 +1692,17 @@ def _do_subject_dartelnorm2mni(output_dir,
 
 
     if do_report:
+        # generate cv plots
+        if do_cv_tc:
+            corrected_FMRI = output['func']
+
+            generate_cv_tc_thumbnail(corrected_FMRI,
+                                     sessions,
+                                     subject_id,
+                                     output_dir,
+                                     results_gallery=results_gallery)
+            
+        # shutdown page reloader
         if last_stage:
             subject_progress_logger.finish()
 
@@ -1706,6 +1720,7 @@ def _do_subject_dartelnorm2mni(output_dir,
 
 def do_group_DARTEL(output_dir,
                     subject_ids,
+                    session_ids,
                     structural_files,
                     functional_files,
                     subject_output_dirs=None,
@@ -1778,6 +1793,7 @@ def do_group_DARTEL(output_dir,
                 structural_files[j],
                 functional_files[j],
                 native_gm_image=native_gm_images[j],
+                sessions=session_ids[j],
                 subject_id=subject_ids[j],
                 do_report=do_report,
                 final_thumbnail=subject_final_thumbs[j],
@@ -1991,8 +2007,10 @@ def do_subjects_preproc(subjects,
                 subject_data, **kwargs) for subject_data in subjects)
 
     if do_dartel:
-        # collect subject_ids
+        # collect subject_ids and session_ids
         subject_ids = [output['subject_id'] for _, output in results]
+        session_ids = [output['session_id'] for _, output in results]
+
         # collect structural files for DARTEL pipeline
         if do_coreg:
             structural_files = [
@@ -2034,6 +2052,7 @@ def do_subjects_preproc(subjects,
         results = do_group_DARTEL(
             output_dir,
             subject_ids,
+            session_ids,
             structural_files,
             functional_files,
             subject_output_dirs,
