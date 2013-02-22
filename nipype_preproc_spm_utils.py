@@ -2064,10 +2064,10 @@ def do_subjects_preproc(subjects,
             json.dump(subject_result, open(json_outfile, 'wb'))
 
             if do_report:
+                subject_result['progress_logger'] = item['progress_logger']
+
                 if do_shutdown_reloaders:
                     subject_result['progress_logger'].finish_all()
-
-                subject_result['progress_logger'] = item['progress_logger']
 
             _results.append(subject_result)
 
@@ -2094,10 +2094,10 @@ def do_subjects_preproc(subjects,
             json.dump(subject_result, open(json_outfile, 'wb'))
 
             if do_report:
+                subject_result['progress_logger'] = item['progress_logger']
+
                 if do_shutdown_reloaders:
                     subject_result['progress_logger'].finish_all()
-
-                subject_result['progress_logger'] = item['progress_logger']
 
             _results.append(subject_result)
 
