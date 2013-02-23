@@ -1879,6 +1879,9 @@ def do_subjects_preproc(subjects,
         else:
             output_dir = os.path.abspath("runs_XYZ")
 
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     # generate html report (for QA) as desired
     parent_results_gallery = None
     if do_report:
