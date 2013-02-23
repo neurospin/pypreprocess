@@ -1,0 +1,217 @@
+"""
+Synopsis: nipy demo script
+Author: dohmatob elvis dopgima
+
+"""
+
+import os
+import sys
+import pylab as pl
+import numpy as np
+from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
+from nipy.modalities.fmri.design_matrix import make_dmtx
+from nipy.modalities.fmri.glm import FMRILinearModel
+from nipy.labs import viz
+import nibabel
+import time
+
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
+
+import nipype_preproc_spm_utils
+import reporting.reporter as reporter
+from datasets_extras import unzip_nii_gz
+
+"""MISC"""
+NIPY_URL = "http://nipy.sourceforge.net/nipy/stable/index.html"
+
+data_dir = os.path.abspath(sys.argv[1])
+output_dir = os.path.abspath(sys.argv[2])
+unzip_nii_gz(data_dir)
+
+"""fetch input data"""
+subject_data = nipype_preproc_spm_utils.SubjectData()
+subject_data.subject_id = "sub001"
+subject_data.anat = os.path.join(data_dir, "structural_brain.nii")
+subject_data.func = os.path.join(data_dir, "fmri.nii")
+subject_data.output_dir = os.path.join(
+    output_dir, subject_data.subject_id)
+
+"""preprocess the data"""
+report_filename = os.path.join(output_dir,
+                               "_report.html")
+results = nipype_preproc_spm_utils.do_subjects_preproc(
+    [subject_data],
+    output_dir=output_dir,
+    fwhm=[5, 5, 5],
+    report_filename=report_filename,
+    )
+
+"""collect preprocessed data"""
+fmri_data = results[0]['func']
+
+"""prepare for stats reporting"""
+progress_logger = results[0]['progress_logger']
+stats_report_filename = os.path.join(subject_data.output_dir,
+                                     "report_stats.html")
+progress_logger.watch_file(stats_report_filename)
+level1_loader_filename = os.path.join(
+    subject_data.output_dir, "level1_thumbs.html")
+level1_thumbs = reporter.ResultsGallery(
+    loader_filename=level1_loader_filename,
+    )
+level1_html_markup = reporter.FSL_SUBJECT_REPORT_STATS_HTML_TEMPLATE(
+    ).substitute(
+    results=level1_thumbs,
+    start_time=time.ctime(),
+    subject_id=subject_data.subject_id,
+    methods=('GLM and inference have been done using '
+             '<a href="%s">nipy</a>.') % NIPY_URL,
+             )
+with open(stats_report_filename, 'w') as fd:
+    fd.write(str(level1_html_markup))
+    fd.close()
+progress_logger.log("<b>Level 1 statistics</b><br/><br/>")
+
+"""experimental setup"""
+n_scans = 180
+TR = 3.0
+TR * n_scans
+TR * n_scans / 60
+TR * n_scans / 90
+np.linspace(0, TR * (n_scans - 1), 9)
+EV1_epoch_duration = 2 * 30
+EV2_epoch_duration = 2 * 45
+TA = TR * n_scans
+EV1_epochs = TA / EV1_epoch_duration
+EV1_epochs = int(TA / EV1_epoch_duration)
+EV2_epochs = int(TA / EV2_epoch_duration)
+EV1_onset = np.linspace(0, EV1_epoch_duration * (EV1_epochs - 1), EV1_epochs)
+EV2_onset = np.linspace(0, EV2_epoch_duration * (EV2_epochs - 1), EV2_epochs)
+EV1_on = 30
+EV2_on = 45
+conditions = ['EV1'] * EV1_epochs + ['EV2'] * EV2_epochs
+onset = list(EV1_onset) + list(EV2_onset)
+duration = [EV1_on] * EV1_epochs + [EV2_on] * EV2_epochs
+paradigm = BlockParadigm(con_id=conditions, onset=onset, duration=duration)
+frametimes = np.linspace(0, (n_scans - 1) * TR, n_scans)
+hfcut = 135
+
+"""construct design matrix"""
+drift_model = 'Cosine'
+hrf_model = 'Canonical With Derivative'
+design_matrix = make_dmtx(frametimes,
+                          paradigm, hrf_model=hrf_model,
+                          drift_model=drift_model, hfcut=hfcut)
+
+"""show design matrix"""
+ax = design_matrix.show()
+ax.set_position([.05, .25, .9, .65])
+ax.set_title('Design matrix')
+dmat_outfile = os.path.join(subject_data.output_dir, 'design_matrix.png')
+pl.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
+thumb = reporter.Thumbnail()
+thumb.a = reporter.a(href=os.path.basename(dmat_outfile))
+thumb.img = reporter.img(src=os.path.basename(dmat_outfile),
+                         height="500px",
+                         width="600px")
+thumb.description = "Design Matrix"
+level1_thumbs.commit_thumbnails(thumb)
+
+"""specify contrasts"""
+contrasts = {}
+n_columns = len(design_matrix.names)
+for i in xrange(paradigm.n_conditions):
+    contrasts['%s' % design_matrix.names[2 * i]] = np.eye(n_columns)[2 * i]
+
+"""more interesting contrasts"""
+contrasts['EV1-EV2'] = contrasts['EV1'] - contrasts['EV2']
+contrasts['EV2-EV1'] = -contrasts['EV1-EV2']
+
+"""fit GLM"""
+print('\r\nFitting a GLM (this takes time) ..')
+progress_logger.log("Fitting GLM ..<br/>")
+fmri_glm = FMRILinearModel(fmri_data, design_matrix.matrix,
+           mask='compute')
+fmri_glm.fit(do_scaling=True, model='ar1')
+
+"""save computed mask"""
+mask_path = os.path.join(subject_data.output_dir, "mask.nii.gz")
+print "Saving mask image %s" % mask_path
+nibabel.save(fmri_glm.mask, mask_path)
+
+"""level 1 (within subject) inference"""
+print "Computing contrasts .."
+progress_logger.log("Computing contrasts ..<br/>")
+for contrast_id in contrasts:
+    print "\tcontrast id: %s" % contrast_id
+    z_map, t_map, eff_map, var_map = fmri_glm.contrast(
+        contrasts[contrast_id],
+        con_id=contrast_id,
+        output_z=True,
+        output_stat=True,
+        output_effects=True,
+        output_variance=True,)
+
+    if contrast_id == 'EV1':
+        z_threshold = 2.3
+        z_axis_max = np.unravel_index(
+            z_map.get_data().argmax(), z_map.shape)[2]
+        z_axis_min = np.unravel_index(
+            z_map.get_data().argmin(), z_map.shape)[2]
+        pos_data = z_map.get_data() * (z_map.get_data() > 0)
+        vmax = pos_data.max()
+        vmin = - vmax
+
+        viz.plot_map(pos_data, z_map.get_affine(),
+                     cmap=pl.cm.hot,
+                     vmin=vmin,
+                     vmax=vmax,
+                     threshold=z_threshold,
+                     slicer='z',
+                     cut_coords=range(0, 17, 2),
+                     black_bg=True,
+                     )
+
+        z_map_plot = os.path.join(subject_data.output_dir,
+                                  "activation_map.png")
+        stats_table = os.path.join(subject_data.output_dir, "stats_table.html")
+        pl.savefig(z_map_plot, dpi=200, bbox_inches='tight',
+                   facecolor="k",
+                   edgecolor="k")
+
+        thumbnail = reporter.Thumbnail()
+        thumbnail.a = reporter.a(href=os.path.basename(z_map_plot))
+        thumbnail.img = reporter.img(
+            src=os.path.basename(z_map_plot), height="250px")
+        thumbnail.description = "Activation z-map (thresholded at %s)"\
+            % z_threshold
+        level1_thumbs.commit_thumbnails(thumbnail)
+
+    for dtype, out_map in zip(['z', 't', 'effects', 'variance'],
+                              [z_map, t_map, eff_map, var_map]):
+        map_dir = os.path.join(
+            subject_data.output_dir, '%s_maps' % dtype)
+        if not os.path.exists(map_dir):
+            os.makedirs(map_dir)
+        map_path = os.path.join(
+            map_dir, '%s.nii.gz' % contrast_id)
+        nibabel.save(out_map, map_path)
+
+        if contrast_id == "EV1" and dtype == "z":
+            reporter.generate_level1_report(
+                z_map, fmri_glm.mask,
+                stats_table,
+                title="%s z-map: %s" % (contrast_id, map_path),
+                cluster_th=15)
+
+        print "\t\t%s map: %s" % (dtype, map_path)
+
+    print
+
+"""We're done"""
+progress_logger.log('<hr/>')
+progress_logger.finish_all()
+
+"""show all generated plots this far"""
+# pl.show()
