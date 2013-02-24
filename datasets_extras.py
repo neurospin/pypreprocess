@@ -98,7 +98,11 @@ def _glob_fsl_feeds_data(subject_dir):
             subject_data[file_name] = file_path
         else:
             print "%s missing from filelist!" % file_name
-            return None
+            if not os.path.basename(subject_dir) == 'data':
+                return _glob_fsl_feeds_data(os.path.join(subject_dir,
+                                                         'data'))
+            else:
+                return None
 
     _subject_data = {"func": os.path.join(subject_dir,
                                           "fmri.nii"),
