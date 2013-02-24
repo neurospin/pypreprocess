@@ -419,7 +419,6 @@ def generate_level1_report(zmap, mask,
     """
     import nipy.labs.statistical_mapping as sm
 
-
     # Compute cluster statistics
     nulls = {'zmax': null_zmax, 'smax': null_smax, 's': null_s}
 
@@ -489,7 +488,7 @@ def generate_level1_report(zmap, mask,
     if info is not None:
         output.write("Threshold Z = %.2f (%s control at %.3f)<br>\n" \
                      % (info['threshold_z'], method, threshold))
-        output.write("Cluster size threshold p<0.05")
+        output.write("Cluster size threshold p<%s" % cluster_pval)
     else:
         output.write("Cluster size threshold = %i voxels" % cluster_th)
 
