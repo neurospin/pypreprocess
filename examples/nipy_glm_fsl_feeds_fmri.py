@@ -23,22 +23,40 @@ sys.path.append(
 """import utilities for preproc, reporting, and io"""
 import nipype_preproc_spm_utils
 import reporting.reporter as reporter
-from datasets_extras import unzip_nii_gz
+from datasets_extras import unzip_nii_gz, fetch_fsl_feeds_data
 from io_utils import compute_mean_3D_image
 
 """MISC"""
 NIPY_URL = "http://nipy.sourceforge.net/nipy/stable/index.html"
 z_threshold = 2.3
 
+"""sanitize cmd line"""
+if len(sys.argv)  < 3:
+    print ("\r\nUsage: python %s <path to FSL feeds data directory>"
+           " <output_dir>\r\n") % sys.argv[0]
+    print ("Example:\r\npython %s /usr/share/fsl-feeds/data/"
+           " fsl_feeds_fmri_runs") % sys.argv[0]
+    sys.exit(1)
+
+"""set data dir"""
 data_dir = os.path.abspath(sys.argv[1])
+# if not os.path.exists(data_dir):
+#     print ("\r\nError: Data directory %s doesn't exist (NB: You might want to "
+#            "download the data from http://fsl.fmrib.ox.ac.uk/fsldownloads"
+#            "/oldversions/fsl-4.1.0-feeds.tar.gz).") % data_dir
+#     sys.exit(1)
+
+"""set output dir"""
 output_dir = os.path.abspath(sys.argv[2])
 unzip_nii_gz(data_dir)
 
 """fetch input data"""
+_subject_data = fetch_fsl_feeds_data(data_dir)
+
 subject_data = nipype_preproc_spm_utils.SubjectData()
 subject_data.subject_id = "sub001"
-subject_data.anat = os.path.join(data_dir, "structural_brain.nii")
-subject_data.func = os.path.join(data_dir, "fmri.nii")
+subject_data.func = _subject_data["func"]
+subject_data.anat = _subject_data["anat"]
 subject_data.output_dir = os.path.join(
     output_dir, subject_data.subject_id)
 
@@ -106,7 +124,8 @@ onset = list(EV1_onset) + list(EV2_onset)
 duration = [EV1_on] * EV1_epochs + [EV2_on] * EV2_epochs
 paradigm = BlockParadigm(con_id=conditions, onset=onset, duration=duration)
 frametimes = np.linspace(0, (n_scans - 1) * TR, n_scans)
-hfcut = 135
+maximum_epoch_duration = max(EV1_epoch_duration, EV2_epoch_duration)
+hfcut = 1.5 * maximum_epoch_duration  # why ?
 
 """construct design matrix"""
 drift_model = 'Cosine'
