@@ -1699,7 +1699,7 @@ def _do_subject_dartelnorm2mni(output_dir,
                                      subject_id,
                                      output_dir,
                                      results_gallery=results_gallery)
-            
+
         # shutdown page reloader
         if last_stage:
             subject_progress_logger.finish()
@@ -1707,7 +1707,7 @@ def _do_subject_dartelnorm2mni(output_dir,
     # collect results and return
     output['dartelnorm2mni_result'] = dartelnorm2mni_result
     output['createwarped_result'] = createwarped_result
-    output['func'] = createwarped_result.outputs.warped_files
+    output['func'] = resampled_warped_files
     output['anat'] = dartelnorm2mni_result.outputs.normalized_files
 
     output['results_gallery'] = results_gallery
@@ -1989,6 +1989,10 @@ def do_subjects_preproc(subjects,
 
         def finalize_report():
             progress_logger.finish(report_preproc_filename)
+
+            if do_shutdown_reloaders:
+                progress_logger.finish_all()
+
             print "HTML report (dynamic) written to %s" % report_filename
 
         kwargs['main_page'] = "../../%s" % os.path.basename(report_filename)
@@ -2008,6 +2012,11 @@ def do_subjects_preproc(subjects,
         # collect subject_ids and session_ids
         subject_ids = [output['subject_id'] for _, output in results]
         session_ids = [output['session_id'] for _, output in results]
+
+        # collect estimated motion
+        estimated_motion = dict((output["subject_id"],
+                                 output['estimated_motion'])
+                                for _, output in results)
 
         # collect structural files for DARTEL pipeline
         if do_coreg:
@@ -2043,8 +2052,6 @@ def do_subjects_preproc(subjects,
                                          for _, output in results]
             subject_progress_loggers = [output['progress_logger']
                                          for _, output in results]
-            estimated_motion = dict((output["subject_id"], output['estimated_motion'])
-                                     for _, output in results)
 
         # normalize brains to their own template space (DARTEL)
         results = do_group_DARTEL(
@@ -2067,17 +2074,16 @@ def do_subjects_preproc(subjects,
         for item in results:
             subject_result = {}
             subject_result['subject_id'] = item['subject_id']
-            subject_result['func'] = item['createwarped_result'
-                                           ].outputs.warped_files
-            subject_result['anat'] = item[
-                'dartelnorm2mni_result'].outputs.normalized_files
+            subject_result['func'] = item['func']
+            subject_result['anat'] = item['anat']
             if do_realign:
-                subject_result['estimated_motion'] = estimated_motion[item['subject_id']]
+                subject_result['estimated_motion'] = estimated_motion[
+                    item['subject_id']]
             subject_result['output_dir'] = item['output_dir']
 
             # dump result to json output file
             json_outfile = os.path.join(
-                subject_result['output_dir'], 'infos.json')
+                subject_result['output_dir'], 'infos_DARTEL.json')
             json.dump(subject_result, open(json_outfile, 'wb'))
 
             if do_report:

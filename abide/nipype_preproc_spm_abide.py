@@ -22,14 +22,28 @@ ABIDE</a> rest auditory dataset.</p>\
 """
 
 """DARTEL ?"""
-DO_DARTEL = True
+DO_DARTEL = False
 
 """institutes we're insterested in"""
 INSTITUTES = [
-    "KKI",
-    "Leuven",
-    "NYU",
-    "MaxMun",
+    'CMU',
+    'Caltech',
+    'KKI',
+    'Leuven',
+    'MaxMun',
+    'NYU',
+    'OHSU',
+    'Olin',
+    'Phenotypic',
+    'Pitt',
+    'SBL',
+    'SDSU',
+    'Stanford',
+    'Trinity',
+    'UCLA',
+    'UM',
+    'USM',
+    'Yale',
     ]
 
 
@@ -123,7 +137,8 @@ def preproc_abide_institute(institute_id, abide_data_dir, abide_output_dir,
             institute_id),
         report_filename=report_filename,
         do_shutdown_reloaders=True,
-        do_export_report=True)
+        # do_export_report=True,
+        )
 
     for subject_id, ignored_because in ignored_subject_ids:
         print "Ignored %s because %s" % (subject_id, ignored_because)
@@ -153,4 +168,6 @@ if len(sys.argv) > 3:
 
 for institute_id in INSTITUTES:
     preproc_abide_institute(institute_id, ABIDE_DIR, OUTPUT_DIR,
-                            do_dartel=DO_DARTEL)
+                            do_dartel=DO_DARTEL,
+                            do_report=False,
+                            )
