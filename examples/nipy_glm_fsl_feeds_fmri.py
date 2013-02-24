@@ -7,6 +7,7 @@ Author: dohmatob elvis dopgima
 import os
 import sys
 import pylab as pl
+import matplotlib as mpl
 import numpy as np
 from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 from nipy.modalities.fmri.design_matrix import make_dmtx
@@ -15,15 +16,19 @@ from nipy.labs import viz
 import nibabel
 import time
 
+"""path trick"""
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
+"""import utilities for preproc, reporting, and io"""
 import nipype_preproc_spm_utils
 import reporting.reporter as reporter
 from datasets_extras import unzip_nii_gz
+from io_utils import compute_mean_3D_image
 
 """MISC"""
 NIPY_URL = "http://nipy.sourceforge.net/nipy/stable/index.html"
+z_threshold = 2.3
 
 data_dir = os.path.abspath(sys.argv[1])
 output_dir = os.path.abspath(sys.argv[2])
@@ -55,19 +60,25 @@ progress_logger = results[0]['progress_logger']
 stats_report_filename = os.path.join(subject_data.output_dir,
                                      "report_stats.html")
 progress_logger.watch_file(stats_report_filename)
-level1_loader_filename = os.path.join(
-    subject_data.output_dir, "level1_thumbs.html")
-level1_thumbs = reporter.ResultsGallery(
-    loader_filename=level1_loader_filename,
+design_thumbs = reporter.ResultsGallery(
+    loader_filename=os.path.join(subject_data.output_dir,
+                                 "design.html")
     )
+activation_thumbs = reporter.ResultsGallery(
+    loader_filename=os.path.join(subject_data.output_dir,
+                                 "activation.html")
+    )
+
+methods = """
+GLM and inference have been done using <a href="%s">nipy</a>. Statistic \
+images have been thresholded at Z>%s voxel-level.
+""" % (NIPY_URL, z_threshold)
+
 level1_html_markup = reporter.FSL_SUBJECT_REPORT_STATS_HTML_TEMPLATE(
     ).substitute(
-    results=level1_thumbs,
     start_time=time.ctime(),
     subject_id=subject_data.subject_id,
-    methods=('GLM and inference have been done using '
-             '<a href="%s">nipy</a>.') % NIPY_URL,
-             )
+    methods=methods)
 with open(stats_report_filename, 'w') as fd:
     fd.write(str(level1_html_markup))
     fd.close()
@@ -107,26 +118,26 @@ design_matrix = make_dmtx(frametimes,
 """show design matrix"""
 ax = design_matrix.show()
 ax.set_position([.05, .25, .9, .65])
-ax.set_title('Design matrix')
 dmat_outfile = os.path.join(subject_data.output_dir, 'design_matrix.png')
 pl.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
 thumb = reporter.Thumbnail()
 thumb.a = reporter.a(href=os.path.basename(dmat_outfile))
 thumb.img = reporter.img(src=os.path.basename(dmat_outfile),
-                         height="500px",
-                         width="600px")
+                         height="400px",
+                         )
 thumb.description = "Design Matrix"
-level1_thumbs.commit_thumbnails(thumb)
+design_thumbs.commit_thumbnails(thumb)
 
 """specify contrasts"""
 contrasts = {}
 n_columns = len(design_matrix.names)
+I = np.eye(len(design_matrix.names))
 for i in xrange(paradigm.n_conditions):
-    contrasts['%s' % design_matrix.names[2 * i]] = np.eye(n_columns)[2 * i]
+    contrasts['%s' % design_matrix.names[2 * i]] = I[2 * i]
 
 """more interesting contrasts"""
-contrasts['EV1-EV2'] = contrasts['EV1'] - contrasts['EV2']
-contrasts['EV2-EV1'] = -contrasts['EV1-EV2']
+contrasts['EV1>EV2'] = contrasts['EV1'] - contrasts['EV2']
+contrasts['EV2>EV1'] = contrasts['EV2'] - contrasts['EV1']
 
 """fit GLM"""
 print('\r\nFitting a GLM (this takes time) ..')
@@ -140,10 +151,32 @@ mask_path = os.path.join(subject_data.output_dir, "mask.nii.gz")
 print "Saving mask image %s" % mask_path
 nibabel.save(fmri_glm.mask, mask_path)
 
+
+def make_standalone_colorbar(vmin, vmax, colorbar_outfile=None):
+    """Plots a stand-alone colorbar
+
+    """
+
+    fig = pl.figure(figsize=(8, 1.5))
+    ax = fig.add_axes([0.05, 0.4, 0.9, 0.5])
+
+    cmap = pl.cm.hot
+    norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+
+    cb = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
+                                   norm=norm,
+                                   orientation='horizontal')
+    pl.savefig(colorbar_outfile)
+
+    return cb
+
+
 """level 1 (within subject) inference"""
+_vmax = 0
+_vmin = z_threshold
 print "Computing contrasts .."
 progress_logger.log("Computing contrasts ..<br/>")
-for contrast_id in contrasts:
+for contrast_id, contrast_val in contrasts.iteritems():
     print "\tcontrast id: %s" % contrast_id
     z_map, t_map, eff_map, var_map = fmri_glm.contrast(
         contrasts[contrast_id],
@@ -153,41 +186,62 @@ for contrast_id in contrasts:
         output_effects=True,
         output_variance=True,)
 
-    if contrast_id == 'EV1':
-        z_threshold = 2.3
-        z_axis_max = np.unravel_index(
-            z_map.get_data().argmax(), z_map.shape)[2]
-        z_axis_min = np.unravel_index(
-            z_map.get_data().argmin(), z_map.shape)[2]
-        pos_data = z_map.get_data() * (z_map.get_data() > 0)
-        vmax = pos_data.max()
-        vmin = - vmax
+    # get positive z_map
+    pos_data = z_map.get_data() * (z_map.get_data() > 0)
 
-        viz.plot_map(pos_data, z_map.get_affine(),
-                     cmap=pl.cm.hot,
-                     vmin=vmin,
-                     vmax=vmax,
-                     threshold=z_threshold,
-                     slicer='z',
-                     cut_coords=range(0, 17, 2),
-                     black_bg=True,
-                     )
+    # compute cut_coords for viz.plot_map(..) API
+    n_axials = 12
+    delta_z_axis = 3
+    z_axis_max = np.unravel_index(
+        pos_data.argmax(), z_map.shape)[2]
+    z_axis_min = np.unravel_index(
+        pos_data.argmin(), z_map.shape)[2]
+    z_axis_min, z_axis_max = (min(z_axis_min, z_axis_max),
+                              max(z_axis_max, z_axis_min))
+    z_axis_min = min(z_axis_min, z_axis_max - delta_z_axis * n_axials)
+    cut_coords = np.linspace(z_axis_min, z_axis_max, n_axials)
 
-        z_map_plot = os.path.join(subject_data.output_dir,
-                                  "activation_map.png")
-        stats_table = os.path.join(subject_data.output_dir, "stats_table.html")
-        pl.savefig(z_map_plot, dpi=200, bbox_inches='tight',
-                   facecolor="k",
-                   edgecolor="k")
+    # compute vmin and vmax
+    vmax = pos_data.max()
+    vmin = pos_data.min()
 
-        thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=os.path.basename(z_map_plot))
-        thumbnail.img = reporter.img(
-            src=os.path.basename(z_map_plot), height="250px")
-        thumbnail.description = "Activation z-map (thresholded at %s)"\
-            % z_threshold
-        level1_thumbs.commit_thumbnails(thumbnail)
+    # update colorbar endpoints
+    _vmax = max(_vmax, vmax)
 
+    # compute bg unto which activation will be projected
+    mean_fmri_data = compute_mean_3D_image(fmri_data)
+    anat = mean_fmri_data.get_data()
+    anat_affine = mean_fmri_data.get_affine()
+
+    # plot activation proper
+    viz.plot_map(pos_data, z_map.get_affine(),
+                 cmap=pl.cm.hot,
+                 anat=anat,
+                 anat_affine=anat_affine,
+                 vmin=vmin,
+                 vmax=vmax,
+                 threshold=z_threshold,
+                 slicer='z',
+                 cut_coords=cut_coords,
+                 black_bg=True,
+                 )
+
+    # store activation plot
+    z_map_plot = os.path.join(subject_data.output_dir,
+                              "%s_z_map.png" % contrast_id)
+    pl.savefig(z_map_plot, dpi=200, bbox_inches='tight',
+               facecolor="k",
+               edgecolor="k")
+
+    # create thumbnail for activation
+    thumbnail = reporter.Thumbnail()
+    thumbnail.a = reporter.a(href=os.path.basename(z_map_plot))
+    thumbnail.img = reporter.img(
+        src=os.path.basename(z_map_plot), height="250px",)
+    thumbnail.description = "%s contrast: %s" % (contrast_id, contrast_val)
+    activation_thumbs.commit_thumbnails(thumbnail)
+
+    # store stat maps to disk
     for dtype, out_map in zip(['z', 't', 'effects', 'variance'],
                               [z_map, t_map, eff_map, var_map]):
         map_dir = os.path.join(
@@ -199,15 +253,23 @@ for contrast_id in contrasts:
         nibabel.save(out_map, map_path)
 
         if contrast_id == "EV1" and dtype == "z":
+            stats_table = os.path.join(subject_data.output_dir,
+                                       "stats_table.html")
             reporter.generate_level1_report(
                 z_map, fmri_glm.mask,
                 stats_table,
                 title="%s z-map: %s" % (contrast_id, map_path),
-                cluster_th=15)
+                cluster_th=15,  # not interested in clusters with < 15 voxels
+                )
 
         print "\t\t%s map: %s" % (dtype, map_path)
 
     print
+
+"""make colorbar for activations"""
+colorbar_outfile = os.path.join(subject_data.output_dir,
+                                'activation_colorbar.png')
+make_standalone_colorbar(_vmin, _vmax, colorbar_outfile)
 
 """We're done"""
 progress_logger.log('<hr/>')
