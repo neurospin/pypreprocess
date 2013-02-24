@@ -1243,6 +1243,7 @@ def _do_subject_preproc(
         output['realign_result'] = realign_result
         output['estimated_motion'
                ] = realign_result.outputs.realignment_parameters
+        output['func'] = realign_result.outputs.realigned_files
 
         # generate report stub
         if do_report:
@@ -1699,7 +1700,7 @@ def _do_subject_dartelnorm2mni(output_dir,
                                      subject_id,
                                      output_dir,
                                      results_gallery=results_gallery)
-            
+
         # shutdown page reloader
         if last_stage:
             subject_progress_logger.finish()
@@ -2046,7 +2047,8 @@ def do_subjects_preproc(subjects,
                                          for _, output in results]
             subject_progress_loggers = [output['progress_logger']
                                          for _, output in results]
-            estimated_motion = dict((output["subject_id"], output['estimated_motion'])
+            estimated_motion = dict((output["subject_id"],
+                                     output['estimated_motion'])
                                      for _, output in results)
 
         # normalize brains to their own template space (DARTEL)
@@ -2075,7 +2077,8 @@ def do_subjects_preproc(subjects,
             subject_result['anat'] = item[
                 'dartelnorm2mni_result'].outputs.normalized_files
             if do_realign:
-                subject_result['estimated_motion'] = estimated_motion[item['subject_id']]
+                subject_result['estimated_motion'] = estimated_motion[
+                    item['subject_id']]
             subject_result['output_dir'] = item['output_dir']
 
             # dump result to json output file
@@ -2103,7 +2106,8 @@ def do_subjects_preproc(subjects,
             subject_result = {}
             subject_result['subject_id'] = item['subject_id']
             subject_result['func'] = item['func']
-            subject_result['anat'] = item['anat']
+            if 'anat' in item.keys():
+                subject_result['anat'] = item['anat']
             if do_realign:
                 subject_result['estimated_motion'] = item['estimated_motion']
             subject_result['output_dir'] = item['output_dir']
