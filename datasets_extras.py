@@ -22,6 +22,8 @@ SPM_AUDITORY_DATA_FILES = ["fM00223/fM00223_%03i.img" % index
                            for index in xrange(4, 100)]
 SPM_AUDITORY_DATA_FILES.append("sM00223/sM00223_002.img")
 
+FSL_FEEDS_DATA_FILES = ["fmri.nii.gz", "structural_brain.nii.gz"]
+
 # definition subject files for haxby dataset
 HAXBY_SUBJECT_FILES = ["anat.nii.gz",
                        "bold.nii.gz",
@@ -72,11 +74,38 @@ def _glob_spm_auditory_data(subject_dir):
 
     _subject_data = {}
     _subject_data["func"] = [subject_data[x] for x in subject_data.keys()
-                             if re.match(".+?fM00223_0\d\d\.img$", x)]
+                             if re.match("^fM00223_0\d\d\.img$",
+                                         os.path.basename(x))]
     _subject_data["func"].sort()
 
     _subject_data["anat"] = [subject_data[x] for x in subject_data.keys()
-                             if re.match(".+?sM00223_002\.img$", x)][0]
+                             if re.match("^sM00223_002\.img$",
+                                         os.path.basename(x))][0]
+    return _subject_data
+
+
+def _glob_fsl_feeds_data(subject_dir):
+    if not os.path.exists(subject_dir):
+        return None
+
+    subject_data = dict()
+    subject_data["subject_dir"] = subject_dir
+    for file_name in FSL_FEEDS_DATA_FILES:
+        file_path = os.path.join(subject_dir, file_name)
+        if os.path.exists(file_path) or os.path.exists(
+            file_path.rstrip(".gz")):
+            file_name = re.sub("(?:\.nii\.gz|\.txt)", "", file_name)
+            subject_data[file_name] = file_path
+        else:
+            print "%s missing from filelist!" % file_name
+            return None
+
+    _subject_data = {"func": os.path.join(subject_dir,
+                                          "fmri.nii"),
+                     "anat": os.path.join(subject_dir,
+                                         "structural_brain.nii"),
+                     }
+
     return _subject_data
 
 
@@ -254,6 +283,50 @@ Function to fetch SPM auditory data.
             os.remove(archive_path)
             return fetch_spm_auditory_data(data_dir)
         return _glob_spm_auditory_data(subject_dir)
+
+
+def fetch_fsl_feeds_data(data_dir, redownload=False):
+    '''
+    Function to fetch SPM auditory data.
+
+    '''
+
+    url = ("http://fsl.fmrib.ox.ac.uk/fsldownloads/oldversions/"
+           "fsl-4.1.0-feeds.tar.gz")
+    subject_dir = data_dir
+    archive_path = os.path.join(subject_dir, os.path.basename(url))
+    if redownload:
+        try:
+            print "Zapping all old downloads .."
+            shutil.rmtree(subject_dir)
+            os.remove(archive_path)
+        except OSError:
+            pass
+        finally:
+            print "Done."
+    if os.path.exists(subject_dir):
+        subject_data = _glob_fsl_feeds_data(subject_dir)
+        if subject_data is None:
+            shutil.rmtree(subject_dir)
+            return fetch_fsl_feeds_data(data_dir)
+        else:
+            return subject_data
+    elif os.path.exists(archive_path):
+        try:
+            _uncompress_file(archive_path)
+        except:
+            print "Archive corrupted, trying to download it again."
+            os.remove(archive_path)
+            return fetch_fsl_feeds_data(data_dir)
+    else:
+        _fetch_file(url, data_dir)
+        try:
+            _uncompress_file(archive_path)
+        except:
+            print "Archive corrupted, trying to download it again."
+            os.remove(archive_path)
+            return fetch_fsl_feeds_data(data_dir)
+        return _glob_fsl_feeds_data(subject_dir)
 
 
 def fetch_poldrack_mixed_gambles(data_dir=None):

@@ -216,7 +216,6 @@ for contrast_id in contrasts:
 
     print
 
-
 """We're done"""
 progress_logger.log('<hr/>')
 progress_logger.finish_all()
