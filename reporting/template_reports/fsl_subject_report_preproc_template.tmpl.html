@@ -1,8 +1,9 @@
 <!-- author: d0hm4t06 3lv15 d0p91m4 -->
 
-{{default done = 0}}
 {{default preproc_undergone = None}}
 {{default references = ["Russel A. Poldrack et al. <i>Handbook of Functional MRI Data Analysis</i>"]}}
+{{default report_html = "report.html"}}
+
 <html>
   <head>
     <!--refreshstart-->
@@ -13,8 +14,7 @@
   </head>
 
   <body>
-
-    <object data=report.html></object>
+    <object data={{report_html}}></object>
     <h2>Data pre-preprocessing</h2>
     Started: {{start_time}}
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color=red><i>STILL RUNNING ..</i><blink>.</blink></font>

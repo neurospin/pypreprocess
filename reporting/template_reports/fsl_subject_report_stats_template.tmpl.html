@@ -1,10 +1,14 @@
 <!-- author: d0hm4t06 3lv15 d0p91m4 -->
 
-{{default done = 0}}
 {{default methods = None}}
 {{default refresh_timeout = 10}}
 {{default references = ["Russel A. Poldrack et al. <i>Handbook of Functional MRI Data Analysis</i>",
 "F. Gregory Ashby. <i>Statistical Analysis of fMRI Data</i>"]}}
+{{default activation_html = "activation.html"}}
+{{default design_html = "design.html"}}
+{{default activation_colorbar_image = "activation_colorbar.png"}}
+{{default report_html = "report.html"}}
+
 <html>
   <head>
     <!--refreshstart-->
@@ -15,7 +19,7 @@
   </head>
 
   <body>
-    <object data=report.html></object>
+    <object data="{{report_html}}"></object>
     <h2>GLM and Statistical Inference</h2>
     Started: {{start_time}}
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color=red><i>STILL RUNNING ..</i><blink>.</blink></font>
@@ -31,7 +35,7 @@
     <hr/>
 
     <script type="text/javascript">
-      $('#design').load("design.html").fadeIn("slow");
+      $('#design').load("{{design_html}}").fadeIn("slow");
     </script>
     <b>Design</b><br/><br/>
     <div id="design">
@@ -40,31 +44,23 @@
     <hr/>
     
     <script type="text/javascript">
-      $('#activation').load("activation.html").fadeIn("slow");
+      $('#activation').load("{{activation_html}}").fadeIn("slow");
     </script>
     <b>Thresholded activation maps</b><br/><br/>
     Below are thresholded activation z-maps for the different contrasts of interest.
     <br clear="all"/>
-    <center><img src="activation_colorbar.png" /></center> <!-- centralized colorbar for activations-->
+    <center><img src="{{activation_colorbar_image}}" /></center> <!-- centralized colorbar for activations-->
     <div id="activation">
     </div>
     <br clear="all"/>
     <hr/>
 
-    <script type="text/javascript">
-      $('#stats').load("stats_table.html").fadeIn("slow");
-    </script>
-    <b>Level 1 Statistics</b><br/><br/>
-    <div id="stats">
-    </div>
-
     <!-- It's time for javascript, folks -->
     <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
     <script type='text/javascript'>
       $(document).ready(function(){
-      $('#design').load("design.html").fadeIn("slow");
-      $('#activation').load("activation.html").fadeIn("slow");    
-      $('#stats').load("stats_table.html").fadeIn("slow");
+      $('#design').load("{{design_html}}").fadeIn("slow");
+      $('#activation').load("{{activation_html}}").fadeIn("slow");    
       });
     </script>
   </body>

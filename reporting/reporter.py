@@ -13,6 +13,12 @@ import commands
 import re
 import time
 
+import matplotlib as mpl
+import pylab as pl
+import nibabel
+import numpy as np
+from nipy.labs import viz
+
 sys.path.append("..")
 import external.tempita.tempita as tempita
 
@@ -22,6 +28,9 @@ ROOT_DIR = os.path.split(os.path.abspath(__file__))[0]
 # extention of web-related files (increment this as we support more
 # and more file extensions for web business)
 WEBBY_EXTENSION_PATTERN = ".*\.(?:png|jpeg|html|php|css)$"
+
+"""MISC"""
+NIPY_URL = "http://nipy.sourceforge.net/nipy/stable/index.html"
 
 
 def del_empty_dirs(s_dir):
@@ -494,3 +503,213 @@ def generate_level1_report(zmap, mask,
 
     output.write("</center>\n")
     output.close()
+
+
+def make_standalone_colorbar(vmin, vmax, colorbar_outfile=None):
+    """Plots a stand-alone colorbar
+
+    """
+
+    fig = pl.figure(figsize=(6, 1))
+    ax = fig.add_axes([0.05, 0.4, 0.9, 0.5])
+
+    cmap = pl.cm.hot
+    norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+
+    cb = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
+                                   norm=norm,
+                                   orientation='horizontal')
+    pl.savefig(colorbar_outfile)
+
+    return cb
+
+
+def generate_subject_stats_report(
+    stats_report_filename,
+    design_matrix,
+    contrasts,
+    z_maps,
+    subject_id,
+    mask,
+    anat=None,
+    anat_affine=None,
+    threshold=2.3,
+    cluster_th=0,
+    start_time=None,
+    progress_logger=None,
+    ):
+    """Generates a report summarizing the statistical methods and results
+
+    Parameters
+    ----------
+    stats_report_filename: string:
+        html file to which output (generated html) will be written
+
+    design_matrix: 'nipy design matrix' object
+        design matrix for experiment
+
+    contrasts: dict
+       dictionary of contrasts of interest; the keys are the contrast ids,
+       the values are contrast values (lists)
+
+    z_maps: dict
+       dict with same keys as 'contrasts'; the values are paths of z-maps
+       for the respective contrasts
+
+    mask: 'nifti image object'
+        brain mask for subject
+
+    anat: 3D array (optional)
+        brain image to serve bg unto which activation maps will be plotted;
+        passed to viz.plot_map API
+
+    anat_affine: 2D array (optional)
+        affine data for the anat
+
+    threshold: float (optional)
+        threshold to be applied to activation maps voxel-wise
+
+    cluster_th: int (optional)
+        minimal voxel count for clusteres declared as 'activated'
+
+    start_time: string (optiona)
+        start time for the stats analysis (useful for the generated
+        report page)
+
+    progress_logger: ProgressLogger object (optional)
+        handle for logging progress
+
+    """
+
+    # prepare for stats reporting
+    output_dir = os.path.dirname(stats_report_filename)
+    stats_report_filename = os.path.join(output_dir,
+                                         "report_stats.html")
+
+    if progress_logger:
+        progress_logger.watch_file(stats_report_filename)
+
+    design_thumbs = ResultsGallery(
+        loader_filename=os.path.join(output_dir,
+                                     "design.html")
+        )
+    activation_thumbs = ResultsGallery(
+        loader_filename=os.path.join(output_dir,
+                                     "activation.html")
+        )
+
+    methods = """
+    GLM and inference have been done using <a href="%s">nipy</a>. Statistic \
+    images have been thresholded at Z>%s voxel-level.
+    """ % (NIPY_URL, threshold)
+
+    if start_time is None:
+        start_time = time.ctime()
+    level1_html_markup = FSL_SUBJECT_REPORT_STATS_HTML_TEMPLATE(
+        ).substitute(
+        start_time=start_time,
+        subject_id=subject_id,
+        methods=methods)
+    with open(stats_report_filename, 'w') as fd:
+        fd.write(str(level1_html_markup))
+        fd.close()
+
+    if progress_logger:
+        progress_logger.log("<b>Level 1 statistics</b><br/><br/>")
+
+    # show design matrix
+    ax = design_matrix.show()
+    ax.set_position([.05, .25, .9, .65])
+    dmat_outfile = os.path.join(output_dir, 'design_matrix.png')
+    pl.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
+    thumb = Thumbnail()
+    thumb.a = a(href=os.path.basename(dmat_outfile))
+    thumb.img = img(src=os.path.basename(dmat_outfile),
+                             height="400px",
+                             )
+    thumb.description = "Design Matrix"
+    design_thumbs.commit_thumbnails(thumb)
+
+    _vmax = 0
+    _vmin = threshold
+    for j in xrange(len(contrasts)):
+        contrast_id = contrasts.keys()[j]
+        contrast_val = contrasts[contrast_id]
+        map_path = z_maps[contrast_id]
+        z_map = nibabel.load(map_path)
+
+        # get positive z_map
+        pos_data = z_map.get_data() * (z_map.get_data() > 0)
+
+        # compute cut_coords for viz.plot_map(..) API
+        n_axials = 12
+        delta_z_axis = 3
+        z_axis_max = np.unravel_index(
+            pos_data.argmax(), z_map.shape)[2]
+        z_axis_min = np.unravel_index(
+            pos_data.argmin(), z_map.shape)[2]
+        z_axis_min, z_axis_max = (min(z_axis_min, z_axis_max),
+                                  max(z_axis_max, z_axis_min))
+        z_axis_min = min(z_axis_min, z_axis_max - delta_z_axis * n_axials)
+        cut_coords = np.linspace(z_axis_min, z_axis_max, n_axials)
+
+        # compute vmin and vmax
+        vmax = pos_data.max()
+        vmin = pos_data.min()
+
+        # update colorbar endpoints
+        _vmax = max(_vmax, vmax)
+
+        # plot activation proper
+        viz.plot_map(pos_data, z_map.get_affine(),
+                     cmap=pl.cm.hot,
+                     anat=anat,
+                     anat_affine=anat_affine,
+                     vmin=vmin,
+                     vmax=vmax,
+                     threshold=threshold,
+                     slicer='z',
+                     cut_coords=cut_coords,
+                     black_bg=True,
+                     )
+
+        # store activation plot
+        z_map_plot = os.path.join(output_dir,
+                                  "%s_z_map.png" % contrast_id)
+        pl.savefig(z_map_plot, dpi=200, bbox_inches='tight',
+                   facecolor="k",
+                   edgecolor="k")
+        stats_table = os.path.join(output_dir,
+                                   "%s_stats_table.html" % contrast_id)
+
+        # create thumbnail for activation
+        thumbnail = Thumbnail()
+        thumbnail.a = a(href=os.path.basename(stats_table))
+        thumbnail.img = img(
+            src=os.path.basename(z_map_plot), height="250px",)
+        thumbnail.description = "%s contrast: %s" % (contrast_id, contrast_val)
+        activation_thumbs.commit_thumbnails(thumbnail)
+
+        generate_level1_report(
+            z_map, mask,
+            stats_table,
+            title=map_path,
+            cluster_th=cluster_th,
+            )
+
+    # make colorbar for activations
+    colorbar_outfile = os.path.join(output_dir,
+                                    'activation_colorbar.png')
+    make_standalone_colorbar(_vmin, _vmax, colorbar_outfile)
+
+    # we're done, shut down all re-loaders
+    if progress_logger:
+        progress_logger.log('<hr/>')
+        progress_logger.finish_all()
+
+    # return generated html
+    with open(stats_report_filename, 'r') as fd:
+        stats_report = fd.read()
+        fd.close()
+
+        return stats_report
