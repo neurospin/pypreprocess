@@ -43,6 +43,15 @@ if __name__ == '__main__':
     # download data
     data_dir = fetch_openfmri(FULL_ID, root_dir)
 
+    # alternative task_contrasts
+    contrasts_file = '%s_task_contrasts.txt' % SHORT_ID
+    assert os.path.isfile(contrasts_file), \
+        "No contrasts file: %s" % contrasts_file
+    dest = os.path.join(data_dir, SHORT_ID,
+                        'models', MODEL_ID, 'task_contrasts.txt')
+
+    shutil.copy(contrasts_file, dest)
+
     # apply SPM preprocessing
     apply_preproc(SHORT_ID, data_dir, preproc_dir, ignore_list,
                   dataset_description=DESCRIPTION)

@@ -1,0 +1,5 @@
+succstop_vs_go -1 1 0 0
+unsucc_vs_succ_stop 0 -1 1 0
+succstop_vs_rest 0 1 0 0
+go_vs_rest 1 0 0 0
+unsucc_vs_rest 0 0 1 0

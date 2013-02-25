@@ -1,4 +1,6 @@
+import os
 import sys
+import shutil
 
 # local imports
 from utils import apply_preproc, load_preproc, load_glm_params
@@ -38,12 +40,21 @@ if __name__ == '__main__':
     # download data
     data_dir = fetch_openfmri(FULL_ID, root_dir)
 
+    # alternative task_contrasts
+    contrasts_file = '%s_task_contrasts.txt' % SHORT_ID
+    assert os.path.isfile(contrasts_file), \
+        "No contrasts file: %s" % contrasts_file
+    dest = os.path.join(data_dir, SHORT_ID,
+                        'models', MODEL_ID, 'task_contrasts.txt')
+
+    shutil.copy(contrasts_file, dest)
+
     # apply SPM preprocessing
-    apply_preproc(SHORT_ID, data_dir, preproc_dir, ignore_list)
+    apply_preproc(SHORT_ID, data_dir, preproc_dir,
+                  ignore_list, dataset_description=DESCRIPTION)
 
     # prepare GLM (get data and design)
-    preproc_data, motion_params = load_preproc(SHORT_ID, preproc_dir,
-                                               dataset_description=DESCRIPTION)
+    preproc_data, motion_params = load_preproc(SHORT_ID, preproc_dir)
 
     glm_params = load_glm_params(SHORT_ID, data_dir, MODEL_ID,
                                  subject_ids=preproc_data.keys(),

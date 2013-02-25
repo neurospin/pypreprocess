@@ -59,8 +59,7 @@ if __name__ == '__main__':
                   dataset_description=DESCRIPTION)
 
     # prepare GLM (get data and design)
-    preproc_data, motion_params = load_preproc(SHORT_ID, preproc_dir,
-                                               dataset_description=DESCRIPTION)
+    preproc_data, motion_params = load_preproc(SHORT_ID, preproc_dir)
 
     glm_params = load_glm_params(SHORT_ID, data_dir, MODEL_ID,
                                  subject_ids=preproc_data.keys(),
