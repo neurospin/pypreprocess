@@ -22,7 +22,7 @@ ABIDE</a> rest auditory dataset.</p>\
 """
 
 """DARTEL ?"""
-DO_DARTEL = False
+DO_DARTEL = True
 
 """institutes we're insterested in"""
 INSTITUTES = [
@@ -40,16 +40,21 @@ INSTITUTES = [
     'SDSU',
     'Stanford',
     'Trinity',
-    'UCLA',
+    # 'UCLA',
     'UM',
     'USM',
-    'Yale',
+    'Yale'
     ]
 
 
 def preproc_abide_institute(institute_id, abide_data_dir, abide_output_dir,
+                            do_realign=True,
+                            do_coreg=True,     
                             do_dartel=False,
-                            do_report=True):
+                            do_report=True,
+                            do_deleteorient=True,
+                            special_dirty_case=False,  # XXX voodoo option!!!
+                            ):
     """Preprocesses a given ABIDE institute
 
     """
@@ -116,6 +121,18 @@ def preproc_abide_institute(institute_id, abide_data_dir, abide_output_dir,
                     ignored_subject_ids.append((subject_id, ignored_because))
                     continue
 
+            if special_dirty_case:
+                import json
+                json_results_file = os.path.join(
+                    "/volatile/home/edohmato/pypreproc_runs/abide",
+                    institute_id,
+                    subject_id,
+                    "infos.json")
+                if os.path.exists(json_results_file):
+                    tmp = json.load(open(json_results_file, 'rb'))
+                    subject_data.func = str(tmp["realigned_func"])
+                    subject_data.anat = str(tmp["coregistered_anat"])
+
             subject_data.output_dir = os.path.join(
                 os.path.join(
                     institute_output_dir, subject_id))
@@ -129,7 +146,9 @@ def preproc_abide_institute(institute_id, abide_data_dir, abide_output_dir,
         subject_factory(),
         dataset_id=institute_id,
         output_dir=institute_output_dir,
-        do_deleteorient=True,
+        do_deleteorient=do_deleteorient,
+        do_realign=do_realign,
+        do_coreg=do_coreg,
         do_report=do_report,
         do_dartel=do_dartel,
         dataset_description="%s" % DATASET_DESCRIPTION.replace(
@@ -166,8 +185,22 @@ if not os.path.isdir(OUTPUT_DIR):
 if len(sys.argv) > 3:
     INSTITUTES = sys.argv[3].split(",")
 
-for institute_id in INSTITUTES:
-    preproc_abide_institute(institute_id, ABIDE_DIR, OUTPUT_DIR,
-                            do_dartel=DO_DARTEL,
-                            do_report=False,
-                            )
+if DO_DARTEL:
+    import joblib
+    joblib.Parallel(n_jobs=len(INSTITUTES),
+                    verbose=100)(joblib.delayed(
+            preproc_abide_institute)(institute_id, ABIDE_DIR,
+                                     OUTPUT_DIR,
+                                     do_dartel=DO_DARTEL,
+                                     do_realign=False,
+                                     do_coreg=False,
+                                     do_report=False,
+                                     do_deleteorient=False,
+                                     special_dirty_case=True)
+                                 for institute_id in INSTITUTES)
+else:
+    for institute_id in INSTITUTES:
+        preproc_abide_institute(institute_id, ABIDE_DIR, OUTPUT_DIR,
+                                do_dartel=DO_DARTEL,
+                                do_report=False,
+                                )

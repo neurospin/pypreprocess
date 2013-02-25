@@ -111,8 +111,10 @@ class SubjectData(Bunch):
     def sanitize(self, do_deleteorient=False):
         if type(self.session_id) is str:
             self.session_id = [self.session_id]
+
         if type(self.func) is str:
             self.func = [self.func]
+
         if is_3D(self.func[0]):
             self.func = [self.func]
 
@@ -1244,6 +1246,7 @@ def _do_subject_preproc(
         output['estimated_motion'
                ] = realign_result.outputs.realignment_parameters
         output['func'] = realign_result.outputs.realigned_files
+        output['realigned_func'] = realign_result.outputs.realigned_files
 
         # generate report stub
         if do_report:
@@ -1295,6 +1298,7 @@ def _do_subject_preproc(
         # collect results
         coreg_result = coreg_output['result']
         output['coreg_result'] = coreg_result
+        output['coregistered_anat'] = coreg_result.outputs.coregistered_source
 
         # if failed to coregister, return
         if coreg_result.outputs is None:
@@ -1832,7 +1836,7 @@ def do_subjects_preproc(subjects,
                         do_normalize=True,
                         do_dartel=False,
                         do_cv_tc=True,
-                        ignore_exception=True
+                        ignore_exception=True,
                         ):
 
     """This functions doe intra-subject fMRI preprocessing on a
@@ -2005,22 +2009,26 @@ def do_subjects_preproc(subjects,
             kwargs['parent_results_gallery'] = parent_results_gallery
 
     # preprocess the subjects proper
-    results = joblib.Parallel(
-        n_jobs=N_JOBS,
+    if not do_dartel:  # XXX rm this garbage
+        results = joblib.Parallel(
+            n_jobs=N_JOBS,
         pre_dispatch='1.5*n_jobs',  # for scalability over RAM
-        verbose=100)(joblib.delayed(
-            _do_subject_preproc)(
-                subject_data, **kwargs) for subject_data in subjects)
+            verbose=100)(joblib.delayed(
+                _do_subject_preproc)(
+                    subject_data, **kwargs) for subject_data in subjects)
+    else:
+        subjects = list(subjects)
 
     if do_dartel:
         # collect subject_ids and session_ids
-        subject_ids = [output['subject_id'] for _, output in results]
-        session_ids = [output['session_id'] for _, output in results]
+        subject_ids = [subject_data.subject_id for subject_data in subjects] # [output['subject_id'] for _, output in results]
+        session_ids = [subject_data.session_id for subject_data in subjects] # [output['session_id'] for _, output in results]
 
         # collect estimated motion
-        estimated_motion = dict((output["subject_id"],
-                                 output['estimated_motion'])
-                                for _, output in results)
+        if do_realign:
+            estimated_motion = dict((output["subject_id"],
+                                     output['estimated_motion'])
+                                    for _, output in results)
 
         # collect structural files for DARTEL pipeline
         if do_coreg:
@@ -2029,7 +2037,7 @@ def do_subjects_preproc(subjects,
                                 for _, output in results]
         else:
             structural_files = [
-                subject_data.anat for subject_data, _ in results]
+                subject_data.anat for subject_data in subjects]  # , _ in results]
 
         # collect functional files for DARTEL pipeline
         if do_realign:
@@ -2037,12 +2045,12 @@ def do_subjects_preproc(subjects,
                 output['realign_result'].outputs.realigned_files
                                 for _, output in results]
         else:
-            functional_files = [subject_data.func for subject_data,
-                                _ in results]
+            functional_files = [subject_data.func for subject_data in subjects] # ,
+                                # _ in results]
 
         # collect subject output dirs
         subject_output_dirs = [subject_data.output_dir
-                               for subject_data, _ in results]
+                               for subject_data in subjects] # , _ in results]
 
         # collect gallery related subject-specific stuff
         subject_final_thumbs = None
@@ -2056,9 +2064,10 @@ def do_subjects_preproc(subjects,
                                          for _, output in results]
             subject_progress_loggers = [output['progress_logger']
                                          for _, output in results]
-            estimated_motion = dict((output["subject_id"],
-                                     output['estimated_motion'])
-                                     for _, output in results)
+            if do_realign:
+                estimated_motion = dict((output["subject_id"],
+                                         output['estimated_motion'])
+                                        for _, output in results)
 
         # normalize brains to their own template space (DARTEL)
         results = do_group_DARTEL(
@@ -2115,8 +2124,10 @@ def do_subjects_preproc(subjects,
             subject_result['func'] = item['func']
             if 'anat' in item.keys():
                 subject_result['anat'] = item['anat']
+                subject_result['coregistered_anat'] = item['coregistered_anat']
             if do_realign:
                 subject_result['estimated_motion'] = item['estimated_motion']
+                subject_result['realigned_func'] = item['realigned_func']
             subject_result['output_dir'] = item['output_dir']
 
             # dump result to json output file
