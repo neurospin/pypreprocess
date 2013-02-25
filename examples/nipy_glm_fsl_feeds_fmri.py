@@ -56,6 +56,7 @@ _subject_data = fetch_fsl_feeds_data(data_dir)
 subject_data = nipype_preproc_spm_utils.SubjectData()
 subject_data.subject_id = "sub001"
 subject_data.func = _subject_data["func"]
+unzip_nii_gz(os.path.dirname(subject_data.func))
 subject_data.anat = _subject_data["anat"]
 subject_data.output_dir = os.path.join(
     output_dir, subject_data.subject_id)
