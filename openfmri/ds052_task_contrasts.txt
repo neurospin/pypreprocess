@@ -1,0 +1,3 @@
+pos_vs_neg 1 -1
+pos_vs_rest 1 0
+neg_vs_rest 0 1
