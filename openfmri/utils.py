@@ -14,8 +14,11 @@ import glob
 import json
 import warnings
 
+# parent dir imports
+sys.path.append(os.path.dirname(
+        os.path.dirname(os.path.abspath(sys.argv[0]))))
+
 # import spm preproc utilities
-sys.path.append('..')
 import nipype_preproc_spm_utils
 
 import numpy as np
@@ -153,9 +156,11 @@ def apply_preproc(dataset_id, data_dir, output_dir, ignore_list=None,
         # do_report=False,
         report_filename=report_filename
         ):
-        json_path = os.path.join(output_dir,
-                                 results['subject_id'], 'infos.json')
-        json.dump(results, open(json_path, 'wb'))
+        pass
+
+        # json_path = os.path.join(output_dir,
+        #                          results['subject_id'], 'infos.json')
+        # json.dump(results, open(json_path, 'wb'))
 
 
 def load_preproc(dataset_id, preproc_dir, subject_ids=None):
@@ -193,7 +198,6 @@ def load_preproc(dataset_id, preproc_dir, subject_ids=None):
     else:
         subject_dirs = sorted([os.path.join(preproc_dir, subject_id)
                                for subject_id in subject_ids])
-    print subject_dirs
     # load data for each subject
     for subject_dir in subject_dirs:
         subject_id = os.path.split(subject_dir)[1]

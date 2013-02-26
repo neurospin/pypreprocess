@@ -8,14 +8,13 @@
 # standard imports
 import os
 import glob
-import json
 import traceback
 
 # import spm preproc utilities
 import nipype_preproc_spm_utils
 
 # misc
-from external.nisl.datasets import unzip_nii_gz
+from datasets_extras import unzip_nii_gz
 
 DATASET_DESCRIPTION = """\
 <p><a href="https://openfmri.org/data-sets">openfmri.org datasets</a>.</p>
@@ -69,7 +68,7 @@ datasets_exclusions = {
     }
 
 
-def main(data_dir, output_dir, exclusions=None):
+def main(data_dir, output_dir, exclusions=None, dataset_id=None):
     """Main function for preprocessing (and analysis ?)
 
     Parameters
@@ -159,12 +158,14 @@ def main(data_dir, output_dir, exclusions=None):
                                    "_report.html")
     return nipype_preproc_spm_utils.do_subjects_preproc(
         subject_factory(),
+        dataset_id=dataset_id,
         output_dir=output_dir,
         do_deleteorient=True,  # some openfmri data have garbage orientation
         do_dartel=DO_DARTEL,
         # do_cv_tc=False,
         dataset_description=DATASET_DESCRIPTION,
-        report_filename=report_filename
+        report_filename=report_filename,
+        do_shutdown_reloaders=True
         )
 
 if __name__ == '__main__':
@@ -201,7 +202,8 @@ if __name__ == '__main__':
                 os.makedirs(output_dir)
 
             results = main(data_dir, output_dir,
-                           datasets_exclusions.get(ds_id))
+                           datasets_exclusions.get(ds_id),
+                           dataset_id=ds_id)
         except:
             print traceback.format_exc()
             pass

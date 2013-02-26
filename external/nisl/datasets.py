@@ -209,7 +209,7 @@ def _uncompress_file(file, delete_archive=True):
     try:
         ext = os.path.splitext(file)[1]
         if ext == '.zip':
-            z = zipfile.Zipfile(file)
+            z = zipfile.ZipFile(file)
             z.extractall(data_dir)
             z.close()
         elif ext in ['.tar', '.tgz', '.gz', '.bz2']:

@@ -1,0 +1,67 @@
+<!-- author: d0hm4t06 3lv15 d0p91m4 -->
+
+{{default methods = None}}
+{{default refresh_timeout = 10}}
+{{default references = ["Russel A. Poldrack et al. <i>Handbook of Functional MRI Data Analysis</i>",
+"F. Gregory Ashby. <i>Statistical Analysis of fMRI Data</i>"]}}
+{{default activation_html = "activation.html"}}
+{{default design_html = "design.html"}}
+{{default activation_colorbar_image = "activation_colorbar.png"}}
+{{default report_html = "report.html"}}
+
+<html>
+  <head>
+    <!--refreshstart-->
+    <meta http-equiv=refresh content={{refresh_timeout}}>
+      <!--refreshstop-->
+      <link rel=stylesheet type=text/css href=../fsl.css>
+	<title>fMRI report</title>
+  </head>
+
+  <body>
+    <object data="{{report_html}}"></object>
+    <h2>GLM and Statistical Inference</h2>
+    Started: {{start_time}}
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color=red><i>STILL RUNNING ..</i><blink>.</blink></font>
+    <hr/>
+    <b>Methods used</b><br/><br/>
+    {{methods | html}}
+    <br/><br/><b>References</b><br/><br/>
+      <ul>
+      {{for ref in references}}
+	<li>{{ref | html}}</li>
+      {{endfor}}
+      </ul>
+    <hr/>
+
+    <script type="text/javascript">
+      $('#design').load("{{design_html}}").fadeIn("slow");
+    </script>
+    <b>Design</b><br/><br/>
+    <div id="design">
+    </div>
+    <br clear="all"/>
+    <hr/>
+    
+    <script type="text/javascript">
+      $('#activation').load("{{activation_html}}").fadeIn("slow");
+    </script>
+    <b>Thresholded activation maps</b><br/><br/>
+    Below are thresholded activation z-maps for the different contrasts of interest.
+    <br clear="all"/>
+    <center><img src="{{activation_colorbar_image}}" /></center> <!-- centralized colorbar for activations-->
+    <div id="activation">
+    </div>
+    <br clear="all"/>
+    <hr/>
+
+    <!-- It's time for javascript, folks -->
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script type='text/javascript'>
+      $(document).ready(function(){
+      $('#design').load("{{design_html}}").fadeIn("slow");
+      $('#activation').load("{{activation_html}}").fadeIn("slow");    
+      });
+    </script>
+  </body>
+</html>

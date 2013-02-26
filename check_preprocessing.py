@@ -350,7 +350,8 @@ def plot_registration(reference_img, coregistered_img,
         anat_affine=coregistered_affine,
         cmap=cmap,
         cut_coords=cut_coords,
-        slicer=slicer
+        slicer=slicer,
+        black_bg=True,
         )
 
     # overlap the reference image
@@ -419,6 +420,7 @@ def plot_segmentation(img, gm_filename, wm_filename=None,
         anat, anat_affine, cut_coords=cut_coords,
         slicer=slicer,
         cmap=cmap,
+        black_bg=True,
         )
 
     # draw a GM contour map

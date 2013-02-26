@@ -1,0 +1,11 @@
+#*
+*~
+*.pyc
+*.nii*
+*.img
+*.hdr
+*.exe
+*.exe
+*.o
+*.so
+*.a

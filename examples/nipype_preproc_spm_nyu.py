@@ -21,9 +21,12 @@ import os
 import sys
 
 # import spm preproc utilities
+sys.path.append(os.path.dirname(
+        os.path.dirname(os.path.abspath(sys.argv[0]))))
 import nipype_preproc_spm_utils
 
-from external.nisl.datasets import fetch_nyu_rest, unzip_nii_gz
+from external.nisl.datasets import fetch_nyu_rest
+from datasets_extras import unzip_nii_gz
 
 DATASET_DESCRIPTION = """\
 <p>The NYU CSC TestRetest resource includes EPI-images of 25 participants
