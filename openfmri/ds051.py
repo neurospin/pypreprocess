@@ -26,7 +26,9 @@ here</a>.\
 
 MODEL_ID = 'model001'
 
-ignore_list = []
+ignore_list = [
+    'sub006',  # missing run007 & run008
+    ]
 
 
 if __name__ == '__main__':
