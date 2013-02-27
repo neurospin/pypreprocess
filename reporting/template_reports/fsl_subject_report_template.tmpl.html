@@ -1,10 +1,11 @@
 <!-- author: d0hm4t06 3lv15 d0p91m4 -->
 
 {{default refresh_timeout = 10}}
+{{default conf_path=".."}}
 
 <meta http-equiv=refresh content={{refresh_timeout}}>
 
-<link rel=stylesheet type=text/css href=../fsl.css>
+<link rel=stylesheet type=text/css href={{conf_path}}/fsl.css>
 
 <table border=0><tr>
 
@@ -34,7 +35,7 @@
     <td align=right>
       <div class="img">
 	<a href=https://github.com/neurospin/pypreprocess target=_top>
-	  <img border=1% src=../logo.jpeg></a>
+	  <img border=1% src={{conf_path}}/logo.jpeg></a>
 	<div class="desc"><a href=https://github.com/neurospin/pypreprocess target=_top><b>pypreprocess</b></a></div>
       </div>
     </td>

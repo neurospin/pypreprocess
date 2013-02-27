@@ -15,6 +15,9 @@ import json
 # imports for caching (yeah, we aint got time to loose!)
 from nipype.caching import Memory
 
+# reporting imports
+import reporting.reporter as reporter
+
 # imports i/o
 from nipype.interfaces.base import Bunch
 from io_utils import delete_orientation, is_3D, get_vox_dims,\
@@ -124,437 +127,6 @@ class SubjectData(Bunch):
             self.delete_orientation()
 
 
-def generate_normalization_thumbnails(
-    normalized_files,
-    output_dir,
-    brain="epi",
-    cmap=None,
-    results_gallery=None,
-    progress_logger=None,
-    ):
-    """Generate thumbnails after spatial normalization or subject
-
-    Parameters
-    ----------
-    normalized_files: list
-        paths to normalized images (3Ds or 4Ds)
-
-    output_dir: string
-        dir to which all output will be written
-
-    brain: string (optional)
-        a short comment/tag like 'epi', or 'anat'
-
-    cmap: optional
-        cmap (color map) to use for plots
-
-    result_gallery: reporter.ResultsGallery instance (optional)
-        gallery to which thumbnails will be committed
-
-    """
-
-    import check_preprocessing
-    import reporting.reporter as reporter
-
-    _brain = brain
-
-    if type(normalized_files) is str:
-        nipype_report_filename = os.path.join(
-            os.path.dirname(normalized_files),
-            "_report/report.rst")
-        normalized = normalized_files
-    else:
-        brain = "mean" + brain
-
-        nipype_report_filename = os.path.join(
-            os.path.dirname(normalized_files[0]),
-            "_report/report.rst")
-
-        mean_normalized_img = compute_mean_3D_image(normalized_files)
-        normalized = mean_normalized_img
-
-    # nipype report
-    nipype_html_report_filename = os.path.join(
-        output_dir,
-        '%s_normalize_nipype_report.html' % brain)
-    nipype_report = reporter.nipype2htmlreport(
-        nipype_report_filename)
-    open(nipype_html_report_filename,
-                 'w').write(str(nipype_report))
-
-    if progress_logger:
-        progress_logger.log(nipype_report.split('Terminal output')[0])
-        progress_logger.log('<hr/>')
-
-    output = {}
-
-    # prepare for smart caching
-    qa_cache_dir = os.path.join(output_dir, "QA")
-    if not os.path.exists(qa_cache_dir):
-        os.makedirs(qa_cache_dir)
-    qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
-
-    # plot outline (edge map) of SPM MNI template on the
-    # normalized image
-    target = T1_TEMPLATE
-    source = normalized
-
-    outline = os.path.join(
-        output_dir,
-        "%s_on_%s_outline.png" % (os.path.basename(target),
-                                  brain))
-
-    qa_mem.cache(check_preprocessing.plot_registration)(
-        target,
-        source,
-        output_filename=outline,
-        cmap=cmap,
-        title="Outline of SPM MNI %s template on %s" % (
-            os.path.basename(target),
-            brain))
-
-    # create thumbnail
-    if results_gallery:
-        thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=os.path.basename(outline))
-        thumbnail.img = reporter.img(
-            src=os.path.basename(outline), height="250px")
-        thumbnail.description = \
-            "Normalization of %s (<a href=%s>see execution log</a>)" \
-            % (_brain, os.path.basename(nipype_html_report_filename))
-
-        results_gallery.commit_thumbnails(thumbnail)
-
-    # plot outline (edge map) of the normalized image
-    # on the SPM MNI template
-    source, target = (target, source)
-    outline = os.path.join(
-        output_dir,
-        "%s_on_%s_outline.png" % (brain,
-                                  os.path.basename(source)))
-    outline_axial = os.path.join(
-        output_dir,
-        "%s_on_%s_outline_axial.png" % (brain,
-                                        os.path.basename(source)))
-
-    qa_mem.cache(check_preprocessing.plot_registration)(
-        target,
-        source,
-        output_filename=outline_axial,
-        slicer='z',
-        cmap=cmap,
-        title="Outline of %s on SPM MNI %s template" % (
-            brain,
-            os.path.basename(source)))
-
-    output['axial'] = outline_axial
-
-    qa_mem.cache(check_preprocessing.plot_registration)(
-        target,
-        source,
-        output_filename=outline,
-        cmap=cmap,
-        title="Outline of %s on MNI %s template" % (
-            brain,
-            os.path.basename(source)))
-
-    # create thumbnail
-    if results_gallery:
-        thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(href=os.path.basename(outline))
-        thumbnail.img = reporter.img(
-            src=os.path.basename(outline), height="250px")
-        thumbnail.description = \
-            "Normalization of %s (<a href=%s>see execution log</a>)" \
-            % (_brain, os.path.basename(nipype_html_report_filename))
-
-        results_gallery.commit_thumbnails(thumbnail)
-
-    return output
-
-
-def generate_segmentation_thumbnails(
-    normalized_files,
-    output_dir,
-    subject_gm_file=None,
-    subject_wm_file=None,
-    subject_csf_file=None,
-    brain='epi',
-    cmap=None,
-    results_gallery=None,
-    progress_logger=None):
-    """Generates thumbnails after indirect normalization
-    (segmentation + normalization)
-
-    Parameters
-    ----------
-    normalized_file: list
-        paths to normalized images (3Ds or 4Ds)
-
-    output_dir: string
-        dir to which all output will be written
-
-    subject_gm_file: string (optional)
-        path to subject GM file
-
-    subject_csf_file: string (optional)
-        path to subject WM file
-
-    subject_csf_file: string (optional)
-        path to subject CSF file
-
-    brain: string (optional)
-        a short commeent/tag like 'epi', or 'anat'
-
-    cmap: optional
-        cmap (color map) to use for plots
-
-    result_gallery: reporter.ResultsGallery instance (optional)
-        gallery to which thumbnails will be committed
-
-    """
-
-    import check_preprocessing
-    import reporting.reporter as reporter
-
-    _brain = brain
-
-    if progress_logger:
-        progress_logger.log('<b>Normalization of %s</b><br/><br/>' % _brain)
-
-    if type(normalized_files) is str:
-        nipype_report_filename = os.path.join(
-            os.path.dirname(normalized_files),
-            "_report/report.rst")
-        normalized_file = normalized_files
-    else:
-        brain = "mean" + brain
-
-        nipype_report_filename = os.path.join(
-            os.path.dirname(normalized_files[0]),
-            "_report/report.rst")
-
-        mean_normalized_file = os.path.join(
-            os.path.dirname(normalized_files[0]),
-            "mean%s.nii" % brain)
-
-        compute_mean_3D_image(normalized_files,
-                           output_filename=mean_normalized_file)
-        normalized_file = mean_normalized_file
-
-    # nipype report
-    nipype_html_report_filename = os.path.join(
-        output_dir,
-        '%s_normalize_nipype_report.html' % brain)
-    nipype_report = reporter.nipype2htmlreport(
-        nipype_report_filename)
-    open(nipype_html_report_filename,
-                 'w').write(str(nipype_report))
-    output = {}
-
-    # prepare for smart caching
-    qa_cache_dir = os.path.join(output_dir, "QA")
-    if not os.path.exists(qa_cache_dir):
-        os.makedirs(qa_cache_dir)
-    qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
-
-    # plot contours of template compartments on subject's brain
-    template_compartments_contours = os.path.join(
-        output_dir,
-        "template_tmps_contours_on_%s.png" % brain)
-    template_compartments_contours_axial = os.path.join(
-        output_dir,
-        "template_compartments_contours_on_%s_axial.png" % brain)
-
-    qa_mem.cache(check_preprocessing.plot_segmentation)(
-        normalized_file,
-        GM_TEMPLATE,
-        wm_filename=WM_TEMPLATE,
-        csf_filename=CSF_TEMPLATE,
-        output_filename=template_compartments_contours_axial,
-        slicer='z',
-        cmap=cmap,
-        title="template TPMs")
-
-    qa_mem.cache(check_preprocessing.plot_segmentation)(
-        normalized_file,
-        gm_filename=GM_TEMPLATE,
-        wm_filename=WM_TEMPLATE,
-        csf_filename=CSF_TEMPLATE,
-        output_filename=template_compartments_contours,
-        cmap=cmap,
-        title=("Template GM, WM, and CSF contours on "
-               "subject's %s") % brain)
-
-    # create thumbnail
-    if results_gallery:
-        thumbnail = reporter.Thumbnail()
-        thumbnail.a = reporter.a(
-            href=os.path.basename(template_compartments_contours))
-        thumbnail.img = reporter.img(
-            src=os.path.basename(template_compartments_contours),
-            height="250px")
-        thumbnail.description = (
-            "Normalization of %s (<a href=%s>see "
-            "execution log</a>)") % (_brain, os.path.basename(
-            nipype_html_report_filename))
-
-        results_gallery.commit_thumbnails(thumbnail)
-
-    # plot contours of subject's compartments on subject's brain
-    if subject_gm_file:
-        subject_compartments_contours = os.path.join(
-            output_dir,
-            "subject_tmps_contours_on_subject_%s.png" % brain)
-        subject_compartments_contours_axial = os.path.join(
-            output_dir,
-            "subject_tmps_contours_on_subject_%s_axial.png" % brain)
-
-        qa_mem.cache(check_preprocessing.plot_segmentation)(
-            normalized_file,
-            subject_gm_file,
-            wm_filename=subject_wm_file,
-            csf_filename=subject_csf_file,
-            output_filename=subject_compartments_contours_axial,
-            slicer='z',
-            cmap=cmap,
-            title="subject TPMs")
-
-        title_prefix = "Subject's GM"
-        if subject_wm_file:
-            title_prefix += ", WM"
-        if subject_csf_file:
-            title_prefix += ", and CSF"
-        qa_mem.cache(check_preprocessing.plot_segmentation)(
-            normalized_file,
-            subject_gm_file,
-            wm_filename=subject_wm_file,
-            csf_filename=subject_csf_file,
-            output_filename=subject_compartments_contours,
-            cmap=cmap,
-            title=("%s contours on "
-               "subject's %s") % (title_prefix, brain))
-
-        # create thumbnail
-        if results_gallery:
-            thumbnail = reporter.Thumbnail()
-            thumbnail.a = reporter.a(
-                href=os.path.basename(subject_compartments_contours))
-            thumbnail.img = reporter.img(
-                src=os.path.basename(subject_compartments_contours),
-                height="250px")
-            thumbnail.description = \
-                "Normalization of %s (<a href=%s>see execution log</a>)" \
-                % (_brain, os.path.basename(nipype_html_report_filename))
-
-            results_gallery.commit_thumbnails(thumbnail)
-
-    output['axials'] = {}
-    output['axial'] = template_compartments_contours_axial
-
-    return output
-
-
-def commit_subject_thumnbail_to_parent_gallery(
-    thumbnail,
-    subject_id,
-    parent_results_gallery):
-    """Commit thumbnail (summary of subject_report) to parent results gallery,
-    correcting attrs of the embedded img object as necessary.
-
-    Parameters
-    ----------
-    thumbnail: reporter.Thumbnail instance
-        thumbnail to be committed
-
-    subject_id: string
-        subject_id for subject under inspection
-
-    result_gallery: reporter.ResultsGallery instance (optional)
-        gallery to which thumbnail will be committed
-
-    """
-
-    thumbnail.img.height = "250px"
-    thumbnail.img.src = "%s/%s" % (
-        subject_id,
-        os.path.basename(thumbnail.img.src))
-    thumbnail.a.href = "%s/%s" % (
-        subject_id,
-        os.path.basename(thumbnail.a.href))
-    parent_results_gallery.commit_thumbnails(thumbnail)
-
-
-def generate_cv_tc_thumbnail(
-    image_files,
-    sessions,
-    subject_id,
-    output_dir,
-    plot_diff=True,
-    results_gallery=None):
-    """Generate cv tc thumbnails
-
-    Parameters
-    ----------
-    image_files: list or strings or list
-        paths (4D case) to list of paths (3D case) of images under inspection
-
-    output_dir: string
-        dir to which all output whill be written
-
-    subject_id: string
-        id of subject under inspection
-
-    sessions: list
-        list of session ids, one per element of image_files
-
-    result_gallery: reporter.ResultsGallery instance (optional)
-        gallery to which thumbnails will be committed
-
-    """
-
-    import reporting.reporter as reporter
-    import check_preprocessing
-
-    qa_cache_dir = os.path.join(output_dir, "QA")
-    if not os.path.exists(qa_cache_dir):
-        os.makedirs(qa_cache_dir)
-    qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
-
-    if type(image_files) is str:
-        image_files = [image_files]
-    else:
-        if is_3D(image_files[0]):
-            image_files = [image_files]
-
-    assert len(sessions) == len(image_files)
-
-    cv_tc_plot_output_file = os.path.join(
-        output_dir,
-        "cv_tc_plot.png")
-
-    qa_mem.cache(
-        check_preprocessing.plot_cv_tc)(
-        image_files,
-        sessions,
-        subject_id,
-        cv_tc_plot_outfile=cv_tc_plot_output_file,
-        plot_diff=True)
-
-    # create thumbnail
-    thumbnail = reporter.Thumbnail()
-    thumbnail.a = reporter.a(
-        href=os.path.basename(cv_tc_plot_output_file))
-    thumbnail.img = reporter.img(
-        src=os.path.basename(cv_tc_plot_output_file), height="250px",
-        width="600px")
-    thumbnail.description = "Coefficient of Variation (%d sessions)"\
-                                 % len(sessions)
-
-    if results_gallery:
-        results_gallery.commit_thumbnails(thumbnail)
-
-
 def _do_subject_realign(output_dir,
                         subject_id=None,
                         sessions=[1],
@@ -602,51 +174,19 @@ def _do_subject_realign(output_dir,
 
     # generate gallery for HTML report
     if do_report:
-        import check_preprocessing
-        import reporting.reporter as reporter
-
         rp_files = realign_result.outputs.realignment_parameters
         if type(rp_files) is str:
             rp_files = [rp_files]
 
         assert len(sessions) == len(rp_files), rp_files
 
-        # nipype report
-        nipype_report_filename = os.path.join(
-            os.path.dirname(rp_files[0]),
-            "_report/report.rst")
-        nipype_html_report_filename = os.path.join(
-            output_dir,
-            'realign_nipype_report.html')
-        nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
-        open(nipype_html_report_filename, 'w').write(str(nipype_report))
-
-        if progress_logger:
-            progress_logger.log(nipype_report.split('Terminal output')[0])
-            progress_logger.log('<hr/>')
-
-        for session_id, rp in zip(sessions, rp_files):
-            rp_plot = os.path.join(
-                output_dir, 'rp_plot_%s.png' % session_id)
-            check_preprocessing.plot_spm_motion_parameters(
-                rp,
-                title="Plot of Estimated motion for session %s" % session_id,
-                output_filename=rp_plot)
-
-            # create thumbnail
-            if results_gallery:
-                thumbnail = reporter.Thumbnail()
-                thumbnail.a = reporter.a(href=os.path.basename(rp_plot))
-                thumbnail.img = reporter.img(src=os.path.basename(rp_plot),
-                                             height="250px",
-                                             width="600px")
-                thumbnail.description = \
-                    "Motion Correction (<a href=%s>see execution log</a>)" % \
-                    os.path.basename(nipype_html_report_filename)
-
-                results_gallery.commit_thumbnails(thumbnail)
-
-        output['rp_plot'] = rp_plot
+        output.update(reporter.generate_realignment_thumbnails(
+                rp_files,
+                output_dir,
+                sessions=sessions,
+                results_gallery=results_gallery,
+                progress_logger=progress_logger,
+                ))
 
     # collect ouput
     output['result'] = realign_result
@@ -953,7 +493,7 @@ def _do_subject_normalize(output_dir,
     # generate gallery for HTML report
     if do_report:
         # generate normalization thumbs
-        output.update(generate_normalization_thumbnails(
+        output.update(reporter.generate_normalization_thumbnails(
                 normalized_files,
                 output_dir,
                 brain=brain,
@@ -970,7 +510,7 @@ def _do_subject_normalize(output_dir,
             subject_gm_file = None
             subject_wm_file = None
             subject_csf_file = None
-        output.update(generate_segmentation_thumbnails(
+        output.update(reporter.generate_segmentation_thumbnails(
                 normalized_files,
                 output_dir,
                 subject_gm_file=subject_gm_file,
@@ -1197,7 +737,7 @@ def _do_subject_preproc(
             output['final_thumbnail'] = final_thumbnail
 
             if parent_results_gallery:
-                commit_subject_thumnbail_to_parent_gallery(
+                reporter.commit_subject_thumnbail_to_parent_gallery(
                     final_thumbnail,
                     subject_data.subject_id,
                     parent_results_gallery)
@@ -1534,7 +1074,7 @@ def _do_subject_preproc(
         if do_cv_tc and do_normalize:
             corrected_FMRI = output['func']
 
-            generate_cv_tc_thumbnail(corrected_FMRI,
+            reporter.generate_cv_tc_thumbnail(corrected_FMRI,
                                      subject_data.session_id,
                                      subject_data.subject_id,
                                      subject_data.output_dir,
@@ -1637,7 +1177,7 @@ def _do_subject_dartelnorm2mni(output_dir,
     if do_report and results_gallery:
         import pylab as pl
 
-        generate_normalization_thumbnails(
+        reporter.generate_normalization_thumbnails(
             warped_files,
             output_dir,
             brain='epi',
@@ -1646,7 +1186,7 @@ def _do_subject_dartelnorm2mni(output_dir,
             progress_logger=subject_progress_logger)
 
         # generate segmentation thumbs
-        epi_thumbs = generate_segmentation_thumbnails(
+        epi_thumbs = reporter.generate_segmentation_thumbnails(
                 warped_files,
                 output_dir,
                 subject_gm_file=subject_gm_file,
@@ -1669,7 +1209,7 @@ def _do_subject_dartelnorm2mni(output_dir,
     if do_report and results_gallery:
         import pylab as pl
 
-        generate_normalization_thumbnails(
+        reporter.generate_normalization_thumbnails(
             dartelnorm2mni_result.outputs.normalized_files,
             output_dir,
             brain='anat',
@@ -1678,7 +1218,7 @@ def _do_subject_dartelnorm2mni(output_dir,
             progress_logger=subject_progress_logger)
 
         # generate segmentation thumbs
-        generate_segmentation_thumbnails(
+        reporter.generate_segmentation_thumbnails(
             dartelnorm2mni_result.outputs.normalized_files,
             output_dir,
             subject_gm_file=subject_gm_file,
@@ -1690,7 +1230,7 @@ def _do_subject_dartelnorm2mni(output_dir,
         # finalize report
         if parent_results_gallery:
             final_thumbnail.img.src = epi_thumbs['axial']
-            commit_subject_thumnbail_to_parent_gallery(
+            reporter.commit_subject_thumnbail_to_parent_gallery(
                 final_thumbnail,
                 subject_id,
                 parent_results_gallery)
@@ -1699,11 +1239,12 @@ def _do_subject_dartelnorm2mni(output_dir,
     if do_report:
         # generate cv plots
         if do_cv_tc:
-            generate_cv_tc_thumbnail(createwarped_result.outputs.warped_files,
-                                     sessions,
-                                     subject_id,
-                                     output_dir,
-                                     results_gallery=results_gallery)
+            reporter.generate_cv_tc_thumbnail(
+                createwarped_result.outputs.warped_files,
+                sessions,
+                subject_id,
+                output_dir,
+                results_gallery=results_gallery)
 
         # shutdown page reloader
         if last_stage:
