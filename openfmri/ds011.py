@@ -6,21 +6,32 @@ import shutil
 from utils import apply_preproc, load_preproc, load_glm_params
 
 # parent dir imports
-sys.path.append(os.path.dirname(
-        os.path.dirname(os.path.abspath(sys.argv[0]))))
+sys.path.append('..')
+
 from nipy_glm_utils import apply_glm
 from datasets_extras import fetch_openfmri
+from external.nisl.datasets import _fetch_file
 
-FULL_ID = 'ds000001'
-SHORT_ID = 'ds001'
-NAME = 'Balloon Analog Risk-taking Task'
+FULL_ID = 'ds000011'
+SHORT_ID = 'ds011'
+NAME = 'Classification learning and tone-counting'
 DESCRIPTION = """
-Subjects perform the Balloon Analog Risk-taking Task in an event-related
-design. Get full description <a href="https://openfmri.org/dataset/ds000001">\
-here</a>.
+Fourteen participants were trained on two different classification problems
+while they were scanned by using fMRI. Participants were trained on one
+problem under single-task (ST) conditions and on the other problem while
+performing a concurrent tone-counting task. During training, subjects
+learned the categories based on trial-by-trial feedback. After training,
+subjects received an additional block of probe trials using a mixed
+event-related (ER) fMRI paradigm, during which they classified items
+that had been trained under either ST or dual-task (DT) conditions. To
+measure how well participants had learned under each condition, no feedback
+was presented during the probe block, and all items were presented under ST
+conditions.  An additional tone-counting localizer scan presented blocks of
+the tone counting task (followed by a probe at the end of each block)
+compared to rest.
 
-<b>Note</b>: The original highres image for sub004 was not \
-available, so the skull-stripped version is included as highres001.nii.gz
+Get full description <a href="https://openfmri.org/dataset/ds000011">\
+here</a>.\
 """
 
 MODEL_ID = 'model001'
@@ -41,7 +52,7 @@ if __name__ == '__main__':
     # download data
     data_dir = fetch_openfmri(FULL_ID, root_dir)
 
-    # alternative task_contrasts (errors in original file?)
+    # this dataset does not contain contrast definitions
     contrasts_file = '%s_task_contrasts.txt' % SHORT_ID
     assert os.path.isfile(contrasts_file), \
         "No contrasts file: %s" % contrasts_file

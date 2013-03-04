@@ -103,7 +103,7 @@ def resample_niimg(niimg):
     target_shape = (53, 63, 46)
 
     if (_get_shape(niimg) != target_shape or
-        _get_affine(niimg) != target_affine):
+        np.all(_get_affine(niimg) != target_affine)):
         img = resampling.resample_img(niimg, target_affine, target_shape)
         nb.save(img, niimg)
 

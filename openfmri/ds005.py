@@ -6,21 +6,23 @@ import shutil
 from utils import apply_preproc, load_preproc, load_glm_params
 
 # parent dir imports
-sys.path.append(os.path.dirname(
-        os.path.dirname(os.path.abspath(sys.argv[0]))))
+sys.path.append('..')
+
 from nipy_glm_utils import apply_glm
 from datasets_extras import fetch_openfmri
+from external.nisl.datasets import _fetch_file
 
-FULL_ID = 'ds000001'
-SHORT_ID = 'ds001'
-NAME = 'Balloon Analog Risk-taking Task'
+FULL_ID = 'ds000005'
+SHORT_ID = 'ds005'
+NAME = 'Mixed-gambles task'
 DESCRIPTION = """
-Subjects perform the Balloon Analog Risk-taking Task in an event-related
-design. Get full description <a href="https://openfmri.org/dataset/ds000001">\
-here</a>.
+Subjects were presented with mixed (gain/loss) gambles, and decided
+whether they would accept each gamble.  No outcomes of these gambles
+were presented during scanning, but after the scan three gambles were
+selected at random and played for real money.
 
-<b>Note</b>: The original highres image for sub004 was not \
-available, so the skull-stripped version is included as highres001.nii.gz
+Get full description <a href="https://openfmri.org/dataset/ds000005">\
+here</a>.\
 """
 
 MODEL_ID = 'model001'
@@ -41,7 +43,11 @@ if __name__ == '__main__':
     # download data
     data_dir = fetch_openfmri(FULL_ID, root_dir)
 
-    # alternative task_contrasts (errors in original file?)
+    # condition_key file in tarball is incomplete
+    _fetch_file('https://openfmri.org/system/files/condition_key.txt',
+                os.path.join(data_dir, SHORT_ID, 'models', MODEL_ID))
+
+    # this dataset does not contain contrast definitions
     contrasts_file = '%s_task_contrasts.txt' % SHORT_ID
     assert os.path.isfile(contrasts_file), \
         "No contrasts file: %s" % contrasts_file
