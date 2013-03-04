@@ -12,6 +12,7 @@ from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
 import nibabel
 import time
+import glob
 
 """path trick"""
 sys.path.append(
@@ -172,5 +173,10 @@ reporter.generate_subject_stats_report(
     progress_logger=results[0]['progress_logger'],
     start_time=stats_start_time,
     )
+
+progress_logger = reporter.ProgressReport()
+progress_logger.finish_all(glob.glob(os.path.join(
+        output_dir,
+        "report*.html")))
 
 print "\r\nStatistic report written to %s\r\n" % stats_report_filename

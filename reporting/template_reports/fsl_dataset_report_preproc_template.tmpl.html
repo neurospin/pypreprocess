@@ -19,7 +19,8 @@
     Started: {{start_time}}
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color=red><i>STILL RUNNING ..</i><blink>.</blink></font>
     <hr/>
-
+    
+    {{if preproc_undergone}}
     <b>Methods used</b><br/>
     {{preproc_undergone | html}}
     <b>References</b><br/><br/>
@@ -29,6 +30,7 @@
       {{endfor}}
       </ul>
     <hr/>
+    {{endif}}
 
     <script type="text/javascript">
       {{py: import os; loader=os.path.basename(results.loader_filename);}}

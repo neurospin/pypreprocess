@@ -19,6 +19,7 @@ import nibabel
 import numpy as np
 from nipy.labs import viz
 import nipy.labs.statistical_mapping as sm
+import json
 
 import check_preprocessing
 import io_utils
@@ -48,7 +49,7 @@ ROOT_DIR = os.path.split(os.path.abspath(__file__))[0]
 
 # extention of web-related files (increment this as we support more
 # and more file extensions for web business)
-WEBBY_EXTENSION_PATTERN = ".*\.(?:png|jpeg|html|php|css)$"
+WEBBY_EXTENSION_PATTERN = ".*\.(?:png|jpeg|html|php|css|txt|rst)$"
 
 """MISC"""
 NIPY_URL = "http://nipy.sourceforge.net/nipy/stable/index.html"
@@ -336,7 +337,7 @@ def lines2breaks(lines):
 
     """
 
-    if type(lines) is str:
+    if isinstance(lines, basestring):
         lines = lines.split('\n')
 
     log = "<br>".join(lines)
@@ -346,11 +347,12 @@ def lines2breaks(lines):
 
 class ProgressReport(object):
 
-    def __init__(self, report_filename, other_watched_files=[]):
+    def __init__(self, report_filename=None, other_watched_files=[]):
         self.report_filename = report_filename
         self.other_watched_files = other_watched_files
 
-        open(self.report_filename, 'a').close()
+        if not self.report_filename is None:
+            open(self.report_filename, 'a').close()
 
     def log(self, msg):
         """Logs an html-formated stub to the report file
@@ -367,9 +369,10 @@ class ProgressReport(object):
             i_fd.close()
             marker = '<!-- log_next_thing_here -->'
             content = content.replace(marker, msg + marker)
-            with open(self.report_filename, 'w') as o_fd:
-                o_fd.write(content)
-                o_fd.close()
+            if not self.report_filename is None:
+                with open(self.report_filename, 'w') as o_fd:
+                    o_fd.write(content)
+                    o_fd.close()
 
     def finish(self, report_filename=None):
         """Stops the automatic reloading (by the browser, etc.) of a given
@@ -385,30 +388,40 @@ class ProgressReport(object):
         if report_filename is None:
             report_filename = self.report_filename
 
-        with open(report_filename, 'r') as i_fd:
-            content = i_fd.read()
-            i_fd.close()
+        if not report_filename is None:
+            with open(report_filename, 'r') as i_fd:
+                content = i_fd.read()
+                i_fd.close()
 
-            # prevent pages from reloaded automaticall henceforth
-            meta_reloader = "<meta http\-equiv=refresh content=.+?>"
-            content = re.sub(meta_reloader, "", content)
+                # prevent pages from reloaded automaticall henceforth
+                meta_reloader = "<meta http\-equiv=refresh content=.+?>"
+                content = re.sub(meta_reloader, "", content)
 
-            old_state = ("<font color=red><i>STILL RUNNING .."
-                         "</i><blink>.</blink></font>")
-            new_state = "Ended: %s" % time.ctime()
-            new_content = content.replace(old_state, new_state)
-            with open(report_filename, 'w') as o_fd:
-                o_fd.write(new_content)
-                o_fd.close()
+                old_state = ("<font color=red><i>STILL RUNNING .."
+                             "</i><blink>.</blink></font>")
+                new_state = "Ended: %s" % time.ctime()
+                new_content = content.replace(old_state, new_state)
+                with open(report_filename, 'w') as o_fd:
+                    o_fd.write(new_content)
+                    o_fd.close()
 
-    def finish_all(self):
+    def finish_all(self, filenames=[]):
         """Stops the automatic re-loading of watched pages
+
+        Parameters
+        ----------
+        filenames: string or list of strings
+            filename(s) pointing to page(s) to stop automatic releading
+
+        Examples
+        --------
+        >>> import os, glob, reporting.reporter as reporter        
+        >>> progress_logger = reporter.ProgressReport()
+        >>> progress_logger.finish_all(glob.glob("/tmp/report*.html"))
 
         """
 
-        self.finish()
-
-        for filename in self.other_watched_files:
+        for filename in [self.report_filename] + self.other_watched_files + filenames:
             self.finish(filename)
 
     def watch_file(self, filename):
@@ -455,7 +468,7 @@ def generate_normalization_thumbnails(
 
     _brain = brain
 
-    if type(normalized_files) is str:
+    if isinstance(normalized_files, basestring):
         nipype_report_filename = os.path.join(
             os.path.dirname(normalized_files),
             "_report/report.rst")
@@ -620,7 +633,7 @@ def generate_segmentation_thumbnails(
     if progress_logger:
         progress_logger.log('<b>Normalization of %s</b><br/><br/>' % _brain)
 
-    if type(normalized_files) is str:
+    if isinstance(normalized_files, basestring):
         nipype_report_filename = os.path.join(
             os.path.dirname(normalized_files),
             "_report/report.rst")
@@ -820,7 +833,7 @@ def generate_cv_tc_thumbnail(
         os.makedirs(qa_cache_dir)
     qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
 
-    if type(image_files) is str:
+    if isinstance(image_files, basestring):
         image_files = [image_files]
     else:
         if io_utils.is_3D(image_files[0]):
@@ -855,7 +868,7 @@ def generate_cv_tc_thumbnail(
 
 
 def generate_realignment_thumbnails(
-    rp_files,
+    estimated_motion,
     output_dir,
     sessions=[1],
     results_gallery=None,
@@ -864,14 +877,14 @@ def generate_realignment_thumbnails(
 
     """
 
-    if type(rp_files) is str:
-        rp_files = [rp_files]
+    if isinstance(estimated_motion, basestring):
+        estimated_motion = [estimated_motion]
 
     output = {}
 
     # nipype report
     nipype_report_filename = os.path.join(
-        os.path.dirname(rp_files[0]),
+        os.path.dirname(estimated_motion[0]),
         "_report/report.rst")
     nipype_html_report_filename = os.path.join(
         output_dir,
@@ -885,7 +898,7 @@ def generate_realignment_thumbnails(
         progress_logger.log(nipype_report.split('Terminal output')[0])
         progress_logger.log('<hr/>')
 
-    for session_id, rp in zip(sessions, rp_files):
+    for session_id, rp in zip(sessions, estimated_motion):
         rp_plot = os.path.join(
             output_dir, 'rp_plot_%s.png' % session_id)
         check_preprocessing.plot_spm_motion_parameters(
@@ -1232,20 +1245,37 @@ def generate_subject_stats_report(
 
 
 def generate_subject_preproc_report(
-    func_files=None,
-    anat_file=None,
-    rp_files=None,
+    func=None,
+    anat=None,
+    estimated_motion=None,
     output_dir='/tmp',
     subject_id="UNSPECIFIED!",
     sessions=['UNKNOWN_SESSION'],
     do_cv_tc=True,
-    preproc_undergone="UNSPECIFIED!",
+    preproc_undergone=None,
+    conf_path='.',
+    last_stage=True,
+    parent_results_gallery=None,
     subject_progress_logger=None,
     ):
 
     output = {}
 
-    preproc_undergone = """\
+    def finalize_report():
+        output['final_thumbnail'] = final_thumbnail
+
+        if parent_results_gallery:
+            commit_subject_thumnbail_to_parent_gallery(
+                final_thumbnail,
+                subject_id,
+                parent_results_gallery)
+
+        if last_stage:
+            subject_progress_logger.finish(report_preproc_filename)
+            subject_progress_logger.finish_all()
+
+    if not preproc_undergone:
+        preproc_undergone = """\
 <p>All preprocessing has been done using <a href="%s">pypreprocess</a>,
  which is powered by <a href="%s">nipype</a>, and <a href="%s">SPM8</a>.
 </p>""" % (PYPREPROCESS_URL, NIPYPE_URL, SPM8_URL)
@@ -1268,6 +1298,11 @@ def generate_subject_preproc_report(
     results_gallery = ResultsGallery(
         loader_filename=loader_filename,
         title="Report for subject %s" % subject_id)
+    final_thumbnail = Thumbnail()
+    final_thumbnail.a = a(href=report_preproc_filename)
+    final_thumbnail.img = img()
+    final_thumbnail.description = subject_id
+
     output['results_gallery'] = results_gallery
 
     # initialize progress bar
@@ -1281,7 +1316,7 @@ def generate_subject_preproc_report(
     # html markup
     preproc = FSL_SUBJECT_REPORT_PREPROC_HTML_TEMPLATE(
         ).substitute(
-        conf_path=".",
+        conf_path=conf_path,
         results=results_gallery,
         start_time=time.ctime(),
         preproc_undergone=preproc_undergone,
@@ -1289,7 +1324,7 @@ def generate_subject_preproc_report(
         )
     main_html = FSL_SUBJECT_REPORT_HTML_TEMPLATE(
         ).substitute(
-        conf_path=".",
+        conf_path=conf_path,
         start_time=time.ctime(),
         subject_id=subject_id
         )
@@ -1302,9 +1337,9 @@ def generate_subject_preproc_report(
         fd.close()
 
     # generate realignment thumbs
-    if rp_files:
+    if estimated_motion:
         generate_realignment_thumbnails(
-            rp_files,
+            estimated_motion,
             output_dir,
             sessions=sessions,
             results_gallery=results_gallery,
@@ -1312,31 +1347,32 @@ def generate_subject_preproc_report(
 
     # generate epi normalizatipon thumbs
     generate_normalization_thumbnails(
-        func_files,
+        func,
         output_dir,
         brain="EPI",
         cmap=pl.cm.spectral,
         results_gallery=results_gallery)
 
-    generate_segmentation_thumbnails(
-        func_files,
+    seg_thumbs = generate_segmentation_thumbnails(
+        func,
         output_dir,
         cmap=pl.cm.spectral,
         brain="EPI",
         results_gallery=results_gallery,
         )
+    final_thumbnail.img.src = seg_thumbs['axial']
 
     # generate anat normalization thumbs
-    if anat_file:
+    if anat:
         generate_normalization_thumbnails(
-            anat_file,
+            anat,
             output_dir,
             brain="anat",
             cmap=pl.cm.gray,
             results_gallery=results_gallery)
 
         generate_segmentation_thumbnails(
-            anat_file,
+            anat,
             output_dir,
             cmap=pl.cm.gray,
             brain="anat",
@@ -1346,13 +1382,110 @@ def generate_subject_preproc_report(
     # generate cv tc plots
     if do_cv_tc:
         generate_cv_tc_thumbnail(
-            func_files,
+            func,
             sessions,
             subject_id,
             output_dir,
             results_gallery=results_gallery)
 
-    # we're done; shutdown all reloaders
-    subject_progress_logger.finish_all()
+    # we're done
+    finalize_report()
+
+    return output
+
+
+def generate_dataset_preproc_report(
+    subject_preproc_data,
+    output_dir="/tmp",
+    dataset_id="UNSPECIFIED!",
+    preproc_undergone=None,
+    last_stage=True,
+    ):
+    """Generates post-preproc reports for a dataset
+
+    Parameters
+    ----------
+    subject_preproc_data: array-like of strings or dictsSubjectData objects
+        .json filenames containing dicts, or dicts (one per
+        subject) keys should be 'subject_id', 'func', 'anat', and
+        optionally: 'estimated_motion'
+
+    """
+
+    output = {}
+
+    shutil.copy('reporting/css/fsl.css',
+                output_dir)
+    shutil.copy("reporting/images/logo.jpeg",
+                output_dir)
+
+    report_log_filename = os.path.join(
+        output_dir, 'report_log.html')
+    report_preproc_filename = os.path.join(
+        output_dir, 'report_preproc.html')
+    report_filename = os.path.join(
+        output_dir, 'report.html')
+
+        # initialize results gallery
+    loader_filename = os.path.join(
+        output_dir, "results_loader.php")
+    parent_results_gallery = ResultsGallery(
+        loader_filename=loader_filename,
+        refresh_timeout=30000,   # 30 seconds
+        )
+
+    # initialize progress bar
+    progress_logger = ProgressReport(
+        report_log_filename,
+        other_watched_files=[report_filename,
+                             report_preproc_filename])
+    output['progress_logger'] = progress_logger
+
+    # html markup
+    log = FSL_DATASET_REPORT_LOG_HTML_TEMPLATE().substitute(
+        start_time=time.ctime(),
+        )
+    preproc = FSL_DATASET_REPORT_PREPROC_HTML_TEMPLATE(
+        ).substitute(
+        results=parent_results_gallery,
+        start_time=time.ctime(),
+        preproc_undergone=preproc_undergone,
+        )
+    main_html = FSL_DATASET_REPORT_HTML_TEMPLATE(
+        ).substitute(
+        results=parent_results_gallery,
+        start_time=time.ctime(),
+        dataset_id=dataset_id,
+        )
+
+    with open(report_log_filename, 'w') as fd:
+        fd.write(str(log))
+        fd.close()
+    with open(report_preproc_filename, 'w') as fd:
+        fd.write(str(preproc))
+        fd.close()
+    with open(report_filename, 'w') as fd:
+        fd.write(str(main_html))
+        fd.close()
+
+    for s in subject_preproc_data:
+        if isinstance(s, basestring):
+            # read dict from json file
+            s = dict((k, json.load(open(s))[k]) for k in ['func', 'anat',
+                                                          'estimated_motion',
+                                                          'output_dir',
+                                                          'subject_id'])
+
+        # generate subject report
+        generate_subject_preproc_report(
+            parent_results_gallery=parent_results_gallery,
+            conf_path="..",
+            **s
+            )
+
+    progress_logger.finish()
+
+    if last_stage:
+        progress_logger.finish_all()
 
     return output

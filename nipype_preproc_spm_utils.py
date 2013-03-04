@@ -21,7 +21,7 @@ import reporting.reporter as reporter
 # imports i/o
 from nipype.interfaces.base import Bunch
 from io_utils import delete_orientation, is_3D, get_vox_dims,\
-    resample_img, do_3Dto4D_merge, compute_mean_3D_image, compute_mean_image
+    resample_img, do_3Dto4D_merge, compute_mean_image
 
 # spm and matlab imports
 import nipype.interfaces.spm as spm
@@ -112,10 +112,10 @@ class SubjectData(Bunch):
                 self.anat, self.output_dir)
 
     def sanitize(self, do_deleteorient=False):
-        if type(self.session_id) is str:
+        if isinstance(self.session_id, basestring):
             self.session_id = [self.session_id]
 
-        if type(self.func) is str:
+        if isinstance(self.func, basestring):
             self.func = [self.func]
 
         if is_3D(self.func[0]):
@@ -174,14 +174,14 @@ def _do_subject_realign(output_dir,
 
     # generate gallery for HTML report
     if do_report:
-        rp_files = realign_result.outputs.realignment_parameters
-        if type(rp_files) is str:
-            rp_files = [rp_files]
+        estimated_motion = realign_result.outputs.realignment_parameters
+        if isinstance(estimated_motion, basestring):
+            estimated_motion = [estimated_motion]
 
-        assert len(sessions) == len(rp_files), rp_files
+        assert len(sessions) == len(estimated_motion), estimated_motion
 
         output.update(reporter.generate_realignment_thumbnails(
-                rp_files,
+                estimated_motion,
                 output_dir,
                 sessions=sessions,
                 results_gallery=results_gallery,
@@ -243,7 +243,7 @@ def _do_subject_coreg(output_dir,
 
     # generate gallery for HTML report
     if do_report:
-        import check_preprocessing
+        import reporting.check_preprocessing as check_preprocessing
         import reporting.reporter as reporter
         import pylab as pl
 
@@ -1155,7 +1155,7 @@ def _do_subject_dartelnorm2mni(output_dir,
     if downsample_func:
         import numpy as np
 
-        if type(warped_files) is str:
+        if isinstance(warped_files, basestring):
             warped_files = [warped_files]
 
         resampled_warped_files = []
@@ -1500,7 +1500,7 @@ def do_subjects_preproc(subjects,
             output_dir, "results_loader.php")
         parent_results_gallery = reporter.ResultsGallery(
             loader_filename=loader_filename,
-            refresh_timeout=30000,   # 30 seconds
+            refresh_timeout=30,
             )
 
         # initialize progress bar
@@ -1549,21 +1549,17 @@ def do_subjects_preproc(subjects,
         if not do_dartel:
             kwargs['parent_results_gallery'] = parent_results_gallery
 
-    # preprocess the subjects proper
-    if not do_dartel:  # XXX rm this garbage
         results = joblib.Parallel(
             n_jobs=N_JOBS,
-        pre_dispatch='1.5*n_jobs',  # for scalability over RAM
+            pre_dispatch='1.5*n_jobs',  # for scalability over RAM
             verbose=100)(joblib.delayed(
                 _do_subject_preproc)(
                     subject_data, **kwargs) for subject_data in subjects)
-    else:
-        subjects = list(subjects)
 
     if do_dartel:
         # collect subject_ids and session_ids
-        subject_ids = [subject_data.subject_id for subject_data in subjects] # [output['subject_id'] for _, output in results]
-        session_ids = [subject_data.session_id for subject_data in subjects] # [output['session_id'] for _, output in results]
+        subject_ids = [output['subject_id'] for _, output in results]
+        session_ids = [output['session_id'] for _, output in results]
 
         # collect estimated motion
         if do_realign:
@@ -1575,23 +1571,21 @@ def do_subjects_preproc(subjects,
         if do_coreg:
             structural_files = [
                 output['coreg_result'].outputs.coregistered_source
-                                for _, output in results]
+                for _, output in results]
         else:
             structural_files = [
-                subject_data.anat for subject_data in subjects]  # , _ in results]
+                subject_data.anat for subject_data, _ in results]
 
         # collect functional files for DARTEL pipeline
         if do_realign:
             functional_files = [
                 output['realign_result'].outputs.realigned_files
-                                for _, output in results]
+                for _, output in results]
         else:
-            functional_files = [subject_data.func for subject_data in subjects] # ,
-                                # _ in results]
+            functional_files = [output['func'] for _, output in results]
 
         # collect subject output dirs
-        subject_output_dirs = [subject_data.output_dir
-                               for subject_data in subjects] # , _ in results]
+        subject_output_dirs = [output['output_dir'] for _, output in results]
 
         # collect gallery related subject-specific stuff
         subject_final_thumbs = None
@@ -1604,7 +1598,7 @@ def do_subjects_preproc(subjects,
             subject_results_galleries = [output['results_gallery']
                                          for _, output in results]
             subject_progress_loggers = [output['progress_logger']
-                                         for _, output in results]
+                                        for _, output in results]
             if do_realign:
                 estimated_motion = dict((output["subject_id"],
                                          output['estimated_motion'])

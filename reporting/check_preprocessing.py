@@ -121,7 +121,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
     else:
         mask_array = None
     for (session_id, fmri_file) in zip(session_ids, epi_data):
-        if type(fmri_file) is str:
+        if isinstance(fmri_file, basestring):
             data_dir = os.path.dirname(fmri_file)
         else:
             data_dir = os.path.dirname(fmri_file[0])
@@ -182,127 +182,6 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
     return cv_tc
 
 
-# def plot_cv_tc(epi_data, subject_id, session_id="UNKNOWN_SESSION",
-#                output_dir=None, threshold=0.01,
-#                write_image=True, mask=True, bg_image=False,
-#                cv_plot_outfile=None, cv_tc_plot_outfile=None, do_plot=True,
-#                plot_diff=True):
-
-#     """
-#     Compute coefficient of variation of the data and plot it
-
-#     Parameters
-#     ----------
-#     epi_data: epi data path(s) (string or list of strings)
-#     subject_id : string
-#                  id of subject under inspection
-#     session_id:  string
-#                  session id
-#     write_image: bool, optional,
-#                  should we write the cv image
-#     mask: bool or string, optional,
-#           (string) path of a mask or (bool)  should we mask the data
-#     bg_image: bool or string, optional,
-#               (string) pasth of a background image for display or (bool)
-#               should we compute such an image as the mean across inputs.
-#               if no, an MNI template is used (works for normalized data)
-#     """
-
-#     # sanity
-#     if type(epi_data) is str:
-#         epi_data = [epi_data]
-
-#     if output_dir is None:
-#         _tmp = epi_data
-#         if not type(epi_data) is str:
-#             _tmp = epi_data[0]
-#         output_dir = os.path.dirname(_tmp)
-
-#     if isinstance(mask, basestring):
-#         mask_array = nibabel.load(mask).get_data() > 0
-#     elif mask == True:
-#         mask_array = compute_mask_files(epi_data[0])
-#     else:
-#         mask_array = None
-
-#     nim = nibabel.load(do_3Dto4D_merge(epi_data))
-#     affine = nim.get_affine()
-#     if len(nim.shape) == 4:
-#         # get the data
-#         data = nim.get_data()
-#     else:
-#         raise RuntimeError("expecting 4D image, got %iD" % len(nim.shape))
-
-#     # compute the CV for the session
-#     cache_dir = os.path.join(output_dir, "CV")
-#     if not os.path.exists(cache_dir):
-#         os.makedirs(cache_dir)
-#     mem = joblib.Memory(cachedir=cache_dir, verbose=5)
-#     cv = mem.cache(compute_cv)(data, mask_array)
-
-#     # write an image
-#     if write_image:
-#         nibabel.save(nibabel.Nifti1Image(cv, affine),
-#                      os.path.join(output_dir, 'cv_%s.nii' % session_id))
-
-#     # plot cv proper
-#     if bg_image == False:
-#         title = "CV map thresholded at %s" % (100 * threshold) + "%"
-#         viz.plot_map(cv,
-#                      affine,
-#                      threshold=threshold,
-#                      # cut_coords=(-2, -28, 17),
-#                      cmap=pl.cm.spectral,
-#                      title=title,
-#                      )
-#     else:
-#         if isinstance(bg_image, basestring):
-#             anat, anat_affine = (
-#                 nibabel.load(bg_image).get_data(),
-#                 nibabel.load(bg_image).get_affine())
-#         else:
-#             anat, anat_affine = (data.mean(-1), affine)
-#         viz.plot_map(
-#             cv, affine, threshold=threshold,
-#             cut_coords=(-10, -28, 17),
-#             cmap=pl.cm.spectral,
-#             anat=anat, anat_affine=anat_affine,
-#             title=title
-#             )
-
-#     if not cv_plot_outfile is None:
-#         pl.savefig(cv_plot_outfile, dpi=200, bbox_inches='tight',
-#                    facecolor="k",
-#                    edgecolor="k")
-
-#     # compute the time course of the cv
-#     cv_tc = np.median(
-#         np.sqrt((data[mask_array > 0].T /
-#                  data[mask_array > 0].mean(-1) - 1) ** 2), 1)
-
-#     # plot the time course of the cv
-#     if do_plot:
-#         pl.figure()
-#         stuff = [cv_tc]
-#         legends = ['Median Coefficient of Variation']
-#         if plot_diff:
-#             diff_cv_tc = np.hstack(([0], np.diff(cv_tc)))
-#             stuff.append(diff_cv_tc)
-#             legends.append('Differential Median Coefficent of Variation')
-#         legends = tuple(legends)
-#         pl.plot(np.vstack(stuff).T)
-#         pl.legend(legends, loc="center", prop={'size': 12})
-
-#         pl.xlabel('time(scans)')
-#         pl.ylabel('Median Coefficient of Variation')
-#         pl.axis('tight')
-
-#         if not cv_tc_plot_outfile is None:
-#             pl.savefig(cv_tc_plot_outfile, bbox_inches="tight", dpi=200)
-
-#     return cv_tc
-
-
 def plot_registration(reference_img, coregistered_img,
                       title="untitled coregistration!",
                       cut_coords=None,
@@ -351,7 +230,7 @@ def plot_registration(reference_img, coregistered_img,
         cmap=cmap,
         cut_coords=cut_coords,
         slicer=slicer,
-        black_bg=True,
+        # black_bg=True,
         )
 
     # overlap the reference image
@@ -420,7 +299,7 @@ def plot_segmentation(img, gm_filename, wm_filename=None,
         anat, anat_affine, cut_coords=cut_coords,
         slicer=slicer,
         cmap=cmap,
-        black_bg=True,
+        # black_bg=True,
         )
 
     # draw a GM contour map

@@ -17,7 +17,7 @@ from external.nisl import resampling
 def is_3D(image):
     """Check whether image is 3D"""
 
-    if type(image) is str:
+    if isinstance(image, basestring):
         image = nibabel.load(image)
 
     if len(image.shape) == 3:
@@ -30,7 +30,7 @@ def is_4D(image):
     """Check whether image is 4D
     """
 
-    if type(image) is str:
+    if isinstance(image, basestring):
         image = nibabel.load(image)
 
     if len(image.shape) == 4:
@@ -50,7 +50,7 @@ def get_vox_dims(volume):
 
     """
 
-    if not type(volume) is str:
+    if not isinstance(volume, basestring):
         volume = volume[0]
     nii = nibabel.load(volume)
     hdr = nii.get_header()
@@ -117,7 +117,7 @@ def do_3Dto4D_merge(threeD_img_filenames):
 
     """
 
-    if type(threeD_img_filenames) is str:
+    if isinstance(threeD_img_filenames, basestring):
         return threeD_img_filenames
 
     output_dir = os.path.dirname(threeD_img_filenames[0])
@@ -205,14 +205,14 @@ def compute_mean_image(images, output_filename=None, threeD=False):
     """
 
     # sanitize
-    if not hasattr(images, '__iter__') or type(images) is str:
+    if not hasattr(images, '__iter__') or isinstance(images, basestring):
         images = [images]
 
     # make list of data an affines
     all_data = []
     all_affine = []
     for image in images:
-        if type(image) is str:
+        if isinstance(image, basestring):
             image = nibabel.load(image)
         else:
             raise IOError(type(image))

@@ -1,29 +1,25 @@
-import reporting.reporter as reporter
-import nipype_preproc_spm_utils
-import os
-import time
-import shutil
 import sys
-import pylab as pl
-from reporting.reporter import generate_subject_preproc_report
+from reporting.reporter import generate_dataset_preproc_report
+import os
 import glob
 
-# find package path
-root_dir = os.path.split(os.path.abspath(__file__))[0]
 
-func_files = sorted(glob.glob(sys.argv[1]))
+if len(sys.argv) < 2:
+    print ("\r\nUsage: python %s <path_to_dataset_dir> "
+    "[subject_preproc_data_json_filename_wildcat] [dataset_id]") % sys.argv[0]
+    sys.exit(1)
 
-anat_file = None
+dataset_dir = sys.argv[1]
+subject_preproc_data_json_filename_wildcat = "sub*/infos.json"
 if len(sys.argv) > 2:
-    anat_file = sys.argv[2]
-rp_files = None
+    subject_preproc_json_filename_wildcart = sys.argv[2]
 
+dataset_id = 'UNSPECIFIED!'
 if len(sys.argv) > 3:
-    rp_files = sys.argv[3]
-
-generate_subject_preproc_report(
-    func_files,
-    anat_file=anat_file,
-    rp_files=rp_files,
-    subject_id="johndoe"
+    dataset_id = sys.argv[3]
+generate_dataset_preproc_report(
+    glob.glob(os.path.join(dataset_dir,
+                           subject_preproc_data_json_filename_wildcat)),
+    output_dir=dataset_dir,
+    dataset_id=dataset_id,
     )
