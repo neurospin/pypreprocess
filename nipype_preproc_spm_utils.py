@@ -1545,16 +1545,15 @@ def do_subjects_preproc(subjects,
             print "HTML report (dynamic) written to %s" % report_filename
 
         kwargs['main_page'] = "../../%s" % os.path.basename(report_filename)
-
-        if not do_dartel:
-            kwargs['parent_results_gallery'] = parent_results_gallery
-
-        results = joblib.Parallel(
-            n_jobs=N_JOBS,
-            pre_dispatch='1.5*n_jobs',  # for scalability over RAM
-            verbose=100)(joblib.delayed(
-                _do_subject_preproc)(
-                    subject_data, **kwargs) for subject_data in subjects)
+        
+        kwargs['parent_results_gallery'] = parent_results_gallery
+        
+    results = joblib.Parallel(
+        n_jobs=N_JOBS,
+        pre_dispatch='1.5*n_jobs',  # for scalability over RAM
+        verbose=100)(joblib.delayed(
+            _do_subject_preproc)(
+                subject_data, **kwargs) for subject_data in subjects)
 
     if do_dartel:
         # collect subject_ids and session_ids
