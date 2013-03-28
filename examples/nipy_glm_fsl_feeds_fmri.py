@@ -24,6 +24,9 @@ import reporting.reporter as reporter
 from datasets_extras import unzip_nii_gz, fetch_fsl_feeds_data
 from io_utils import compute_mean_3D_image
 
+"""MISC"""
+DATASET_DESCRIPTION = "FSL FEADS example data (single-subject)"
+
 """sanitize cmd line"""
 if len(sys.argv)  < 3:
     print ("\r\nUsage: python %s <path to FSL feeds data directory>"
@@ -38,30 +41,6 @@ data_dir = os.path.abspath(sys.argv[1])
 """set output dir"""
 output_dir = os.path.abspath(sys.argv[2])
 unzip_nii_gz(data_dir)
-
-"""fetch input data"""
-_subject_data = fetch_fsl_feeds_data(data_dir)
-
-subject_data = nipype_preproc_spm_utils.SubjectData()
-subject_data.subject_id = "sub001"
-subject_data.func = _subject_data["func"]
-unzip_nii_gz(os.path.dirname(subject_data.func))
-subject_data.anat = _subject_data["anat"]
-subject_data.output_dir = os.path.join(
-    output_dir, subject_data.subject_id)
-
-"""preprocess the data"""
-report_filename = os.path.join(output_dir,
-                               "_report.html")
-results = nipype_preproc_spm_utils.do_subjects_preproc(
-    [subject_data],
-    output_dir=output_dir,
-    fwhm=[5, 5, 5],
-    report_filename=report_filename,
-    )
-
-"""collect preprocessed data"""
-fmri_data = results[0]['func']
 
 """experimental setup"""
 stats_start_time = time.ctime()
@@ -96,6 +75,34 @@ design_matrix = make_dmtx(frametimes,
                           paradigm, hrf_model=hrf_model,
                           drift_model=drift_model, hfcut=hfcut)
 
+"""fetch input data"""
+_subject_data = fetch_fsl_feeds_data(data_dir)
+subject_data = nipype_preproc_spm_utils.SubjectData()
+subject_data.subject_id = "sub001"
+subject_data.func = _subject_data["func"].replace('fmri',
+                                                  'slicetimed_realigned_fmri',
+                                                  )
+unzip_nii_gz(os.path.dirname(subject_data.func))
+subject_data.anat = _subject_data["anat"]
+subject_data.output_dir = os.path.join(
+    output_dir, subject_data.subject_id)
+
+"""preprocess the data"""
+report_filename = os.path.join(output_dir,
+                               "_report.html")
+results = nipype_preproc_spm_utils.do_subjects_preproc(
+    [subject_data],
+    output_dir=output_dir,
+    do_slicetiming=True,
+    TR=TR,
+    fwhm=[5, 5, 5],
+    report_filename=report_filename,
+    dataset_description=DATASET_DESCRIPTION
+    )
+
+"""collect preprocessed data"""
+fmri_files = results[0]['func']
+anat_file = results[0]['anat']
 
 """specify contrasts"""
 contrasts = {}
@@ -110,7 +117,7 @@ contrasts['EV2>EV1'] = contrasts['EV2'] - contrasts['EV1']
 
 """fit GLM"""
 print('\r\nFitting a GLM (this takes time) ..')
-fmri_glm = FMRILinearModel(fmri_data, design_matrix.matrix,
+fmri_glm = FMRILinearModel(fmri_files, design_matrix.matrix,
            mask='compute')
 fmri_glm.fit(do_scaling=True, model='ar1')
 
@@ -120,9 +127,10 @@ print "Saving mask image %s" % mask_path
 nibabel.save(fmri_glm.mask, mask_path)
 
 # compute bg unto which activation will be projected
-mean_fmri_data = compute_mean_3D_image(fmri_data)
-anat = mean_fmri_data.get_data()
-anat_affine = mean_fmri_data.get_affine()
+mean_fmri_files = compute_mean_3D_image(fmri_files)
+anat_img = nibabel.load(anat_file)
+anat = anat_img.get_data()  # mean_fmri_files.get_data()
+anat_affine = anat_img.get_affine()  # mean_fmri_files.get_affine()
 
 print "Computing contrasts .."
 z_maps = {}

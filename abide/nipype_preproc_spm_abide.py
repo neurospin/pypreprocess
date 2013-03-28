@@ -24,7 +24,7 @@ DO_DARTEL = True
 
 """institutes we're insterested in"""
 INSTITUTES = [
-    'CMU',
+    # 'CMU',
     'Caltech',
     'KKI',
     'Leuven',
@@ -173,5 +173,6 @@ if DO_DARTEL:
 else:
     for institute_id in INSTITUTES:
         preproc_abide_institute(institute_id, ABIDE_DIR, OUTPUT_DIR,
-                                do_dartel=DO_DARTEL,
+                                do_dartel=False,
+                                do_report=False,
                                 )

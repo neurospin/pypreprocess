@@ -4,6 +4,7 @@
 :Author: dohmatob elvis dopgima
 
 XXX TODO: Document this module.
+
 """
 
 import sys
@@ -415,13 +416,14 @@ class ProgressReport(object):
 
         Examples
         --------
-        >>> import os, glob, reporting.reporter as reporter        
+        >>> import os, glob, reporting.reporter as reporter
         >>> progress_logger = reporter.ProgressReport()
         >>> progress_logger.finish_all(glob.glob("/tmp/report*.html"))
 
         """
 
-        for filename in [self.report_filename] + self.other_watched_files + filenames:
+        for filename in [
+            self.report_filename] + self.other_watched_files + filenames:
             self.finish(filename)
 
     def watch_file(self, filename):
@@ -790,14 +792,15 @@ def commit_subject_thumnbail_to_parent_gallery(
 
     """
 
-    thumbnail.img.height = "250px"
-    thumbnail.img.src = "%s/%s" % (
-        subject_id,
-        os.path.basename(thumbnail.img.src))
-    thumbnail.a.href = "%s/%s" % (
-        subject_id,
-        os.path.basename(thumbnail.a.href))
-    parent_results_gallery.commit_thumbnails(thumbnail)
+    if not thumbnail.img.src is None:
+        thumbnail.img.height = "250px"
+        thumbnail.img.src = "%s/%s" % (
+            subject_id,
+            os.path.basename(thumbnail.img.src))
+        thumbnail.a.href = "%s/%s" % (
+            subject_id,
+            os.path.basename(thumbnail.a.href))
+        parent_results_gallery.commit_thumbnails(thumbnail)
 
 
 def generate_cv_tc_thumbnail(
@@ -866,6 +869,8 @@ def generate_cv_tc_thumbnail(
     if results_gallery:
         results_gallery.commit_thumbnails(thumbnail)
 
+    return thumbnail
+
 
 def generate_realignment_thumbnails(
     estimated_motion,
@@ -894,9 +899,9 @@ def generate_realignment_thumbnails(
         nipype_report = nipype2htmlreport(nipype_report_filename)
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
-    if progress_logger:
-        progress_logger.log(nipype_report.split('Terminal output')[0])
-        progress_logger.log('<hr/>')
+        if progress_logger:
+            progress_logger.log(nipype_report.split('Terminal output')[0])
+            progress_logger.log('<hr/>')
 
     for session_id, rp in zip(sessions, estimated_motion):
         rp_plot = os.path.join(
@@ -1431,7 +1436,7 @@ def generate_dataset_preproc_report(
         output_dir, "results_loader.php")
     parent_results_gallery = ResultsGallery(
         loader_filename=loader_filename,
-        refresh_timeout=30000,   # 30 seconds
+        refresh_timeout=30,   # 30 seconds
         )
 
     # initialize progress bar
@@ -1474,7 +1479,8 @@ def generate_dataset_preproc_report(
             s = dict((k, json.load(open(s))[k]) for k in ['func', 'anat',
                                                           'estimated_motion',
                                                           'output_dir',
-                                                          'subject_id'])
+                                                          'subject_id',
+                                                          'preproc_undergone'])
 
         # generate subject report
         generate_subject_preproc_report(

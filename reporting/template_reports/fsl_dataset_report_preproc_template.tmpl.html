@@ -2,6 +2,7 @@
 
 {{default done = 0}}
 {{default preproc_undergone = None}}
+{{default dataset_description = "NOT PROVIDED!"}}
 {{default references = ["Russel A. Poldrack et al. <i>Handbook of Functional MRI Data Analysis</i>"]}}
 <html>
   <head>
@@ -15,6 +16,10 @@
   <body>
 
     <object data=report.html></object>
+    <h2>Dataset description</h2>
+    {{dataset_description | html}}
+    <hr/>
+
     <h2>Data pre-preprocessing</h2>
     Started: {{start_time}}
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color=red><i>STILL RUNNING ..</i><blink>.</blink></font>

@@ -52,7 +52,8 @@ if __name__ == '__main__':
     dest = os.path.join(data_dir, SHORT_ID,
                         'models', MODEL_ID, 'task_contrasts.txt')
 
-    shutil.copy(contrasts_file, dest)
+    if not os.path.isfile(dest):
+        os.symlink(contrasts_file, dest)
 
     # apply SPM preprocessing
     apply_preproc(SHORT_ID, data_dir, preproc_dir, ignore_list,

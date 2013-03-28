@@ -41,6 +41,18 @@ OUTPUT_DIR = os.path.abspath(sys.argv[2])
 if not os.path.isdir(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
+"""construct experimental paradigm"""
+stats_start_time = time.ctime()
+tr = 7.
+n_scans = 96
+_duration = 6
+epoch_duration = _duration * tr
+conditions = ['rest', 'active'] * 8
+duration = epoch_duration * np.ones(len(conditions))
+onset = np.linspace(0, (len(conditions) - 1) * epoch_duration,
+                    len(conditions))
+paradigm = BlockParadigm(con_id=conditions, onset=onset, duration=duration)
+hfcut = 2 * 2 * epoch_duration
 
 """fetch spm auditory data"""
 _subject_data = fetch_spm_auditory_data(DATA_DIR)
@@ -56,6 +68,8 @@ report_filename = os.path.join(OUTPUT_DIR,
                                "_report.html")
 results = nipype_preproc_spm_utils.do_subjects_preproc(
     [subject_data],
+    do_slicetiming=True,
+    TR=3.,
     fwhm=[6, 6, 6],
     dataset_description=DATASET_DESCRIPTION,
     report_filename=report_filename,
@@ -63,19 +77,6 @@ results = nipype_preproc_spm_utils.do_subjects_preproc(
 
 """collect preprocessed data"""
 fmri_data = do_3Dto4D_merge(results[0]['func'])
-
-"""construct experimental paradigm"""
-stats_start_time = time.ctime()
-tr = 7
-n_scans = 96
-_duration = 6
-epoch_duration = _duration * tr
-conditions = ['rest', 'active'] * 8
-duration = epoch_duration * np.ones(len(conditions))
-onset = np.linspace(0, (len(conditions) - 1) * epoch_duration,
-                    len(conditions))
-paradigm = BlockParadigm(con_id=conditions, onset=onset, duration=duration)
-hfcut = 2 * 2 * epoch_duration
 
 """construct design matrix"""
 frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)

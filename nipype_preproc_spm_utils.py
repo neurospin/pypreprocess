@@ -547,7 +547,7 @@ def _do_subject_preproc(
     fwhm=0,
     do_bet=False,
     do_slicetiming=False,
-    TR=7.,
+    TR=None,
     slice_order='ascending',
     do_realign=True,
     do_coreg=True,
@@ -646,6 +646,16 @@ def _do_subject_preproc(
             "registration problems like the skull been (mis-)aligned "
             "unto the cortical surface, "
             "etc.</li>")
+    if do_slicetiming:
+        preproc_undergone += (
+            "<li>"
+            "Slice-timing has been done to interpolate the BOLD signal in "
+            "time,"
+            " so that we can savely pretend all 3D volumes within a TR were "
+            "were acquired simultaneously, an assumption crusial for the GLM "
+            " and inference stages."
+            "</li>"
+            )
     if do_realign:
         preproc_undergone += (
             "<li>"
@@ -770,6 +780,8 @@ def _do_subject_preproc(
     # slice-timing
     ###############
     if do_slicetiming:
+        assert not TR is None, "Need valid value for TR"
+
         import algorithms.slice_timing.slice_timing as st
 
         realignment_cache_dir = os.path.join(subject_data.output_dir,
@@ -811,13 +823,28 @@ def _do_subject_preproc(
 
         # compute reference image
         if do_coreg:
-            ref_func = realigned_func_files[
-                len(realigned_func_files) / 2]
+            # manually compute mean (along time axis) of fMRI images
+            # XXX derive a more sensible path for the ref_func
+            ref_func = os.path.join(
+                subject_data.output_dir,
+                'meanfunc.nii')
+
+            if not os.path.exists(ref_func):
+                import nibabel as ni
+                img = ni.load(realigned_func_files[0])
+                if is_3D(img):
+                    ref_func = realigned_func_files[
+                        len(realigned_func_files) / 2]
+                else:
+                    middle_3D = ni.Nifti1Image(
+                        img.get_data()[:, :, :, img.shape[-1] / 2],
+                        img.get_affine())
+                    ni.save(middle_3D, ref_func)
 
     #####################
     #  motion correction
     #####################
-    if do_realign and not do_slicetiming:
+    elif do_realign:
         realign_output = _do_subject_realign(
             subject_data.output_dir,
             sessions=subject_data.session_id,
@@ -861,13 +888,7 @@ def _do_subject_preproc(
         ref_func = os.path.join(
             subject_data.output_dir,
             'meanfunc.nii')
-        import nibabel as ni
-        ref_func_data = ni.load(subject_data.func[0])
-        ref_func_data = ni.Nifti1Image(ref_func_data.get_data()[:, :, :, 89],
-                                        ref_func_data.get_affine())
-        ni.save(ref_func_data, ref_func)
-
-        # compute_mean_image(subject_data.func, output_filename=ref_func)
+        compute_mean_image(subject_data.func, output_filename=ref_func)
 
     ################################################################
     # co-registration of structural (anatomical) against functional
@@ -1465,6 +1486,7 @@ def do_subjects_preproc(subjects,
                         fwhm=0,
                         do_bet=False,
                         do_slicetiming=False,
+                        TR=None,
                         do_realign=True,
                         do_coreg=True,
                         do_segment=True,
@@ -1511,6 +1533,7 @@ def do_subjects_preproc(subjects,
               'do_segment': do_segment, 'do_normalize': do_normalize,
               'do_cv_tc': do_cv_tc,
               'fwhm': fwhm,
+              'TR': TR,
               'ignore_exception': ignore_exception,
               'last_stage': not do_dartel,
               }

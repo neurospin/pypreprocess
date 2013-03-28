@@ -44,11 +44,12 @@ if __name__ == '__main__':
     # alternative task_contrasts (errors in original file?)
     contrasts_file = '%s_task_contrasts.txt' % SHORT_ID
     assert os.path.isfile(contrasts_file), \
-        "No contrasts file: %s" % contrasts_file
+        "BUG: No contrasts file in code repo: %s" % contrasts_file
     dest = os.path.join(data_dir, SHORT_ID,
                         'models', MODEL_ID, 'task_contrasts.txt')
 
-    shutil.copy(contrasts_file, dest)
+    if not os.path.isfile(dest):
+        os.symlink(contrasts_file, dest)
 
     # apply SPM preprocessing
     apply_preproc(SHORT_ID, data_dir, preproc_dir, ignore_list,
