@@ -59,8 +59,8 @@ def do_slicetiming_and_motion_correction(func,
     runs = []
     for x in fourD_input_fmri_files:
         if not isinstance(x, basestring):
-            assert is_3D(x[0]), "Expecting list of 3D images, x!"
-            raise IOError("Slice-timing not yet implemented for 3D images!")
+            # here, we expect x to be a list of 3D volumes
+            img = nifti2nipy(ni.concat_images(x))
         else:
             img = nipy.load_image(x)
         runs.append(img)
