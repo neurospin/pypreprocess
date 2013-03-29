@@ -651,7 +651,7 @@ def _do_subject_preproc(
             "<li>"
             "Slice-timing has been done to interpolate the BOLD signal in "
             "time,"
-            " so that we can savely pretend all 3D volumes within a TR were "
+            " so that we can safely pretend all 3D volumes within a TR were "
             "were acquired simultaneously, an assumption crusial for the GLM "
             " and inference stages."
             "</li>"
