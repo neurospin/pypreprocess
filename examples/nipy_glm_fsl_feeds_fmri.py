@@ -1,6 +1,8 @@
 """
-Synopsis: nipy demo script
-Author: dohmatob elvis dopgima
+:Module: nipy_glm_fsl_feeds_fmri
+Synopsis: Demo script for nipy's GLM and inference + reporting
+on FSL's FEEDS fMRI single-subject example data
+Author: dohmatob elvis dopgima elvis[dot]dohmatob[at]inria[dot]fr
 
 """
 

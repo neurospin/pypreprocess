@@ -1,6 +1,8 @@
 """
-Synopsis: Demo script for nipy's GLM tools
-Author: dohmatob elvis dopgima
+:Module: nipy_glm_spm_auditory
+Synopsis: Demo script for nipy's GLM and inference + reporting
+on SPM's single-subject auditory data
+Author: dohmatob elvis dopgima elvis[dot]dohmatob[at]inria[dot]fr
 
 """
 
@@ -69,7 +71,7 @@ report_filename = os.path.join(OUTPUT_DIR,
 results = nipype_preproc_spm_utils.do_subjects_preproc(
     [subject_data],
     do_slicetiming=True,
-    TR=3.,
+    TR=tr,
     fwhm=[6, 6, 6],
     dataset_description=DATASET_DESCRIPTION,
     report_filename=report_filename,
