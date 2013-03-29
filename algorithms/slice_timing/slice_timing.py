@@ -53,18 +53,12 @@ def do_slicetiming_and_motion_correction(func,
             os.makedirs(output_dir)
 
     # instantiate FmriRealign4d object
-    fourD_input_fmri_files = func
+    input_fmri_files = func
 
     # load images
-    runs = []
-    for x in fourD_input_fmri_files:
-        if not isinstance(x, basestring):
-            # here, we expect x to be a list of 3D volumes
-            img = nifti2nipy(ni.concat_images(x))
-        else:
-            img = nipy.load_image(x)
-        runs.append(img)
+    runs = [nipy.load_image(x) for x in input_fmri_files]
 
+    # instantiate FmriRealign4d object
     R = FmriRealign4d(runs,
                       **fmrirealign4d_kwargs)
 
@@ -79,7 +73,7 @@ def do_slicetiming_and_motion_correction(func,
 
     # collect output stuff
     rp_files = []
-    fourD_output_fmri_files = []
+    output_fmri_files = []
     for j in xrange(len(realigned_runs)):
         realignment_params = np.array(
             [np.hstack((R._transforms[j][i].translation,
@@ -88,10 +82,10 @@ def do_slicetiming_and_motion_correction(func,
 
         if not output_dir is None:
             # save realigned image
-            input_dtype = ni.load(fourD_input_fmri_files[j]).get_data_dtype()
+            input_dtype = ni.load(input_fmri_files[j]).get_data_dtype()
 
             input_file_basename = os.path.basename(
-                fourD_input_fmri_files[j]).split(".")
+                input_fmri_files[j]).split(".")
             output_file_basename = input_file_basename[
                 0] + "_nipy_realigned" + "." + input_file_basename[1]
             output_img_path = os.path.join(output_dir,
@@ -103,7 +97,7 @@ def do_slicetiming_and_motion_correction(func,
                     output_img_path,
                     dtype_from=input_dtype)
 
-            fourD_output_fmri_files.append(output_img_path)
+            output_fmri_files.append(output_img_path)
 
             # save motion params
             rp_file = os.path.join(output_dir,
@@ -113,11 +107,11 @@ def do_slicetiming_and_motion_correction(func,
 
             rp_files.append(rp_file)
         else:
-            fourD_output_fmri_files.append(realigned_runs[j])
+            output_fmri_files.append(realigned_runs[j])
             rp_files.append(realignment_params)
 
     # return outputs
     if single:
-        fourD_output_fmri_files = fourD_output_fmri_files[0]
+        output_fmri_files = output_fmri_files[0]
 
-    return fourD_output_fmri_files, rp_files
+    return output_fmri_files, rp_files
