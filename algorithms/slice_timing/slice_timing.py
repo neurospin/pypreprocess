@@ -1,5 +1,5 @@
-"""
-:Module: slice_timing
+B"""
+:1;3201;0c1;3201;0c1;3201;0cModule: slice_timing
 :Author: dohmatob elvis dopgima
 :Synopsis: module for slice timing business
 
@@ -12,7 +12,6 @@ from nipy.algorithms.registration.groupwise_registration import FmriRealign4d
 import numpy as np
 import joblib
 from nipy.io.nifti_ref import nifti2nipy
-from io_utils import is_3D
 
 
 def do_slicetiming_and_motion_correction(func,
@@ -23,8 +22,10 @@ def do_slicetiming_and_motion_correction(func,
 
     Parameters
     ----------
-    func: string or list of strings
-       filename or list of filenames for images to be realigned
+    func: string or list of strings, or list of list of strings
+       filename (4D image path) or list of filenames (4D image paths) or
+       list of lists of filenames (3D image paths) for images to be
+       realigned
 
     output_dir: string (optional, default None)
         output directory to which all output files will be written,
@@ -39,6 +40,11 @@ def do_slicetiming_and_motion_correction(func,
         slice_order ['ascending' | 'descending' | etc.]
         time_interp: [True | False]
 
+
+    Returns
+    -------
+    list or realiged images (one per run, with 3D input images concatenated
+    to realigned 4D niftis)
 
     """
 
@@ -81,11 +87,16 @@ def do_slicetiming_and_motion_correction(func,
                     for i in xrange(len(R._transforms[j]))])
 
         if not output_dir is None:
+            if isinstance(input_fmri_files[j], basestring):
+                input_fmri_file = input_fmri_files[j]
+            else:
+                input_fmri_file = input_fmri_files[j][0]
+
             # save realigned image
-            input_dtype = ni.load(input_fmri_files[j]).get_data_dtype()
+            # input_dtype = ni.load(input_fmri_file).get_data_dtype()
 
             input_file_basename = os.path.basename(
-                input_fmri_files[j]).split(".")
+                input_fmri_file).split(".")
             output_file_basename = input_file_basename[
                 0] + "_nipy_realigned" + "." + input_file_basename[1]
             output_img_path = os.path.join(output_dir,
@@ -95,7 +106,8 @@ def do_slicetiming_and_motion_correction(func,
                 nipy.save_image(
                     realigned_runs[j],
                     output_img_path,
-                    dtype_from=input_dtype)
+                    # dtype_from=input_dtype,
+                    )
 
             output_fmri_files.append(output_img_path)
 
