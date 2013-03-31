@@ -184,7 +184,7 @@ class ResultsGallery(object):
     """
 
     def __init__(self, loader_filename,
-                 refresh_timeout=10,  # seconds
+                 refresh_timeout=30,  # time between successive refreshs
                  title='Results',
                  description=None
                  ):
@@ -364,6 +364,9 @@ class ProgressReport(object):
             message to log
 
         """
+
+        if self.report_filename is None:
+            return
 
         with open(self.report_filename, 'r') as i_fd:
             content = i_fd.read()
