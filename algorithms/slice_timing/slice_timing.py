@@ -102,12 +102,11 @@ def do_slicetiming_and_motion_correction(func,
             output_img_path = os.path.join(output_dir,
                                            output_file_basename)
 
-            if not os.path.exists(output_img_path):
-                nipy.save_image(
-                    realigned_runs[j],
-                    output_img_path,
-                    # dtype_from=input_dtype,
-                    )
+            nipy.save_image(
+                realigned_runs[j],
+                output_img_path,
+                # dtype_from=input_dtype,
+                )
 
             output_fmri_files.append(output_img_path)
 
