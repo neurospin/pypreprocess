@@ -14,7 +14,6 @@ from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
 import nibabel
 import time
-import glob
 
 """path trick"""
 sys.path.append(
@@ -22,7 +21,7 @@ sys.path.append(
 
 """import utilities for preproc, reporting, and io"""
 import nipype_preproc_spm_utils
-import reporting.reporter as reporter
+import reporting.glm_reporter as glm_reporter
 from datasets_extras import unzip_nii_gz, fetch_fsl_feeds_data
 from io_utils import compute_mean_3D_image
 
@@ -114,6 +113,7 @@ for i in xrange(paradigm.n_conditions):
 """more interesting contrasts"""
 contrasts['EV1>EV2'] = contrasts['EV1'] - contrasts['EV2']
 contrasts['EV2>EV1'] = contrasts['EV2'] - contrasts['EV1']
+contrasts['effects_of_interest'] = contrasts['EV1'] + contrasts['EV2']
 
 """fit GLM"""
 print('\r\nFitting a GLM (this takes time) ..')
@@ -168,23 +168,27 @@ stats_report_filename = os.path.join(subject_data.output_dir,
                                      "report_stats.html")
 contrasts = dict((contrast_id, contrasts[contrast_id])
                  for contrast_id in z_maps.keys())
-reporter.generate_subject_stats_report(
+glm_reporter.generate_subject_stats_report(
     stats_report_filename,
-    design_matrix,
     contrasts,
     z_maps,
-    subject_data.subject_id,
     fmri_glm.mask,
+    design_matrix=design_matrix,
+    subject_id=subject_data.subject_id,
     anat=anat,
     anat_affine=anat_affine,
     cluster_th=50,  # we're only interested in this 'large' clusters
     progress_logger=results[0]['progress_logger'],
     start_time=stats_start_time,
-    )
 
-progress_logger = reporter.ProgressReport()
-progress_logger.finish_all(glob.glob(os.path.join(
-        output_dir,
-        "report*.html")))
+    # additional ``kwargs`` for more informative report
+    paradigm=paradigm.__dict__,
+    TR=TR,
+    n_scans=n_scans,
+    hfcut=hfcut,
+    frametimes=frametimes,
+    drift_model=drift_model,
+    hrf_model=hrf_model,
+    )
 
 print "\r\nStatistic report written to %s\r\n" % stats_report_filename

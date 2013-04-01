@@ -18,7 +18,7 @@ import time
 from nipype.caching import Memory
 
 # reporting imports
-import reporting.reporter as reporter
+import reporting.preproc_reporter as preproc_reporter
 import reporting.check_preprocessing as check_preprocessing
 import pylab as pl
 
@@ -193,7 +193,7 @@ def _do_subject_realign(output_dir,
 
             assert len(sessions) == len(estimated_motion), estimated_motion
 
-            output.update(reporter.generate_realignment_thumbnails(
+            output.update(preproc_reporter.generate_realignment_thumbnails(
                     estimated_motion,
                     output_dir,
                     sessions=sessions,
@@ -257,7 +257,7 @@ def _do_subject_coreg(output_dir,
     # generate gallery for HTML report
     if do_report:
         #
-        # XXX move the following code to reporting.reporter.py
+        # XXX move the following code to reporting.preproc_reporter.py
         #
 
         if not coreg_result.outputs is None:
@@ -268,7 +268,8 @@ def _do_subject_coreg(output_dir,
             nipype_html_report_filename = os.path.join(
                 output_dir,
                 'coregister_nipype_report.html')
-            nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
+            nipype_report = preproc_reporter.nipype2htmlreport(
+                nipype_report_filename)
             open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
             if progress_logger:
@@ -311,10 +312,12 @@ def _do_subject_coreg(output_dir,
 
             # create thumbnail
             if results_gallery:
-                thumbnail = reporter.Thumbnail()
-                thumbnail.a = reporter.a(href=os.path.basename(outline))
-                thumbnail.img = reporter.img(src=os.path.basename(outline),
-                                             height="250px")
+                thumbnail = preproc_reporter.Thumbnail()
+                thumbnail.a = preproc_reporter.a(
+                    href=os.path.basename(outline))
+                thumbnail.img = preproc_reporter.img(
+                    src=os.path.basename(outline),
+                    height="250px")
                 thumbnail.description = \
                     "Coregistration %s (<a href=%s>see execution log</a>)" % \
                     (comments, os.path.basename(nipype_html_report_filename))
@@ -351,10 +354,12 @@ def _do_subject_coreg(output_dir,
 
             # create thumbnail
             if results_gallery:
-                thumbnail = reporter.Thumbnail()
-                thumbnail.a = reporter.a(href=os.path.basename(outline))
-                thumbnail.img = reporter.img(src=os.path.basename(outline),
-                                             height="250px")
+                thumbnail = preproc_reporter.Thumbnail()
+                thumbnail.a = preproc_reporter.a(
+                    href=os.path.basename(outline))
+                thumbnail.img = preproc_reporter.img(
+                    src=os.path.basename(outline),
+                    height="250px")
                 thumbnail.description = \
                     "Coregistration %s (<a href=%s>see execution log</a>)" \
                     % (comments, os.path.basename(nipype_html_report_filename))
@@ -420,7 +425,8 @@ def _do_subject_segment(output_dir,
             nipype_html_report_filename = os.path.join(
                 output_dir,
                 'segment_nipype_report.html')
-            nipype_report = reporter.nipype2htmlreport(nipype_report_filename)
+            nipype_report = preproc_reporter.nipype2htmlreport(
+                nipype_report_filename)
             open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
             if progress_logger:
@@ -506,7 +512,7 @@ def _do_subject_normalize(output_dir,
     if do_report:
         if normalized_files:
             # generate normalization thumbs
-            output.update(reporter.generate_normalization_thumbnails(
+            output.update(preproc_reporter.generate_normalization_thumbnails(
                 normalized_files,
                 output_dir,
                 brain=brain,
@@ -524,7 +530,7 @@ def _do_subject_normalize(output_dir,
                 subject_wm_file = None
                 subject_csf_file = None
 
-            output.update(reporter.generate_segmentation_thumbnails(
+            output.update(preproc_reporter.generate_segmentation_thumbnails(
                 normalized_files,
                 output_dir,
                 subject_gm_file=subject_gm_file,
@@ -605,7 +611,7 @@ def _do_subject_preproc(
         if set, a summarizing the time-course of the coefficient of variation
         in the preprocessed fMRI time-series will be generated
 
-    parent_results_gallery: reporter.ResulsGallery object (optional)
+    parent_results_gallery: preproc_reporter.ResulsGallery object (optional)
         a handle to the results gallery to which the final QA thumail for this
         subject will be committed
 
@@ -707,41 +713,42 @@ def _do_subject_preproc(
         report_filename = os.path.join(
             subject_data.output_dir, 'report.html')
 
-        final_thumbnail = reporter.Thumbnail()
-        final_thumbnail.a = reporter.a(href=report_preproc_filename)
-        final_thumbnail.img = reporter.img(src=None)
+        final_thumbnail = preproc_reporter.Thumbnail()
+        final_thumbnail.a = preproc_reporter.a(href=report_preproc_filename)
+        final_thumbnail.img = preproc_reporter.img(src=None)
         final_thumbnail.description = subject_data.subject_id
 
         # initialize results gallery
         loader_filename = os.path.join(
             subject_data.output_dir, "results_loader.php")
-        results_gallery = reporter.ResultsGallery(
+        results_gallery = preproc_reporter.ResultsGallery(
             loader_filename=loader_filename,
             title="Report for subject %s" % subject_data.subject_id)
         output['results_gallery'] = results_gallery
 
         # initialize progress bar
         if subject_progress_logger is None:
-            subject_progress_logger = reporter.ProgressReport(
+            subject_progress_logger = preproc_reporter.ProgressReport(
                 report_log_filename,
                 other_watched_files=[report_filename,
                                      report_preproc_filename])
         output['progress_logger'] = subject_progress_logger
 
         # html markup
-        log = reporter.FSL_SUBJECT_REPORT_LOG_HTML_TEMPLATE().substitute(
+        log = preproc_reporter.FSL_SUBJECT_REPORT_LOG_HTML_TEMPLATE(
+            ).substitute(
             results=results_gallery,
             start_time=time.ctime(),
             subject_id=subject_data.subject_id
             )
-        preproc = reporter.FSL_SUBJECT_REPORT_PREPROC_HTML_TEMPLATE(
+        preproc = preproc_reporter.FSL_SUBJECT_REPORT_PREPROC_HTML_TEMPLATE(
             ).substitute(
             results=results_gallery,
             start_time=time.ctime(),
             preproc_undergone=preproc_undergone,
             subject_id=subject_data.subject_id
             )
-        main_html = reporter.FSL_SUBJECT_REPORT_HTML_TEMPLATE(
+        main_html = preproc_reporter.FSL_SUBJECT_REPORT_HTML_TEMPLATE(
             ).substitute(
             results=results_gallery,
             start_time=time.ctime(),
@@ -762,7 +769,7 @@ def _do_subject_preproc(
             output['final_thumbnail'] = final_thumbnail
 
             if parent_results_gallery:
-                reporter.commit_subject_thumnbail_to_parent_gallery(
+                preproc_reporter.commit_subject_thumnbail_to_parent_gallery(
                     final_thumbnail,
                     subject_data.subject_id,
                     parent_results_gallery)
@@ -813,7 +820,7 @@ def _do_subject_preproc(
 
             assert len(sessions) == len(estimated_motion), estimated_motion
 
-            output.update(reporter.generate_realignment_thumbnails(
+            output.update(preproc_reporter.generate_realignment_thumbnails(
                     estimated_motion,
                     subject_data.output_dir,
                     sessions=sessions,
@@ -1170,7 +1177,7 @@ def _do_subject_preproc(
         if do_cv_tc and do_normalize:
             corrected_FMRI = output['func']
 
-            thumbnail = reporter.generate_cv_tc_thumbnail(
+            thumbnail = preproc_reporter.generate_cv_tc_thumbnail(
                 corrected_FMRI,
                 subject_data.session_id,
                 subject_data.subject_id,
@@ -1291,7 +1298,7 @@ def _do_subject_dartelnorm2mni(output_dir,
 
     # do_QA
     if do_report and results_gallery:
-        reporter.generate_normalization_thumbnails(
+        preproc_reporter.generate_normalization_thumbnails(
             warped_files,
             output_dir,
             brain='epi',
@@ -1300,7 +1307,7 @@ def _do_subject_dartelnorm2mni(output_dir,
             progress_logger=subject_progress_logger)
 
         # generate segmentation thumbs
-        epi_thumbs = reporter.generate_segmentation_thumbnails(
+        epi_thumbs = preproc_reporter.generate_segmentation_thumbnails(
                 warped_files,
                 output_dir,
                 subject_gm_file=subject_gm_file,
@@ -1323,7 +1330,7 @@ def _do_subject_dartelnorm2mni(output_dir,
 
     # do_QA
     if do_report and results_gallery:
-        reporter.generate_normalization_thumbnails(
+        preproc_reporter.generate_normalization_thumbnails(
             dartelnorm2mni_result.outputs.normalized_files,
             output_dir,
             brain='anat',
@@ -1332,7 +1339,7 @@ def _do_subject_dartelnorm2mni(output_dir,
             progress_logger=subject_progress_logger)
 
         # generate segmentation thumbs
-        reporter.generate_segmentation_thumbnails(
+        preproc_reporter.generate_segmentation_thumbnails(
             dartelnorm2mni_result.outputs.normalized_files,
             output_dir,
             subject_gm_file=subject_gm_file,
@@ -1344,7 +1351,7 @@ def _do_subject_dartelnorm2mni(output_dir,
         # finalize report
         if parent_results_gallery:
             final_thumbnail.img.src = epi_thumbs['axial']
-            reporter.commit_subject_thumnbail_to_parent_gallery(
+            preproc_reporter.commit_subject_thumnbail_to_parent_gallery(
                 final_thumbnail,
                 subject_id,
                 parent_results_gallery)
@@ -1352,7 +1359,7 @@ def _do_subject_dartelnorm2mni(output_dir,
     if do_report:
         # generate cv plots
         if do_cv_tc:
-            reporter.generate_cv_tc_thumbnail(
+            preproc_reporter.generate_cv_tc_thumbnail(
                 createwarped_result.outputs.warped_files,
                 sessions,
                 subject_id,
@@ -1614,29 +1621,30 @@ def do_subjects_preproc(subjects,
         # initialize results gallery
         loader_filename = os.path.join(
             output_dir, "results_loader.php")
-        parent_results_gallery = reporter.ResultsGallery(
+        parent_results_gallery = preproc_reporter.ResultsGallery(
             loader_filename=loader_filename,
             refresh_timeout=30,
             )
 
         # initialize progress bar
-        progress_logger = reporter.ProgressReport(
+        progress_logger = preproc_reporter.ProgressReport(
             report_log_filename,
             other_watched_files=[report_filename,
                                  report_preproc_filename])
 
         # html markup
-        log = reporter.FSL_DATASET_REPORT_LOG_HTML_TEMPLATE().substitute(
+        log = preproc_reporter.FSL_DATASET_REPORT_LOG_HTML_TEMPLATE(
+            ).substitute(
             start_time=time.ctime(),
             )
-        preproc = reporter.FSL_DATASET_REPORT_PREPROC_HTML_TEMPLATE(
+        preproc = preproc_reporter.FSL_DATASET_REPORT_PREPROC_HTML_TEMPLATE(
             ).substitute(
             results=parent_results_gallery,
             start_time=time.ctime(),
             preproc_undergone=preproc_undergone,
             dataset_description=dataset_description,
             )
-        main_html = reporter.FSL_DATASET_REPORT_HTML_TEMPLATE(
+        main_html = preproc_reporter.FSL_DATASET_REPORT_HTML_TEMPLATE(
             ).substitute(
             results=parent_results_gallery,
             start_time=time.ctime(),
@@ -1820,7 +1828,7 @@ def do_subjects_preproc(subjects,
                 tag = "DARTEL_workflow"
             else:
                 tag = "standard_workflow"
-            reporter.export_report(os.path.dirname(report_filename),
+            preproc_reporter.export_report(os.path.dirname(report_filename),
                                    tag=tag)
 
     # return results (caller may need this)
