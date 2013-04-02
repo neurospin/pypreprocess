@@ -4,7 +4,7 @@ from nipy.labs import viz
 import nibabel
 import numpy as np
 import nipy.labs.statistical_mapping as sm
-import matplotlib as mpl
+from nipy.modalities.fmri.design_matrix import DesignMatrix
 from base_reporter import *
 
 
@@ -20,7 +20,7 @@ def generate_level1_report(zmap, mask,
     ----------
     zmap: image object
         z-map data image
-    mask: image object
+    mask: image object or string
         brain mask defining ROI
     output_html_path, string,
                       path where the output html should be written
@@ -38,6 +38,12 @@ def generate_level1_report(zmap, mask,
     nmaxima: optional,
              number of local maxima reported per supra-threshold cluster
     """
+
+    # sanity
+    if isinstance(zmap, basestring):
+        zmap = nibabel.load(zmap)
+    if isinstance(mask, basestring):
+        mask = nibabel.load(mask)
 
     # Compute cluster statistics
     nulls = {'zmax': null_zmax, 'smax': null_smax, 's': null_s}
@@ -116,25 +122,6 @@ def generate_level1_report(zmap, mask,
     output.close()
 
 
-def make_standalone_colorbar(vmin, vmax, colorbar_outfile=None):
-    """Plots a stand-alone colorbar
-
-    """
-
-    fig = pl.figure(figsize=(6, 1))
-    ax = fig.add_axes([0.05, 0.4, 0.9, 0.5])
-
-    cmap = pl.cm.hot
-    norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
-
-    cb = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
-                                   norm=norm,
-                                   orientation='horizontal')
-    pl.savefig(colorbar_outfile)
-
-    return cb
-
-
 def generate_subject_stats_report(
     stats_report_filename,
     contrasts,
@@ -144,8 +131,6 @@ def generate_subject_stats_report(
     subject_id=None,
     anat=None,
     anat_affine=None,
-    vmin=None,
-    vmax=None,
     threshold=2.3,
     cluster_th=0,
     start_time=None,
@@ -160,19 +145,27 @@ def generate_subject_stats_report(
     stats_report_filename: string:
         html file to which output (generated html) will be written
 
-    design_matrix: 'nipy design matrix' object
-        design matrix for experiment
+    contrasts: dict of arrays
+        contrasts we are interested in; same number of contrasts as zmaps;
+        same keys
 
-    contrasts: dict
+    zmaps: dict of image objects or strings (image filenames)
+        zmaps for contrasts we are interested in; one per contrast id
+
+    mask: 'nifti image object'
+        brain mask for ROI
+
+    design_matrix: 'DesignMatrix' or np.lib.io.Npz containing such, or list
+    of these
+        design matrix(ces) for the experimental conditions
+
+    contrasts: dict of arrays
        dictionary of contrasts of interest; the keys are the contrast ids,
        the values are contrast values (lists)
 
-    z_maps: dict
+    z_maps: dict of 3D image objects or strings (image filenames)
        dict with same keys as 'contrasts'; the values are paths of z-maps
        for the respective contrasts
-
-    mask: 'nifti image object'
-        brain mask for subject
 
     anat: 3D array (optional)
         brain image to serve bg unto which activation maps will be plotted;
@@ -226,7 +219,7 @@ def generate_subject_stats_report(
     """ % (NIPY_URL, threshold)
 
     if len(glm_kwargs):
-        methods += ("<p>The following control parameters were used for  the"
+        methods += ("<p>The following control parameters were used for  "
                     " specifying the experimental paradigm and fitting the "
                     "GLM:<br/><ul>")
         for k, v in glm_kwargs.iteritems():
@@ -252,32 +245,51 @@ def generate_subject_stats_report(
 
     progress_logger.log("<b>Level 1 statistics</b><br/><br/>")
 
-    # show design matrix
-    if not design_matrix is None:
-        ax = design_matrix.show()
-        ax.set_position([.05, .25, .9, .65])
-        dmat_outfile = os.path.join(output_dir, 'design_matrix.png')
-        pl.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
-        thumb = Thumbnail()
-        thumb.a = a(href=os.path.basename(dmat_outfile))
-        thumb.img = img(src=os.path.basename(dmat_outfile),
-                                 height="500px",
-                                 )
-        thumb.description = "Design Matrix"
-        design_thumbs.commit_thumbnails(thumb)
+    # create design matrix thumbs
+    design_matrices = design_matrix
+    if not design_matrices is None:
+        if not isinstance(design_matrices, list):
+            design_matrices = [design_matrices]
+
+        for design_matrix, j in zip(design_matrices,
+                                    xrange(len(design_matrices))):
+            if not isinstance(design_matrix, DesignMatrix):
+                if design_matrix.endswith('.npz'):
+                    npz = np.load(design_matrix)
+                    design_matrix = DesignMatrix(npz['X'],
+                                                 npz['conditions'],
+                                                 )
+                else:
+                    raise TypeError(("Design matric format unknown; "
+                                     "must be DesignMatrix object or"
+                                     " .npz file containing such object"),
+                                    )
+            ax = design_matrix.show()
+            ax.set_position([.05, .25, .9, .65])
+            dmat_outfile = os.path.join(output_dir,
+                                        'design_matrix_%i.png' % (j + 1),
+                                        )
+            pl.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
+            thumb = Thumbnail()
+            thumb.a = a(href=os.path.basename(dmat_outfile))
+            thumb.img = img(src=os.path.basename(dmat_outfile),
+                                     height="500px",
+                                     )
+            thumb.description = "Design Matrix %i" % (j + 1)
+            design_thumbs.commit_thumbnails(thumb)
 
     _vmax = 0
     _vmin = threshold
     for j in xrange(len(contrasts)):
         contrast_id = contrasts.keys()[j]
         contrast_val = contrasts[contrast_id]
-        map_path = z_maps[contrast_id]
-        z_map = nibabel.load(map_path)
-
-        # get positive z_map
-        pos_data = z_map.get_data() * (np.abs(z_map.get_data()) > 0)
+        z_map = z_maps[contrast_id]
 
         # compute cut_coords for viz.plot_map(..) API
+        # XXX review computation of cut_coords, vmin, and vmax; not clean!!!
+        if isinstance(z_map, basestring):
+            z_map = nibabel.load(z_map)
+        pos_data = z_map.get_data() * (np.abs(z_map.get_data()) > 0)
         n_axials = 12
         delta_z_axis = 3
         z_axis_max = np.unravel_index(
@@ -330,10 +342,11 @@ def generate_subject_stats_report(
         thumbnail.description = "%s contrast: %s" % (contrast_id, contrast_val)
         activation_thumbs.commit_thumbnails(thumbnail)
 
+        title = z_map if isinstance(z_map, basestring) else None
         generate_level1_report(
             z_map, mask,
             stats_table,
-            title=map_path,
+            title=title,
             cluster_th=cluster_th,
             )
 

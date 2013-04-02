@@ -143,6 +143,7 @@ for contrast_id, contrast_val in contrasts.iteritems():
             map_dir, '%s.nii.gz' % contrast_id)
         nibabel.save(out_map, map_path)
 
+        # collect zmaps for contrasts we're interested in
         if contrast_id == 'active-rest' and dtype == "z":
             z_maps[contrast_id] = map_path
 

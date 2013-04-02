@@ -1,9 +1,8 @@
-import sys
 import os
 import re
 import time
-
-sys.path.append("..")
+import matplotlib as mpl
+import pylab as pl
 import external.tempita.tempita as tempita
 
 # find package path
@@ -223,6 +222,26 @@ class ProgressReport(object):
 
     def watch_file(self, filename):
         self.other_watched_files.append(filename)
+
+
+def make_standalone_colorbar(vmin, vmax, colorbar_outfile=None):
+    """Plots a stand-alone colorbar
+
+    XXX Document this API!!!
+    """
+
+    fig = pl.figure(figsize=(6, 1))
+    ax = fig.add_axes([0.05, 0.4, 0.9, 0.5])
+
+    cmap = pl.cm.hot
+    norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+
+    cb = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
+                                   norm=norm,
+                                   orientation='horizontal')
+    pl.savefig(colorbar_outfile)
+
+    return cb
 
 
 def SUBJECT_PREPROC_REPORT_HTML_TEMPLATE():
