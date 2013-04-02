@@ -10,8 +10,6 @@ import nipy
 import nibabel as ni
 from nipy.algorithms.registration.groupwise_registration import FmriRealign4d
 import numpy as np
-import joblib
-from nipy.io.nifti_ref import nifti2nipy
 
 
 def do_slicetiming_and_motion_correction(func,
