@@ -6,6 +6,7 @@ import numpy as np
 import nipy.labs.statistical_mapping as sm
 from nipy.modalities.fmri.design_matrix import DesignMatrix
 from base_reporter import *
+import shutil
 
 
 def generate_level1_report(zmap, mask,
@@ -204,6 +205,9 @@ def generate_subject_stats_report(
 
     output_dir = os.path.dirname(stats_report_filename)
 
+    # copy css and js stuff to output dir
+    shutil.copy(os.path.join(ROOT_DIR, "css/fsl.css"), output_dir)
+
     design_thumbs = ResultsGallery(
         loader_filename=os.path.join(output_dir,
                                      "design.html")
@@ -219,17 +223,22 @@ def generate_subject_stats_report(
     """ % (NIPY_URL, threshold)
 
     if len(glm_kwargs):
+        def make_li(stuff):
+            if isinstance(stuff, dict):
+                val = "<ul>"
+                for _k, _v in stuff.iteritems():
+                    val += "<li>%s: %s</li>" % (_k, _v)
+                val += "</ul>"
+            else:
+                val = str(stuff)
+
+            return val
+
         methods += ("<p>The following control parameters were used for  "
                     " specifying the experimental paradigm and fitting the "
                     "GLM:<br/><ul>")
         for k, v in glm_kwargs.iteritems():
-            if isinstance(v, dict):
-                val = "<ul>"
-                for _k, _v in v.iteritems():
-                    val += "<li>%s: %s</li>" % (_k, _v)
-                val += "</ul>"
-                v = val
-            methods += "<li>%s: %s</li>" % (k, v)
+            methods += "<li>%s: %s</li>" % (k, make_li(v))
         methods += "</ul></p>"
 
     if start_time is None:
