@@ -96,7 +96,8 @@ results = nipype_preproc_spm_utils.do_subjects_preproc(
     TR=TR,
     fwhm=[5, 5, 5],
     report_filename=report_filename,
-    dataset_description=DATASET_DESCRIPTION
+    dataset_description=DATASET_DESCRIPTION,
+    do_shutdown_reloaders=False,
     )
 
 """collect preprocessed data"""

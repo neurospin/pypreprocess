@@ -36,7 +36,7 @@ import nipype.interfaces.matlab as matlab
 import joblib
 
 # find package path
-root_dir = os.path.split(os.path.abspath(__file__))[0]
+ROOT_DIR = os.path.split(os.path.abspath(__file__))[0]
 
 # set job count
 N_JOBS = -1
@@ -706,6 +706,19 @@ def _do_subject_preproc(
     output['preproc_undergone'] = preproc_undergone
 
     if do_report:
+        # copy css and js stuff to output dir
+        shutil.copy(os.path.join(ROOT_DIR,
+                                 "reporting/js/jquery.min.js"),
+                    subject_data.output_dir)
+        shutil.copy(os.path.join(ROOT_DIR, 'reporting/css', 'fsl.css'),
+                    subject_data.output_dir)
+        shutil.copy(os.path.join(ROOT_DIR, 'reporting/css', 'styles.css'),
+                    subject_data.output_dir)
+        shutil.copy(os.path.join(ROOT_DIR, "reporting/images/failed.png"),
+                    subject_data.output_dir)
+        shutil.copy(os.path.join(ROOT_DIR, "reporting/images/logo.jpeg"),
+                    subject_data.output_dir)
+
         report_log_filename = os.path.join(
             subject_data.output_dir, 'report_log.html')
         report_preproc_filename = os.path.join(
@@ -1489,7 +1502,7 @@ def do_subjects_preproc(subjects,
                         do_export_report=False,
                         dataset_description=None,
                         report_filename=None,
-                        do_shutdown_reloaders=False,
+                        do_shutdown_reloaders=True,
                         fwhm=0,
                         do_bet=False,
                         do_slicetiming=False,
@@ -1527,10 +1540,10 @@ def do_subjects_preproc(subjects,
         do_segment = False
         do_normalize = False
 
-    if do_report and report_filename is None:
-        raise RuntimeError(
-            ("You asked for reporting (do_report=True)  but specified"
-             " an invalid report_filename (None)"))
+    # if do_report and report_filename is None:
+    #     raise RuntimeError(
+    #         ("You asked for reporting (do_report=True)  but specified"
+    #          " an invalid report_filename (None)"))
 
     kwargs = {'do_deleteorient': do_deleteorient,
               'do_bet': do_bet,
@@ -1546,10 +1559,8 @@ def do_subjects_preproc(subjects,
               }
 
     if output_dir is None:
-        if do_report:
-            output_dir = os.path.dirname(report_filename)
-        else:
-            output_dir = os.path.abspath("runs_XYZ")
+        output_dir = os.path.abspath("/tmp/runs_XYZ")
+        print "Output directory set to: %s" % output_dir
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -1601,15 +1612,17 @@ def do_subjects_preproc(subjects,
     # generate html report (for QA) as desired
     parent_results_gallery = None
     if do_report:
-        # do some sanity
-        shutil.copy(os.path.join(root_dir, 'reporting/css', 'fsl.css'),
-                    os.path.dirname(report_filename))
-        shutil.copy(os.path.join(root_dir, 'reporting/css', 'styles.css'),
-                    os.path.dirname(report_filename))
-        shutil.copy(os.path.join(root_dir, "reporting/images/failed.png"),
-                    os.path.dirname(report_filename))
-        shutil.copy(os.path.join(root_dir, "reporting/images/logo.jpeg"),
-                    os.path.dirname(report_filename))
+        # copy css and js stuff to output dir
+        shutil.copy(os.path.join(ROOT_DIR,
+                                 "reporting/js/jquery.min.js"), output_dir)
+        shutil.copy(os.path.join(ROOT_DIR, 'reporting/css', 'fsl.css'),
+                    output_dir)
+        shutil.copy(os.path.join(ROOT_DIR, 'reporting/css', 'styles.css'),
+                    output_dir)
+        shutil.copy(os.path.join(ROOT_DIR, "reporting/images/failed.png"),
+                    output_dir)
+        shutil.copy(os.path.join(ROOT_DIR, "reporting/images/logo.jpeg"),
+                    output_dir)
 
         report_log_filename = os.path.join(
             output_dir, 'report_log.html')

@@ -207,6 +207,11 @@ def generate_subject_stats_report(
 
     # copy css and js stuff to output dir
     shutil.copy(os.path.join(ROOT_DIR, "css/fsl.css"), output_dir)
+    shutil.copy(os.path.join(ROOT_DIR, "js/jquery.min.js"), output_dir)
+    shutil.copy(os.path.join(ROOT_DIR, "images/logo.jpeg"),
+                output_dir)
+    shutil.copy(os.path.join(ROOT_DIR, "images/failed.png"),
+                output_dir)
 
     design_thumbs = ResultsGallery(
         loader_filename=os.path.join(output_dir,

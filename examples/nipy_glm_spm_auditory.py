@@ -65,15 +65,13 @@ subject_data.output_dir = os.path.join(
     OUTPUT_DIR, subject_data.subject_id)
 
 """preprocess the data"""
-report_filename = os.path.join(OUTPUT_DIR,
-                               "_report.html")
 results = nipype_preproc_spm_utils.do_subjects_preproc(
     [subject_data],
     do_slicetiming=True,
     TR=tr,
     fwhm=[6, 6, 6],
     dataset_description=DATASET_DESCRIPTION,
-    report_filename=report_filename,
+    do_shutdown_reloaders=False,
     )
 
 """collect preprocessed data"""

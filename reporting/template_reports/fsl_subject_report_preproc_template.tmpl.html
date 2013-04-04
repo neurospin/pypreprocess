@@ -10,7 +10,7 @@
     <!--refreshstart-->
     <meta http-equiv=refresh content={{results.refresh_timeout}}>
       <!--refreshstop-->
-      <link rel=stylesheet type=text/css href={{conf_path}}/fsl.css>
+      <link rel=stylesheet type=text/css href="{{conf_path}}/fsl.css">
       <title>fMRI report</title>
   </head>
 
@@ -43,7 +43,7 @@
     </div>
 
     <!-- It's time for javascript, folks -->
-    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script type="text/javascript" src="{{conf_path}}/jquery.min.js"></script>
     <script type='text/javascript'>
       $(document).ready(function(){
       {{py: import os; loader=os.path.basename(results.loader_filename);}}

@@ -641,9 +641,14 @@ def generate_subject_preproc_report(
     report_filename = os.path.join(
         output_dir, 'report.html')
 
-    shutil.copy(os.path.join(ROOT_DIR, 'css', 'fsl.css'),
+    # copy css and js stuff to output dir
+    shutil.copy(os.path.join(ROOT_DIR, 'css/fsl.css'),
+                output_dir)
+    shutil.copy(os.path.join(ROOT_DIR, 'js/jquery.min.js'),
                 output_dir)
     shutil.copy(os.path.join(ROOT_DIR, "images/logo.jpeg"),
+                output_dir)
+    shutil.copy(os.path.join(ROOT_DIR, "images/failed.png"),
                 output_dir)
 
     # initialize results gallery

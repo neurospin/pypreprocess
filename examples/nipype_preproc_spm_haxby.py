@@ -74,15 +74,13 @@ def subject_factory():
         yield subject_data
 
 """do preprocessing proper"""
-report_filename = os.path.join(OUTPUT_DIR,
-                               "_report.html")
-
 results = nipype_preproc_spm_utils.do_subjects_preproc(
     subject_factory(),
     output_dir=OUTPUT_DIR,
+    dataset_id="HAXBY 2001",
     do_realign=False,
     do_coreg=False,
     do_dartel=DO_DARTEL,
     do_cv_tc=False,
     dataset_description=DATASET_DESCRIPTION,
-    report_filename=report_filename)
+    )
