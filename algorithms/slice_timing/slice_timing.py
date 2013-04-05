@@ -1,4 +1,4 @@
-B"""
+"""
 :Module: slice_timing
 :Author: dohmatob elvis dopgima
 :Synopsis: module for Slice Timing Correction (STC) business
