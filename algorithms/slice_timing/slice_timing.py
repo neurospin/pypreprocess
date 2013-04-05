@@ -1,13 +1,12 @@
 B"""
-:1;3201;0c1;3201;0c1;3201;0cModule: slice_timing
+:Module: slice_timing
 :Author: dohmatob elvis dopgima
-:Synopsis: module for slice timing business
+:Synopsis: module for Slice Timing Correction (STC) business
 
 """
 
 import os
 import nipy
-import nibabel as ni
 from nipy.algorithms.registration.groupwise_registration import FmriRealign4d
 import numpy as np
 
