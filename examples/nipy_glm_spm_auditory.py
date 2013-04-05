@@ -70,6 +70,8 @@ results = nipype_preproc_spm_utils.do_subjects_preproc(
     do_slicetiming=True,
     TR=tr,
     fwhm=[6, 6, 6],
+    output_dir=OUTPUT_DIR,
+    dataset_id="SPM Auditory single-subject dataset",
     dataset_description=DATASET_DESCRIPTION,
     do_shutdown_reloaders=False,
     )
