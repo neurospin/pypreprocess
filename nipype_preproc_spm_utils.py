@@ -750,7 +750,6 @@ def _do_subject_preproc(
         # html markup
         log = preproc_reporter.FSL_SUBJECT_REPORT_LOG_HTML_TEMPLATE(
             ).substitute(
-            results=results_gallery,
             start_time=time.ctime(),
             subject_id=subject_data.subject_id
             )
@@ -763,7 +762,6 @@ def _do_subject_preproc(
             )
         main_html = preproc_reporter.FSL_SUBJECT_REPORT_HTML_TEMPLATE(
             ).substitute(
-            results=results_gallery,
             start_time=time.ctime(),
             subject_id=subject_data.subject_id
             )

@@ -215,6 +215,7 @@ def generate_subject_stats_report(
     output_dir = os.path.dirname(stats_report_filename)
 
     # copy css and js stuff to output dir
+    shutil.copy(os.path.join(ROOT_DIR, "js/jquery.min.js"), output_dir)
     shutil.copy(os.path.join(ROOT_DIR, "css/fsl.css"), output_dir)
 
     design_thumbs = ResultsGallery(
@@ -246,15 +247,20 @@ def generate_subject_stats_report(
 
         methods += ("<p>The following control parameters were used for  "
                     " specifying the experimental paradigm and fitting the "
-                    "GLM:<br/><ul>")
+                    "GLM::<br/><ul>")
+
         for k, v in glm_kwargs.iteritems():
             methods += "<li>%s: %s</li>" % (k, make_li(v))
         methods += "</ul></p>"
 
     if start_time is None:
         start_time = time.ctime()
+    report_title = "GLM and Statistical Inference"
+    if not subject_id is None:
+        report_title += " for subject %s" % subject_id
     level1_html_markup = FSL_SUBJECT_REPORT_STATS_HTML_TEMPLATE(
         ).substitute(
+        title=report_title,
         start_time=start_time,
         subject_id=subject_id,
         methods=methods,
