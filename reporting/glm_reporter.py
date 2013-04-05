@@ -9,9 +9,9 @@ from base_reporter import *
 import shutil
 
 
-def generate_level1_report(zmap, mask,
+def generate_level1_stats_table(zmap, mask,
                            output_html_path,
-                           title="level 1 stats",
+                           title=None,
                            threshold=0.001,
                            method='fpr', cluster_th=0, null_zmax='bonferroni',
                            null_smax=None, null_s=None, nmaxima=4,
@@ -61,6 +61,11 @@ def generate_level1_report(zmap, mask,
                                           height_control=method.lower(),
                                           cluster_th=cluster_th, nulls=nulls)
     """
+
+    # do some sanity checks
+    if title is None:
+        title = "Level 1 Statistics"
+
     clusters, info = sm.cluster_stats(zmap, mask, height_th=threshold,
                                       nulls=nulls, cluster_th=cluster_th,)
     if clusters is not None:
@@ -73,16 +78,16 @@ def generate_level1_report(zmap, mask,
         clusters = []
 
     # Make HTML page
-    output = open(output_html_path, mode="w")
-    output.write("<center>\n")
-    output.write("<b>%s</b>\n" % title)
-    output.write("<table border = 1>\n")
-    output.write("<tr><th colspan=4> Voxel significance </th>\
+    page = open(output_html_path, mode="w")
+    page.write("<center>\n")
+    page.write("<b>%s</b>\n" % title)
+    page.write("<table border = 1>\n")
+    page.write("<tr><th colspan=4> Voxel significance </th>\
     <th colspan=3> Coordinates in MNI referential</th>\
     <th>Cluster Size</th></tr>\n")
-    output.write("<tr><th>p FWE corr<br>(Bonferroni)</th>\
+    page.write("<tr><th>p FWE corr<br>(Bonferroni)</th>\
     <th>p FDR corr</th><th>Z</th><th>p uncorr</th>")
-    output.write("<th> x (mm) </th><th> y (mm) </th><th> z (mm) </th>\
+    page.write("<th> x (mm) </th><th> y (mm) </th><th> z (mm) </th>\
     <th>(voxels)</th></tr>\n")
 
     for cluster in clusters:
@@ -98,29 +103,29 @@ def generate_level1_report(zmap, mask,
             if j == 0:
                 # Main local maximum
                 temp.append('%i' % size)
-                output.write('<tr><th align="center">' + '</th>\
+                page.write('<tr><th align="center">' + '</th>\
                 <th align="center">'.join(temp) + '</th></tr>')
             else:
                 # Secondary local maxima
-                output.write('<tr><td align="center">' + '</td>\
+                page.write('<tr><td align="center">' + '</td>\
                 <td align="center">'.join(temp) + '</td><td></td></tr>\n')
 
     nclust = len(clusters)
     nvox = sum([clusters[k]['size'] for k in range(nclust)])
 
-    output.write("</table>\n")
-    output.write("Number of voxels: %i<br>\n" % nvox)
-    output.write("Number of clusters: %i<br>\n" % nclust)
+    page.write("</table>\n")
+    page.write("Number of voxels: %i<br>\n" % nvox)
+    page.write("Number of clusters: %i<br>\n" % nclust)
 
     if info is not None:
-        output.write("Threshold Z = %.2f (%s control at %.3f)<br>\n" \
+        page.write("Threshold Z = %.2f (%s control at %.3f)<br>\n" \
                      % (info['threshold_z'], method, threshold))
-        output.write("Cluster size threshold p<%s" % cluster_pval)
+        page.write("Cluster size threshold p<%s" % cluster_pval)
     else:
-        output.write("Cluster size threshold = %i voxels" % cluster_th)
+        page.write("Cluster size threshold = %i voxels" % cluster_th)
 
-    output.write("</center>\n")
-    output.close()
+    page.write("</center>\n")
+    page.close()
 
 
 def generate_subject_stats_report(
@@ -134,6 +139,7 @@ def generate_subject_stats_report(
     anat_affine=None,
     threshold=2.3,
     cluster_th=0,
+    cmap=viz.cm.cold_hot,
     start_time=None,
     progress_logger=None,
     shutdown_all_reloaders=True,
@@ -181,6 +187,9 @@ def generate_subject_stats_report(
     cluster_th: int (optional)
         minimal voxel count for clusteres declared as 'activated'
 
+    cmap: cmap object (default viz.cm.cold_hot)
+        color-map to use in plotting activation maps
+
     start_time: string (optiona)
         start time for the stats analysis (useful for the generated
         report page)
@@ -207,11 +216,6 @@ def generate_subject_stats_report(
 
     # copy css and js stuff to output dir
     shutil.copy(os.path.join(ROOT_DIR, "css/fsl.css"), output_dir)
-    shutil.copy(os.path.join(ROOT_DIR, "js/jquery.min.js"), output_dir)
-    shutil.copy(os.path.join(ROOT_DIR, "images/logo.jpeg"),
-                output_dir)
-    shutil.copy(os.path.join(ROOT_DIR, "images/failed.png"),
-                output_dir)
 
     design_thumbs = ResultsGallery(
         loader_filename=os.path.join(output_dir,
@@ -227,6 +231,7 @@ def generate_subject_stats_report(
     images have been thresholded at Z>%s voxel-level.
     """ % (NIPY_URL, threshold)
 
+    # report the control parameters used in the paradigm and analysis
     if len(glm_kwargs):
         def make_li(stuff):
             if isinstance(stuff, dict):
@@ -252,7 +257,8 @@ def generate_subject_stats_report(
         ).substitute(
         start_time=start_time,
         subject_id=subject_id,
-        methods=methods)
+        methods=methods,
+        cmap=cmap.name)
     with open(stats_report_filename, 'w') as fd:
         fd.write(str(level1_html_markup))
         fd.close()
@@ -289,9 +295,12 @@ def generate_subject_stats_report(
             thumb.img = img(src=os.path.basename(dmat_outfile),
                                      height="500px",
                                      )
-            thumb.description = "Design Matrix %i" % (j + 1)
+            thumb.description = "Design Matrix"
+            thumb.description += " %s" % (j + 1) if len(
+                design_matrices) > 1 else ""
             design_thumbs.commit_thumbnails(thumb)
 
+    # create activation thumbs
     _vmax = 0
     _vmin = threshold
     for j in xrange(len(contrasts)):
@@ -327,7 +336,7 @@ def generate_subject_stats_report(
 
         # plot activation proper
         viz.plot_map(pos_data, z_map.get_affine(),
-                     cmap=pl.cm.hot,
+                     cmap=cmap,
                      anat=anat,
                      anat_affine=anat_affine,
                      vmin=vmin,
@@ -357,7 +366,7 @@ def generate_subject_stats_report(
         activation_thumbs.commit_thumbnails(thumbnail)
 
         title = z_map if isinstance(z_map, basestring) else None
-        generate_level1_report(
+        generate_level1_stats_table(
             z_map, mask,
             stats_table,
             title=title,

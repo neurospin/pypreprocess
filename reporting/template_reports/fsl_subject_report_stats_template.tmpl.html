@@ -9,6 +9,7 @@
 {{default activation_colorbar_image = "activation_colorbar.png"}}
 {{default report_html = "report.html"}}
 {{default conf_path = "."}}
+{{default cmap = None}}
 
 <html>
   <head>
@@ -47,8 +48,8 @@
     <script type="text/javascript">
       $('#activation').load("{{activation_html}}").fadeIn("slow");
     </script>
-    <b>Thresholded activation maps</b> (click on a thumbnail for more details)<br/><br/>
-    Below are thresholded activation z-maps for the different contrasts of interest.
+    <b>Thresholded activation maps</b><br/><br/>
+    Below are thresholded activation z-maps for the different contrasts of interest{{if not cmap is None}} (cmap = "{{cmap}}"){{endif}}. Click on a thumbnail for more details.<br/>
     <br clear="all"/>
     <center><img src="{{activation_colorbar_image}}" /></center> <!-- centralized colorbar for activations-->
     <div id="activation">
