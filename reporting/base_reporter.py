@@ -79,7 +79,7 @@ def dict_to_html_ul(mydict):
                 val += "<li>%s: %s</li>" % (_k, make_li(_v))
             val += "</ul>"
         else:
-            # XXX handle other bundled types which are not necessariy
+            # XXX handle other bundled types which are not necessarily
             # dict-like!!!
             val = str(stuff)
 

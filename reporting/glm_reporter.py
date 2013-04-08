@@ -323,7 +323,7 @@ Z>%s voxel-level.
             # commit activation thumbnail into gallery
             design_thumbs.commit_thumbnails(thumb)
 
-    # make colorbar (place-holder, will be overrided, once we've figured out
+    # make colorbar (place-holder, will be overridden, once we've figured out
     # the correct end points) for activations
     colorbar_outfile = os.path.join(output_dir,
                                     'activation_colorbar.png')
