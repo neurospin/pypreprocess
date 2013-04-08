@@ -40,7 +40,7 @@
     <br/><br/>
     <div id="sourcecode">
       <!-- create sourcecode anchor (a) for toggling text between `Hide` and `View`states -->
-      <a class="sourcecodeanchor" href="#"><blink>View source code{{if not source_script_name is None}} for {{source_script_name}}{{endif}}</blink></a>
+      <a class="sourcecodeanchor" href="#"><blink>View source code{{if not source_script_name is None}} for script {{source_script_name}}{{endif}}</blink></a>
       <code class="hidden"><br/>{{source_code | html}}</code>
     </div>
     {{endif}}

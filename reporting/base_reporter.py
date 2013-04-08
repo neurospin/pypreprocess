@@ -55,6 +55,43 @@ def lines2breaks(lines, delimiter="\n", number_lines=False):
     return tempita.HTMLTemplate(log).content
 
 
+def dict_to_html_ul(mydict):
+    """Function converts dict to an HTML ul element
+
+    Parameters
+    ----------
+    mydict: dict-like object
+        dict (could be dict of any things), perhaps of dicts) to
+        convert to HTML ul
+
+    Returns
+    -------
+    String, ul element
+
+    """
+
+    html_ul = ""
+
+    def make_li(stuff):
+        if isinstance(stuff, dict):
+            val = "<ul>"
+            for _k, _v in stuff.iteritems():
+                val += "<li>%s: %s</li>" % (_k, make_li(_v))
+            val += "</ul>"
+        else:
+            # XXX handle other bundled types which are not necessariy
+            # dict-like!!!
+            val = str(stuff)
+
+        return val
+
+    for k, v in mydict.iteritems():
+        html_ul += "<li>%s: %s</li>" % (k, make_li(v))
+    html_ul += "</ul>"
+
+    return html_ul
+
+
 def get_module_source_code(mod):
     """Function retrieved the source code of a module
 

@@ -242,7 +242,7 @@ def generate_subject_stats_report(
     caller_source_code = get_module_source_code(caller_script_name)
 
     methods = """
-    GLM and Statistical Inference have been done using the %s script, \
+    GLM and Statistical Inference have been done using the <i>%s</i> script, \
 powered by <a href="%s">nipy</a>. Statistic images have been thresholded at \
 Z>%s voxel-level.
     """ % (caller_script_name, NIPY_URL, threshold)
@@ -250,24 +250,11 @@ Z>%s voxel-level.
     # report the control parameters used in the paradigm and analysis
     design_params = ""
     if len(glm_kwargs):
-        def make_li(stuff):
-            if isinstance(stuff, dict):
-                val = "<ul>"
-                for _k, _v in stuff.iteritems():
-                    val += "<li>%s: %s</li>" % (_k, make_li(_v))
-                val += "</ul>"
-            else:
-                val = str(stuff)
-
-            return val
-
         design_params += ("The following control parameters were used for  "
                     " specifying the experimental paradigm and fitting the "
                     "GLM:<br/><ul>")
 
-        for k, v in glm_kwargs.iteritems():
-            design_params += "<li>%s: %s</li>" % (k, make_li(v))
-        design_params += "</ul>"
+        design_params += dict_to_html_ul(glm_kwargs)
 
     if start_time is None:
         start_time = time.ctime()
@@ -311,16 +298,19 @@ Z>%s voxel-level.
                                                  npz['conditions'],
                                                  )
                 else:
+                    # XXX handle other dmat formats like ndarrays, etc.
                     raise TypeError(("Design matric format unknown; "
                                      "must be DesignMatrix object or"
                                      " .npz file containing such object"),
                                     )
+
             ax = design_matrix.show()
             ax.set_position([.05, .25, .9, .65])
             dmat_outfile = os.path.join(output_dir,
                                         'design_matrix_%i.png' % (j + 1),
                                         )
             pl.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
+
             thumb = Thumbnail()
             thumb.a = a(href=os.path.basename(dmat_outfile))
             thumb.img = img(src=os.path.basename(dmat_outfile),
@@ -329,7 +319,15 @@ Z>%s voxel-level.
             thumb.description = "Design Matrix"
             thumb.description += " %s" % (j + 1) if len(
                 design_matrices) > 1 else ""
+
+            # commit activation thumbnail into gallery
             design_thumbs.commit_thumbnails(thumb)
+
+    # make colorbar (place-holder, will be overrided, once we've figured out
+    # the correct end points) for activations
+    colorbar_outfile = os.path.join(output_dir,
+                                    'activation_colorbar.png')
+    make_standalone_colorbar(threshold, 8., colorbar_outfile)
 
     # create activation thumbs
     _vmax = 0
@@ -406,8 +404,6 @@ Z>%s voxel-level.
             )
 
     # make colorbar for activations
-    colorbar_outfile = os.path.join(output_dir,
-                                    'activation_colorbar.png')
     make_standalone_colorbar(_vmin, _vmax, colorbar_outfile)
 
     # we're done, shut down re-loaders
