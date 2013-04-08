@@ -1,6 +1,5 @@
-
 body { 
-     background-image: url("images/fsl-bg.jpg");
+     /* background-image: url("images/fsl-bg.jpg"); */
      font-family: 'Arial';
      margin-top: 0px;
      padding-top: 0px;
@@ -77,4 +76,22 @@ div.desc
     font-weight:normal;
     width:100%;
     margin:2px;
+}
+
+
+/* class for expadable-collapsable items (source code, etc.) */
+.hidden { display: none;}
+
+pre { display: inline}
+
+.boxed {
+    border: 1px solid green ;
+}
+
+
+/* for souce code highlighting */
+code {
+    background-color: #F9F9F9;
+    color: green;
+    line-height: 1.1em;
 }

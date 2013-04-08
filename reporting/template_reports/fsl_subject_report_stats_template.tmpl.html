@@ -1,15 +1,20 @@
 <!-- author: d0hm4t06 3lv15 d0p91m4 -->
 
-{{default methods = None}}
 {{default refresh_timeout = 30}}
 {{default references = ["Russel A. Poldrack et al. <i>Handbook of Functional MRI Data Analysis</i>",
 "F. Gregory Ashby. <i>Statistical Analysis of fMRI Data</i>"]}}
-{{default activation_html = "activation.html"}}
-{{default design_html = "design.html"}}
+{{default activation_thumbs = "activation.html"}}
+{{default design_thumbs = "design.html"}}
+{{default methods = None}}
+{{default design_params = None}}
 {{default activation_colorbar_image = "activation_colorbar.png"}}
 {{default report_html = "report.html"}}
 {{default conf_path = "."}}
 {{default cmap = None}}
+{{default title="GLM and Statistical Inference"}}
+{{default source_script_name = None}}
+{{default source_code = None}}
+
 
 <html>
   <head>
@@ -22,34 +27,50 @@
 
   <body>
     <object data="{{report_html}}"></object>
-    <h2>GLM and Statistical Inference</h2>
+    <h2>{{title}}</h2>
     Started: {{start_time}}
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color=red><i>STILL RUNNING ..</i><blink>.</blink></font>
+    <br clear="all"/>   
     <hr/>
+
     <b>Methods used</b><br/><br/>
     {{methods | html}}
-    <br/><br/><b>References</b><br/><br/>
+
+    {{if not source_code is None}}
+    <br/><br/>
+    <div id="sourcecode">
+      <!-- create sourcecode anchor (a) for toggling text between `Hide` and `View`states -->
+      <a class="sourcecodeanchor" href="#"><blink>View source code{{if not source_script_name is None}} for {{source_script_name}}{{endif}}</blink></a>
+      <code class="hidden"><br/>{{source_code | html}}</code>
+    </div>
+    {{endif}}
+
+    <br/>References<br/><br/>
       <ul>
       {{for ref in references}}
 	<li>{{ref | html}}</li>
       {{endfor}}
       </ul>
+    <br clear="all"/>   
     <hr/>
 
     <script type="text/javascript">
-      $('#design').load("{{design_html}}").fadeIn("slow");
+      $('#design').load("{{design_thumbs}}").fadeIn("slow");
     </script>
-    <b>Design</b><br/><br/>
+    <b>Experimental design</b><br/><br/>
+    {{if not design_params is None}}
+    {{design_params | html}}
+    {{endif}}
     <div id="design">
     </div>
     <br clear="all"/>
     <hr/>
     
     <script type="text/javascript">
-      $('#activation').load("{{activation_html}}").fadeIn("slow");
+      $('#activation').load("{{activation_thumbs}}").fadeIn("slow");
     </script>
     <b>Thresholded activation maps</b><br/><br/>
-    Below are thresholded activation z-maps for the different contrasts of interest{{if not cmap is None}} (cmap = "{{cmap}}"){{endif}}. Click on a thumbnail for more details.<br/>
+    Below are thresholded activation z-maps{{if not cmap is None}} (<b>cmap = "{{cmap}}"</b>){{endif}} for the different contrasts of interest. Click on a thumbnail for more details.<br/>
     <br clear="all"/>
     <center><img src="{{activation_colorbar_image}}" /></center> <!-- centralized colorbar for activations-->
     <div id="activation">
@@ -59,11 +80,20 @@
 
     <!-- It's time for javascript, folks -->
     <script type="text/javascript" src="{{conf_path}}/jquery.min.js"></script>
-    <script type='text/javascript'>
+    <script type="text/javascript" src="{{conf_path}}/base.js"></script>
+    <script type="text/javascript">
+      $(function(){
+      $("#sourcecode a.sourcecodeanchor").click(function(){
+      $(this).toggleText("View", "Hide").next().toggle();
+      return false;
+      });
+      });
+
       $(document).ready(function(){
-      $('#design').load("{{design_html}}").fadeIn("slow");
-      $('#activation').load("{{activation_html}}").fadeIn("slow");    
+      $('#design').load("{{design_thumbs}}").fadeIn("slow");
+      $('#activation').load("{{activation_thumbs}}").fadeIn("slow");    
       });
     </script>
+
   </body>
 </html>

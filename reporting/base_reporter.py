@@ -17,6 +17,70 @@ DARTEL_URL = ("http://www.fil.ion.ucl.ac.uk/spm/software/spm8/"
 NIPYPE_URL = "http://nipy.sourceforge.net/nipype/"
 
 
+def lines2breaks(lines, delimiter="\n", number_lines=False):
+    """
+    Converts line breaks to HTML breaks, adding `pre` tags as necessary.
+
+    Parameters
+    ----------
+    lines: string delimited by delimiter, or else list of strings
+        lines to format into HTML format
+
+    delimiter: string (default '\n')
+        new-line delimiter, can be (escape) characters like '\n', '\r',
+        '\r\n', '\t', etc.
+
+    number_lines: boolean (default False)
+        if false, then output will be line-numbered
+
+    Returns
+    -------
+    HTML-formatted string
+
+    """
+
+    if isinstance(lines, basestring):
+        lines = lines.split(delimiter)
+
+    n_lines = len(lines)
+
+    if not number_lines:
+            lines = ["<pre>%s</pre>" % line for line in lines]
+    else:
+        lines = ["%i.\t<pre>%s</pre>" % (linum + 1, line)
+                 for linum, line in zip(xrange(n_lines), lines)]
+
+    log = "<br>".join(lines)
+
+    return tempita.HTMLTemplate(log).content
+
+
+def get_module_source_code(mod):
+    """Function retrieved the source code of a module
+
+    Parameters
+    ----------
+
+    mod: string or `module` handle
+        existing filename of module, module handle
+
+    Returns
+    -------
+    string, line-numbered HTML-formated code-block
+
+    """
+
+    if isinstance(mod, basestring):
+        filename = mod
+    elif isinstance(mod, type(os)):
+        filename = mod.__file__
+
+    with open(filename, 'r') as fd:
+        lines = fd.read()
+
+        return lines2breaks(lines, number_lines=True)
+
+
 def GALLERY_HTML_MARKUP():
     """
     Function to generate markup for the contents of a <div id="results">

@@ -7,6 +7,7 @@ import nipy.labs.statistical_mapping as sm
 from nipy.modalities.fmri.design_matrix import DesignMatrix
 from base_reporter import *
 import shutil
+import inspect
 
 
 def generate_level1_stats_table(zmap, mask,
@@ -65,6 +66,9 @@ def generate_level1_stats_table(zmap, mask,
     # do some sanity checks
     if title is None:
         title = "Level 1 Statistics"
+
+    if cluster_th > 0:
+        title += " (clusters with < %i voxels not shown)" % cluster_th
 
     clusters, info = sm.cluster_stats(zmap, mask, height_th=threshold,
                                       nulls=nulls, cluster_th=cluster_th,)
@@ -216,55 +220,76 @@ def generate_subject_stats_report(
 
     # copy css and js stuff to output dir
     shutil.copy(os.path.join(ROOT_DIR, "js/jquery.min.js"), output_dir)
+    shutil.copy(os.path.join(ROOT_DIR, "js/base.js"), output_dir)
     shutil.copy(os.path.join(ROOT_DIR, "css/fsl.css"), output_dir)
 
+    # initialize gallery of design matrices
     design_thumbs = ResultsGallery(
         loader_filename=os.path.join(output_dir,
                                      "design.html")
         )
+
+    # initialize gallery of activation maps
     activation_thumbs = ResultsGallery(
         loader_filename=os.path.join(output_dir,
                                      "activation.html")
         )
 
+    # get caller module handle from stack-frame
+    frm = inspect.stack()[1]
+    caller_module = inspect.getmodule(frm[0])
+    caller_script_name = caller_module.__file__
+    caller_source_code = get_module_source_code(caller_script_name)
+
     methods = """
-    GLM and inference have been done using <a href="%s">nipy</a>. Statistic \
-    images have been thresholded at Z>%s voxel-level.
-    """ % (NIPY_URL, threshold)
+    GLM and Statistical Inference have been done using the %s script, \
+powered by <a href="%s">nipy</a>. Statistic images have been thresholded at \
+Z>%s voxel-level.
+    """ % (caller_script_name, NIPY_URL, threshold)
 
     # report the control parameters used in the paradigm and analysis
+    design_params = ""
     if len(glm_kwargs):
         def make_li(stuff):
             if isinstance(stuff, dict):
                 val = "<ul>"
                 for _k, _v in stuff.iteritems():
-                    val += "<li>%s: %s</li>" % (_k, _v)
+                    val += "<li>%s: %s</li>" % (_k, make_li(_v))
                 val += "</ul>"
             else:
                 val = str(stuff)
 
             return val
 
-        methods += ("<p>The following control parameters were used for  "
+        design_params += ("The following control parameters were used for  "
                     " specifying the experimental paradigm and fitting the "
-                    "GLM::<br/><ul>")
+                    "GLM:<br/><ul>")
 
         for k, v in glm_kwargs.iteritems():
-            methods += "<li>%s: %s</li>" % (k, make_li(v))
-        methods += "</ul></p>"
+            design_params += "<li>%s: %s</li>" % (k, make_li(v))
+        design_params += "</ul>"
 
     if start_time is None:
         start_time = time.ctime()
+
     report_title = "GLM and Statistical Inference"
     if not subject_id is None:
         report_title += " for subject %s" % subject_id
+
     level1_html_markup = FSL_SUBJECT_REPORT_STATS_HTML_TEMPLATE(
         ).substitute(
         title=report_title,
         start_time=start_time,
         subject_id=subject_id,
+
+        # insert source code stub
+        source_script_name=caller_script_name,
+        source_code=caller_source_code,
+
+        design_params=design_params,
         methods=methods,
         cmap=cmap.name)
+
     with open(stats_report_filename, 'w') as fd:
         fd.write(str(level1_html_markup))
         fd.close()
@@ -367,11 +392,12 @@ def generate_subject_stats_report(
         thumbnail = Thumbnail()
         thumbnail.a = a(href=os.path.basename(stats_table))
         thumbnail.img = img(
-            src=os.path.basename(z_map_plot), height="250px",)
+            src=os.path.basename(z_map_plot), height="200px",)
         thumbnail.description = "%s contrast: %s" % (contrast_id, contrast_val)
         activation_thumbs.commit_thumbnails(thumbnail)
 
-        title = z_map if isinstance(z_map, basestring) else None
+        # generate level 1 stats table
+        title = "Level 1 stats for %s contrast" % contrast_id
         generate_level1_stats_table(
             z_map, mask,
             stats_table,
