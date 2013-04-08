@@ -13,6 +13,7 @@ import shutil
 import json
 import glob
 import time
+import inspect
 
 # imports for caching (yeah, we aint got time to loose!)
 from nipype.caching import Memory
@@ -709,6 +710,9 @@ def _do_subject_preproc(
         # copy css and js stuff to output dir
         shutil.copy(os.path.join(ROOT_DIR,
                                  "reporting/js/jquery.min.js"),
+                    subject_data.output_dir)
+        shutil.copy(os.path.join(ROOT_DIR,
+                                 "reporting/js/base.js"),
                     subject_data.output_dir)
         shutil.copy(os.path.join(ROOT_DIR, 'reporting/css', 'fsl.css'),
                     subject_data.output_dir)
@@ -1596,10 +1600,19 @@ def do_subjects_preproc(subjects,
             "alignment with them) can be generated. "
             "</li>") % DARTEL_URL
 
+    # get caller module handle from stack-frame
+    frm = inspect.stack()[1]
+    caller_module = inspect.getmodule(frm[0])
+    caller_script_name = caller_module.__file__
+    caller_source_code = preproc_reporter.get_module_source_code(
+        caller_script_name)
+
     preproc_undergone = """\
-    <p>All preprocessing has been done using <a href="%s">pypreprocess</a>,
-    which is powered by <a href="%s">nipype</a>, and <a href="%s">SPM8</a>.
-    </p>""" % (PYPREPROCESS_URL, NIPYPE_URL, SPM8_URL)
+    <p>All preprocessing has been done using the <i>%s</i> script of
+ <a href="%s">pypreprocess</a>, which is powered by
+ <a href="%s">nipype</a>, and <a href="%s">SPM8</a>.
+    </p>""" % (caller_script_name, PYPREPROCESS_URL,
+               NIPYPE_URL, SPM8_URL)
 
     preproc_undergone += "<ul>"
 
@@ -1613,6 +1626,8 @@ def do_subjects_preproc(subjects,
         # copy css and js stuff to output dir
         shutil.copy(os.path.join(ROOT_DIR,
                                  "reporting/js/jquery.min.js"), output_dir)
+        shutil.copy(os.path.join(ROOT_DIR,
+                                 "reporting/js/base.js"), output_dir)
         shutil.copy(os.path.join(ROOT_DIR, 'reporting/css', 'fsl.css'),
                     output_dir)
         shutil.copy(os.path.join(ROOT_DIR, 'reporting/css', 'styles.css'),
@@ -1628,6 +1643,27 @@ def do_subjects_preproc(subjects,
             output_dir, 'report_preproc.html')
         report_filename = os.path.join(
             output_dir, 'report.html')
+
+        # scrape this function's arguments
+        preproc_params = ""
+        frame = inspect.currentframe()
+        args, _, _, values = inspect.getargvalues(frame)
+        preproc_func_name = inspect.getframeinfo(frame)[2]
+        preproc_params += ("Function <i>%s(...)</i> was invoked by the script"
+                           " <i>%s</i> with the following arguments:"
+                           ) % (preproc_func_name,
+                                caller_script_name)
+        preproc_params += preproc_reporter.dict_to_html_ul(
+            dict((arg, values[arg]) for arg in args if not arg in [
+                    "dataset_description",
+                    "report_filename",
+                    "do_report",
+                    "do_cv_tc",
+                    "do_export_report",
+                    "do_shutdown_reloaders",
+                    # add other args to exclude below
+                    ]
+                 ))
 
         # initialize results gallery
         loader_filename = os.path.join(
@@ -1654,6 +1690,9 @@ def do_subjects_preproc(subjects,
             start_time=time.ctime(),
             preproc_undergone=preproc_undergone,
             dataset_description=dataset_description,
+            source_code=caller_source_code,
+            source_script_name=caller_script_name,
+            preproc_params=preproc_params,
             )
         main_html = preproc_reporter.FSL_DATASET_REPORT_HTML_TEMPLATE(
             ).substitute(
@@ -1842,5 +1881,4 @@ def do_subjects_preproc(subjects,
             preproc_reporter.export_report(os.path.dirname(report_filename),
                                    tag=tag)
 
-    # return results (caller may need this)
     return results
