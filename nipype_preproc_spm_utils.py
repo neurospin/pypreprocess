@@ -1383,7 +1383,7 @@ def _do_subject_dartelnorm2mni(output_dir,
 
         # shutdown page reloader
         if last_stage:
-            subject_progress_logger.finish()
+            subject_progress_logger.finish_dir(output_dir)
 
     # collect results and return
     output['func'] = resampled_warped_files
@@ -1684,6 +1684,7 @@ def do_subjects_preproc(subjects,
             ).substitute(
             start_time=time.ctime(),
             )
+
         preproc = preproc_reporter.FSL_DATASET_REPORT_PREPROC_HTML_TEMPLATE(
             ).substitute(
             results=parent_results_gallery,
@@ -1694,6 +1695,7 @@ def do_subjects_preproc(subjects,
             source_script_name=caller_script_name,
             preproc_params=preproc_params,
             )
+
         main_html = preproc_reporter.FSL_DATASET_REPORT_HTML_TEMPLATE(
             ).substitute(
             results=parent_results_gallery,

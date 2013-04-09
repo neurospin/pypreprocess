@@ -166,7 +166,6 @@ glm_reporter.generate_subject_stats_report(
     anat=anat,
     anat_affine=anat_affine,
     cluster_th=50,  # we're only interested in this 'large' clusters
-    progress_logger=results[0]['progress_logger'],
     start_time=stats_start_time,
 
     # additional ``kwargs`` for more informative report
@@ -178,5 +177,8 @@ glm_reporter.generate_subject_stats_report(
     drift_model=drift_model,
     hrf_model=hrf_model,
     )
+
+# shutdown main report page for dataset
+glm_reporter.ProgressReport().finish_dir(OUTPUT_DIR)
 
 print "\r\nStatistic report written to %s\r\n" % stats_report_filename

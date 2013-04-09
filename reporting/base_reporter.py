@@ -1,5 +1,14 @@
+"""
+:Module: base_reporter
+:Synopsis: basic utilities (functions, classes) for the reporting business
+:Author: dohmatob elvis dopgima
+
+XXX Write test(case)s for this module
+"""
+
 import os
 import re
+import glob
 import time
 import matplotlib as mpl
 import pylab as pl
@@ -239,13 +248,38 @@ def commit_subject_thumnbail_to_parent_gallery(
 
 
 class ProgressReport(object):
+    """Class encapsulating functionality for logging arbitrary html stubs
+    to report pages, modifying pages dynamically (like disabling automatic
+    releads, etc.)
 
-    def __init__(self, report_filename=None, other_watched_files=[]):
-        self.report_filename = report_filename
-        self.other_watched_files = other_watched_files
+    """
 
-        if not self.report_filename is None:
-            open(self.report_filename, 'a').close()
+    def __init__(self, log_filename=None, other_watched_files=[]):
+        """Constructor
+
+        Parameters
+        ----------
+        log_filename: string (optional, default None)
+            filename to which html stubs will be logged
+
+         other_watched_files: list or similar iterable (optional, default [])
+            files watched by the progress reporter; for example whenever the
+            `finish_all` method is invoked, all watched files are disabled for
+            automatic reloading thenceforth
+
+         """
+
+        self.log_filename = log_filename
+
+        if not self.log_filename is None:
+            open(self.log_filename, 'a').close()
+
+        self.watched_files = []
+        self.watch_files(other_watched_files)
+
+    def watch_files(self, filenames):
+        for filename in filenames:
+            self.watch_file(filename)
 
     def log(self, msg):
         """Logs an html-formated stub to the report file
@@ -257,49 +291,49 @@ class ProgressReport(object):
 
         """
 
-        if self.report_filename is None:
+        if self.log_filename is None:
             return
 
-        with open(self.report_filename, 'r') as i_fd:
+        with open(self.log_filename, 'r') as i_fd:
             content = i_fd.read()
             i_fd.close()
             marker = '<!-- log_next_thing_here -->'
             content = content.replace(marker, msg + marker)
-            if not self.report_filename is None:
-                with open(self.report_filename, 'w') as o_fd:
+            if not self.log_filename is None:
+                with open(self.log_filename, 'w') as o_fd:
                     o_fd.write(content)
                     o_fd.close()
 
-    def finish(self, report_filename=None):
+    def finish(self, filename):
         """Stops the automatic reloading (by the browser, etc.) of a given
          report page
 
          Parameters
          ----------
-         report_filename: string (optinal)
+         filename:
              file URL of page to stop re-loading
 
         """
 
-        if report_filename is None:
-            report_filename = self.report_filename
+        with open(filename, 'r') as i_fd:
+            content = i_fd.read()
+            i_fd.close()
 
-        if not report_filename is None:
-            with open(report_filename, 'r') as i_fd:
-                content = i_fd.read()
-                i_fd.close()
+            # prevent pages from reloaded automaticall henceforth
+            meta_reloader = "<meta http\-equiv=refresh content=.+?>"
+            content = re.sub(meta_reloader, "", content)
 
-                # prevent pages from reloaded automaticall henceforth
-                meta_reloader = "<meta http\-equiv=refresh content=.+?>"
-                content = re.sub(meta_reloader, "", content)
+            old_state = ("<font color=red><i>STILL RUNNING .."
+                         "</i><blink>.</blink></font>")
+            new_state = "Ended: %s" % time.ctime()
+            new_content = content.replace(old_state, new_state)
+            with open(filename, 'w') as o_fd:
+                o_fd.write(new_content)
+                o_fd.close()
 
-                old_state = ("<font color=red><i>STILL RUNNING .."
-                             "</i><blink>.</blink></font>")
-                new_state = "Ended: %s" % time.ctime()
-                new_content = content.replace(old_state, new_state)
-                with open(report_filename, 'w') as o_fd:
-                    o_fd.write(new_content)
-                    o_fd.close()
+    def _finish_files(self, filenames):
+        for filename in filenames:
+            self.finish(filename)
 
     def finish_all(self, filenames=[]):
         """Stops the automatic re-loading of watched pages
@@ -317,18 +351,52 @@ class ProgressReport(object):
 
         """
 
-        for filename in [
-            self.report_filename] + self.other_watched_files + filenames:
-            self.finish(filename)
+        self._finish_files(self.watched_files + filenames)
+
+    def finish_dir(self, dirname, filename_wildcat="*.html"):
+        """'Finishes' all pages (html, etc., files) in a given directory.
+
+        Parameters
+        ----------
+        dirname: string
+            name of existing directory to 'finish'
+
+        filename: string (optional, default "*.html")
+            wildcat defining files to 'finish' (useful for globbing) in dirname
+
+        """
+
+        self._finish_files(
+            glob.glob(os.path.join(dirname, filename_wildcat)))
 
     def watch_file(self, filename):
-        self.other_watched_files.append(filename)
+        """Specifies (yet another) file to be watched.
+
+        Parameters
+        ----------
+        filename: string
+            existing filename
+
+        """
+
+        assert isinstance(filename, basestring)
+        self.watched_files.append(filename)
 
 
 def make_standalone_colorbar(vmin, vmax, colorbar_outfile=None):
     """Plots a stand-alone colorbar
 
-    XXX Document this API!!!
+    Parameters
+    ----------
+    vmin: float
+        param passed to `mpl.colors.Normalize`
+
+    vmax: float
+        param passed to `mpl.colors.Normalize`
+
+    colorbar_outfil: string (optional, default None)
+        outputfile for plotted colorbar
+
     """
 
     fig = pl.figure(figsize=(6, 1))

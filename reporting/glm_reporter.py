@@ -145,7 +145,6 @@ def generate_subject_stats_report(
     cluster_th=0,
     cmap=viz.cm.cold_hot,
     start_time=None,
-    progress_logger=None,
     shutdown_all_reloaders=True,
     **glm_kwargs
     ):
@@ -198,9 +197,6 @@ def generate_subject_stats_report(
         start time for the stats analysis (useful for the generated
         report page)
 
-    progress_logger: ProgressLogger object (optional)
-        handle for logging progress
-
     shutdown_all_reloaders: bool (optional, default True)
         if True, all pages connected to the stats report page will
         be prevented from reloading after the stats report page
@@ -212,16 +208,25 @@ def generate_subject_stats_report(
 
     """
 
-    # prepare for stats reporting
-    if progress_logger is None:
-        progress_logger = ProgressReport()
-
     output_dir = os.path.dirname(stats_report_filename)
+
+    # prepare for stats reporting
+    progress_logger = ProgressReport(
+        log_filename=os.path.join(output_dir, "report_log.html"))
+
+    progress_logger.log("<b>Level 1 statistics</b><br/><br/>")
+
+    progress_logger.log(
+        ("Copying configuration files (.css, .js, etc.) to output"
+         " directory %s ..<br/>" % output_dir))
 
     # copy css and js stuff to output dir
     shutil.copy(os.path.join(ROOT_DIR, "js/jquery.min.js"), output_dir)
     shutil.copy(os.path.join(ROOT_DIR, "js/base.js"), output_dir)
     shutil.copy(os.path.join(ROOT_DIR, "css/fsl.css"), output_dir)
+
+    progress_logger.log(
+        "Generating main html markup for %s ..<br/>" % stats_report_filename)
 
     # initialize gallery of design matrices
     design_thumbs = ResultsGallery(
@@ -281,7 +286,7 @@ Z>%s voxel-level.
         fd.write(str(level1_html_markup))
         fd.close()
 
-    progress_logger.log("<b>Level 1 statistics</b><br/><br/>")
+    progress_logger.log("Generating design matrix thumnbnails ..<br/>")
 
     # create design matrix thumbs
     design_matrices = design_matrix
@@ -329,13 +334,18 @@ Z>%s voxel-level.
                                     'activation_colorbar.png')
     make_standalone_colorbar(threshold, 8., colorbar_outfile)
 
+    progress_logger.log("Generating activation statistics ..<br>")
+
     # create activation thumbs
     _vmax = 0
     _vmin = threshold
-    for j in xrange(len(contrasts)):
-        contrast_id = contrasts.keys()[j]
+    for contrast_id, contrast_val in contrasts.iteritems():
         contrast_val = contrasts[contrast_id]
         z_map = z_maps[contrast_id]
+
+        progress_logger.log(
+            ("<pre> </pre>Generating activation statisitcs for contrast "
+             "%s ..<br/>" % contrast_id))
 
         # compute cut_coords for viz.plot_map(..) API
         # XXX review computation of cut_coords, vmin, and vmax; not clean!!!
@@ -373,7 +383,6 @@ Z>%s voxel-level.
                      threshold=threshold,
                      slicer='z',
                      cut_coords=cut_coords,
-
                      black_bg=True,
                      )
 
@@ -414,7 +423,7 @@ Z>%s voxel-level.
 
     # prevent any related page from reloading
     if shutdown_all_reloaders:
-        progress_logger.finish_all()
+        progress_logger.finish_dir(output_dir)
 
     # return generated html
     with open(stats_report_filename, 'r') as fd:
