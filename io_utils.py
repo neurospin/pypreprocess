@@ -227,7 +227,10 @@ def compute_mean_image(images, output_filename=None, threeD=False):
 
     # compute mean
     mean_data = np.mean(all_data, axis=0)
-    mean_affine = np.mean(all_affine, axis=0)
+
+    # XXX I'm assuming all the affines are equal
+    mean_affine = all_affine[0]
+
     mean_image = nibabel.Nifti1Image(mean_data, mean_affine)
 
     # save mean image

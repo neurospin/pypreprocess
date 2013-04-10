@@ -384,11 +384,14 @@ class ProgressReport(object):
         self.watched_files.append(filename)
 
 
-def make_standalone_colorbar(vmin, vmax, colorbar_outfile=None):
+def make_standalone_colorbar(cmap, vmin, vmax, colorbar_outfile=None):
     """Plots a stand-alone colorbar
 
     Parameters
     ----------
+    cmap: some colormap object (like pylab.cm.hot, et
+    nipy.lab.viz.cold_hot, etc.)
+        colormap to use in plotting colorbar
     vmin: float
         param passed to `mpl.colors.Normalize`
 
@@ -403,7 +406,6 @@ def make_standalone_colorbar(vmin, vmax, colorbar_outfile=None):
     fig = pl.figure(figsize=(6, 1))
     ax = fig.add_axes([0.05, 0.4, 0.9, 0.5])
 
-    cmap = pl.cm.hot
     norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
 
     cb = mpl.colorbar.ColorbarBase(ax, cmap=cmap,

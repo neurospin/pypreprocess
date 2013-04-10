@@ -328,7 +328,7 @@ Z>%s voxel-level.
     # the correct end points) for activations
     colorbar_outfile = os.path.join(output_dir,
                                     'activation_colorbar.png')
-    make_standalone_colorbar(threshold, 8., colorbar_outfile)
+    make_standalone_colorbar(cmap, threshold, 8., colorbar_outfile)
 
     # create activation thumbs
     _vmax = 0
@@ -405,7 +405,8 @@ Z>%s voxel-level.
             )
 
     # make colorbar for activations
-    make_standalone_colorbar(_vmin, _vmax, colorbar_outfile)
+    make_standalone_colorbar(
+        cmap, _vmin, _vmax, colorbar_outfile)
 
     # we're done, shut down re-loaders
     progress_logger.log('<hr/>')
