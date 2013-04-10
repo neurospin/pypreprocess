@@ -8,6 +8,6 @@ Best regards,
 
 If you suffer utterly evil --yet, not so anatomically plausible-- mis-registration
 problems, then maybe your nifti orientation meta-data are just gabbage. Zap'em by
-running fslorient -deleteorient, or some other snub; SPM will figure out the correct
-orientation by itself.
+running fslorient -deleteorient, or some other snub; SPM hav a very poor starting
+point, but should hopefully converge to something useful afterall.
 -DED
