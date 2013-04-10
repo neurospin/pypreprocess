@@ -752,19 +752,21 @@ def _do_subject_preproc(
         output['progress_logger'] = subject_progress_logger
 
         # html markup
-        log = preproc_reporter.FSL_SUBJECT_REPORT_LOG_HTML_TEMPLATE(
+        log = preproc_reporter.get_subject_report_log_html_template(
             ).substitute(
             start_time=time.ctime(),
             subject_id=subject_data.subject_id
             )
-        preproc = preproc_reporter.FSL_SUBJECT_REPORT_PREPROC_HTML_TEMPLATE(
+
+        preproc = preproc_reporter.get_subject_report_preproc_html_template(
             ).substitute(
             results=results_gallery,
             start_time=time.ctime(),
             preproc_undergone=preproc_undergone,
             subject_id=subject_data.subject_id
             )
-        main_html = preproc_reporter.FSL_SUBJECT_REPORT_HTML_TEMPLATE(
+
+        main_html = preproc_reporter.get_subject_report_html_template(
             ).substitute(
             start_time=time.ctime(),
             subject_id=subject_data.subject_id
@@ -1680,12 +1682,12 @@ def do_subjects_preproc(subjects,
                                  report_preproc_filename])
 
         # html markup
-        log = preproc_reporter.FSL_DATASET_REPORT_LOG_HTML_TEMPLATE(
+        log = preproc_reporter.get_dataset_report_log_html_template(
             ).substitute(
             start_time=time.ctime(),
             )
 
-        preproc = preproc_reporter.FSL_DATASET_REPORT_PREPROC_HTML_TEMPLATE(
+        preproc = preproc_reporter.get_dataset_report_preproc_html_template(
             ).substitute(
             results=parent_results_gallery,
             start_time=time.ctime(),
@@ -1696,7 +1698,7 @@ def do_subjects_preproc(subjects,
             preproc_params=preproc_params,
             )
 
-        main_html = preproc_reporter.FSL_DATASET_REPORT_HTML_TEMPLATE(
+        main_html = preproc_reporter.get_dataset_report_html_template(
             ).substitute(
             results=parent_results_gallery,
             start_time=time.ctime(),

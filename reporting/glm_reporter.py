@@ -61,6 +61,7 @@ def generate_level1_stats_table(zmap, mask,
         clusters, info = sm.cluster_stats(zmap, mask, height_th=threshold,
                                           height_control=method.lower(),
                                           cluster_th=cluster_th, nulls=nulls)
+
     """
 
     # do some sanity checks
@@ -145,6 +146,7 @@ def generate_subject_stats_report(
     cluster_th=0,
     cmap=viz.cm.cold_hot,
     start_time=None,
+    progress_logger=None,
     shutdown_all_reloaders=True,
     **glm_kwargs
     ):
@@ -197,6 +199,9 @@ def generate_subject_stats_report(
         start time for the stats analysis (useful for the generated
         report page)
 
+    progress_logger: ProgressLogger object (optional)
+        handle for logging progress
+
     shutdown_all_reloaders: bool (optional, default True)
         if True, all pages connected to the stats report page will
         be prevented from reloading after the stats report page
@@ -208,25 +213,16 @@ def generate_subject_stats_report(
 
     """
 
-    output_dir = os.path.dirname(stats_report_filename)
-
     # prepare for stats reporting
-    progress_logger = ProgressReport(
-        log_filename=os.path.join(output_dir, "report_log.html"))
+    if progress_logger is None:
+        progress_logger = ProgressReport()
 
-    progress_logger.log("<b>Level 1 statistics</b><br/><br/>")
-
-    progress_logger.log(
-        ("Copying configuration files (.css, .js, etc.) to output"
-         " directory %s ..<br/>" % output_dir))
+    output_dir = os.path.dirname(stats_report_filename)
 
     # copy css and js stuff to output dir
     shutil.copy(os.path.join(ROOT_DIR, "js/jquery.min.js"), output_dir)
     shutil.copy(os.path.join(ROOT_DIR, "js/base.js"), output_dir)
     shutil.copy(os.path.join(ROOT_DIR, "css/fsl.css"), output_dir)
-
-    progress_logger.log(
-        "Generating main html markup for %s ..<br/>" % stats_report_filename)
 
     # initialize gallery of design matrices
     design_thumbs = ResultsGallery(
@@ -268,7 +264,7 @@ Z>%s voxel-level.
     if not subject_id is None:
         report_title += " for subject %s" % subject_id
 
-    level1_html_markup = FSL_SUBJECT_REPORT_STATS_HTML_TEMPLATE(
+    level1_html_markup = get_subject_report_stats_html_template(
         ).substitute(
         title=report_title,
         start_time=start_time,
@@ -286,7 +282,7 @@ Z>%s voxel-level.
         fd.write(str(level1_html_markup))
         fd.close()
 
-    progress_logger.log("Generating design matrix thumnbnails ..<br/>")
+    progress_logger.log("<b>Level 1 statistics</b><br/><br/>")
 
     # create design matrix thumbs
     design_matrices = design_matrix
@@ -334,18 +330,13 @@ Z>%s voxel-level.
                                     'activation_colorbar.png')
     make_standalone_colorbar(threshold, 8., colorbar_outfile)
 
-    progress_logger.log("Generating activation statistics ..<br>")
-
     # create activation thumbs
     _vmax = 0
     _vmin = threshold
-    for contrast_id, contrast_val in contrasts.iteritems():
+    for j in xrange(len(contrasts)):
+        contrast_id = contrasts.keys()[j]
         contrast_val = contrasts[contrast_id]
         z_map = z_maps[contrast_id]
-
-        progress_logger.log(
-            ("<pre> </pre>Generating activation statisitcs for contrast "
-             "%s ..<br/>" % contrast_id))
 
         # compute cut_coords for viz.plot_map(..) API
         # XXX review computation of cut_coords, vmin, and vmax; not clean!!!
@@ -383,6 +374,7 @@ Z>%s voxel-level.
                      threshold=threshold,
                      slicer='z',
                      cut_coords=cut_coords,
+
                      black_bg=True,
                      )
 
@@ -423,7 +415,7 @@ Z>%s voxel-level.
 
     # prevent any related page from reloading
     if shutdown_all_reloaders:
-        progress_logger.finish_dir(output_dir)
+        progress_logger.finish_all()
 
     # return generated html
     with open(stats_report_filename, 'r') as fd:

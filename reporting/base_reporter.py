@@ -4,6 +4,7 @@
 :Author: dohmatob elvis dopgima
 
 XXX Write test(case)s for this module
+
 """
 
 import os
@@ -127,7 +128,7 @@ def get_module_source_code(mod):
         return lines2breaks(lines, number_lines=True)
 
 
-def GALLERY_HTML_MARKUP():
+def get_gallery_html_markup():
     """
     Function to generate markup for the contents of a <div id="results">
     type html element.
@@ -209,7 +210,7 @@ class ResultsGallery(object):
         if not type(thumbnails) is list:
             thumbnails = [thumbnails]
 
-        self.raw = GALLERY_HTML_MARKUP().substitute(thumbnails=thumbnails)
+        self.raw = get_gallery_html_markup().substitute(thumbnails=thumbnails)
 
         fd = open(self.loader_filename, 'a')
         fd.write(self.raw)
@@ -413,33 +414,11 @@ def make_standalone_colorbar(vmin, vmax, colorbar_outfile=None):
     return cb
 
 
-def SUBJECT_PREPROC_REPORT_HTML_TEMPLATE():
-    """
-    Report template for subject preproc.
+def get_subject_report_log_html_template():
+    """Returns html template (string) for subject log report
 
     """
 
-    with open(os.path.join(ROOT_DIR, 'template_reports',
-                           'subject_preproc_report_template.tmpl.html')) as fd:
-        _text = fd.read()
-        return tempita.HTMLTemplate(_text)
-
-
-def DATASET_PREPROC_REPORT_HTML_TEMPLATE():
-    """
-    Returns report template for dataset preproc.
-
-    """
-    with open(os.path.join(ROOT_DIR, 'template_reports',
-                           'dataset_preproc_report_template.tmpl.html')) as fd:
-        _text = fd.read()
-        return tempita.HTMLTemplate(_text)
-
-
-def FSL_SUBJECT_REPORT_LOG_HTML_TEMPLATE():
-    """
-
-    """
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
             'fsl_subject_report_log_template.tmpl.html')) as fd:
@@ -447,10 +426,11 @@ def FSL_SUBJECT_REPORT_LOG_HTML_TEMPLATE():
         return tempita.HTMLTemplate(_text)
 
 
-def FSL_SUBJECT_REPORT_HTML_TEMPLATE():
-    """
+def get_subject_report_html_template():
+    """Returns html tamplate (string) for subject report (page de garde)
 
     """
+
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
                            'fsl_subject_report_template.tmpl.html')) as fd:
@@ -458,10 +438,11 @@ def FSL_SUBJECT_REPORT_HTML_TEMPLATE():
         return tempita.HTMLTemplate(_text)
 
 
-def FSL_SUBJECT_REPORT_PREPROC_HTML_TEMPLATE():
-    """
+def get_subject_report_preproc_html_template():
+    """Returns html template (string) for subject preproc report page
 
     """
+
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
             'fsl_subject_report_preproc_template.tmpl.html')) as fd:
@@ -469,8 +450,8 @@ def FSL_SUBJECT_REPORT_PREPROC_HTML_TEMPLATE():
         return tempita.HTMLTemplate(_text)
 
 
-def FSL_SUBJECT_REPORT_STATS_HTML_TEMPLATE():
-    """
+def get_subject_report_stats_html_template():
+    """Returns html template (string) for subject stats report page
 
     """
     with open(os.path.join(
@@ -480,10 +461,11 @@ def FSL_SUBJECT_REPORT_STATS_HTML_TEMPLATE():
         return tempita.HTMLTemplate(_text)
 
 
-def FSL_DATASET_REPORT_HTML_TEMPLATE():
-    """
+def get_dataset_report_html_template():
+    """Returns html template (string) for dataset report page (page de garde)
 
     """
+
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
                            'fsl_dataset_report_template.tmpl.html')) as fd:
@@ -491,10 +473,11 @@ def FSL_DATASET_REPORT_HTML_TEMPLATE():
         return tempita.HTMLTemplate(_text)
 
 
-def FSL_DATASET_REPORT_PREPROC_HTML_TEMPLATE():
-    """
+def get_dataset_report_preproc_html_template():
+    """Returns html template (string) for dataset preproc report page
 
     """
+
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
             'fsl_dataset_report_preproc_template.tmpl.html')) as fd:
@@ -502,10 +485,11 @@ def FSL_DATASET_REPORT_PREPROC_HTML_TEMPLATE():
         return tempita.HTMLTemplate(_text)
 
 
-def FSL_DATASET_REPORT_STATS_HTML_TEMPLATE():
-    """
+def get_dataset_report_stats_html_template():
+    """Returns html template (string) for dataset stats report page
 
     """
+
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
             'fsl_dataset_report_stats_template.tmpl.html')) as fd:
@@ -513,10 +497,11 @@ def FSL_DATASET_REPORT_STATS_HTML_TEMPLATE():
         return tempita.HTMLTemplate(_text)
 
 
-def FSL_DATASET_REPORT_LOG_HTML_TEMPLATE():
-    """
+def get_dataset_report_log_html_template():
+    """Returns html template (string) for dataset log report page
 
     """
+
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
             'fsl_dataset_report_log_template.tmpl.html')) as fd:
