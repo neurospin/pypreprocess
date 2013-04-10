@@ -5,9 +5,10 @@ import nibabel
 import numpy as np
 import nipy.labs.statistical_mapping as sm
 from nipy.modalities.fmri.design_matrix import DesignMatrix
-from base_reporter import *
+import base_reporter
 import shutil
 import inspect
+import time
 
 
 def generate_level1_stats_table(zmap, mask,
@@ -215,23 +216,26 @@ def generate_subject_stats_report(
 
     # prepare for stats reporting
     if progress_logger is None:
-        progress_logger = ProgressReport()
+        progress_logger = base_reporter.ProgressReport()
 
     output_dir = os.path.dirname(stats_report_filename)
 
     # copy css and js stuff to output dir
-    shutil.copy(os.path.join(ROOT_DIR, "js/jquery.min.js"), output_dir)
-    shutil.copy(os.path.join(ROOT_DIR, "js/base.js"), output_dir)
-    shutil.copy(os.path.join(ROOT_DIR, "css/fsl.css"), output_dir)
+    shutil.copy(os.path.join(base_reporter.ROOT_DIR,
+                             "js/jquery.min.js"), output_dir)
+    shutil.copy(os.path.join(base_reporter.ROOT_DIR, "js/base.js"),
+                output_dir)
+    shutil.copy(os.path.join(base_reporter.ROOT_DIR,
+                             "css/fsl.css"), output_dir)
 
     # initialize gallery of design matrices
-    design_thumbs = ResultsGallery(
+    design_thumbs = base_reporter.ResultsGallery(
         loader_filename=os.path.join(output_dir,
                                      "design.html")
         )
 
     # initialize gallery of activation maps
-    activation_thumbs = ResultsGallery(
+    activation_thumbs = base_reporter.ResultsGallery(
         loader_filename=os.path.join(output_dir,
                                      "activation.html")
         )
@@ -240,13 +244,14 @@ def generate_subject_stats_report(
     frm = inspect.stack()[1]
     caller_module = inspect.getmodule(frm[0])
     caller_script_name = caller_module.__file__
-    caller_source_code = get_module_source_code(caller_script_name)
+    caller_source_code = base_reporter.get_module_source_code(
+        caller_script_name)
 
     methods = """
     GLM and Statistical Inference have been done using the <i>%s</i> script, \
 powered by <a href="%s">nipy</a>. Statistic images have been thresholded at \
 Z>%s voxel-level.
-    """ % (caller_script_name, NIPY_URL, threshold)
+    """ % (caller_script_name, base_reporter.NIPY_URL, threshold)
 
     # report the control parameters used in the paradigm and analysis
     design_params = ""
@@ -255,7 +260,7 @@ Z>%s voxel-level.
                     " specifying the experimental paradigm and fitting the "
                     "GLM:<br/><ul>")
 
-        design_params += dict_to_html_ul(glm_kwargs)
+        design_params += base_reporter.dict_to_html_ul(glm_kwargs)
 
     if start_time is None:
         start_time = time.ctime()
@@ -264,7 +269,7 @@ Z>%s voxel-level.
     if not subject_id is None:
         report_title += " for subject %s" % subject_id
 
-    level1_html_markup = get_subject_report_stats_html_template(
+    level1_html_markup = base_reporter.get_subject_report_stats_html_template(
         ).substitute(
         title=report_title,
         start_time=start_time,
@@ -312,9 +317,9 @@ Z>%s voxel-level.
                                         )
             pl.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
 
-            thumb = Thumbnail()
-            thumb.a = a(href=os.path.basename(dmat_outfile))
-            thumb.img = img(src=os.path.basename(dmat_outfile),
+            thumb = base_reporter.Thumbnail()
+            thumb.a = base_reporter.a(href=os.path.basename(dmat_outfile))
+            thumb.img = base_reporter.img(src=os.path.basename(dmat_outfile),
                                      height="500px",
                                      )
             thumb.description = "Design Matrix"
@@ -328,7 +333,8 @@ Z>%s voxel-level.
     # the correct end points) for activations
     colorbar_outfile = os.path.join(output_dir,
                                     'activation_colorbar.png')
-    make_standalone_colorbar(cmap, threshold, 8., colorbar_outfile)
+    base_reporter.make_standalone_colorbar(
+        cmap, threshold, 8., colorbar_outfile)
 
     # create activation thumbs
     _vmax = 0
@@ -388,9 +394,9 @@ Z>%s voxel-level.
                                    "%s_stats_table.html" % contrast_id)
 
         # create thumbnail for activation
-        thumbnail = Thumbnail()
-        thumbnail.a = a(href=os.path.basename(stats_table))
-        thumbnail.img = img(
+        thumbnail = base_reporter.Thumbnail()
+        thumbnail.a = base_reporter.a(href=os.path.basename(stats_table))
+        thumbnail.img = base_reporter.img(
             src=os.path.basename(z_map_plot), height="200px",)
         thumbnail.description = "%s contrast: %s" % (contrast_id, contrast_val)
         activation_thumbs.commit_thumbnails(thumbnail)
@@ -405,7 +411,7 @@ Z>%s voxel-level.
             )
 
     # make colorbar for activations
-    make_standalone_colorbar(
+    base_reporter.make_standalone_colorbar(
         cmap, _vmin, _vmax, colorbar_outfile)
 
     # we're done, shut down re-loaders
