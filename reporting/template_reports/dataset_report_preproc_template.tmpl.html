@@ -9,21 +9,22 @@
 {{default source_code = None}}
 {{default preproc_params = None}}
 
+
 <html>
   <head>
     <!--refreshstart-->
     <meta http-equiv=refresh content={{results.refresh_timeout}}>
       <!--refreshstop-->
-      <link rel=stylesheet type=text/css href="{{conf_path}}/fsl.css">
+      <link rel=stylesheet type=text/css href="{{conf_path}}/styles.css">
 	<title>fMRI report</title>
   </head>
 
   <body>
 
     <object data=report.html></object>
-    <h2>Dataset description</h2>
-    {{dataset_description | html}}
-    <hr/>
+    <!-- <h2>Dataset description</h2> -->
+    <!-- {{dataset_description | html}} -->
+    <!-- <hr/> -->
 
     <h2>Data pre-preprocessing</h2>
     Started: {{start_time}}
@@ -70,6 +71,24 @@
     <script type="text/javascript" src="{{conf_path}}/jquery.min.js"></script>
     <script type="text/javascript" src="{{conf_path}}/base.js"></script>
     <script type="text/javascript">
+      $(function(){
+      $('li')
+      .css('pointer','default')
+      .css('list-style-image','none');
+      $('li:has(ul)')
+      .click(function(event){
+      if (this == event.target) {
+      $(this).css('list-style-image',
+      (!$(this).children().is(':hidden')) ? 'url(plusbox.gif)' : 'url(minusbox.gif)');
+      $(this).children().toggle('slow');
+      }
+      return false;
+			})
+      .css({cursor:'pointer', 'list-style-image':'url(plusbox.gif)'})
+      .children().hide();
+      $('li:not(:has(ul))').css({cursor:'default', 'list-style-image':'none'});
+      });
+
       $(function(){
       $("#sourcecode a.sourcecodeanchor").click(function(){
       $(this).toggleText("View", "Hide").next().toggle();

@@ -10,7 +10,7 @@
     <!--refreshstart-->
     <meta http-equiv=refresh content={{results.refresh_timeout}}>
       <!--refreshstop-->
-      <link rel=stylesheet type=text/css href="{{conf_path}}/fsl.css">
+      <link rel=stylesheet type=text/css href="{{conf_path}}/styles.css">
       <title>fMRI report</title>
   </head>
 
@@ -44,7 +44,26 @@
 
     <!-- It's time for javascript, folks -->
     <script type="text/javascript" src="{{conf_path}}/jquery.min.js"></script>
-    <script type='text/javascript'>
+    <script type="text/javascript" src="{{conf_path}}/base.js"></script>
+    <script type="text/javascript">
+      $(function(){
+      $('li')
+      .css('pointer','default')
+      .css('list-style-image','none');
+      $('li:has(ul)')
+      .click(function(event){
+      if (this == event.target) {
+      $(this).css('list-style-image',
+      (!$(this).children().is(':hidden')) ? 'url(plusbox.gif)' : 'url(minusbox.gif)');
+      $(this).children().toggle('slow');
+      }
+      return false;
+			})
+      .css({cursor:'pointer', 'list-style-image':'url(plusbox.gif)'})
+      .children().hide();
+      $('li:not(:has(ul))').css({cursor:'default', 'list-style-image':'none'});
+      });
+      
       $(document).ready(function(){
       {{py: import os; loader=os.path.basename(results.loader_filename);}}
       $('#results').load("{{loader}}").fadeIn("slow");
