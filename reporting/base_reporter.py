@@ -10,6 +10,7 @@ XXX Write test(case)s for this module
 import os
 import re
 import glob
+import shutil
 import time
 import matplotlib as mpl
 import pylab as pl
@@ -52,17 +53,14 @@ def lines2breaks(lines, delimiter="\n", number_lines=False):
     if isinstance(lines, basestring):
         lines = lines.split(delimiter)
 
-    n_lines = len(lines)
-
     if not number_lines:
-            lines = ["<pre>%s</pre>" % line for line in lines]
+        lines = ["%s" % line for line in lines]
+        output = "<pre>%s</pre>" % "".join(lines)
     else:
-        lines = ["%i.\t<pre>%s</pre>" % (linum + 1, line)
-                 for linum, line in zip(xrange(n_lines), lines)]
+        lines = ["<li>%s</li>" % line for line in lines]
+        output = "<ol><pre>" + "".join(lines) + "</pre></ol>"
 
-    log = "<br>".join(lines)
-
-    return tempita.HTMLTemplate(log).content
+    return output
 
 
 def dict_to_html_ul(mydict):
@@ -83,11 +81,18 @@ def dict_to_html_ul(mydict):
     html_ul = ""
 
     def make_li(stuff):
+        # handle dict type
         if isinstance(stuff, dict):
             val = "<ul>"
             for _k, _v in stuff.iteritems():
                 val += "<li>%s: %s</li>" % (_k, make_li(_v))
             val += "</ul>"
+        # handle tuple type
+        elif isinstance(stuff, tuple):
+            return '<ul type="none"><li>%s</li></ul>' % tuple(stuff)
+        # handle array-like type type
+        elif isinstance(stuff, list) or hasattr(stuff, "tolist"):
+            return '<ul type="none"><li>%s</li></ul>' % list(stuff)
         else:
             # XXX handle other bundled types which are not necessarily
             # dict-like!!!
@@ -411,7 +416,9 @@ def make_standalone_colorbar(cmap, vmin, vmax, colorbar_outfile=None):
     cb = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
                                    norm=norm,
                                    orientation='horizontal')
-    pl.savefig(colorbar_outfile)
+
+    # save colorbar
+    pl.savefig(colorbar_outfile, bbox_inches='tight')
 
     return cb
 
@@ -423,7 +430,7 @@ def get_subject_report_log_html_template():
 
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
-            'fsl_subject_report_log_template.tmpl.html')) as fd:
+            'subject_report_log_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
 
@@ -435,7 +442,7 @@ def get_subject_report_html_template():
 
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
-                           'fsl_subject_report_template.tmpl.html')) as fd:
+                           'subject_report_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
 
@@ -447,7 +454,7 @@ def get_subject_report_preproc_html_template():
 
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
-            'fsl_subject_report_preproc_template.tmpl.html')) as fd:
+            'subject_report_preproc_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
 
@@ -458,7 +465,7 @@ def get_subject_report_stats_html_template():
     """
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
-            'fsl_subject_report_stats_template.tmpl.html')) as fd:
+            'subject_report_stats_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
 
@@ -470,7 +477,7 @@ def get_dataset_report_html_template():
 
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
-                           'fsl_dataset_report_template.tmpl.html')) as fd:
+                           'dataset_report_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
 
@@ -482,7 +489,7 @@ def get_dataset_report_preproc_html_template():
 
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
-            'fsl_dataset_report_preproc_template.tmpl.html')) as fd:
+            'dataset_report_preproc_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
 
@@ -494,7 +501,7 @@ def get_dataset_report_stats_html_template():
 
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
-            'fsl_dataset_report_stats_template.tmpl.html')) as fd:
+            'dataset_report_stats_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
 
@@ -506,6 +513,22 @@ def get_dataset_report_log_html_template():
 
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
-            'fsl_dataset_report_log_template.tmpl.html')) as fd:
+            'dataset_report_log_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
+
+
+def copy_web_conf_files(output_dir):
+    """Function to copy css, js, icon files to given directory.
+
+    """
+
+    for js_file in glob.glob(os.path.join(ROOT_DIR,
+                                          "js/*.js")):
+        shutil.copy(js_file, output_dir)
+    for css_file in glob.glob(os.path.join(ROOT_DIR,
+                                          "css/*.css")):
+        shutil.copy(css_file, output_dir)
+    for icon_file in glob.glob(os.path.join(ROOT_DIR,
+                                          "icons/*.gif")):
+        shutil.copy(icon_file, output_dir)

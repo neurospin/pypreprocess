@@ -1,4 +1,5 @@
 import os
+import sys
 import pylab as pl
 from nipy.labs import viz
 import nibabel
@@ -6,40 +7,59 @@ import numpy as np
 import nipy.labs.statistical_mapping as sm
 from nipy.modalities.fmri.design_matrix import DesignMatrix
 import base_reporter
-import shutil
-import inspect
 import time
 
 
 def generate_level1_stats_table(zmap, mask,
-                           output_html_path,
-                           title=None,
-                           threshold=0.001,
-                           method='fpr', cluster_th=0, null_zmax='bonferroni',
-                           null_smax=None, null_s=None, nmaxima=4,
-                           cluster_pval=.05):
-    """
+                                output_html_path,
+                                p_threshold=.001,
+                                z_threshold=None,
+                                method='fpr',
+                                cluster_th=15,
+                                null_zmax='bonferroni',
+                                null_smax=None,
+                                null_s=None,
+                                nmaxima=4,
+                                cluster_pval=.05,
+                                title=None,
+                                ):
+    """Function to generate level 1 stats table for a contrast.
+
     Parameters
     ----------
     zmap: image object
         z-map data image
+
     mask: image object or string
         brain mask defining ROI
-    output_html_path, string,
-                      path where the output html should be written
-    threshold, float, optional
-               (p-variate) frequentist threshold of the activation image
-    method, string, optional
-            to be chosen as height_control in
-            nipy.labs.statistical_mapping
-    cluster_th, scalar, optional,
-             cluster size threshold
-    null_zmax: optional,
-               parameter for cluster level statistics (?)
-    null_s: optional,
-             parameter for cluster level statistics (?)
-    nmaxima: optional,
-             number of local maxima reported per supra-threshold cluster
+
+    output_html_path: string,
+        path where the output html should be written
+
+    p_threshold: float (optional, default .001)
+        (p-variate) frequentist threshold of the activation image
+
+    z_threshold: float (optional, default None)
+        Threshold that has been applied to Z map (input z_map)
+
+    method: string (optional, default 'fpr')
+        to be chosen as height_control in nipy.labs.statistical_mapping
+
+    cluster_th: int (optional, default 15)
+        cluster size threshold (in # voxels)
+
+    null_zmax: string (optional, default 'bonferroni')
+        parameter for cluster level statistics (?)
+
+    null_s: strint (optional, default None)
+        parameter for cluster level statistics (?)
+
+    nmaxima: int (optional, default 4)
+        number of local maxima reported per supra-threshold cluster
+
+    title: string (optional)
+        title of generated stats table
+
     """
 
     # sanity
@@ -62,18 +82,18 @@ def generate_level1_stats_table(zmap, mask,
         clusters, info = sm.cluster_stats(zmap, mask, height_th=threshold,
                                           height_control=method.lower(),
                                           cluster_th=cluster_th, nulls=nulls)
-
     """
 
     # do some sanity checks
     if title is None:
         title = "Level 1 Statistics"
 
-    if cluster_th > 0:
-        title += " (clusters with < %i voxels not shown)" % cluster_th
+    # clusters, info = sm.cluster_stats(zmap, mask, height_th=p_threshold,
+    #                                   nulls=nulls, cluster_th=cluster_th,)
 
-    clusters, info = sm.cluster_stats(zmap, mask, height_th=threshold,
+    clusters, _ = sm.cluster_stats(zmap, mask, height_th=p_threshold,
                                       nulls=nulls, cluster_th=cluster_th,)
+
     if clusters is not None:
         clusters = [c for c in clusters if c['cluster_pvalue'] < cluster_pval]
 
@@ -120,16 +140,14 @@ def generate_level1_stats_table(zmap, mask,
     nvox = sum([clusters[k]['size'] for k in range(nclust)])
 
     page.write("</table>\n")
+    page.write("Threshold Z: %.2f (%s control at %.3f)<br/>\n" \
+                   % (z_threshold, method, p_threshold))
+    page.write("Cluster level p-value threshold: %s<br/>\n" % cluster_pval)
+    page.write("Cluster size threshold: %i voxels<br/>\n" % cluster_th)
     page.write("Number of voxels: %i<br>\n" % nvox)
     page.write("Number of clusters: %i<br>\n" % nclust)
 
-    if info is not None:
-        page.write("Threshold Z = %.2f (%s control at %.3f)<br>\n" \
-                     % (info['threshold_z'], method, threshold))
-        page.write("Cluster size threshold p<%s" % cluster_pval)
-    else:
-        page.write("Cluster size threshold = %i voxels" % cluster_th)
-
+    # finish up
     page.write("</center>\n")
     page.close()
 
@@ -139,7 +157,7 @@ def generate_subject_stats_report(
     contrasts,
     z_maps,
     mask,
-    design_matrix=None,
+    design_matrices=None,
     subject_id=None,
     anat=None,
     anat_affine=None,
@@ -147,6 +165,7 @@ def generate_subject_stats_report(
     cluster_th=0,
     cmap=viz.cm.cold_hot,
     start_time=None,
+    user_script_name=None,
     progress_logger=None,
     shutdown_all_reloaders=True,
     **glm_kwargs
@@ -168,9 +187,9 @@ def generate_subject_stats_report(
     mask: 'nifti image object'
         brain mask for ROI
 
-    design_matrix: 'DesignMatrix' or np.lib.io.Npz containing such, or list
-    of these
-        design matrix(ces) for the experimental conditions
+    design_matrix: list of 'DesignMatrix', `numpy.ndarray` objects or of
+    strings (.png, .npz, etc.) for filenames
+        design matrices for the experimental conditions
 
     contrasts: dict of arrays
        dictionary of contrasts of interest; the keys are the contrast ids,
@@ -196,9 +215,12 @@ def generate_subject_stats_report(
     cmap: cmap object (default viz.cm.cold_hot)
         color-map to use in plotting activation maps
 
-    start_time: string (optiona)
+    start_time: string (optional)
         start time for the stats analysis (useful for the generated
         report page)
+
+    user_script_name: string (optional, default None)
+        existing filename, path to user script used in doing the analysis
 
     progress_logger: ProgressLogger object (optional)
         handle for logging progress
@@ -221,12 +243,7 @@ def generate_subject_stats_report(
     output_dir = os.path.dirname(stats_report_filename)
 
     # copy css and js stuff to output dir
-    shutil.copy(os.path.join(base_reporter.ROOT_DIR,
-                             "js/jquery.min.js"), output_dir)
-    shutil.copy(os.path.join(base_reporter.ROOT_DIR, "js/base.js"),
-                output_dir)
-    shutil.copy(os.path.join(base_reporter.ROOT_DIR,
-                             "css/fsl.css"), output_dir)
+    base_reporter.copy_web_conf_files(output_dir)
 
     # initialize gallery of design matrices
     design_thumbs = base_reporter.ResultsGallery(
@@ -241,17 +258,16 @@ def generate_subject_stats_report(
         )
 
     # get caller module handle from stack-frame
-    frm = inspect.stack()[1]
-    caller_module = inspect.getmodule(frm[0])
-    caller_script_name = caller_module.__file__
-    caller_source_code = base_reporter.get_module_source_code(
-        caller_script_name)
+    if user_script_name is None:
+        user_script_name = sys.argv[0]
+    user_source_code = base_reporter.get_module_source_code(
+        user_script_name)
 
     methods = """
     GLM and Statistical Inference have been done using the <i>%s</i> script, \
 powered by <a href="%s">nipy</a>. Statistic images have been thresholded at \
 Z>%s voxel-level.
-    """ % (caller_script_name, base_reporter.NIPY_URL, threshold)
+    """ % (user_script_name, base_reporter.NIPY_URL, threshold)
 
     # report the control parameters used in the paradigm and analysis
     design_params = ""
@@ -276,8 +292,8 @@ Z>%s voxel-level.
         subject_id=subject_id,
 
         # insert source code stub
-        source_script_name=caller_script_name,
-        source_code=caller_source_code,
+        source_script_name=user_script_name,
+        source_code=user_source_code,
 
         design_params=design_params,
         methods=methods,
@@ -290,27 +306,36 @@ Z>%s voxel-level.
     progress_logger.log("<b>Level 1 statistics</b><br/><br/>")
 
     # create design matrix thumbs
-    design_matrices = design_matrix
     if not design_matrices is None:
-        if not isinstance(design_matrices, list):
-            design_matrices = [design_matrices]
-
         for design_matrix, j in zip(design_matrices,
                                     xrange(len(design_matrices))):
-            if not isinstance(design_matrix, DesignMatrix):
-                if design_matrix.endswith('.npz'):
-                    npz = np.load(design_matrix)
-                    design_matrix = DesignMatrix(npz['X'],
-                                                 npz['conditions'],
-                                                 )
+            # sanitize design_matrix type
+            if isinstance(design_matrix, basestring):
+                if not isinstance(design_matrix, DesignMatrix):
+                    if design_matrix.endswith('.npz'):
+                        npz = np.load(design_matrix)
+                        design_matrix = DesignMatrix(npz['X'],
+                                                     npz['conditions'],
+                                                     )
                 else:
-                    # XXX handle other dmat formats like ndarrays, etc.
-                    raise TypeError(("Design matric format unknown; "
-                                     "must be DesignMatrix object or"
-                                     " .npz file containing such object"),
-                                    )
+                    # XXX handle case of .png, jpeg design matrix image
+                    raise TypeError(
+                        "Unsupported design matrix type '%'" % type(
+                            design_matrix))
+            elif isinstance(design_matrix, np.ndarray) or isinstance(
+                design_matrix,
+                list):
+                X = np.array(design_matrix)
+                assert len(X.shape) == 2
+                conditions = ['%i' % i for i in xrange(X.shape[-1])]
+                design_matrix = DesignMatrix(X, conditions)
+            # else:
+            #     raise TypeError(
+            #         "Unsupported design matrix type '%s'" % type(
+            #             design_matrix))
 
-            ax = design_matrix.show()
+            # plot design_matrix proper
+            ax = design_matrix.show(rescale=True)
             ax.set_position([.05, .25, .9, .65])
             dmat_outfile = os.path.join(output_dir,
                                         'design_matrix_%i.png' % (j + 1),
@@ -406,8 +431,9 @@ Z>%s voxel-level.
         generate_level1_stats_table(
             z_map, mask,
             stats_table,
-            title=title,
             cluster_th=cluster_th,
+            z_threshold=threshold,
+            title=title,
             )
 
     # make colorbar for activations

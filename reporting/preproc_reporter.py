@@ -7,6 +7,8 @@
 
 import sys
 import os
+import glob
+import re
 import shutil
 import commands
 import time
@@ -18,7 +20,7 @@ import json
 
 import check_preprocessing
 import io_utils
-from base_reporter import *
+import base_reporter
 
 # set templates
 SPM_DIR = '/i2bm/local/spm8'
@@ -40,6 +42,109 @@ CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
 # extention of web-related files (increment this as we support more
 # and more file extensions for web business)
 WEBBY_EXTENSION_PATTERN = ".*\.(?:png|jpeg|html|php|css|txt|rst)$"
+
+
+def generate_preproc_undergone_docstring(
+    do_deleteorient=False,
+    fwhm=None,
+    do_bet=False,
+    do_slicetiming=False,
+    do_realign=True,
+    do_coreg=True,
+    coreg_func_to_anat=False,
+    do_segment=True,
+    do_normalize=True):
+    preproc_undergone = """\
+    <p>All preprocessing has been done using <a href="%s">pypreprocess</a>,
+    which is powered by <a href="%s">nipype</a>, and <a href="%s">SPM8</a>.
+    </p>""" % (base_reporter.PYPREPROCESS_URL,
+               base_reporter.NIPYPE_URL, base_reporter.SPM8_URL)
+
+    preproc_undergone += "<ul>"
+    if do_deleteorient:
+        preproc_undergone += (
+            "<li>"
+            "Orientation-specific meta-data in the image headers have "
+            "been suspected as garbage and stripped-off to prevent severe "
+            "mis-registration problems."
+            "</li>")
+    if do_bet:
+        preproc_undergone += (
+            "<li>"
+            "Brain extraction has been applied to strip-off the skull"
+            " and other non-brain tissues. This prevents later "
+            "registration problems like the skull been (mis-)aligned "
+            "unto the cortical surface, "
+            "etc.</li>")
+    if do_slicetiming:
+        preproc_undergone += (
+            "<li>"
+            "Slice-timing has been done to interpolate the BOLD signal in "
+            "time,"
+            " so that we can safely pretend all 3D volumes within a TR were "
+            "acquired simultaneously, an assumption crusial to the GLM "
+            " and inference stages."
+            "</li>"
+            )
+    if do_realign:
+        preproc_undergone += (
+            "<li>"
+            "Motion correction has been done so as to correct for "
+            "subject's head motion during the acquisition."
+            "</li>"
+            )
+    if do_coreg:
+        preproc_undergone += "<li>"
+        if not coreg_func_to_anat:
+            preproc_undergone += (
+                "The subject's anatomical image has been coregistered "
+                "against their fMRI images (precisely, to the mean thereof). "
+                )
+        else:
+            preproc_undergone += (
+            "The subject's anatomical image has been coregistered "
+            "against their fMRI images (precisely, to the mean thereof). "
+                )
+        preproc_undergone += (
+            "Coregistration is important as it allows deformations of the "
+            "anatomy to be directly applicable to the fMRI, or for ROIs "
+            "to be defined on the anatomy."
+            "</li>")
+    if do_segment:
+        preproc_undergone += (
+            "<li>"
+            "Tissue Segmentation has been employed to segment the "
+            "anatomical image into GM, WM, and CSF compartments by using "
+            "TPMs (Tissue Probability Maps) as priors.</li>")
+    if do_normalize:
+        if do_segment:
+            preproc_undergone += (
+                "<li>"
+                "The segmented anatomical image has been warped "
+                "into the MNI template space by applying the deformations "
+                "learnt during segmentation. The same deformations have been"
+                " applied to the fMRI images.</li>")
+        else:
+            if do_coreg:
+                preproc_undergone += (
+                    "<li>"
+                    "Deformations from native to standard space have been "
+                    "learnt on the anatomically brain. These deformations "
+                    "have been used to warp the fMRI into standard space."
+                    "</li>")
+            else:
+                preproc_undergone += (
+                "<li>"
+                "The fMRI images have been warped from native to standard "
+                "space via classical normalization.</li>")
+    if fwhm:
+        preproc_undergone += (
+            "<li>"
+            "The normalized fMRI images have been "
+            "smoothed with a %smm x %smm x %smm "
+            "Gaussian kernel.</li>") % tuple(fwhm)
+
+    return preproc_undergone
 
 
 def del_empty_dirs(s_dir):
@@ -113,33 +218,19 @@ def export_report(src, tag="", make_archive=True):
         print "+++++++Done."
 
 
-def lines2breaks(lines):
-    """
-    Converts line breaks to HTML breaks.
-
-    """
-
-    if isinstance(lines, basestring):
-        lines = lines.split('\n')
-
-    log = "<br>".join(lines)
-
-    return tempita.HTMLTemplate(log).content
-
-
 def nipype2htmlreport(nipype_report_filename):
     """
     Converts a nipype.caching report (.rst) to html.
 
     """
     with open(nipype_report_filename, 'r') as fd:
-        return lines2breaks(fd.readlines())
+        return base_reporter.lines2breaks(fd.readlines())
 
 
 def generate_normalization_thumbnails(
     normalized_files,
     output_dir,
-    brain="epi",
+    brain="EPI",
     cmap=None,
     results_gallery=None,
     progress_logger=None,
@@ -173,11 +264,16 @@ def generate_normalization_thumbnails(
             "_report/report.rst")
         normalized = normalized_files
     else:
-        brain = "mean" + brain
+        brain = "mean " + brain
 
-        nipype_report_filename = os.path.join(
-            os.path.dirname(normalized_files[0]),
-            "_report/report.rst")
+        if isinstance(normalized_files[0], basestring):
+            nipype_report_filename = os.path.join(
+                os.path.dirname(normalized_files[0]),
+                "_report/report.rst")
+        else:
+            nipype_report_filename = os.path.join(
+                os.path.dirname(normalized_files[0][0]),
+                "_report/report.rst")
 
         mean_normalized_img = io_utils.compute_mean_3D_image(normalized_files)
         normalized = mean_normalized_img
@@ -232,9 +328,9 @@ def generate_normalization_thumbnails(
 
     # create thumbnail
     if results_gallery:
-        thumbnail = Thumbnail()
-        thumbnail.a = a(href=os.path.basename(outline))
-        thumbnail.img = img(
+        thumbnail = base_reporter.Thumbnail()
+        thumbnail.a = base_reporter.a(href=os.path.basename(outline))
+        thumbnail.img = base_reporter.img(
             src=os.path.basename(outline), height="250px")
         thumbnail.description = thumb_desc
 
@@ -275,9 +371,9 @@ def generate_normalization_thumbnails(
 
     # create thumbnail
     if results_gallery:
-        thumbnail = Thumbnail()
-        thumbnail.a = a(href=os.path.basename(outline))
-        thumbnail.img = img(
+        thumbnail = base_reporter.Thumbnail()
+        thumbnail.a = base_reporter.a(href=os.path.basename(outline))
+        thumbnail.img = base_reporter.img(
             src=os.path.basename(outline), height="250px")
         thumbnail.description = thumb_desc
 
@@ -292,7 +388,7 @@ def generate_segmentation_thumbnails(
     subject_gm_file=None,
     subject_wm_file=None,
     subject_csf_file=None,
-    brain='epi',
+    brain='EPI',
     cmap=None,
     results_gallery=None,
     progress_logger=None):
@@ -322,7 +418,7 @@ def generate_segmentation_thumbnails(
     cmap: optional
         cmap (color map) to use for plots
 
-    result_gallery: ResultsGallery instance (optional)
+    result_gallery: base_reporter.ResultsGallery instance (optional)
         gallery to which thumbnails will be committed
 
     """
@@ -338,15 +434,19 @@ def generate_segmentation_thumbnails(
             "_report/report.rst")
         normalized_file = normalized_files
     else:
-        brain = "mean" + brain
+        brain = "mean " + brain
 
-        nipype_report_filename = os.path.join(
-            os.path.dirname(normalized_files[0]),
-            "_report/report.rst")
+        if isinstance(normalized_files[0], basestring):
+            nipype_report_filename = os.path.join(
+                os.path.dirname(normalized_files[0]),
+                "_report/report.rst")
+        else:
+            nipype_report_filename = os.path.join(
+                os.path.dirname(normalized_files[0][0]),
+                "_report/report.rst")
 
-        mean_normalized_file = os.path.join(
-            os.path.dirname(normalized_files[0]),
-            "mean%s.nii" % brain)
+        mean_normalized_file = os.path.join(output_dir,
+                                            "%s.nii" % brain)
 
         io_utils.compute_mean_3D_image(normalized_files,
                            output_filename=mean_normalized_file)
@@ -407,10 +507,10 @@ def generate_segmentation_thumbnails(
 
     # create thumbnail
     if results_gallery:
-        thumbnail = Thumbnail()
-        thumbnail.a = a(
+        thumbnail = base_reporter.Thumbnail()
+        thumbnail.a = base_reporter.a(
             href=os.path.basename(template_compartments_contours))
-        thumbnail.img = img(
+        thumbnail.img = base_reporter.img(
             src=os.path.basename(template_compartments_contours),
             height="250px")
         thumbnail.description = thumb_desc
@@ -453,10 +553,10 @@ def generate_segmentation_thumbnails(
 
         # create thumbnail
         if results_gallery:
-            thumbnail = Thumbnail()
-            thumbnail.a = a(
+            thumbnail = base_reporter.Thumbnail()
+            thumbnail.a = base_reporter.a(
                 href=os.path.basename(subject_compartments_contours))
-            thumbnail.img = img(
+            thumbnail.img = base_reporter.img(
                 src=os.path.basename(subject_compartments_contours),
                 height="250px")
             thumbnail.description = thumb_desc
@@ -492,7 +592,7 @@ def generate_cv_tc_thumbnail(
     sessions: list
         list of session ids, one per element of image_files
 
-    result_gallery: ResultsGallery instance (optional)
+    result_gallery: base_reporter.ResultsGallery instance (optional)
         gallery to which thumbnails will be committed
 
     """
@@ -510,6 +610,7 @@ def generate_cv_tc_thumbnail(
 
     assert len(sessions) == len(image_files)
 
+    print "#", output_dir
     cv_tc_plot_output_file = os.path.join(
         output_dir,
         "cv_tc_plot.png")
@@ -519,14 +620,15 @@ def generate_cv_tc_thumbnail(
         image_files,
         sessions,
         subject_id,
+        output_dir=output_dir,
         cv_tc_plot_outfile=cv_tc_plot_output_file,
         plot_diff=True)
 
     # create thumbnail
-    thumbnail = Thumbnail()
-    thumbnail.a = a(
+    thumbnail = base_reporter.Thumbnail()
+    thumbnail.a = base_reporter.a(
         href=os.path.basename(cv_tc_plot_output_file))
-    thumbnail.img = img(
+    thumbnail.img = base_reporter.img(
         src=os.path.basename(cv_tc_plot_output_file), height="250px",
         width="600px")
     thumbnail.description = "Coefficient of Variation (%d sessions)"\
@@ -579,9 +681,9 @@ def generate_realignment_thumbnails(
 
         # create thumbnail
         if results_gallery:
-            thumbnail = Thumbnail()
-            thumbnail.a = a(href=os.path.basename(rp_plot))
-            thumbnail.img = img(src=os.path.basename(rp_plot),
+            thumbnail = base_reporter.Thumbnail()
+            thumbnail.a = base_reporter.a(href=os.path.basename(rp_plot))
+            thumbnail.img = base_reporter.img(src=os.path.basename(rp_plot),
                                          height="250px",
                                          width="600px")
             thumbnail.description = "Motion Correction"
@@ -614,11 +716,15 @@ def generate_subject_preproc_report(
 
     output = {}
 
+    # sanity
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     def finalize_report():
         output['final_thumbnail'] = final_thumbnail
 
         if parent_results_gallery:
-            commit_subject_thumnbail_to_parent_gallery(
+            base_reporter.commit_subject_thumnbail_to_parent_gallery(
                 final_thumbnail,
                 subject_id,
                 parent_results_gallery)
@@ -631,8 +737,8 @@ def generate_subject_preproc_report(
         preproc_undergone = """\
 <p>All preprocessing has been done using <a href="%s">pypreprocess</a>,
  which is powered by <a href="%s">nipype</a>, and <a href="%s">SPM8</a>.
-</p>""" % (PYPREPROCESS_URL,
-           NIPYPE_URL, SPM8_URL)
+</p>""" % (base_reporter.PYPREPROCESS_URL,
+           base_reporter.NIPYPE_URL, base_reporter.SPM8_URL)
 
     report_log_filename = os.path.join(
         output_dir, 'report_log.html')
@@ -642,38 +748,45 @@ def generate_subject_preproc_report(
         output_dir, 'report.html')
 
     # copy css and js stuff to output dir
-    shutil.copy(os.path.join(ROOT_DIR, 'css/fsl.css'),
-                output_dir)
-    shutil.copy(os.path.join(ROOT_DIR, 'js/jquery.min.js'),
-                output_dir)
-    shutil.copy(os.path.join(ROOT_DIR, "images/logo.jpeg"),
-                output_dir)
-    shutil.copy(os.path.join(ROOT_DIR, "images/failed.png"),
-                output_dir)
+    for js_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+                                          "js/*.js")):
+        shutil.copy(js_file, output_dir)
+    for css_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+                                               "css/*.css")):
+        shutil.copy(css_file, output_dir)
+    for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+                                            "icons/*.gif")):
+        shutil.copy(icon_file, output_dir)
+    for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+                                            "images/*.png")):
+        shutil.copy(icon_file, output_dir)
+    for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+                                            "images/*.jpeg")):
+        shutil.copy(icon_file, output_dir)
 
     # initialize results gallery
     loader_filename = os.path.join(
         output_dir, "results_loader.php")
-    results_gallery = ResultsGallery(
+    results_gallery = base_reporter.ResultsGallery(
         loader_filename=loader_filename,
         title="Report for subject %s" % subject_id)
-    final_thumbnail = Thumbnail()
-    final_thumbnail.a = a(href=report_preproc_filename)
-    final_thumbnail.img = img()
+    final_thumbnail = base_reporter.Thumbnail()
+    final_thumbnail.a = base_reporter.a(href=report_preproc_filename)
+    final_thumbnail.img = base_reporter.img()
     final_thumbnail.description = subject_id
 
     output['results_gallery'] = results_gallery
 
     # initialize progress bar
     if subject_progress_logger is None:
-        subject_progress_logger = ProgressReport(
+        subject_progress_logger = base_reporter.ProgressReport(
             report_log_filename,
             other_watched_files=[report_filename,
                                  report_preproc_filename])
     output['progress_logger'] = subject_progress_logger
 
     # html markup
-    preproc = FLS_SUBJECT_REPORT_PREPROC_HTML_TEMPLATE(
+    preproc = base_reporter.get_subject_report_preproc_html_template(
         ).substitute(
         conf_path=conf_path,
         results=results_gallery,
@@ -681,7 +794,7 @@ def generate_subject_preproc_report(
         preproc_undergone=preproc_undergone,
         subject_id=subject_id,
         )
-    main_html = FLS_SUBJECT_REPORT_HTML_TEMPLATE(
+    main_html = base_reporter.get_subject_report_html_template(
         ).substitute(
         conf_path=conf_path,
         start_time=time.ctime(),
@@ -757,6 +870,8 @@ def generate_dataset_preproc_report(
     subject_preproc_data,
     output_dir="/tmp",
     dataset_id="UNSPECIFIED!",
+    replace_in_path=None,
+    n_jobs=None,
     preproc_undergone=None,
     last_stage=True,
     ):
@@ -773,10 +888,22 @@ def generate_dataset_preproc_report(
 
     output = {}
 
-    shutil.copy('reporting/css/fsl.css',
-                output_dir)
-    shutil.copy("reporting/images/logo.jpeg",
-                output_dir)
+    # copy css and js stuff to output dir
+    for js_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+                                          "js/*.js")):
+        shutil.copy(js_file, output_dir)
+    for css_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+                                               "css/*.css")):
+        shutil.copy(css_file, output_dir)
+    for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+                                            "icons/*.gif")):
+        shutil.copy(icon_file, output_dir)
+    for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+                                            "images/*.png")):
+        shutil.copy(icon_file, output_dir)
+    for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+                                            "images/*.jpeg")):
+        shutil.copy(icon_file, output_dir)
 
     report_log_filename = os.path.join(
         output_dir, 'report_log.html')
@@ -788,29 +915,29 @@ def generate_dataset_preproc_report(
         # initialize results gallery
     loader_filename = os.path.join(
         output_dir, "results_loader.php")
-    parent_results_gallery = ResultsGallery(
+    parent_results_gallery = base_reporter.ResultsGallery(
         loader_filename=loader_filename,
         refresh_timeout=30,   # 30 seconds
         )
 
     # initialize progress bar
-    progress_logger = ProgressReport(
+    progress_logger = base_reporter.ProgressReport(
         report_log_filename,
         other_watched_files=[report_filename,
                              report_preproc_filename])
     output['progress_logger'] = progress_logger
 
     # html markup
-    log = FLS_DATASET_REPORT_LOG_HTML_TEMPLATE().substitute(
+    log = base_reporter.get_dataset_report_log_html_template().substitute(
         start_time=time.ctime(),
         )
-    preproc = FLS_DATASET_REPORT_PREPROC_HTML_TEMPLATE(
+    preproc = base_reporter.get_dataset_report_preproc_html_template(
         ).substitute(
         results=parent_results_gallery,
         start_time=time.ctime(),
         preproc_undergone=preproc_undergone,
         )
-    main_html = FLS_DATASET_REPORT_HTML_TEMPLATE(
+    main_html = base_reporter.get_dataset_report_html_template(
         ).substitute(
         results=parent_results_gallery,
         start_time=time.ctime(),
@@ -827,24 +954,50 @@ def generate_dataset_preproc_report(
         fd.write(str(main_html))
         fd.close()
 
-    for s in subject_preproc_data:
-        if isinstance(s, basestring):
-            # read dict from json file
-            s = dict((k, json.load(open(s))[k]) for k in ['func', 'anat',
-                                                          'estimated_motion',
-                                                          'output_dir',
-                                                          'subject_id',
-                                                          'preproc_undergone'])
+    import joblib
+    import multiprocessing
 
-        # generate subject report
-        generate_subject_preproc_report(
+    # factory to generate subjects
+    def subject_factory():
+        for s in subject_preproc_data:
+            if isinstance(s, basestring):
+                # read dict from json file
+                s = dict((k, json.load(open(s))[k])
+                         for k in ['func', 'anat',
+                                   'estimated_motion',
+                                   'output_dir',
+                                   'subject_id',
+                                   'preproc_undergone'])
+
+                if replace_in_path:
+                    # correct of file/directory paths
+                    for k, v in s.iteritems():
+                        for stuff in replace_in_path:
+                            if isinstance(v, basestring):
+                                s[k] = v.replace(
+                                    stuff[0], stuff[1])
+                            else:
+                                # XXX I'm assuming list-like type
+                                s[k] = [x.replace(
+                                        stuff[0], stuff[1])
+                                        for x in v]
+ 
+            yield s
+
+    # generate reports
+    if n_jobs is None:
+        n_jobs = len(subject_preproc_data)
+        n_jobs = 1  # min(n_jobs, multiprocessing.cpu_count() / 4)
+
+    joblib.Parallel(n_jobs=n_jobs)(joblib.delayed(
+            generate_subject_preproc_report)(
             parent_results_gallery=parent_results_gallery,
-            conf_path="..",
-            **s
-            )
+            **s) for s in subject_factory())
 
-    progress_logger.finish()
+    # done ?
+    progress_logger.finish_all()
 
+    # game over
     if last_stage:
         progress_logger.finish_all()
 
