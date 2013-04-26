@@ -7,6 +7,8 @@ segmentation, etc.) using the viz module from nipy.labs.
 """
 
 import os
+import traceback
+import tempfile
 import numpy as np
 import pylab as pl
 
@@ -74,6 +76,7 @@ def check_mask(epi_data):
     affine = nibabel.load(epi_data[0]).get_affine()
     vol = np.abs(np.linalg.det(affine)) * mask_array.sum() / 1000
     print 'The estimated brain volume is: %f cm^3, should be 1000< <2000' % vol
+
     return mask_array
 
 
@@ -92,6 +95,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
                do_plot=True,
                write_image=True, mask=True, bg_image=False,
                plot_diff=True,
+               output_dir=None,
                cv_tc_plot_outfile=None):
     """ Compute coefficient of variation of the data and plot it
 
@@ -113,6 +117,12 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
               if no, an MNI template is used (works for normalized data)
     """
 
+    if output_dir is None:
+        if not cv_tc_plot_outfile is None:
+            output_dir = os.path.dirname(cv_tc_plot_outfile)
+        else:
+            output_dir = tempfile.mkdtemp()
+
     cv_tc_ = []
     if isinstance(mask, basestring):
         mask_array = nibabel.load(mask).get_data() > 0
@@ -121,12 +131,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
     else:
         mask_array = None
     for (session_id, fmri_file) in zip(session_ids, epi_data):
-        if isinstance(fmri_file, basestring):
-            data_dir = os.path.dirname(fmri_file)
-        else:
-            data_dir = os.path.dirname(fmri_file[0])
-
-        nim = nibabel.load(do_3Dto4D_merge(fmri_file))
+        nim = do_3Dto4D_merge(fmri_file)
         affine = nim.get_affine()
         if len(nim.shape) == 4:
             # get the data
@@ -136,7 +141,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
             pass
 
         # compute the CV for the session
-        cache_dir = os.path.join(data_dir, "CV")
+        cache_dir = os.path.join(output_dir, "CV")
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         mem = joblib.Memory(cachedir=cache_dir, verbose=5)
@@ -145,9 +150,13 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
         if write_image:
             # write an image
             nibabel.save(nibabel.Nifti1Image(cv, affine),
-                         os.path.join(data_dir, 'cv_%s.nii' % session_id))
+                         os.path.join(output_dir, 'cv_%s.nii' % session_id))
             if bg_image == False:
-                viz.plot_map(cv, affine, threshold=.01, cmap=viz.cm.cold_hot)
+                try:
+                    viz.plot_map(
+                        cv, affine, threshold=.01, cmap=viz.cm.cold_hot)
+                except IndexError:
+                    print traceback.format_exc()
             else:
                 if isinstance(bg_image, basestring):
                     _tmp = nibabel.load(bg_image)
@@ -156,8 +165,12 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
                         _tmp.get_affine())
                 else:
                     anat, anat_affine = data.mean(-1), affine
-                viz.plot_map(cv, affine, threshold=.01, cmap=viz.cm.cold_hot,
+                try:
+                    viz.plot_map(
+                        cv, affine, threshold=.01, cmap=viz.cm.cold_hot,
                              anat=anat, anat_affine=anat_affine)
+                except IndexError:
+                    print traceback.format_exc()
         # compute the time course of cv
         cv_tc_sess = np.median(
             np.sqrt((data[mask_array > 0].T /
