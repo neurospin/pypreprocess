@@ -5,7 +5,7 @@
 
 ABIDE use-case example
 ----------------------
-edohmato@is150118:~/CODE/FORKED/pypreprocess for j in \
+edohmato@is150118:~/CODE/FORKED/pypreprocess/reporting for j in \
 $(ls /vaporific/edohmato/pypreprocess_runs/abide/); do echo;
 echo "Generating QA for $j"; echo; python static_reportman.py \
 /vaporific/edohmato/pypreprocess_runs/abide/$j "$j_*/infos_DARTEL.json" $j;\
@@ -14,35 +14,49 @@ done
 """
 
 import sys
-from reporting.reporter import generate_dataset_preproc_report
+from reporting.preproc_reporter import generate_dataset_preproc_report
 import os
 import glob
+from optparse import OptionParser
 
 
 if len(sys.argv) < 2:
-    print ("\r\nUsage: python %s <path_to_dataset_dir> "
-           "[subject_preproc_data_json_filename_wildcat] [dataset_id]"
+    print ("\r\nUsage: python %s [OPTIONS] <path_to_dataset_dir> "
            ) % sys.argv[0]
     sys.exit(1)
 
-dataset_dir = sys.argv[1]
-subject_preproc_data_json_filename_wildcat = "sub*/infos.json"
+parser = OptionParser()
 
-if len(sys.argv) > 2:
-    subject_preproc_data_json_filename_wildcat = sys.argv[2]
+parser.add_option('--replace-in-path',
+                  dest='replaceinpath',
+                  default=None,
+                  help="""specify a token to replace in paths"""
+                  )
 
-dataset_id = 'UNSPECIFIED!'
-if len(sys.argv) > 3:
-    dataset_id = sys.argv[3]
+parser.add_option('--dataset-id',
+                  dest='datasetid',
+                  default="UNSPECIFIED!",
+                  help="""specify id (i.e short description) of dataset"""
+                  )
 
-print subject_preproc_data_json_filename_wildcat
+parser.add_option('--subject-preproc-data-json-filename-wildcat',
+                  dest='subjectpreprocdatajsonfilenamewildcat',
+                  default="sub*/infos.json",
+                  help="""specify filename wildcat for json files containing
+subject preprocessed data"""
+                  )
+
+options, args = parser.parse_args()
+
+dataset_dir = args[0]
+
 subject_preproc_data = glob.glob(os.path.join(
     dataset_dir,
-    subject_preproc_data_json_filename_wildcat))
+    options.subjectpreprocdatajsonfilenamewildcat))
 
-print subject_preproc_data
 generate_dataset_preproc_report(
     subject_preproc_data,
     output_dir=dataset_dir,
-    dataset_id=dataset_id,
+    dataset_id=options.datasetid,
+    replace_in_path=options.replaceinpath.split(','),
     )
