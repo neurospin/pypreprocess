@@ -47,6 +47,7 @@ INSTITUTES = [
 def preproc_abide_institute(institute_id, abide_data_dir, abide_output_dir,
                             do_dartel=True,
                             do_report=True,
+                            n_jobs=-1,
                             ):
     """Preprocesses a given ABIDE institute
 
@@ -127,6 +128,7 @@ def preproc_abide_institute(institute_id, abide_data_dir, abide_output_dir,
         dataset_id=institute_id,
         output_dir=institute_output_dir,
         do_report=do_report,
+        do_cv_tc=False,
         do_dartel=do_dartel,
         dataset_description="%s" % DATASET_DESCRIPTION.replace(
             "%s",
@@ -162,13 +164,14 @@ if len(sys.argv) > 3:
 
 if DO_DARTEL:
     import joblib
-    joblib.Parallel(n_jobs=len(INSTITUTES), verbose=100)(
+    joblib.Parallel(n_jobs=1, verbose=100)(
         joblib.delayed(preproc_abide_institute)(
             institute_id,
             ABIDE_DIR,
             OUTPUT_DIR,
             do_dartel=True,
-            do_report=False)
+            # do_report=False,
+            )
         for institute_id in INSTITUTES)
 else:
     for institute_id in INSTITUTES:
