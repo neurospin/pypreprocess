@@ -16,8 +16,17 @@ from nipy.modalities.fmri.glm import FMRILinearModel
 import nibabel
 import time
 
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
+warning = ("%s: THIS SCRIPT MUST BE RUN FROM ITS PARENT "
+           "DIRECTORY!") % sys.argv[0]
+banner = "#" * len(warning)
+separator = "\r\n\t"
+
+print separator.join(['', banner, warning, banner, ''])
+
+# pypreproces path
+PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
+
+sys.path.append(PYPREPROCESS_DIR)
 
 import nipype_preproc_spm_utils
 import reporting.glm_reporter as glm_reporter
@@ -77,7 +86,7 @@ results = nipype_preproc_spm_utils.do_subjects_preproc(
     )
 
 """collect preprocessed data"""
-fmri_data = do_3Dto4D_merge(results[0]['func'])
+fmri_img = do_3Dto4D_merge(results[0]['func'])
 
 """construct design matrix"""
 frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)
@@ -105,7 +114,7 @@ contrasts['active-rest'] = contrasts['active'] - contrasts['rest']
 
 """fit GLM"""
 print('\r\nFitting a GLM (this takes time) ..')
-fmri_glm = FMRILinearModel(fmri_data, design_matrix.matrix,
+fmri_glm = FMRILinearModel(fmri_img, design_matrix.matrix,
            mask='compute')
 fmri_glm.fit(do_scaling=True, model='ar1')
 
@@ -115,9 +124,9 @@ print "Saving mask image %s" % mask_path
 nibabel.save(fmri_glm.mask, mask_path)
 
 # compute bg unto which activation will be projected
-mean_fmri_data = compute_mean_3D_image(fmri_data)
-anat = mean_fmri_data.get_data()
-anat_affine = mean_fmri_data.get_affine()
+anat_img = nibabel.load(results[0]['anat'])
+anat = anat_img.get_data()
+anat_affine = anat_img.get_affine()
 
 print "Computing contrasts .."
 z_maps = {}
@@ -161,7 +170,7 @@ glm_reporter.generate_subject_stats_report(
     contrasts,
     z_maps,
     fmri_glm.mask,
-    design_matrix=design_matrix,
+    design_matrices=[design_matrix],
     subject_id=subject_data.subject_id,
     anat=anat,
     anat_affine=anat_affine,
@@ -177,8 +186,5 @@ glm_reporter.generate_subject_stats_report(
     drift_model=drift_model,
     hrf_model=hrf_model,
     )
-
-# shutdown main report page for dataset
-glm_reporter.ProgressReport().finish_dir(OUTPUT_DIR)
 
 print "\r\nStatistic report written to %s\r\n" % stats_report_filename
