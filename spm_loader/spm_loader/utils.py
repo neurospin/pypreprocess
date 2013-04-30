@@ -221,12 +221,21 @@ def execute_glm(doc, out_dir, contrast_definitions=None,
         out_dir, subject_id)
 
     # instantiate GLM
-    glm = FMRILinearModel(params['data'],
+    fmri_glm = FMRILinearModel(params['data'],
                           params['design_matrices'],
                           doc['mask'])
-
     # fit GLM
-    glm.fit(do_scaling=True, model=glm_model)
+    fmri_glm.fit(do_scaling=True, model=glm_model)
+
+    # save beta-maps to disk
+    beta_map_dir = os.path.join(subject_output_dir, 'beta_maps')
+    if not os.path.exists(beta_map_dir):
+        os.makedirs(beta_map_dir)
+    for j, glm in zip(xrange(len(fmri_glm.glms)), fmri_glm.glms):
+        # XXX save array in some compressed format
+        np.savetxt(os.path.join(beta_map_dir, "beta_map_%i.txt" % j),
+                   glm.get_beta(),  # array has shape (n_conditions, n_voxels)
+                   )
 
     # define contrasts
     if contrast_definitions is not None:
@@ -246,7 +255,7 @@ def execute_glm(doc, out_dir, contrast_definitions=None,
         contrast = [c[contrast_id] for c in params['contrasts']]
         contrast_name = contrast_id.replace(' ', '_')
 
-        z_map, t_map, c_map, var_map = glm.contrast(
+        z_map, t_map, c_map, var_map = fmri_glm.contrast(
             contrast,
             con_id=contrast_id,
             output_z=True,
@@ -396,7 +405,7 @@ def execute_glms(docs, out_dir, contrast_definitions=None,
         output_dir = out_dir
     else:
         output_dir = os.path.join(out_dir, "not_repreprocessed")
-    joblib.Parallel(n_jobs=n_jobs)(joblib.delayed(execute_glm)(
+    joblib.Parallel(n_jobs=max(n_jobs / 4, 1))(joblib.delayed(execute_glm)(
             doc,
             output_dir,
             contrast_definitions,
