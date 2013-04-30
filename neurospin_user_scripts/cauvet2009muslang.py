@@ -135,10 +135,10 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         output_dir = sys.argv[1]
 
-    docs = get_docs(inputs=True)[:1]
+    docs = get_docs(inputs=True)
 
     execute_glms(docs, output_dir, definitions,
-                 dataset_id="vagharchakian2012temporal",
+                 dataset_id="cauvet2009muslang",
                  # do_preproc=False,
-                 smoothed=5.,
+                 # smoothed=5.,
                  )
