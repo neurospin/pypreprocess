@@ -233,6 +233,118 @@ def nipype2htmlreport(nipype_report_filename):
         return base_reporter.lines2breaks(fd.readlines())
 
 
+def generate_registration_thumbnails(
+    target,
+    source,
+    procedure_name,
+    output_dir,
+    cmap=pl.cm.gray,
+    nipype_report_filename=None,
+    results_gallery=None,
+    progress_logger=None,
+    ):
+
+    # nipype report
+    nipype_html_report_filename = os.path.join(
+        output_dir,
+        '%s_nipype_report.html' % procedure_name.replace(" ", "_"))
+
+    if not nipype_report_filename is None:
+        if os.path.exists(nipype_report_filename):
+            nipype_report = nipype2htmlreport(
+                nipype_report_filename)
+            open(nipype_html_report_filename,
+                 'w').write(str(nipype_report))
+
+            if progress_logger:
+                progress_logger.log(nipype_report)
+                progress_logger.log('<hr/>')
+
+    output = {}
+
+    # prepare for smart caching
+    qa_cache_dir = os.path.join(output_dir, "QA")
+    if not os.path.exists(qa_cache_dir):
+        os.makedirs(qa_cache_dir)
+    qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
+
+    thumb_desc = procedure_name
+    if os.path.exists(nipype_report_filename):
+        thumb_desc += (" (<a href=%s>see execution"
+                       " log</a>)") % (os.path.basename(
+                nipype_html_report_filename))
+
+    # plot outline (edge map) of template on the
+    # normalized image
+    outline = os.path.join(
+        output_dir,
+        "%s_on_%s_outline.png" % (target[1],
+                                  source[1]))
+
+    qa_mem.cache(check_preprocessing.plot_registration)(
+        target[0],
+        source[0],
+        output_filename=outline,
+        title="Outline of %s on %s" % (
+            target[1],
+            source[1]))
+
+    # create thumbnail
+    if results_gallery:
+        thumbnail = base_reporter.Thumbnail()
+        thumbnail.a = base_reporter.a(href=os.path.basename(outline))
+        thumbnail.img = base_reporter.img(
+            src=os.path.basename(outline), height="250px")
+        thumbnail.description = thumb_desc
+
+        results_gallery.commit_thumbnails(thumbnail)
+
+    # plot outline (edge map) of the normalized image
+    # on the SPM MNI template
+    source, target = (target, source)
+    outline = os.path.join(
+        output_dir,
+        "%s_on_%s_outline.png" % (target[1],
+                                  source[1]))
+    outline_axial = os.path.join(
+        output_dir,
+        "%s_on_%s_outline_axial.png" % (target[1],
+                                        source[1]))
+
+    qa_mem.cache(check_preprocessing.plot_registration)(
+        target[0],
+        source[0],
+        output_filename=outline_axial,
+        slicer='z',
+        cmap=cmap,
+        title="Outline of %s on SPM MNI %s template" % (
+            target[1],
+            source[1]))
+
+    output['axial'] = outline_axial
+
+    qa_mem.cache(check_preprocessing.plot_registration)(
+        target[0],
+        source[0],
+        output_filename=outline,
+        cmap=cmap,
+        title="Outline of %s on MNI %s template" % (
+            target[1],
+            source[1]))
+
+    # create thumbnail
+    if results_gallery:
+        thumbnail = base_reporter.Thumbnail()
+        thumbnail.a = base_reporter.a(href=os.path.basename(outline))
+        thumbnail.img = base_reporter.img(
+            src=os.path.basename(outline), height="250px")
+        thumbnail.description = thumb_desc
+
+        results_gallery.commit_thumbnails(thumbnail)
+
+    return output
+
+
 def generate_normalization_thumbnails(
     normalized_files,
     output_dir,
@@ -262,8 +374,7 @@ def generate_normalization_thumbnails(
 
     """
 
-    _brain = brain
-
+    nipype_report_filename = None
     if isinstance(normalized_files, basestring):
         nipype_report_filename = os.path.join(
             os.path.dirname(normalized_files),
@@ -284,108 +395,41 @@ def generate_normalization_thumbnails(
         mean_normalized_img = io_utils.compute_mean_3D_image(normalized_files)
         normalized = mean_normalized_img
 
+    return generate_registration_thumbnails(
+        (T1_TEMPLATE, 'template'),
+        (normalized, brain),
+        "Normalization of %s" % brain,
+        output_dir,
+        cmap=cmap,
+        nipype_report_filename=nipype_report_filename,
+        results_gallery=results_gallery,
+        progress_logger=progress_logger,
+        )
+
+
+def generate_coregistration_thumbnails(target,
+                                       source,
+                                       output_dir,
+                                       cmap=None,
+                                       results_gallery=None,
+                                       progress_logger=None,
+                                       ):
+
     # nipype report
-    nipype_html_report_filename = os.path.join(
-        output_dir,
-        '%s_normalize_nipype_report.html' % brain)
+    nipype_report_filename = os.path.join(
+        os.path.dirname(source[1]),
+        "_report/report.rst")
 
-    if os.path.exists(nipype_report_filename):
-        nipype_report = nipype2htmlreport(
-            nipype_report_filename)
-        open(nipype_html_report_filename,
-             'w').write(str(nipype_report))
-
-    if progress_logger:
-        progress_logger.log(nipype_report.split('Terminal output')[0])
-        progress_logger.log('<hr/>')
-
-    output = {}
-
-    # prepare for smart caching
-    qa_cache_dir = os.path.join(output_dir, "QA")
-    if not os.path.exists(qa_cache_dir):
-        os.makedirs(qa_cache_dir)
-    qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
-
-    thumb_desc = "Normalization of %s" % _brain
-    if os.path.exists(nipype_report_filename):
-        thumb_desc += (" (<a href=%s>see execution"
-                       " log</a>)") % (os.path.basename(
-                nipype_html_report_filename))
-
-    # plot outline (edge map) of SPM MNI template on the
-    # normalized image
-    target = T1_TEMPLATE
-    source = normalized
-
-    outline = os.path.join(
-        output_dir,
-        "%s_on_%s_outline.png" % (os.path.basename(target),
-                                  brain))
-
-    qa_mem.cache(check_preprocessing.plot_registration)(
+    return generate_registration_thumbnails(
         target,
         source,
-        output_filename=outline,
-        cmap=cmap,
-        title="Outline of SPM MNI %s template on %s" % (
-            os.path.basename(target),
-            brain))
-
-    # create thumbnail
-    if results_gallery:
-        thumbnail = base_reporter.Thumbnail()
-        thumbnail.a = base_reporter.a(href=os.path.basename(outline))
-        thumbnail.img = base_reporter.img(
-            src=os.path.basename(outline), height="250px")
-        thumbnail.description = thumb_desc
-
-        results_gallery.commit_thumbnails(thumbnail)
-
-    # plot outline (edge map) of the normalized image
-    # on the SPM MNI template
-    source, target = (target, source)
-    outline = os.path.join(
+        "Coregistration %s -> %s" % (source[1], target[1]),
         output_dir,
-        "%s_on_%s_outline.png" % (brain,
-                                  os.path.basename(source)))
-    outline_axial = os.path.join(
-        output_dir,
-        "%s_on_%s_outline_axial.png" % (brain,
-                                        os.path.basename(source)))
-
-    qa_mem.cache(check_preprocessing.plot_registration)(
-        target,
-        source,
-        output_filename=outline_axial,
-        slicer='z',
         cmap=cmap,
-        title="Outline of %s on SPM MNI %s template" % (
-            brain,
-            os.path.basename(source)))
-
-    output['axial'] = outline_axial
-
-    qa_mem.cache(check_preprocessing.plot_registration)(
-        target,
-        source,
-        output_filename=outline,
-        cmap=cmap,
-        title="Outline of %s on MNI %s template" % (
-            brain,
-            os.path.basename(source)))
-
-    # create thumbnail
-    if results_gallery:
-        thumbnail = base_reporter.Thumbnail()
-        thumbnail.a = base_reporter.a(href=os.path.basename(outline))
-        thumbnail.img = base_reporter.img(
-            src=os.path.basename(outline), height="250px")
-        thumbnail.description = thumb_desc
-
-        results_gallery.commit_thumbnails(thumbnail)
-
-    return output
+        nipype_report_filename=nipype_report_filename,
+        results_gallery=results_gallery,
+        progress_logger=progress_logger,
+        )
 
 
 def generate_segmentation_thumbnails(
@@ -616,7 +660,6 @@ def generate_cv_tc_thumbnail(
 
     assert len(sessions) == len(image_files)
 
-    print "#", output_dir
     cv_tc_plot_output_file = os.path.join(
         output_dir,
         "cv_tc_plot.png")
@@ -674,7 +717,7 @@ def generate_realignment_thumbnails(
         open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
         if progress_logger:
-            progress_logger.log(nipype_report.split('Terminal output')[0])
+            progress_logger.log(nipype_report)
             progress_logger.log('<hr/>')
 
     for session_id, rp in zip(sessions, estimated_motion):

@@ -299,106 +299,117 @@ def _do_subject_coreg(output_dir,
             ref_brain, source_brain = source_brain, ref_brain
 
         if not coreg_result.outputs is None:
-            # nipype report
-            nipype_report_filename = os.path.join(
-                os.path.dirname(coreg_result.outputs.coregistered_source),
-                "_report/report.rst")
-            nipype_html_report_filename = os.path.join(
-                output_dir,
-                'coregister_nipype_report.html')
-            nipype_report = preproc_reporter.nipype2htmlreport(
-                nipype_report_filename)
-            open(nipype_html_report_filename, 'w').write(str(nipype_report))
-
-            if progress_logger:
-                progress_logger.log(nipype_report.split('Terminal output')[0])
-                progress_logger.log('<hr/>')
-
-            # prepare for smart caching
-            qa_cache_dir = os.path.join(output_dir, "QA")
-            if not os.path.exists(qa_cache_dir):
-                os.makedirs(qa_cache_dir)
-            qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
-
-            # plot outline of target on coregistered source
             target = spm_coregister_kwargs['target']
             source = coreg_result.outputs.coregistered_source
 
-            outline = os.path.join(
+            output.update(preproc_reporter.generate_coregistration_thumbnails(
+                (target, ref_brain),
+                (source, source_brain),
                 output_dir,
-                "%s_on_%s_outline.png" % (ref_brain, source_brain))
-            qa_mem.cache(check_preprocessing.plot_registration)(
-                target,
-                source,
-                output_filename=outline,
-                cmap=pl.cm.gray,
-                title="Outline of %s on %s" % (ref_brain, source_brain))
+                results_gallery=results_gallery,
+                progress_logger=progress_logger,
+                ))
 
-            outline_axial = os.path.join(
-                output_dir,
-                "%s_on_%s_outline_axial.png" % (ref_brain,
-                                                source_brain))
-            qa_mem.cache(check_preprocessing.plot_registration)(
-                target,
-                source,
-                output_filename=outline_axial,
-                slicer='z',
-                cmap=pl.cm.gray,
-                title="%s: coreg" % subject_id)
+            # # nipype report
+            # nipype_report_filename = os.path.join(
+            #     os.path.dirname(coreg_result.outputs.coregistered_source),
+            #     "_report/report.rst")
+            # nipype_html_report_filename = os.path.join(
+            #     output_dir,
+            #     'coregister_nipype_report.html')
+            # nipype_report = preproc_reporter.nipype2htmlreport(
+            #     nipype_report_filename)
+            # open(nipype_html_report_filename, 'w').write(str(nipype_report))
 
-            # create thumbnail
-            if results_gallery:
-                thumbnail = base_reporter.Thumbnail()
-                thumbnail.a = base_reporter.a(
-                    href=os.path.basename(outline))
-                thumbnail.img = base_reporter.img(
-                    src=os.path.basename(outline),
-                    height="250px")
-                thumbnail.description = \
-                    "Coregistration %s (<a href=%s>see execution log</a>)" % \
-                    (comments, os.path.basename(nipype_html_report_filename))
+            # if progress_logger:
+            #     progress_logger.log(nipype_report)
+            #     progress_logger.log('<hr/>')
 
-                results_gallery.commit_thumbnails(thumbnail)
+            # # prepare for smart caching
+            # qa_cache_dir = os.path.join(output_dir, "QA")
+            # if not os.path.exists(qa_cache_dir):
+            #     os.makedirs(qa_cache_dir)
+            # qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
 
-            output['axial_outline'] = outline_axial
+            # # plot outline of target on coregistered source
+            # target = spm_coregister_kwargs['target']
+            # source = coreg_result.outputs.coregistered_source
 
-            # plot outline of coregistered source on target
-            source, target = (target, source)
-            source_brain, ref_brain = ref_brain, source_brain
-            outline = os.path.join(
-                output_dir,
-                "%s_on_%s_outline.png" % (ref_brain,
-                                          source_brain))
-            qa_mem.cache(check_preprocessing.plot_registration)(
-                target,
-                source,
-                output_filename=outline,
-                cmap=pl.cm.gray,
-                title="Outline of %s on %s" % (ref_brain, source_brain))
+            # outline = os.path.join(
+            #     output_dir,
+            #     "%s_on_%s_outline.png" % (ref_brain, source_brain))
+            # qa_mem.cache(check_preprocessing.plot_registration)(
+            #     target,
+            #     source,
+            #     output_filename=outline,
+            #     cmap=pl.cm.gray,
+            #     title="Outline of %s on %s" % (ref_brain, source_brain))
 
-            outline_axial = os.path.join(
-                output_dir,
-                "%s_on_%s_outline_axial.png" % (ref_brain, source_brain))
-            qa_mem.cache(check_preprocessing.plot_registration)(
-                target,
-                source,
-                output_filename=outline_axial,
-                cmap=pl.cm.gray,
-                slicer='z',
-                title="%s: coreg" % subject_id)
+            # outline_axial = os.path.join(
+            #     output_dir,
+            #     "%s_on_%s_outline_axial.png" % (ref_brain,
+            #                                     source_brain))
+            # qa_mem.cache(check_preprocessing.plot_registration)(
+            #     target,
+            #     source,
+            #     output_filename=outline_axial,
+            #     slicer='z',
+            #     cmap=pl.cm.gray,
+            #     title="%s: coreg" % subject_id)
 
-            # create thumbnail
-            if results_gallery:
-                thumbnail = base_reporter.Thumbnail()
-                thumbnail.a = base_reporter.a(
-                    href=os.path.basename(outline))
-                thumbnail.img = base_reporter.img(
-                    src=os.path.basename(outline),
-                    height="250px")
-                thumbnail.description = \
-                    "Coregistration %s (<a href=%s>see execution log</a>)" \
-                    % (comments, os.path.basename(nipype_html_report_filename))
-                results_gallery.commit_thumbnails(thumbnail)
+            # # create thumbnail
+            # if results_gallery:
+            #     thumbnail = base_reporter.Thumbnail()
+            #     thumbnail.a = base_reporter.a(
+            #         href=os.path.basename(outline))
+            #     thumbnail.img = base_reporter.img(
+            #         src=os.path.basename(outline),
+            #         height="250px")
+            #     thumbnail.description = \
+            #         "Coregistration %s (<a href=%s>see execution log</a>)" % \
+            #         (comments, os.path.basename(nipype_html_report_filename))
+
+            #     results_gallery.commit_thumbnails(thumbnail)
+
+            # output['axial_outline'] = outline_axial
+
+            # # plot outline of coregistered source on target
+            # source, target = (target, source)
+            # source_brain, ref_brain = ref_brain, source_brain
+            # outline = os.path.join(
+            #     output_dir,
+            #     "%s_on_%s_outline.png" % (ref_brain,
+            #                               source_brain))
+            # qa_mem.cache(check_preprocessing.plot_registration)(
+            #     target,
+            #     source,
+            #     output_filename=outline,
+            #     cmap=pl.cm.gray,
+            #     title="Outline of %s on %s" % (ref_brain, source_brain))
+
+            # outline_axial = os.path.join(
+            #     output_dir,
+            #     "%s_on_%s_outline_axial.png" % (ref_brain, source_brain))
+            # qa_mem.cache(check_preprocessing.plot_registration)(
+            #     target,
+            #     source,
+            #     output_filename=outline_axial,
+            #     cmap=pl.cm.gray,
+            #     slicer='z',
+            #     title="%s: coreg" % subject_id)
+
+            # # create thumbnail
+            # if results_gallery:
+            #     thumbnail = base_reporter.Thumbnail()
+            #     thumbnail.a = base_reporter.a(
+            #         href=os.path.basename(outline))
+            #     thumbnail.img = base_reporter.img(
+            #         src=os.path.basename(outline),
+            #         height="250px")
+            #     thumbnail.description = \
+            #         "Coregistration %s (<a href=%s>see execution log</a>)" \
+            #         % (comments, os.path.basename(nipype_html_report_filename))
+            #     results_gallery.commit_thumbnails(thumbnail)
 
     # collect ouput
     output['result'] = coreg_result
@@ -1005,7 +1016,7 @@ def _do_subject_preproc(
 
         # generate report stub
         if do_report:
-            final_thumbnail.img.src = coreg_output['axial_outline']
+            final_thumbnail.img.src = coreg_output['axial']
 
     ###################################
     # segmentation of anatomical image
@@ -1784,8 +1795,6 @@ def do_subjects_preproc(subjects,
 
             if do_shutdown_reloaders:
                 progress_logger.finish_all()
-
-            print "HTML report (dynamic) written to %s" % report_filename
 
         kwargs['parent_results_gallery'] = parent_results_gallery
 

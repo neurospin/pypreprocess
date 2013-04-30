@@ -30,6 +30,7 @@ sys.path.append(PYPREPROCESS_DIR)
 
 import nipype_preproc_spm_utils
 import reporting.glm_reporter as glm_reporter
+import reporting.base_reporter as base_reporter
 from datasets_extras import fetch_spm_auditory_data
 from io_utils import compute_mean_3D_image, do_3Dto4D_merge
 
@@ -76,17 +77,18 @@ subject_data.output_dir = os.path.join(
 """preprocess the data"""
 results = nipype_preproc_spm_utils.do_subjects_preproc(
     [subject_data],
+    output_dir=OUTPUT_DIR,
     do_slicetiming=True,
     TR=tr,
     fwhm=[6, 6, 6],
-    output_dir=OUTPUT_DIR,
     dataset_id="SPM Auditory single-subject dataset",
     dataset_description=DATASET_DESCRIPTION,
     do_shutdown_reloaders=False,
     )
 
 """collect preprocessed data"""
-fmri_img = do_3Dto4D_merge(results[0]['func'])
+fmri_img = do_3Dto4D_merge(results[0]['func'],
+                           )
 
 """construct design matrix"""
 frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)
@@ -186,5 +188,8 @@ glm_reporter.generate_subject_stats_report(
     drift_model=drift_model,
     hrf_model=hrf_model,
     )
+
+# shutdown main report page
+base_reporter.ProgressReport().finish_dir(OUTPUT_DIR)
 
 print "\r\nStatistic report written to %s\r\n" % stats_report_filename

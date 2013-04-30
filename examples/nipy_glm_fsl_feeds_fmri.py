@@ -22,6 +22,7 @@ sys.path.append(
 """import utilities for preproc, reporting, and io"""
 import nipype_preproc_spm_utils
 import reporting.glm_reporter as glm_reporter
+import reporting.base_reporter as base_reporter
 from datasets_extras import unzip_nii_gz, fetch_fsl_feeds_data
 from io_utils import compute_mean_3D_image
 
@@ -87,15 +88,13 @@ subject_data.output_dir = os.path.join(
     output_dir, subject_data.subject_id)
 
 """preprocess the data"""
-report_filename = os.path.join(output_dir,
-                               "_report.html")
 results = nipype_preproc_spm_utils.do_subjects_preproc(
     [subject_data],
     output_dir=output_dir,
-    # do_slicetiming=True,
+    do_slicetiming=True,
     TR=TR,
     fwhm=[5, 5, 5],
-    report_filename=report_filename,
+    dataset_id="FSL FEEDS single-subject",
     dataset_description=DATASET_DESCRIPTION,
     do_shutdown_reloaders=False,
     )
@@ -130,8 +129,8 @@ nibabel.save(fmri_glm.mask, mask_path)
 # compute bg unto which activation will be projected
 mean_fmri_files = compute_mean_3D_image(fmri_files)
 anat_img = nibabel.load(anat_file)
-anat = anat_img.get_data()  # mean_fmri_files.get_data()
-anat_affine = anat_img.get_affine()  # mean_fmri_files.get_affine()
+anat = anat_img.get_data()
+anat_affine = anat_img.get_affine()
 
 print "Computing contrasts .."
 z_maps = {}
@@ -179,7 +178,6 @@ glm_reporter.generate_subject_stats_report(
     anat=anat,
     anat_affine=anat_affine,
     cluster_th=50,  # we're only interested in this 'large' clusters
-    progress_logger=results[0]['progress_logger'],
     start_time=stats_start_time,
 
     # additional ``kwargs`` for more informative report
@@ -191,5 +189,8 @@ glm_reporter.generate_subject_stats_report(
     drift_model=drift_model,
     hrf_model=hrf_model,
     )
+
+# shutdown main report page
+base_reporter.ProgressReport().finish_dir(output_dir)
 
 print "\r\nStatistic report written to %s\r\n" % stats_report_filename

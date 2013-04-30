@@ -448,7 +448,7 @@ Z>%s voxel-level.
 
     # prevent any related page from reloading
     if shutdown_all_reloaders:
-        progress_logger.finish_all()
+        progress_logger.finish_dir(output_dir)
 
     # return generated html
     with open(stats_report_filename, 'r') as fd:
