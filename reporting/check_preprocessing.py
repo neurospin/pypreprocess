@@ -95,7 +95,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
                do_plot=True,
                write_image=True, mask=True, bg_image=False,
                plot_diff=True,
-               output_dir=None,
+               _output_dir=None,
                cv_tc_plot_outfile=None):
     """ Compute coefficient of variation of the data and plot it
 
@@ -117,11 +117,11 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
               if no, an MNI template is used (works for normalized data)
     """
 
-    if output_dir is None:
+    if _output_dir is None:
         if not cv_tc_plot_outfile is None:
-            output_dir = os.path.dirname(cv_tc_plot_outfile)
+            _output_dir = os.path.dirname(cv_tc_plot_outfile)
         else:
-            output_dir = tempfile.mkdtemp()
+            _output_dir = tempfile.mkdtemp()
 
     cv_tc_ = []
     if isinstance(mask, basestring):
@@ -131,7 +131,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
     else:
         mask_array = None
     for (session_id, fmri_file) in zip(session_ids, epi_data):
-        nim = do_3Dto4D_merge(fmri_file)
+        nim = do_3Dto4D_merge(fmri_file, output_dir=_output_dir)
         affine = nim.get_affine()
         if len(nim.shape) == 4:
             # get the data
@@ -141,7 +141,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
             pass
 
         # compute the CV for the session
-        cache_dir = os.path.join(output_dir, "CV")
+        cache_dir = os.path.join(_output_dir, "CV")
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         mem = joblib.Memory(cachedir=cache_dir, verbose=5)
@@ -150,7 +150,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
         if write_image:
             # write an image
             nibabel.save(nibabel.Nifti1Image(cv, affine),
-                         os.path.join(output_dir, 'cv_%s.nii' % session_id))
+                         os.path.join(_output_dir, 'cv_%s.nii' % session_id))
             if bg_image == False:
                 try:
                     viz.plot_map(

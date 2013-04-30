@@ -53,7 +53,8 @@ def generate_preproc_undergone_docstring(
     do_coreg=True,
     coreg_func_to_anat=False,
     do_segment=True,
-    do_normalize=True):
+    do_normalize=True,
+    additional_preproc_undergone=""):
     preproc_undergone = """\
     <p>All preprocessing has been done using <a href="%s">pypreprocess</a>,
     which is powered by <a href="%s">nipype</a>, and <a href="%s">SPM8</a>.
@@ -137,12 +138,17 @@ def generate_preproc_undergone_docstring(
                 "<li>"
                 "The fMRI images have been warped from native to standard "
                 "space via classical normalization.</li>")
+    if additional_preproc_undergone:
+        preproc_undergone += additional_preproc_undergone
     if fwhm:
-        preproc_undergone += (
-            "<li>"
-            "The normalized fMRI images have been "
-            "smoothed with a %smm x %smm x %smm "
-            "Gaussian kernel.</li>") % tuple(fwhm)
+        if max(list(fwhm)) > 0:
+            preproc_undergone += (
+                "<li>"
+                "Normalized images have been "
+                "smoothed with a %smm x %smm x %smm "
+                "Gaussian kernel.</li>") % tuple(fwhm)
+
+    preproc_undergone += "</ul>"
 
     return preproc_undergone
 
@@ -264,7 +270,7 @@ def generate_normalization_thumbnails(
             "_report/report.rst")
         normalized = normalized_files
     else:
-        brain = "mean " + brain
+        brain = "mean" + brain
 
         if isinstance(normalized_files[0], basestring):
             nipype_report_filename = os.path.join(
@@ -434,7 +440,7 @@ def generate_segmentation_thumbnails(
             "_report/report.rst")
         normalized_file = normalized_files
     else:
-        brain = "mean " + brain
+        brain = "mean" + brain
 
         if isinstance(normalized_files[0], basestring):
             nipype_report_filename = os.path.join(
@@ -620,7 +626,7 @@ def generate_cv_tc_thumbnail(
         image_files,
         sessions,
         subject_id,
-        output_dir=output_dir,
+        _output_dir=output_dir,
         cv_tc_plot_outfile=cv_tc_plot_output_file,
         plot_diff=True)
 
@@ -953,9 +959,6 @@ def generate_dataset_preproc_report(
     with open(report_filename, 'w') as fd:
         fd.write(str(main_html))
         fd.close()
-
-    import joblib
-    import multiprocessing
 
     # factory to generate subjects
     def subject_factory():
