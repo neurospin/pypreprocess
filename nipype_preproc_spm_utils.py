@@ -293,7 +293,7 @@ def _do_subject_coreg(output_dir,
         # XXX move the following code to reporting.preproc_reporter.py
         #
 
-        ref_brain = "mean EPI"
+        ref_brain = "meanEPI"
         source_brain = "anat"
         if coreg_func_to_anat:
             ref_brain, source_brain = source_brain, ref_brain
@@ -723,12 +723,9 @@ def _do_subject_preproc(
         do_coreg=do_coreg,
         coreg_func_to_anat=func_to_anat,
         do_segment=do_segment,
-        do_normalize=do_normalize)
-
-    if additional_preproc_undergone:
-        preproc_undergone += additional_preproc_undergone
-
-    preproc_undergone += "</ul>"
+        do_normalize=do_normalize,
+        additional_preproc_undergone=additional_preproc_undergone,
+        )
 
     output['preproc_undergone'] = preproc_undergone
 
@@ -813,13 +810,13 @@ def _do_subject_preproc(
         def finalize_report():
             output['final_thumbnail'] = final_thumbnail
 
-            if parent_results_gallery:
-                base_reporter.commit_subject_thumnbail_to_parent_gallery(
-                    final_thumbnail,
-                    subject_data.subject_id,
-                    parent_results_gallery)
-
             if last_stage:
+                if parent_results_gallery:
+                    base_reporter.commit_subject_thumnbail_to_parent_gallery(
+                        final_thumbnail,
+                        subject_data.subject_id,
+                        parent_results_gallery)
+
                 subject_progress_logger.finish(report_preproc_filename)
     else:
         results_gallery = None
