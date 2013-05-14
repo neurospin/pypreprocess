@@ -1,0 +1,6 @@
+task001 congruent_vs_incongruent 1 1 -1 -1
+task001 correct_vs_incorrect 1 -1 1 -1
+task001 congruent_vs_rest 1 1 0 0
+task001 incongruent_vs_rest 0 0 1 1
+task001 correct_vs_rest 1 0 1 0
+task001 incorrect_vs_rest 0 1 0 1

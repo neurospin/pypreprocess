@@ -1,0 +1,9 @@
+task001 tone_counting_vs_probe 1 -1
+task002 single_task_classification_vs_dual_task_probe 1 -1
+task003 dual_task_classification_vs_dual_task_probe 1 -1
+task004 correct_single_vs_dual_classification 1 -1 0 0
+task001 tone_counting_vs_rest 1 0
+task002 single_task_classification_vs_rest 1 0
+task003 dual_task_classification_vs_rest 1 0
+task004 correct_single_vs_rest 1 0 0 0
+task004 correct_dual_classification_vs_rest 0 1 0 0

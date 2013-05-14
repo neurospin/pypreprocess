@@ -8,17 +8,20 @@
 import os
 import joblib
 import commands
+import tempfile
 
 import numpy as np
 import nibabel
-from nisl import resampling
+from external.nisl import resampling
 
 
 def is_3D(image):
     """Check whether image is 3D"""
 
-    if type(image) is str:
+    if isinstance(image, basestring):
         image = nibabel.load(image)
+    elif isinstance(image, list):
+        image = nibabel.concat_images(image)
 
     if len(image.shape) == 3:
         return True
@@ -30,7 +33,7 @@ def is_4D(image):
     """Check whether image is 4D
     """
 
-    if type(image) is str:
+    if isinstance(image, basestring):
         image = nibabel.load(image)
 
     if len(image.shape) == 4:
@@ -50,9 +53,14 @@ def get_vox_dims(volume):
 
     """
 
-    if not type(volume) is str:
+    if not isinstance(volume, basestring):
         volume = volume[0]
-    nii = nibabel.load(volume)
+    try:
+        nii = nibabel.load(volume)
+    except:
+        # XXX quick and dirty
+        nii = nibabel.concat_images(volume)
+
     hdr = nii.get_header()
     voxdims = hdr.get_zooms()
 
@@ -104,7 +112,10 @@ def delete_orientation(imgs, output_dir, output_tag=''):
     return output_imgs
 
 
-def do_3Dto4D_merge(threeD_img_filenames):
+def do_3Dto4D_merge(
+    threeD_img_filenames,
+    output_dir=None,
+    output_filename=None):
     """
     This function produces a single 4D nifti image from several 3D.
 
@@ -113,14 +124,15 @@ def do_3Dto4D_merge(threeD_img_filenames):
 
     Returns
     -------
-    path to resultant 4D image on disk
+    returns nifit image object
 
     """
 
-    if type(threeD_img_filenames) is str:
-        return threeD_img_filenames
+    if isinstance(threeD_img_filenames, basestring):
+        return nibabel.load(threeD_img_filenames)
 
-    output_dir = os.path.dirname(threeD_img_filenames[0])
+    if output_dir is None:
+        output_dir = tempfile.mkdtemp()
 
     # prepare for smart caching
     merge_cache_dir = os.path.join(output_dir, "merge")
@@ -130,8 +142,6 @@ def do_3Dto4D_merge(threeD_img_filenames):
 
     # merging proper
     fourD_img = merge_mem.cache(nibabel.concat_images)(threeD_img_filenames)
-    fourD_img_filename = os.path.join(output_dir,
-                                      "fourD_func.nii")
 
     # sanity
     if len(fourD_img.shape) == 5:
@@ -139,9 +149,11 @@ def do_3Dto4D_merge(threeD_img_filenames):
             fourD_img.get_data()[..., ..., ..., 0, ...],
             fourD_img.get_affine())
 
-    merge_mem.cache(nibabel.save)(fourD_img, fourD_img_filename)
+    # save image to disk
+    if not output_filename is None:
+        merge_mem.cache(nibabel.save)(fourD_img, output_filename)
 
-    return fourD_img_filename
+    return fourD_img
 
 
 def resample_img(input_img_filename,
@@ -190,7 +202,7 @@ def resample_img(input_img_filename,
     return output_img_filename
 
 
-def compute_mean_3D_image(images, output_filename=None):
+def compute_mean_image(images, output_filename=None, threeD=False):
     """Computes the mean of --perhaps differently shaped-- images
 
     Parameters
@@ -205,28 +217,33 @@ def compute_mean_3D_image(images, output_filename=None):
     """
 
     # sanitize
-    if not hasattr(images, '__iter__') or type(images) is str:
+    if not hasattr(images, '__iter__') or isinstance(images, basestring):
         images = [images]
 
     # make list of data an affines
     all_data = []
     all_affine = []
     for image in images:
-        if type(image) is str:
+        if isinstance(image, basestring):
             image = nibabel.load(image)
         else:
-            raise IOError(type(image))
+            image = nibabel.concat_images(image)
+            # raise IOError(type(image))
         data = image.get_data()
 
-        if is_4D(image):
-            data = data.mean(-1)
+        if threeD:
+            if is_4D(image):
+                data = data.mean(-1)
 
         all_data.append(data)
         all_affine.append(image.get_affine())
 
     # compute mean
     mean_data = np.mean(all_data, axis=0)
-    mean_affine = np.mean(all_affine, axis=0)
+
+    # XXX I'm assuming all the affines are equal
+    mean_affine = all_affine[0]
+
     mean_image = nibabel.Nifti1Image(mean_data, mean_affine)
 
     # save mean image
@@ -235,3 +252,21 @@ def compute_mean_3D_image(images, output_filename=None):
 
     # return return result
     return mean_image
+
+
+def compute_mean_3D_image(images, output_filename=None):
+    """Computes the mean of --perhaps differently shaped-- images
+
+    Parameters
+    ----------
+    images: string/image object, or list (-like) of
+        image(s) whose mean we seek
+
+    Returns
+    -------
+    mean nifti image object
+
+    """
+
+    return compute_mean_image(images, output_filename=output_filename,
+                              threeD=True)

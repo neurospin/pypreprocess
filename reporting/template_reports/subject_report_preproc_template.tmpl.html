@@ -1,0 +1,73 @@
+<!-- author: d0hm4t06 3lv15 d0p91m4 -->
+
+{{default preproc_undergone = None}}
+{{default references = ["Russel A. Poldrack et al. <i>Handbook of Functional MRI Data Analysis</i>"]}}
+{{default report_html = "report.html"}}
+{{default conf_path="."}}
+
+<html>
+  <head>
+    <!--refreshstart-->
+    <meta http-equiv=refresh content={{results.refresh_timeout}}>
+      <!--refreshstop-->
+      <link rel=stylesheet type=text/css href="{{conf_path}}/styles.css">
+      <title>fMRI report</title>
+  </head>
+
+  <body>
+    <object data={{report_html}}></object>
+    <h2>Data pre-preprocessing</h2>
+    Started: {{start_time}}
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color=red><i>STILL RUNNING ..</i><blink>.</blink></font>
+    <hr/>
+
+    {{if preproc_undergone}}
+    <b>Methods used</b><br/>
+    {{preproc_undergone | html}}
+    <b>References</b><br/><br/>
+      <ul>
+      {{for ref in references}}
+      <li>{{ref | html}}</li>
+      {{endfor}}
+      </ul>
+    <hr/>
+    {{endif}}
+
+    <script type="text/javascript">
+      {{py: import os; loader=os.path.basename(results.loader_filename);}}
+      $('#results').load("{{loader}}").fadeIn("slow");
+    </script>
+    <b>Results</b> (click on a thumbnail to expand)<br/>
+    {{results.description | html}}<br/>
+    <div id="results">
+    </div>
+
+    <!-- It's time for javascript, folks -->
+    <script type="text/javascript" src="{{conf_path}}/jquery.min.js"></script>
+    <script type="text/javascript" src="{{conf_path}}/base.js"></script>
+    <script type="text/javascript">
+      $(function(){
+      $('li')
+      .css('pointer','default')
+      .css('list-style-image','none');
+      $('li:has(ul)')
+      .click(function(event){
+      if (this == event.target) {
+      $(this).css('list-style-image',
+      (!$(this).children().is(':hidden')) ? 'url(plusbox.gif)' : 'url(minusbox.gif)');
+      $(this).children().toggle('slow');
+      }
+      return false;
+			})
+      .css({cursor:'pointer', 'list-style-image':'url(plusbox.gif)'})
+      .children().hide();
+      $('li:not(:has(ul))').css({cursor:'default', 'list-style-image':'none'});
+      });
+      
+      $(document).ready(function(){
+      {{py: import os; loader=os.path.basename(results.loader_filename);}}
+      $('#results').load("{{loader}}").fadeIn("slow");
+      });
+    </script>
+  </body>
+</html>

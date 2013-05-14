@@ -8,14 +8,13 @@
 # standard imports
 import os
 import glob
-import json
 import traceback
 
 # import spm preproc utilities
 import nipype_preproc_spm_utils
 
 # misc
-from external.nisl.datasets import unzip_nii_gz
+from datasets_extras import unzip_nii_gz
 
 DATASET_DESCRIPTION = """\
 <p><a href="https://openfmri.org/data-sets">openfmri.org datasets</a>.</p>
@@ -54,21 +53,22 @@ datasets = {
 # subjects per dataset we want to exclude
 # XXX please, justify each exclusion below (comments, etc.)
 datasets_exclusions = {
-    'ds017A': ['sub003'],  # XXX why ?
-    'ds017B': ['sub003'],
-    'ds007': ['sub009', 'sub018'],
-    'ds051': ['sub006',
-              'sub011',  # Running 'Realign: Estimate & Reslice'
-              # Failed  'Realign: Estimate & Reslice'
-              # Error using spm_bsplinc
-              # File too small.
-              ],
-    'ds107': ['sub003',  # garbage anat
-              ],
+    # let the pipeline find out itself what is evil --or not-- about the data
+    # 'ds017A': ['sub003'],  # XXX why ?
+    # 'ds017B': ['sub003'],
+    # 'ds007': ['sub009', 'sub018'],
+    # 'ds051': ['sub006',
+    #           'sub011',  # Running 'Realign: Estimate & Reslice'
+    #           # Failed  'Realign: Estimate & Reslice'
+    #           # Error using spm_bsplinc
+    #           # File too small.
+    #           ],
+    # 'ds107': ['sub003',  # garbage anat
+    #           ],
     }
 
 
-def main(data_dir, output_dir, exclusions=None):
+def main(data_dir, output_dir, exclusions=None, dataset_id=None):
     """Main function for preprocessing (and analysis ?)
 
     Parameters
@@ -158,12 +158,14 @@ def main(data_dir, output_dir, exclusions=None):
                                    "_report.html")
     return nipype_preproc_spm_utils.do_subjects_preproc(
         subject_factory(),
+        dataset_id=dataset_id,
         output_dir=output_dir,
         do_deleteorient=True,  # some openfmri data have garbage orientation
         do_dartel=DO_DARTEL,
         # do_cv_tc=False,
         dataset_description=DATASET_DESCRIPTION,
-        report_filename=report_filename
+        report_filename=report_filename,
+        do_shutdown_reloaders=True
         )
 
 if __name__ == '__main__':
@@ -200,15 +202,8 @@ if __name__ == '__main__':
                 os.makedirs(output_dir)
 
             results = main(data_dir, output_dir,
-                           datasets_exclusions.get(ds_id))
-
-            # dump results to json file (one per subject)
-            for result in results:
-                result['bold'] = result.pop('func')
-                result['subject'] = result.pop('subject_id')
-                path = os.path.join(
-                    output_dir, result['subject'], 'infos.json')
-                json.dump(result, open(path, 'wb'))
+                           datasets_exclusions.get(ds_id),
+                           dataset_id=ds_id)
         except:
             print traceback.format_exc()
             pass
