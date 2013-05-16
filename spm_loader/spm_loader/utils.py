@@ -81,46 +81,46 @@ def export(docs, out_dir, fix=None, outputs=None, n_jobs=1):
 
 
 def _export(doc, out_dir, outputs):
-    study_dir = os.path.join(out_dir, doc['study'])
-    subject_dir = os.path.join(study_dir, 'subjects', doc['subject'])
+    # study_dir = os.path.join(out_dir, doc['study'])
+    # subject_dir = os.path.join(study_dir, 'subjects', doc['subject'])
 
-    if not os.path.exists(study_dir):
-        os.makedirs(study_dir)
-    if not os.path.exists(subject_dir):
-        os.makedirs(subject_dir)
+    # if not os.path.exists(study_dir):
+    #     os.makedirs(study_dir)
+    # if not os.path.exists(subject_dir):
+    #     os.makedirs(subject_dir)
 
-    if outputs is None:
-        outputs = {}
-    # maps
-    if outputs.get('maps', True):
-        for dtype in ['t_maps', 'c_maps']:
-            map_dir = os.path.join(subject_dir, dtype)
-            if not os.path.exists(map_dir):
-                os.makedirs(map_dir)
-            for label, fpath in doc[dtype].iteritems():
-                img = nb.load(fpath)
-                fname = '%s.nii.gz' % label.replace(' ', '_')
-                nb.save(img, os.path.join(map_dir, fname))
+    # if outputs is None:
+    #     outputs = {}
+    # # maps
+    # if outputs.get('maps', True):
+    #     for dtype in ['t_maps', 'c_maps']:
+    #         map_dir = os.path.join(subject_dir, dtype)
+    #         if not os.path.exists(map_dir):
+    #             os.makedirs(map_dir)
+    #         for label, fpath in doc[dtype].iteritems():
+    #             img = nb.load(fpath)
+    #             fname = '%s.nii.gz' % label.replace(' ', '_')
+    #             nb.save(img, os.path.join(map_dir, fname))
 
-    # fMRI
-    if 'data' in doc and outputs.get('data', True):
-        for dtype in ['raw_data', 'data']:
-            img = nb.concat_images(doc[dtype])
-            fname = 'bold' if dtype == 'data' else 'raw_bold'
-            nb.save(img, os.path.join(subject_dir, '%s.nii.gz' % fname))
+    # # fMRI
+    # if 'data' in doc and outputs.get('data', True):
+    #     for dtype in ['raw_data', 'data']:
+    #         img = nb.concat_images(doc[dtype])
+    #         fname = 'bold' if dtype == 'data' else 'raw_bold'
+    #         nb.save(img, os.path.join(subject_dir, '%s.nii.gz' % fname))
 
     # mask
     if outputs.get('mask', True):
         img = nb.load(doc['mask'])
-        nb.save(img, os.path.join(subject_dir, 'mask.nii.gz'))
+        nb.save(img, os.path.join(out_dir, 'mask.nii.gz'))
 
     # model
     if outputs.get('model', True):
         design_matrix = doc['design_matrix']
-        path = os.path.join(subject_dir, 'design_matrix.json')
+        path = os.path.join(out_dir, 'design_matrix.json')
         json.dump(design_matrix, open(path, 'wb'))
         contrasts = doc['contrasts']
-        path = os.path.join(subject_dir, 'contrasts.json')
+        path = os.path.join(out_dir, 'contrasts.json')
         json.dump(contrasts, open(path, 'wb'))
 
 
@@ -208,22 +208,27 @@ def execute_glm(doc, out_dir, contrast_definitions=None,
     # study_dir = os.path.join(out_dir, doc['study'])
 
     if outputs is None:
-        outputs = {'maps': False, 'data': False}
+        outputs = {'maps': False,
+                   'data': False,
+                   'mask': True,
+                   'model': True,
+                   }
     else:
         outputs['maps'] = False
-
-    export([doc], out_dir, outputs=outputs)
-
-    params = load_glm_params(doc)
 
     subject_id = doc['subject']
     subject_output_dir = os.path.join(
         out_dir, subject_id)
 
+    _export(doc, subject_output_dir, outputs=outputs)
+
+    params = load_glm_params(doc)
+
     # instantiate GLM
     fmri_glm = FMRILinearModel(params['data'],
                           params['design_matrices'],
                           doc['mask'])
+
     # fit GLM
     fmri_glm.fit(do_scaling=True, model=glm_model)
 
