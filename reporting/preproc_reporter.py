@@ -44,6 +44,23 @@ CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
 WEBBY_EXTENSION_PATTERN = ".*\.(?:png|jpeg|html|php|css|txt|rst)$"
 
 
+def get_nipype_report_filename(
+    output_files_or_dir):
+    if isinstance(output_files_or_dir, basestring):
+        if os.path.isdir(output_files_or_dir):
+            return os.path.join(output_files_or_dir,
+                                "_report/report.rst")
+        elif os.path.isfile(output_files_or_dir):
+            return get_nipype_report_filename(
+                os.path.dirname(output_files_or_dir))
+        else:
+            raise OSError(
+                "%s is neither a file nor directory!" % output_files_or_dir)
+    else:
+        # assuming list-like type
+        return get_nipype_report_filename(output_files_or_dir[0])
+
+
 def generate_preproc_undergone_docstring(
     do_deleteorient=False,
     fwhm=None,
@@ -233,32 +250,36 @@ def nipype2htmlreport(nipype_report_filename):
         return base_reporter.lines2breaks(fd.readlines())
 
 
+def get_nipype_report(nipype_report_filename,
+                        ):
+    if isinstance(nipype_report_filename, basestring):
+        if os.path.isfile(nipype_report_filename):
+            nipype_report_filenames = [nipype_report_filename]
+        else:
+            nipype_report_filenames = []
+    else:
+        nipype_report_filenames = nipype_report_filename
+
+    output = []
+    for nipype_report_filename in nipype_report_filenames:
+        if os.path.exists(nipype_report_filename):
+            nipype_report = nipype2htmlreport(
+                nipype_report_filename)
+            output.append(nipype_report)
+
+    output = "<hr/>".join(output)
+
+    return output
+
+
 def generate_registration_thumbnails(
     target,
     source,
     procedure_name,
     output_dir,
-    cmap=pl.cm.gray,
-    nipype_report_filename=None,
+    execution_log_html_filename=None,
     results_gallery=None,
-    progress_logger=None,
     ):
-
-    # nipype report
-    nipype_html_report_filename = os.path.join(
-        output_dir,
-        '%s_nipype_report.html' % procedure_name.replace(" ", "_"))
-
-    if not nipype_report_filename is None:
-        if os.path.exists(nipype_report_filename):
-            nipype_report = nipype2htmlreport(
-                nipype_report_filename)
-            open(nipype_html_report_filename,
-                 'w').write(str(nipype_report))
-
-            if progress_logger:
-                progress_logger.log(nipype_report)
-                progress_logger.log('<hr/>')
 
     output = {}
 
@@ -269,10 +290,10 @@ def generate_registration_thumbnails(
     qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
 
     thumb_desc = procedure_name
-    if os.path.exists(nipype_report_filename):
+    if execution_log_html_filename:
         thumb_desc += (" (<a href=%s>see execution"
                        " log</a>)") % (os.path.basename(
-                nipype_html_report_filename))
+                execution_log_html_filename))
 
     # plot outline (edge map) of template on the
     # normalized image
@@ -287,7 +308,8 @@ def generate_registration_thumbnails(
         output_filename=outline,
         title="Outline of %s on %s" % (
             target[1],
-            source[1]))
+            source[1],
+            ))
 
     # create thumbnail
     if results_gallery:
@@ -316,8 +338,7 @@ def generate_registration_thumbnails(
         source[0],
         output_filename=outline_axial,
         slicer='z',
-        cmap=cmap,
-        title="Outline of %s on SPM MNI %s template" % (
+        title="Outline of %s on %s" % (
             target[1],
             source[1]))
 
@@ -327,10 +348,10 @@ def generate_registration_thumbnails(
         target[0],
         source[0],
         output_filename=outline,
-        cmap=cmap,
-        title="Outline of %s on MNI %s template" % (
+        title="Outline of %s on %s" % (
             target[1],
-            source[1]))
+            source[1],
+            ))
 
     # create thumbnail
     if results_gallery:
@@ -349,9 +370,8 @@ def generate_normalization_thumbnails(
     normalized_files,
     output_dir,
     brain="EPI",
-    cmap=None,
+    execution_log_html_filename=None,
     results_gallery=None,
-    progress_logger=None,
     ):
     """Generate thumbnails after spatial normalization or subject
 
@@ -366,32 +386,14 @@ def generate_normalization_thumbnails(
     brain: string (optional)
         a short comment/tag like 'epi', or 'anat'
 
-    cmap: optional
-        cmap (color map) to use for plots
-
     result_gallery: ResultsGallery instance (optional)
         gallery to which thumbnails will be committed
 
     """
 
-    nipype_report_filename = None
     if isinstance(normalized_files, basestring):
-        nipype_report_filename = os.path.join(
-            os.path.dirname(normalized_files),
-            "_report/report.rst")
         normalized = normalized_files
     else:
-        brain = "mean" + brain
-
-        if isinstance(normalized_files[0], basestring):
-            nipype_report_filename = os.path.join(
-                os.path.dirname(normalized_files[0]),
-                "_report/report.rst")
-        else:
-            nipype_report_filename = os.path.join(
-                os.path.dirname(normalized_files[0][0]),
-                "_report/report.rst")
-
         mean_normalized_img = io_utils.compute_mean_3D_image(normalized_files)
         normalized = mean_normalized_img
 
@@ -400,35 +402,26 @@ def generate_normalization_thumbnails(
         (normalized, brain),
         "Normalization of %s" % brain,
         output_dir,
-        cmap=cmap,
-        nipype_report_filename=nipype_report_filename,
+        execution_log_html_filename=execution_log_html_filename,
         results_gallery=results_gallery,
-        progress_logger=progress_logger,
         )
 
 
 def generate_coregistration_thumbnails(target,
                                        source,
                                        output_dir,
-                                       cmap=None,
+                                       execution_log_html_filename=None,
                                        results_gallery=None,
                                        progress_logger=None,
                                        ):
-
-    # nipype report
-    nipype_report_filename = os.path.join(
-        os.path.dirname(source[1]),
-        "_report/report.rst")
 
     return generate_registration_thumbnails(
         target,
         source,
         "Coregistration %s -> %s" % (source[1], target[1]),
         output_dir,
-        cmap=cmap,
-        nipype_report_filename=nipype_report_filename,
+        execution_log_html_filename=execution_log_html_filename,
         results_gallery=results_gallery,
-        progress_logger=progress_logger,
         )
 
 
@@ -439,9 +432,10 @@ def generate_segmentation_thumbnails(
     subject_wm_file=None,
     subject_csf_file=None,
     brain='EPI',
+    execution_log_html_filename=None,
     cmap=None,
     results_gallery=None,
-    progress_logger=None):
+    ):
     """Generates thumbnails after indirect normalization
     (segmentation + normalization)
 
@@ -473,45 +467,15 @@ def generate_segmentation_thumbnails(
 
     """
 
-    _brain = brain
-
-    if progress_logger:
-        progress_logger.log('<b>Normalization of %s</b><br/><br/>' % _brain)
-
     if isinstance(normalized_files, basestring):
-        nipype_report_filename = os.path.join(
-            os.path.dirname(normalized_files),
-            "_report/report.rst")
         normalized_file = normalized_files
     else:
-        brain = "mean" + brain
-
-        if isinstance(normalized_files[0], basestring):
-            nipype_report_filename = os.path.join(
-                os.path.dirname(normalized_files[0]),
-                "_report/report.rst")
-        else:
-            nipype_report_filename = os.path.join(
-                os.path.dirname(normalized_files[0][0]),
-                "_report/report.rst")
-
         mean_normalized_file = os.path.join(output_dir,
                                             "%s.nii" % brain)
 
         io_utils.compute_mean_3D_image(normalized_files,
                            output_filename=mean_normalized_file)
         normalized_file = mean_normalized_file
-
-    # nipype report
-    nipype_html_report_filename = os.path.join(
-        output_dir,
-        '%s_normalize_nipype_report.html' % brain)
-
-    if os.path.exists(nipype_report_filename):
-        nipype_report = nipype2htmlreport(
-            nipype_report_filename)
-        open(nipype_html_report_filename,
-             'w').write(str(nipype_report))
 
     output = {}
 
@@ -521,11 +485,11 @@ def generate_segmentation_thumbnails(
         os.makedirs(qa_cache_dir)
     qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
 
-    thumb_desc = "Segmentation of %s " % _brain
-    if os.path.exists(nipype_report_filename):
+    thumb_desc = "Segmentation of %s " % brain
+    if execution_log_html_filename:
         thumb_desc += (" (<a href=%s>see execution "
                        "log</a>)") % (os.path.basename(
-                nipype_html_report_filename))
+                execution_log_html_filename))
 
     # plot contours of template compartments on subject's brain
     template_compartments_contours = os.path.join(
@@ -693,9 +657,11 @@ def generate_realignment_thumbnails(
     estimated_motion,
     output_dir,
     sessions=[1],
+    execution_log_html_filename=None,
     results_gallery=None,
     progress_logger=None):
-    """
+    """Function generates thumbnails for realignment parameters
+    (aka estimated motion)
 
     """
 
@@ -703,22 +669,6 @@ def generate_realignment_thumbnails(
         estimated_motion = [estimated_motion]
 
     output = {}
-
-    # nipype report
-    nipype_report_filename = os.path.join(
-        os.path.dirname(estimated_motion[0]),
-        "_report/report.rst")
-    nipype_html_report_filename = os.path.join(
-        output_dir,
-        'realign_nipype_report.html')
-
-    if os.path.exists(nipype_report_filename):
-        nipype_report = nipype2htmlreport(nipype_report_filename)
-        open(nipype_html_report_filename, 'w').write(str(nipype_report))
-
-        if progress_logger:
-            progress_logger.log(nipype_report)
-            progress_logger.log('<hr/>')
 
     for session_id, rp in zip(sessions, estimated_motion):
         rp_plot = os.path.join(
@@ -736,10 +686,10 @@ def generate_realignment_thumbnails(
                                          height="250px",
                                          width="600px")
             thumbnail.description = "Motion Correction"
-            if os.path.exists(nipype_report_filename):
+            if not execution_log_html_filename is None:
                 thumbnail.description += (" (<a href=%s>see execution "
                 "log</a>)") % os.path.basename(
-                    nipype_html_report_filename)
+                    execution_log_html_filename)
 
             results_gallery.commit_thumbnails(thumbnail)
 

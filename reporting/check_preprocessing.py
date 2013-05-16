@@ -222,8 +222,9 @@ def plot_registration(reference_img, coregistered_img,
 
     """
 
+    # sanity
     if cmap is None:
-        cmap = pl.cm.spectral
+        cmap = pl.cm.gray  # registration QA always gray cmap!
 
     if cut_coords is None:
         cut_coords = (-10, -28, 17)
@@ -255,7 +256,7 @@ def plot_registration(reference_img, coregistered_img,
     _slicer.edge_map(reference_data, reference_affine)
 
     # misc
-    _slicer.title(title, size=12, color='w',
+    _slicer.title("%s (cmap: %s)" % (title, cmap.name), size=12, color='w',
                   alpha=0)
 
     if not output_filename is None:
@@ -293,8 +294,10 @@ def plot_segmentation(img, gm_filename, wm_filename=None,
 
 
     """
+
+    # sanity
     if cmap is None:
-        cmap = pl.cm.spectral
+        cmap = pl.cm.gray
 
     if cut_coords is None:
         cut_coords = (-10, -28, 17)
@@ -337,7 +340,7 @@ def plot_segmentation(img, gm_filename, wm_filename=None,
             csf_template, csf_affine, levels=[.51], colors=['b'])
 
     # misc
-    _slicer.title(title, size=12, color='w',
+    _slicer.title("%s (cmap: %s)" % (title, cmap.name), size=12, color='w',
                  alpha=0)
     # pl.legend(("WM", "CSF", "GM"), loc="lower left", ncol=len(cut_coords))
 
