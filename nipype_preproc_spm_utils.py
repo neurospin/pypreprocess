@@ -226,10 +226,27 @@ def _do_subject_realign(output_dir,
 
             assert len(sessions) == len(estimated_motion), estimated_motion
 
+            execution_log = preproc_reporter.get_nipype_report(
+                preproc_reporter.get_nipype_report_filename(estimated_motion))
+            execution_log_html_filename = os.path.join(
+                output_dir,
+                'realignment_execution_log.html'
+                )
+
+            open(execution_log_html_filename, 'w').write(
+                execution_log)
+
+            if progress_logger:
+                progress_logger.log(
+                    '<b>Realignment</b><br/><br/>')
+                progress_logger.log(execution_log)
+                progress_logger.log('<hr/>')
+
             output.update(preproc_reporter.generate_realignment_thumbnails(
                     estimated_motion,
                     output_dir,
                     sessions=sessions,
+                    execution_log_html_filename=execution_log_html_filename,
                     results_gallery=results_gallery,
                     progress_logger=progress_logger,
                     ))
@@ -280,9 +297,6 @@ def _do_subject_coreg(output_dir,
         os.makedirs(cache_dir)
     mem = Memory(base_dir=cache_dir)
 
-    if progress_logger:
-        progress_logger.log('<b>Coregistration</b><br/><br/>')
-
     # run workflow
     coreg = mem.cache(spm.Coregister)
     coreg_result = coreg(**spm_coregister_kwargs)
@@ -293,7 +307,7 @@ def _do_subject_coreg(output_dir,
         # XXX move the following code to reporting.preproc_reporter.py
         #
 
-        ref_brain = "meanEPI"
+        ref_brain = "EPI"
         source_brain = "anat"
         if coreg_func_to_anat:
             ref_brain, source_brain = source_brain, ref_brain
@@ -302,114 +316,30 @@ def _do_subject_coreg(output_dir,
             target = spm_coregister_kwargs['target']
             source = coreg_result.outputs.coregistered_source
 
+            execution_log = preproc_reporter.get_nipype_report(
+                preproc_reporter.get_nipype_report_filename(source))
+            execution_log_html_filename = os.path.join(
+                output_dir,
+                'coregistration_execution_log.html'
+                )
+
+            open(execution_log_html_filename, 'w').write(
+                execution_log)
+
+            if progress_logger:
+                progress_logger.log(
+                    '<b>Coregistration</b><br/><br/>')
+                progress_logger.log(execution_log)
+                progress_logger.log('<hr/>')
+
             output.update(preproc_reporter.generate_coregistration_thumbnails(
                 (target, ref_brain),
                 (source, source_brain),
                 output_dir,
+                execution_log_html_filename=execution_log_html_filename,
                 results_gallery=results_gallery,
                 progress_logger=progress_logger,
                 ))
-
-            # # nipype report
-            # nipype_report_filename = os.path.join(
-            #     os.path.dirname(coreg_result.outputs.coregistered_source),
-            #     "_report/report.rst")
-            # nipype_html_report_filename = os.path.join(
-            #     output_dir,
-            #     'coregister_nipype_report.html')
-            # nipype_report = preproc_reporter.nipype2htmlreport(
-            #     nipype_report_filename)
-            # open(nipype_html_report_filename, 'w').write(str(nipype_report))
-
-            # if progress_logger:
-            #     progress_logger.log(nipype_report)
-            #     progress_logger.log('<hr/>')
-
-            # # prepare for smart caching
-            # qa_cache_dir = os.path.join(output_dir, "QA")
-            # if not os.path.exists(qa_cache_dir):
-            #     os.makedirs(qa_cache_dir)
-            # qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
-
-            # # plot outline of target on coregistered source
-            # target = spm_coregister_kwargs['target']
-            # source = coreg_result.outputs.coregistered_source
-
-            # outline = os.path.join(
-            #     output_dir,
-            #     "%s_on_%s_outline.png" % (ref_brain, source_brain))
-            # qa_mem.cache(check_preprocessing.plot_registration)(
-            #     target,
-            #     source,
-            #     output_filename=outline,
-            #     cmap=pl.cm.gray,
-            #     title="Outline of %s on %s" % (ref_brain, source_brain))
-
-            # outline_axial = os.path.join(
-            #     output_dir,
-            #     "%s_on_%s_outline_axial.png" % (ref_brain,
-            #                                     source_brain))
-            # qa_mem.cache(check_preprocessing.plot_registration)(
-            #     target,
-            #     source,
-            #     output_filename=outline_axial,
-            #     slicer='z',
-            #     cmap=pl.cm.gray,
-            #     title="%s: coreg" % subject_id)
-
-            # # create thumbnail
-            # if results_gallery:
-            #     thumbnail = base_reporter.Thumbnail()
-            #     thumbnail.a = base_reporter.a(
-            #         href=os.path.basename(outline))
-            #     thumbnail.img = base_reporter.img(
-            #         src=os.path.basename(outline),
-            #         height="250px")
-            #     thumbnail.description = \
-            #         "Coregistration %s (<a href=%s>see execution log</a>)" % \
-            #         (comments, os.path.basename(nipype_html_report_filename))
-
-            #     results_gallery.commit_thumbnails(thumbnail)
-
-            # output['axial_outline'] = outline_axial
-
-            # # plot outline of coregistered source on target
-            # source, target = (target, source)
-            # source_brain, ref_brain = ref_brain, source_brain
-            # outline = os.path.join(
-            #     output_dir,
-            #     "%s_on_%s_outline.png" % (ref_brain,
-            #                               source_brain))
-            # qa_mem.cache(check_preprocessing.plot_registration)(
-            #     target,
-            #     source,
-            #     output_filename=outline,
-            #     cmap=pl.cm.gray,
-            #     title="Outline of %s on %s" % (ref_brain, source_brain))
-
-            # outline_axial = os.path.join(
-            #     output_dir,
-            #     "%s_on_%s_outline_axial.png" % (ref_brain, source_brain))
-            # qa_mem.cache(check_preprocessing.plot_registration)(
-            #     target,
-            #     source,
-            #     output_filename=outline_axial,
-            #     cmap=pl.cm.gray,
-            #     slicer='z',
-            #     title="%s: coreg" % subject_id)
-
-            # # create thumbnail
-            # if results_gallery:
-            #     thumbnail = base_reporter.Thumbnail()
-            #     thumbnail.a = base_reporter.a(
-            #         href=os.path.basename(outline))
-            #     thumbnail.img = base_reporter.img(
-            #         src=os.path.basename(outline),
-            #         height="250px")
-            #     thumbnail.description = \
-            #         "Coregistration %s (<a href=%s>see execution log</a>)" \
-            #         % (comments, os.path.basename(nipype_html_report_filename))
-            #     results_gallery.commit_thumbnails(thumbnail)
 
     # collect ouput
     output['result'] = coreg_result
@@ -454,9 +384,6 @@ def _do_subject_segment(output_dir,
         os.makedirs(cache_dir)
     mem = Memory(base_dir=cache_dir)
 
-    if progress_logger:
-        progress_logger.log('<b>Segmentation</b><br/><br/>')
-
     # run workflow
     segment = mem.cache(spm.Segment)
     segment_result = segment(**spm_segment_kwargs)
@@ -465,18 +392,15 @@ def _do_subject_segment(output_dir,
     if do_report:
         if not segment_result.outputs is None:
             # nipype report
-            nipype_report_filename = os.path.join(
-                os.path.dirname(segment_result.outputs.transformation_mat),
-                "_report/report.rst")
-            nipype_html_report_filename = os.path.join(
-                output_dir,
-                'segment_nipype_report.html')
-            nipype_report = preproc_reporter.nipype2htmlreport(
-                nipype_report_filename)
-            open(nipype_html_report_filename, 'w').write(str(nipype_report))
+            execution_log = preproc_reporter.get_nipype_report(
+                preproc_reporter.get_nipype_report_filename(
+                    segment_result.outputs.transformation_mat)
+                )
 
             if progress_logger:
-                progress_logger.log(nipype_report.split('Terminal output')[0])
+                progress_logger.log(
+                    '<b>Segmentation</b><br/><br/>')
+                progress_logger.log(execution_log)
                 progress_logger.log('<hr/>')
 
     # collect ouput
@@ -490,7 +414,7 @@ def _do_subject_normalize(output_dir,
                           do_report=True,
                           results_gallery=None,
                           progress_logger=None,
-                          brain="epi",
+                          brain="EPI",
                           cmap=None,
                           fwhm=0,
                           **spm_normalize_kwargs):
@@ -518,6 +442,8 @@ def _do_subject_normalize(output_dir,
 
     """
 
+    nipype_report_filenames = []
+
     # sanity
     def get_norm_apply_to_files(files):
         if isinstance(files, basestring):
@@ -542,9 +468,6 @@ def _do_subject_normalize(output_dir,
 
     output = {}
 
-    if progress_logger:
-        progress_logger.log('<b>Normalization of %s</b><br/><br/>' % brain)
-
     # prepare for smart caching
     cache_dir = os.path.join(output_dir, 'cache_dir')
     if not os.path.exists(cache_dir):
@@ -560,9 +483,29 @@ def _do_subject_normalize(output_dir,
     if not norm_result.outputs is None:
         normalized_files = norm_result.outputs.normalized_files
 
+        # define execution log html output filename
+        execution_log_html_filename = os.path.join(
+            output_dir,
+            'normalization_of_%s_execution_log.html' % brain,
+            )
+
+        # grab execution log
+        execution_log = preproc_reporter.get_nipype_report(
+            preproc_reporter.get_nipype_report_filename(normalized_files))
+
+        # write execution log
+        open(execution_log_html_filename, 'w').write(
+            execution_log)
+
+        # update progress bar
+        if progress_logger:
+            progress_logger.log(
+                '<b>Normalization of %s</b><br/><br/>' % brain)
+            progress_logger.log(execution_log)
+            progress_logger.log('<hr/>')
+
         # do smoothing
         if fwhm:
-            print fwhm
             smooth = mem.cache(spm.Smooth)
             smooth_result = smooth(
                 in_files=output['result'].outputs.normalized_files,
@@ -573,6 +516,22 @@ def _do_subject_normalize(output_dir,
             if not smooth_result.outputs is None:
                 normalized_files = smooth_result.outputs.smoothed_files
                 output['normalized_files'] = normalized_files
+
+                # grab execution log
+                execution_log = preproc_reporter.get_nipype_report(
+                    preproc_reporter.get_nipype_report_filename(
+                        normalized_files))
+
+                # write execution log
+                open(execution_log_html_filename, 'w').write(
+                    execution_log)
+
+                # update progress bar
+                if progress_logger:
+                    progress_logger.log(
+                        '<b>Smoothening of %s</b><br/><br/>' % brain)
+                    progress_logger.log(execution_log)
+                    progress_logger.log('<hr/>')
 
         if 'apply_to_files' in spm_normalize_kwargs:
             if not isinstance(file_types, basestring):
@@ -599,16 +558,6 @@ def _do_subject_normalize(output_dir,
     # generate gallery for HTML report
     if do_report:
         if normalized_files:
-            # generate normalization thumbs
-            output.update(preproc_reporter.generate_normalization_thumbnails(
-                normalized_files,
-                output_dir,
-                brain=brain,
-                cmap=cmap,
-                results_gallery=results_gallery,
-                progress_logger=progress_logger))
-
-            # generate segmentation thumbs
             if segment_result:
                 subject_gm_file = segment_result.outputs.modulated_gm_image
                 subject_wm_file = segment_result.outputs.modulated_wm_image
@@ -618,6 +567,20 @@ def _do_subject_normalize(output_dir,
                 subject_wm_file = None
                 subject_csf_file = None
 
+            nipype_report_filenames = [
+                preproc_reporter.get_nipype_report_filename(
+                    subject_gm_file)] + nipype_report_filenames
+
+            # generate normalization thumbs
+            output.update(preproc_reporter.generate_normalization_thumbnails(
+                normalized_files,
+                output_dir,
+                brain=brain,
+                execution_log_html_filename=execution_log_html_filename,
+                results_gallery=results_gallery,
+                ))
+
+            # generate segmentation thumbs
             output.update(preproc_reporter.generate_segmentation_thumbnails(
                 normalized_files,
                 output_dir,
@@ -625,6 +588,7 @@ def _do_subject_normalize(output_dir,
                 subject_wm_file=subject_wm_file,
                 subject_csf_file=subject_csf_file,
                 brain=brain,
+                execution_log_html_filename=execution_log_html_filename,
                 cmap=cmap,
                 results_gallery=results_gallery))
 
@@ -1071,6 +1035,7 @@ def _do_subject_preproc(
                 results_gallery=results_gallery,
                 progress_logger=subject_progress_logger,
                 brain='EPI',
+                cmap=pl.cm.spectral,
                 fwhm=fwhm,
                 parameter_file=norm_parameter_file,
                 apply_to_files=norm_apply_to_files,
@@ -1177,6 +1142,7 @@ def _do_subject_preproc(
         norm_output = _do_subject_normalize(
             subject_data.output_dir,
             brain="EPI",
+            cmap=pl.cm.spectral,
             fwhm=fwhm,
             do_report=do_report,
             results_gallery=results_gallery,
@@ -1339,6 +1305,26 @@ def _do_subject_dartelnorm2mni(output_dir,
 
     warped_files = createwarped_result.outputs.warped_files
 
+    execution_log_html_filename = os.path.join(
+        output_dir,
+        'normalization_of_epi_execution_log.html',
+        )
+
+    # grab execution log
+    execution_log = preproc_reporter.get_nipype_report(
+        preproc_reporter.get_nipype_report_filename(warped_files))
+
+    # dump execution log unto html output file
+    open(execution_log_html_filename, 'w').write(
+        execution_log)
+
+    # log progress
+    if subject_progress_logger:
+        subject_progress_logger.log(
+            '<b>Normalization of EPI</b><br/><br/>')
+        subject_progress_logger.log(execution_log)
+        subject_progress_logger.log('<hr/>')
+
     # do smoothing
     if fwhm:
         smooth = mem.cache(spm.Smooth)
@@ -1371,25 +1357,44 @@ def _do_subject_dartelnorm2mni(output_dir,
 
     #     warped_files = resampled_warped_files
 
+            # grab execution log
+            execution_log = preproc_reporter.get_nipype_report(
+                preproc_reporter.get_nipype_report_filename(
+                    warped_files))
+
+            # write execution log
+            open(execution_log_html_filename, 'w').write(
+                execution_log)
+
+            # update progress bar
+            if subject_progress_logger:
+                subject_progress_logger.log(
+                    '<b>Smoothening of EPI</b><br/><br/>')
+                subject_progress_logger.log(execution_log)
+                subject_progress_logger.log('<hr/>')
+
     # do_QA
     if do_report and results_gallery:
+        # generate normalization thumbs for EPI
         preproc_reporter.generate_normalization_thumbnails(
             warped_files,
             output_dir,
             brain='EPI',
-            cmap=pl.cm.spectral,
+            execution_log_html_filename=execution_log_html_filename,
             results_gallery=results_gallery,
-            progress_logger=subject_progress_logger)
+            )
 
-        # generate segmentation thumbs
+        # generate segmentation thumbs for EPI
         epi_thumbs = preproc_reporter.generate_segmentation_thumbnails(
                 warped_files,
                 output_dir,
                 subject_gm_file=subject_gm_file,
                 subject_wm_file=subject_wm_file,
                 brain='EPI',
+                cmap=pl.cm.spectral,
+                execution_log_html_filename=execution_log_html_filename,
                 results_gallery=results_gallery,
-                progress_logger=subject_progress_logger)
+                )
 
     # warp anat into MNI space
     dartelnorm2mni_result = dartelnorm2mni(
@@ -1404,15 +1409,37 @@ def _do_subject_dartelnorm2mni(output_dir,
             ("spm.DartelNorm2MNI failed for subject %s")
             % subject_id)
 
+    # define execution log html filename
+    execution_log_html_filename = os.path.join(
+        output_dir,
+        'normalization_of_anat_execution_log.html',
+        )
+
+    # grab execution log
+    execution_log = preproc_reporter.get_nipype_report(
+        preproc_reporter.get_nipype_report_filename(
+            dartelnorm2mni_result.outputs.normalized_files))
+
+    # dump execution log unto html output file
+    open(execution_log_html_filename, 'w').write(
+        execution_log)
+
+    # log progress
+    if subject_progress_logger:
+        subject_progress_logger.log(
+            '<b>Normalization of anat</b><br/><br/>')
+        subject_progress_logger.log(execution_log)
+        subject_progress_logger.log('<hr/>')
+
     # do_QA
     if do_report and results_gallery:
         preproc_reporter.generate_normalization_thumbnails(
             dartelnorm2mni_result.outputs.normalized_files,
             output_dir,
             brain='anat',
-            cmap=pl.cm.gray,
+            execution_log_html_filename=execution_log_html_filename,
             results_gallery=results_gallery,
-            progress_logger=subject_progress_logger)
+            )
 
         # generate segmentation thumbs
         preproc_reporter.generate_segmentation_thumbnails(
@@ -1421,9 +1448,9 @@ def _do_subject_dartelnorm2mni(output_dir,
             subject_gm_file=subject_gm_file,
             subject_wm_file=subject_wm_file,
             brain='anat',
-            cmap=pl.cm.gray,
+            execution_log_html_filename=execution_log_html_filename,
             results_gallery=results_gallery,
-            progress_logger=subject_progress_logger)
+            )
 
         # finalize report
         if parent_results_gallery:
@@ -1741,6 +1768,8 @@ def do_subjects_preproc(subjects,
                     # add other args to exclude below
                     ]
                  ))
+
+        print base_reporter.__file__
 
         # initialize results gallery
         loader_filename = os.path.join(
