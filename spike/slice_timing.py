@@ -1,18 +1,14 @@
 """
-:Module: slice_timing.py
+:Module: slice_timing
 :Synopsis: Module for STC
 :Author: elvis[dot]dohmatob[at]inria[dot]fr
 
 """
 
 import numpy as np
-import math
 import pylab as pl
 import matplotlib.pyplot as plt
 import scipy
-import scipy.signal
-from nipy.algorithms.registration._registration\
-    import _cspline_sample1d, _cspline_transform
 
 
 def hanning_window(t, L):
@@ -29,18 +25,45 @@ def hanning_window(t, L):
     return 0. if np.abs(t) > L else .5 * (1 + scipy.cos(np.pi * t / L))
 
 
-def lanczos_window(t, a=2.):
-    return 0. if np.abs(t) > a else scipy.sinc(t / a)
+def symmetrized(x, flip=True):
+    """Makes a 1D array symmetric about it's zeroth value.
+    Useful for reflecting a function about the ordinate axis.
+
+    Parameters
+    ----------
+    flip: boolean (optional, default True)
+        if True, then the left half of the reflected array will
+        be the reversal of -x, otherwise it'll be the reversal of
+        x itself
+
+    Returns
+    -------
+    Symmetrized array (of length 2 * len(x) - 1)
+
+    """
+
+    a = -1. if flip else 1.
+    _x = np.hstack((np.flipud(a * x[1:]), x))
+
+    return _x
 
 
-def do_slicetiming(acquired_signal, TR, n_slices, slice_index,
+def do_slicetiming(acquired_signal,
+                   n_slices,
+                   slice_index,
+                   ref_slice=0,
                    user_time=None,
                    slice_order='ascending',
                    interleaved=False,
-                   interpolator='alexisroche_cspline'  # 'whittaker_shannon',
+                   L=10,
+                   symmetrization_trick=True,
                    ):
-    """Function does sinc temporal interpolation with Hanning window of
-    prescribed width.
+    """Function does sinc interpolation with Hanning window (faster,
+    preserves frequency spectrum, and theoretically prevents artefacts
+    to 'teleport' themselves accross TR's)
+
+    XXX However, sinc interpolation is known to cause severe ringing due
+    discontinuous edges in the input data sample
 
     Parameters
     ----------
@@ -49,16 +72,15 @@ def do_slicetiming(acquired_signal, TR, n_slices, slice_index,
         of BOLD values (time-courses from multiple voxels in thesame
         slice, one time-course per row) to be temporally interpolated
 
-    TR: float
-        Repeation Time at which acquired_signal was sampled from the
-        unknown signal
-
     n_slices: int
         number of slices per TR
 
     slice_index: int
         index of this slice in the bail of slices, according to the respective
         acquisition order
+
+    ref_slice: int (optional, default 0)
+        the slice number to be taken as the reference index
 
     slice_order: string or array of ints or length `n_slices`
         slice order of acquisitions in a TR
@@ -69,14 +91,14 @@ def do_slicetiming(acquired_signal, TR, n_slices, slice_index,
         if set, then slices were acquired in interleaved order, odd-numbered
         slices first, and then even-numbered slices
 
-    interpolator: string (optional, default cspline)
-        interpolator to use for STC. Pssible values are
-        'whittaker_shannon':
-            use my implementation of the Whittaker-Shannon formula
-        'alexisroche_cspline':
-            use Alexis Roche's nipy cbspline implementation
+    L: int (optional, default 10)
+        width of Hanning Window to modify sinc kernel width, if this value
+        if too large then no windowing will be applied (porous filter)
 
-        'scipy_cspline': use scipy's signal.cspline_sample1d interpolator
+    symmetrization_trick: boolean (optional, default True)
+        if set, the input signal will be reflected about ordinate axis to
+        remove the inherent 'jump' in the input signal from one end-point
+        of the 1D time grid the other
 
     Returns
     -------
@@ -90,6 +112,14 @@ def do_slicetiming(acquired_signal, TR, n_slices, slice_index,
     if not len(acquired_signal.shape) == 1:
         assert len(acquired_signal.shape) == 2
     n_scans = acquired_signal.shape[-1]
+
+    ravel_output = False
+    if len(acquired_signal.shape) == 1:
+        ravel_output = True
+        acquired_signal = acquired_signal.reshape(
+            (1, len(acquired_signal)))
+
+    n_voxels = acquired_signal.shape[0]
 
     # modify slice_index to be consistent with slice order
     if isinstance(slice_order, basestring):
@@ -108,179 +138,53 @@ def do_slicetiming(acquired_signal, TR, n_slices, slice_index,
         assert len(slice_order) == n_slices
         slice_index = slice_order[slice_index]
 
-    print "[+] Reslicing slice %i/%i..." % (slice_index + 1, n_slices)
+    # compute shifting variables (TR normalized to 1)
+    slice_TR = 1. / n_slices  # acq time for a single slice
+    TA = n_scans - 1  # acq time of a all slices in a single 3D volume
+    acquisition_time = np.linspace(0, TA, n_scans)  # acq times for this slice
 
-    # (average) acquisition time for a slice (as a multiple of TR)
-    slice_TR_factor = 1. / n_slices
-
-    # acquisition time for voxels in this slice, as assumed by GLM, etc.
-    TA = n_scans - 1
-    assumed_acquisition_time = np.linspace(0, TA, n_scans)
-
-    # XXX user should specify this instants (well, the below should
-    # be default)
+    # sanitize user_time
     if user_time is None:
-        user_time = assumed_acquisition_time - slice_index * slice_TR_factor
+        # user didn't specify times they're interested in; will
+        # just shift the acq times according to slice order / index
+        shiftamount = (slice_index - ref_slice) * slice_TR
+        user_time = acquisition_time - shiftamount
 
-    # correct the acquisition sample by shifting it in time
-    # slice_index * slice_TR time units to the left to match the assumed
-    # acquisition times
-    if interpolator == 'whittaker_shannon':
-        # XXX dig into applying "mirror-symmetric boundary conditions"
+    # symmetrize the input signal
+    if symmetrization_trick:
+        acquisition_time = symmetrized(acquisition_time)
+        acquired_signal = np.array([
+                symmetrized(acquired_signal[j, :], flip=False)
+                for j in xrange(n_voxels)])
 
-        # # set up shifting variables
-        # shiftamount = slice_index * slice_TR
-        # _len = 2 * n_scans
-        # phi = np.zeros(_len)
+    # compute sinc kernel
+    time_deltas = np.array([
+            user_time[j] - acquisition_time
+            for j in xrange(len(user_time))])
+    sinc_kernel = scipy.sinc(time_deltas)
 
-        # # check parity of n_scans -- impacts the way phi if mirrowed
-        # offset = n_scans % 2
+    # modify the kernel width a Hanning window
+    sinc_kernel *= np.vectorize(hanning_window)(
+        time_deltas, L)
 
-        # # phi represents a range of phases up to the Nyquist frequency
-        # for f in xrange(_len / 2):
-        #     phi[f + 1] = -1 * shiftamount * 1. / (_len / (f + 1))
+    # do interpolation proper
+    print "[+] Reslicing slice %i/%i..." % (slice_index + 1, n_slices)
+    st_corrected_signal = np.dot(
+         acquired_signal,
+         sinc_kernel.T,
+         )
 
-        # # mirrow phi about the center
-        # phi[_len / 2 - offset:_len] = -np.flipud(
-        #     phi[1:_len / 2 + 1 + offset])
+    # import smoothing_kernels as sk
+    # if len(acquired_signal.shape) == 1:
+    #     st_corrected_signal = sk.llreg(user_time, acquisition_time,
+    #                                    acquired_signal)
+    # else:
+    #     st_corrected_signal = sk.llreg(user_time, acquisition_time,
+    #                                    acquired_signal)
 
-        # pl.plot(phi)
-
-        # # transform phi to frequency domain and take complex transpose
-        # shifter = (np.cos(phi) + np.sin(phi) * scipy.sqrt(-1))
-
-        # def reflect(x, a=-1):
-        #     assert len(x.shape) == 1
-
-        #     return np.hstack((a * np.flipud(x[1:]), x))
-
-        # print shifter
-        # stack = np.zeros(_len)
-        # stack[:n_scans] = acquired_signal
-
-        # stack = np.real(np.fft.ifft(np.fft.fft(
-        #             stack, axis=0) * shifter, axis=0))
-
-        # return stack[:n_scans]
-        # pl.plot(phi); pl.show()
-
-        # # auxiliary array of time shifts
-        # time_deltas = np.array(
-        #     [phi[:-1]
-        #      for i in xrange(n_scans)])
-
-        # acquired_signal = reflect(acquired_signal, 1)
-        # print time_deltas.shape
-
-        def reflected_points(x, y):
-            assert len(x.shape) == len(y.shape) == 1
-            assert len(x) == len(y)
-
-            _x = np.hstack((-np.flipud(x[1:]), x))
-            _y = np.hstack((np.flipud(y[1:]), y))
-
-            return _x, _y
-
-        def reflected(x, a=-1):
-            _x = np.hstack((a * np.flipud(x[1:]), x))
-
-            return _x
-
-        if len(acquired_signal.shape) == 1:
-            assumed_acquisition_time, acquired_signal = reflected_points(
-                assumed_acquisition_time, acquired_signal)
-        else:
-            assumed_acquisition_time = reflected(assumed_acquisition_time)
-            _tmp = np.zeros((acquired_signal.shape[0], 2 * n_scans - 1))
-            for j in xrange(acquired_signal.shape[0]):
-                _tmp[j, :] = reflected(acquired_signal[j, :], a=1)
-            acquired_signal = _tmp
-
-            # pl.plot(assumed_acquisition_time, acquired_signal[2, :])
-            # pl.show()
-
-        # XXX debug the commented code stub above!!! -- elvis
-        time_deltas = np.array([
-                user_time[j] - assumed_acquisition_time
-                for j in xrange(len(user_time))])
-
-        L = 10  # width of Hanning window
-
-        # Do sinc interpolation with Hanning window (faster and theoretically
-        # prevents artefacts to 'teleport' themselves accross TR's)
-        # XX However, sinc interpolation is known to cause severe ringing due
-        # discontinuous edges in the input data sample
-        st_corrected_signal = np.dot(
-             acquired_signal,
-             (scipy.sinc(time_deltas)#  * np.vectorize(hanning_window)(
-                    # time_deltas, L
-                    # )
-              ).T,
-             )
-
-        return st_corrected_signal
-
-    elif interpolator == 'alexisroche_cspline':
-        st_corrected_signal = 0 * acquired_signal
-
-        if len(acquired_signal.shape) > 1:
-            # XXX results are utterly wrong!
-            # alexis's (back-end) cbspline code overrides the input buffer.
-            # Worst still, it segfaults saying "/usr/lib/python2.7/...
-            # dist-packages/scipy/integrate/vode.soAborted (core dumped)"
-            for j in xrange(acquired_signal.shape[0]):
-                tmp = st_corrected_signal[j, :] * 0
-                st_corrected_signal[j, :] = _cspline_sample1d(
-                    tmp,
-                    _cspline_transform(acquired_signal[j, :]),
-                    user_time,
-                    )
-        else:
-            st_corrected_signal = _cspline_sample1d(
-                st_corrected_signal,
-                _cspline_transform(acquired_signal),
-                user_time,
-                )
-    elif interpolator == 'scipy_cspline':
-        # XXX this is dreadfully slow!!!
-        # seems to lead to more activation being 'reported'
-        if len(acquired_signal.shape) > 1:
-            st_corrected_signal = np.array([
-                    # scipy.interpolate.splev(
-                    #     user_time,
-                    #     scipy.interpolate.splrep(
-                    #         assumed_acquisition_time,
-                    #         acquired_signal[j, :],
-                    #         )
-                    #     )
-                    scipy.signal.cspline1d_eval(
-                        scipy.signal.cspline1d(acquired_signal[j, :]),
-                        user_time,
-                        dx=assumed_acquisition_time[
-                            1] - assumed_acquisition_time[0],
-                        x0=assumed_acquisition_time[0],
-                        )
-                    for j in np.arange(acquired_signal.shape[0])])
-        else:
-            # st_corrected_signal = scipy.interpolate.splev(
-            #     user_time,
-            #     scipy.interpolate.splrep(
-            #         assumed_acquisition_time,
-            #         acquired_signal,
-            #         )
-            #     )
-            st_corrected_signal = scipy.signal.cspline1d_eval(
-                scipy.signal.cspline1d(acquired_signal),
-                user_time,
-                dx=assumed_acquisition_time[
-                    1] - assumed_acquisition_time[0],
-                x0=assumed_acquisition_time[0],
-                )
-    else:
-        raise RuntimeError("Unimplemented interpolator: %s" % interpolator)
-
-    # sanitize output shape
-    # st_corrected_signal = st_corrected_signal.reshape(acquired_signal.shape)
+    # output shape must match input shape
+    if ravel_output:
+        st_corrected_signal = st_corrected_signal.ravel()
 
     return st_corrected_signal
 
@@ -320,7 +224,7 @@ def plot_slicetiming_results(TR,
     n_scans = len(acquired_signal)
     assert len(st_corrected_signal) == n_scans
 
-    assumed_acquisition_time = np.linspace(0, (n_scans - 1) * TR, n_scans)
+    acquisition_time = np.linspace(0, (n_scans - 1) * TR, n_scans)
 
     N = None
     if ground_truth_signal is None:
@@ -329,8 +233,8 @@ def plot_slicetiming_results(TR,
         N = len(ground_truth_signal)
 
     if ground_truth_time is None:
-        assert len(ground_truth_signal) == len(assumed_acquisition_time)
-        ground_truth_time = assumed_acquisition_time
+        assert len(ground_truth_signal) == len(acquisition_time)
+        ground_truth_time = acquisition_time
 
     plt.figure()
     plt.xlabel('t')
@@ -347,11 +251,11 @@ def plot_slicetiming_results(TR,
     ax1.hold('on')
 
     # plot acquired signal (input to STC algorithm)
-    ax1.plot(assumed_acquisition_time, acquired_signal, 'r--o')
+    ax1.plot(acquisition_time, acquired_signal, 'r--o')
     ax1.hold('on')
 
     # plot ST corrected signal
-    ax1.plot(assumed_acquisition_time, st_corrected_signal, 'gs')
+    ax1.plot(acquisition_time, st_corrected_signal, 'gs')
     ax1.hold('on')
 
     # misc
@@ -363,7 +267,7 @@ def plot_slicetiming_results(TR,
                ),
               loc='best')
 
-    # plot squared error
+    # plot error
     if not N is None:
         sampling_freq = (N - 1) / (n_scans - 1)  # XXX formula correct ??
 
@@ -371,14 +275,18 @@ def plot_slicetiming_results(TR,
         sampled_ground_truth_signal = ground_truth_signal[
             ::sampling_freq]
 
+        # compute absolute error
+        abs_error = np.abs(sampled_ground_truth_signal - st_corrected_signal)
+        print 'SE:', (abs_error ** 2).sum()
+
+        # plot abs error
         ax2 = plt.subplot2grid((3, 1), (2, 0),
                                rowspan=1)
         ax2.set_title(
             "Absolute Error (between ground-truth and corrected sample)")
-        ax2.plot(assumed_acquisition_time,
-                np.abs(sampled_ground_truth_signal - st_corrected_signal))
+        ax2.plot(acquisition_time, abs_error)
 
-    plt.xlabel('time')
+    plt.xlabel('time (s)')
 
     # show all generated plots
     pl.show()
@@ -401,6 +309,8 @@ def demo_HRF(n_slices=21,
         STD of white noise to add to phase-shifted sample (spatial corruption)
 
     """
+
+    import math
 
     # sanity
     slice_index = slice_index % n_slices
@@ -448,7 +358,7 @@ def demo_HRF(n_slices=21,
     time_shift = slice_index * slice_TR
     shifted_sampled_time = time_shift + sampled_time
 
-    # acquire the signal at the corrupt sampled time pointss
+    # acquire the signal at the corrupt sampled time points
     acquired_signal = compute_hrf(shifted_sampled_time,
                                   )
 
@@ -458,7 +368,7 @@ def demo_HRF(n_slices=21,
 
     # do STC
     st_corrected_signal = do_slicetiming(
-        acquired_signal, TR, n_slices=n_slices,
+        acquired_signal, n_slices=n_slices,
         slice_index=slice_index,
         )
 
@@ -525,8 +435,8 @@ def demo_BOLD(dataset='spm_auditory',
                 ("/home/elvis/CODE/datasets/face_rep_SPM5/RawEPI/"
                  "/sM03953_0005_*.img")
                 ))
-        print fmri_files
         fmri_img = ni.concat_images(fmri_files)
+
         TR = 2.
         slice_order = 'descending'
     else:
@@ -542,10 +452,9 @@ def demo_BOLD(dataset='spm_auditory',
                 fmri_data[:, :, z, :].reshape((
                         -1,
                          fmri_data.shape[-1])),
-                TR, n_slices=n_slices,
+                n_slices=n_slices,
                 slice_index=z,
                 slice_order=slice_order,
-                interpolator='whittaker_shannon',
                 )
                                     for z in slice_index])
 
@@ -567,19 +476,19 @@ def demo_BOLD(dataset='spm_auditory',
     ni.save(ni.Nifti1Image(corrected_fmri_data, fmri_img.get_affine()),
             output_filename)
 
-    print "\r\n[+] Wrote ST corrected image to %s\r\n" % output_filename
+    # print "\r\n[+] Wrote ST corrected image to %s\r\n" % output_filename
 
-    # # QA clinic
-    # for z in slice_index:
-    #     x, y = 32, 32
-    #     plot_slicetiming_results(
-    #         TR,
-    #         fmri_data[x, y, z, :],
-    #         corrected_fmri_data[x, y, z, :],
-    #         title=("Slice-Timing Correction BOLD time-course from a single"
-    #                "voxel \nN.B:- TR = %.2f, # slices = %i, x = %i, y = %i,"
-    #                " slice index (z) = %i") % (TR, n_slices, x, y, z)
-    #         )
+    # QA clinic
+    for z in slice_index:
+        x, y = 32, 32
+        plot_slicetiming_results(
+            TR,
+            fmri_data[x, y, z, :],
+            corrected_fmri_data[x, y, z, :],
+            title=("Slice-Timing Correction BOLD time-course from a single"
+                   "voxel \nN.B:- TR = %.2f, # slices = %i, x = %i, y = %i,"
+                   " slice index (z) = %i") % (TR, n_slices, x, y, z)
+            )
 
 
 def my_sinusoid(time, frequency=1.):
@@ -650,9 +559,9 @@ def demo_sinusoid(n_slices=10, slice_index=-1, white_noise_std=1e-2):
 
     # do STC
     st_corrected_signal = do_slicetiming(
-        acquired_signal, TR, n_slices=n_slices,
+        acquired_signal,
+        n_slices=n_slices,
         slice_index=slice_index,
-        interpolator='whittaker_shannon',
         )
 
     # QA clinic
@@ -669,6 +578,6 @@ def demo_sinusoid(n_slices=10, slice_index=-1, white_noise_std=1e-2):
         )
 
 if __name__ == '__main__':
-    demo_BOLD(dataset='face_rep_SPM5')
-    demo_sinusoid(n_slices=4, slice_index=-1)
-    demo_HRF(slice_index=-1)
+    # demo_BOLD(dataset='spm_auditory')
+    demo_sinusoid(n_slices=100, slice_index=50)
+    demo_HRF(n_slices=100, slice_index=50)

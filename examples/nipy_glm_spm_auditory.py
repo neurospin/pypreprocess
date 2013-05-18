@@ -28,15 +28,14 @@ PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
 
 sys.path.append(PYPREPROCESS_DIR)
 
-import nipype_preproc_spm_utils
-import reporting.glm_reporter as glm_reporter
-import reporting.base_reporter as base_reporter
+import nipy.reporting.glm_reporter as glm_reporter
 from datasets_extras import fetch_spm_auditory_data
 from io_utils import compute_mean_3D_image, do_3Dto4D_merge
 
 DATASET_DESCRIPTION = """\
 <p>MoAEpilot <a href="http://www.fil.ion.ucl.ac.uk/spm/data/auditory/">\
-SPM auditory dataset</a>.</p>\
+SPM auditory dataset</a>.</p>\[+] Reslicing slice 52/64...
+
 """
 
 if len(sys.argv)  < 3:
@@ -52,6 +51,27 @@ OUTPUT_DIR = os.path.abspath(sys.argv[2])
 if not os.path.isdir(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
+"""fetch spm auditory data"""
+_subject_data = fetch_spm_auditory_data(DATA_DIR)
+
+
+class SubjectData(object):
+    def __init__(self):
+        self.func = None
+        self.anat = None
+        self.subject_id = 'sub001'
+        self.session_id = 'deadbeef'
+
+
+subject_data = SubjectData()
+subject_data.func = _subject_data["func"]
+subject_data.func = '/tmp/st_corrected_spm_auditory.nii.gz'
+subject_data.anat = _subject_data["anat"]
+subject_data.output_dir = os.path.join(
+    OUTPUT_DIR, subject_data.subject_id)
+if not os.path.exists(subject_data.output_dir):
+    os.makedirs(subject_data.output_dir)
+
 """construct experimental paradigm"""
 stats_start_time = time.ctime()
 tr = 7.
@@ -65,30 +85,15 @@ onset = np.linspace(0, (len(conditions) - 1) * epoch_duration,
 paradigm = BlockParadigm(con_id=conditions, onset=onset, duration=duration)
 hfcut = 2 * 2 * epoch_duration
 
-"""fetch spm auditory data"""
-_subject_data = fetch_spm_auditory_data(DATA_DIR)
-
-subject_data = nipype_preproc_spm_utils.SubjectData()
-subject_data.func = _subject_data["func"]
-subject_data.anat = _subject_data["anat"]
-subject_data.output_dir = os.path.join(
-    OUTPUT_DIR, subject_data.subject_id)
-
-"""preprocess the data"""
-results = nipype_preproc_spm_utils.do_subjects_preproc(
-    [subject_data],
-    output_dir=OUTPUT_DIR,
-    do_slicetiming=True,
-    TR=tr,
-    fwhm=[6, 6, 6],
-    dataset_id="SPM Auditory single-subject dataset",
-    dataset_description=DATASET_DESCRIPTION,
-    do_shutdown_reloaders=False,
-    )
-
 """collect preprocessed data"""
-fmri_img = do_3Dto4D_merge(results[0]['func'],
-                           )
+import nibabel as ni
+if isinstance(subject_data.func, basestring):
+    fmri_img = ni.load(subject_data.func)
+else:
+    output_filename = '/tmp/spm_auditory.nii.gz'
+    fmri_img = do_3Dto4D_merge(subject_data.func,
+                               output_filename=output_filename)
+    subject_data.func = output_filename
 
 """construct design matrix"""
 frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)
@@ -116,7 +121,7 @@ contrasts['active-rest'] = contrasts['active'] - contrasts['rest']
 
 """fit GLM"""
 print('\r\nFitting a GLM (this takes time) ..')
-fmri_glm = FMRILinearModel(fmri_img, design_matrix.matrix,
+fmri_glm = FMRILinearModel(subject_data.func, design_matrix.matrix,
            mask='compute')
 fmri_glm.fit(do_scaling=True, model='ar1')
 
@@ -126,7 +131,7 @@ print "Saving mask image %s" % mask_path
 nibabel.save(fmri_glm.mask, mask_path)
 
 # compute bg unto which activation will be projected
-anat_img = nibabel.load(results[0]['anat'])
+anat_img = compute_mean_3D_image(subject_data.func)
 anat = anat_img.get_data()
 anat_affine = anat_img.get_affine()
 
@@ -188,8 +193,5 @@ glm_reporter.generate_subject_stats_report(
     drift_model=drift_model,
     hrf_model=hrf_model,
     )
-
-# shutdown main report page
-base_reporter.ProgressReport().finish_dir(OUTPUT_DIR)
 
 print "\r\nStatistic report written to %s\r\n" % stats_report_filename
