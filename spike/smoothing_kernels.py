@@ -67,7 +67,6 @@ def solve_wlstsq(K, X, Y, verbose=1):
     # kill all NaNs in beta_opt
     evil_places = np.nonzero(np.isnan(beta_opt) | np.isinf(beta_opt))[0]
     beta_opt[evil_places, 0] = 0.
-    print beta_opt
 
     # compute optima alpha
     alpha_opt = np.diag(np.dot(K, (Y - beta_opt * X).T) / a)
@@ -107,7 +106,13 @@ def epanechnikov_kernel(t, L):
         return 1. if t == 0 else 0.
 
 
-def llreg(x_0, X, Y, k=2):
+def apply_llr_kernel(x_0, alpha_opt, beta_opt):
+    y_0 = alpha_opt + beta_opt * x_0
+
+    return y_0
+
+
+def llreg(x_0, X, Y, k=2, jobtype="estimate", voxel_slice_index=None):
     """Linear Local Regression
 
     Parameters
@@ -149,10 +154,17 @@ def llreg(x_0, X, Y, k=2):
     X = np.array([X for _ in xrange(n_user_times)])
     Y = np.array([Y for _ in xrange(n_user_times)])
 
+    if not voxel_slice_index is None:
+        print ("[+] Estimating LLR (Local Linear Regression) kernel for voxel"
+               " %i of slice %i") % (
+            voxel_slice_index[0], voxel_slice_index[1])
     alpha_opt, beta_opt = solve_wlstsq(kernel, X, Y, verbose=0)
 
+    if jobtype == "estimate":
+        return alpha_opt, beta_opt
+
     # predict the value at x_0
-    y_0 = alpha_opt + beta_opt * x_0
+    y_0 = apply_llr_kernel(x_0, alpha_opt, beta_opt)
 
     return y_0
 
@@ -166,15 +178,15 @@ if __name__ == '__main__':
     # Y = np.random.randn(n_scans * n_user_times).reshape((n_user_times,
     #                                                      n_scans))
 
-    X = np.arange(n_scans)
-    Y = X ** 2
-    x_0 = np.array([.5, 1.5, 2.5, 3.5, 4.5])
+    X = np.linspace(-10, 10, n_scans)
+    Y = np.sinc(X)
+    x_0 = X + .2  # np.array([.5, 1.5, 2.5, 3.5, 4.5])
 
-    y_0 = llreg(x_0, X, Y)
+    y_0 = llreg(x_0, X, Y, jobtype='estwrite')
 
     import pylab as pl
     pl.plot(X, Y)
-    pl.hold()
+    pl.hold('on')
     pl.plot(x_0, y_0, 'o')
     pl.show()
 
