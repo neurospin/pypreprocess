@@ -10,7 +10,6 @@ import pylab as pl
 import matplotlib.pyplot as plt
 import scipy
 import scipy.sparse
-import smoothing_kernels
 
 
 # some useful constants
@@ -25,7 +24,7 @@ def plot_slicetiming_results(TR,
                              title="QA for Slice-Timing Correction",
                              ):
 
-    """Function to generate QA plots post-STC business.
+    """Function to generate QA plots post-STC business, for a single voxel
 
     Parameters
     ----------
@@ -33,8 +32,10 @@ def plot_slicetiming_results(TR,
         Repeation Time exploited by the STC algorithm
     acquired_signal: 1D array
         the input signal to the STC
-    st_corrected_signal: array, same shape as `acquired_signal`
-        the output corrected signal from the STC
+    st_corrected_signal: array, or list of arrays, same shape as
+    acquired_signal
+        the output corrected signal from the STC, or different STC
+        implementations (one signal  per implelmentation)
     ground_truth_signal: 1D array (optional, default None), same length as
     `acquired_signal`
         ground truth signal
@@ -46,7 +47,11 @@ def plot_slicetiming_results(TR,
 
     # sanity checks
     n_scans = len(acquired_signal)
-    assert len(st_corrected_signal) == n_scans
+    assert len(acquired_signal.shape) == 1
+    assert st_corrected_signal.shape[0] == n_scans
+
+    if len(st_corrected_signal.shape) == 1:
+        st_corrected_signal = np.array([st_corrected_signal])
 
     acquisition_time = np.linspace(0, (n_scans - 1) * TR, n_scans)
 
@@ -63,33 +68,48 @@ def plot_slicetiming_results(TR,
     plt.figure()
     plt.xlabel('t')
 
-    if not N is None:
-        ax1 = plt.subplot2grid((4, 1), (0, 0),
-                               rowspan=2)
+    if len(st_corrected_signal.shape) == 1:
+        n_methods = 1
     else:
-        ax1 = plt.subplot2grid((4, 1), (0, 0),
-                               rowspan=3)
+        n_methods = st_corrected_signal.shape[0]
 
-    # plot true signal
-    ax1.plot(ground_truth_time, ground_truth_signal, 'g')
-    ax1.hold('on')
+    n_cols = 1 if n_methods == 1 else 2
+    n_rows = (n_methods - 1) / n_cols
+    n_rows += 1  # because subplots are counted from 1, not 0
+    n_rows += 1  # becase we'll add a modularity plot at the end
 
-    # plot acquired signal (input to STC algorithm)
-    ax1.plot(acquisition_time, acquired_signal, 'r--o')
-    ax1.hold('on')
+    plt.rc('legend', fontsize=8,)
 
-    # plot ST corrected signal
-    ax1.plot(acquisition_time, st_corrected_signal, 'gs')
-    ax1.hold('on')
-
-    # misc
     if title:
-        ax1.set_title(title)
-    ax1.legend(('Ground-Truth signal',
-               'Input sample',
-               'Output ST corrected sample',
-               ),
-              loc='best')
+        plt.suptitle(title, fontsize=14)
+    for j in xrange(n_methods):
+        # display graph, nodes colored according to their community
+        ax = plt.subplot2grid((n_rows, n_cols),
+                              np.unravel_index(j, (n_rows, n_cols)))
+
+        # plot true signal
+        ax.plot(ground_truth_time, ground_truth_signal, 'g')
+        ax.hold('on')
+
+        # plot acquired signal (input to STC algorithm)
+        ax.plot(acquisition_time, acquired_signal, 'r--o')
+        ax.hold('on')
+
+        # plot ST corrected signal
+        ax.plot(acquisition_time, st_corrected_signal[j], 'gs')
+        ax.hold('on')
+
+        # legend
+        ax.legend(('Ground-Truth signal',
+                   'Input sample',
+                   'Output ST corrected sample',
+                   ),
+                  loc='best',
+                  )
+
+        # title
+        if n_methods > 1:
+            ax.set_title("method %i" % j, fontsize=8)
 
     # plot error
     if not N is None:
@@ -100,15 +120,24 @@ def plot_slicetiming_results(TR,
             ::sampling_freq]
 
         # compute absolute error
-        abs_error = np.abs(sampled_ground_truth_signal - st_corrected_signal)
-        print 'Squared Error in Prediction:', (abs_error ** 2).sum()
+        abs_error = np.array([
+                np.abs(
+                    sampled_ground_truth_signal - st_corrected_signal[j])
+                for j in xrange(n_methods)])
+        # print 'Squared Error in Prediction:', (abs_error ** 2).sum()
 
         # plot abs error
-        ax2 = plt.subplot2grid((4, 1), (3, 0),
-                               rowspan=1)
-        ax2.set_title(
+        ax = plt.subplot2grid((n_rows, n_cols), (n_rows - 1, 0),
+                               rowspan=1, colspan=n_cols)
+
+        # title
+        ax.set_title(
             "Absolute Error (between ground-truth and corrected sample)")
-        ax2.plot(acquisition_time, abs_error)
+        ax.plot(acquisition_time, abs_error.T)
+
+        # legend
+        if n_methods > 1:
+            ax.legend(tuple(["method %i" % j for j in xrange(n_methods)]))
 
     plt.xlabel('time (s)')
 
@@ -137,6 +166,13 @@ def hanning_window(t, L):
     One way to do this is to convolve the sum with a Hanning window of
     appropriate width about t0. Mind how you choose L!
 
+    Examples
+    --------
+    >>> import slice_timing as st
+    >>> from numpy import *
+    >>> a = linspace(-10,10, 5)
+    >>> hw = st.hanning_window(a, 10)
+
     """
 
     # sanitize window width
@@ -161,6 +197,13 @@ def symmetricized(x, flip=True):
     Returns
     -------
     Symmetricized array (of length 2 * len(x) - 1)
+
+    Examples
+    --------
+    >>> import slice_timing as st
+    >>> from numpy import *
+    >>> a = linspace(0,10, 50)
+    >>> symm_a = st.symmetricized(a)
 
     """
 
@@ -191,6 +234,14 @@ def get_acquisition_time(n_scans, TR=1.):
     acquisition_times: array
         instants at which the respective 3D volumes
         where acquired, as multiples of the TR
+
+    Examples
+    --------
+    >>> import slice_timing as st
+    >>> from numpy import *
+    >>> a = linspace(-10,10, 100)
+    >>> n_scans = 200
+    >>> at = st.get_acquisition_time(n_scans)
 
     """
 
@@ -243,6 +294,14 @@ def get_slice_indices(n_slices, slice_order='ascending',
     ------
     Exception
 
+    Examples
+    --------
+    >>> import slice_timing as st
+    >>> from numpy import *
+    >>> slice_indices = st.get_slice_indices(150)
+    >>> slice_indices = st.get_slice_indices(150, slice_order='descending',
+    ... interleaved=True)
+
     """
 
     # sanity check
@@ -266,8 +325,8 @@ def get_slice_indices(n_slices, slice_order='ascending',
     return slice_indices
 
 
-def get_user_time(user_time, n_slices, n_scans, slice_index=None,
-                  ref_slice=0):
+def get_user_time(n_slices, n_scans, slice_index=None,
+                  ref_slice=0, user_time='compute'):
     """Function to compute/sanitize user time (aka times at which
     user wants response values to be predicted (via temporal
     interpolation)
@@ -278,9 +337,9 @@ def get_user_time(user_time, n_slices, n_scans, slice_index=None,
         number of slices per TR
     n_scans: int
         number of scans (TRs) in the underlying experiment
-    slice_index: int or array-like
-        index of this slice in the bail of slices, according to the respective
-        acquisition order
+    slice_index: int or array-like or ints (optional, default None)
+        index(ces) or slice(s) for which we want to compute the user time.
+        If this is None, then user times for every slice will be computed
     ref_slice: int (optional, default 0)
         the slice number to be taken as the reference index
     user_time: string, scalar, or array of scalars (optional, default
@@ -289,25 +348,35 @@ def get_user_time(user_time, n_slices, n_scans, slice_index=None,
         string "compute": user wants us to do standard STC, in which the slice
         at slice_index is shifted by an amount slice_index * TR / n_slices to
         the left, in time
-        float: user wants us to predict the value at slice_TR + this shift.
+        scalar: user wants us to predict the value at slice_TR + this shift.
         for example if this value is .5, then we'll predict the response values
         at time instants TR + .5TR, 2TR + .5TR, ..., (n_scans - 1)TR + .5TR;
         if the value if -.7TR, then the instants will be TR - .7TR, ...,,
-        (n_scans - 1)TR - .7TR.
-        N.B.:- This value must be in the range [0., 1.) .
-        array of floats: response values for precisely this times will be
+        (n_scans - 1)TR - .7TR. In this case, the supplied value must be in
+        the range [0., 1.)
+        array of scalars: response values for precisely this times will be
         predicted
 
     Returns
     -------
-    user_time: 1D array of size n_slices if slice_index is an integer, or 2D
-    array of shape (len(slice_index), n_slices) othewise
+    user_time: 1D array of size n_slices if slice_index is an int, or 2D
+    array of shape (len(slice_index), n_slices) othewise (i.e if list of ints)
 
     Raises
     ------
     Exception
 
+    Examples
+    --------
+    >>> import slice_timing as st
+    >>> from numpy import *
+    >>> ut = st.get_user_time(21, 150)
+
     """
+
+    # sanitize slice_index
+    if hasattr(slice_index, '__len__'):
+        slice_index = np.array(slice_index)
 
     # compute shifting variables (WLOG, TR has been normalized to 1)
     slice_TR = 1. / n_slices  # acq time for a single slice
@@ -316,14 +385,15 @@ def get_user_time(user_time, n_slices, n_scans, slice_index=None,
     if isinstance(user_time, basestring):
         if user_time == 'compute':
             if slice_index is None:
-                raise Exception(
-                    ("A value of slice_index obligatory, since "
-                     "you requested me to compute the user_time"))
-
+                slice_index = np.arange(n_slices)
             # user didn't specify times they're interested in; we'll
             # just shift the acq time to the left
             shiftamount = (slice_index - ref_slice) * slice_TR
-            user_time = acquisition_time - shiftamount
+            if hasattr(slice_index, '__len__'):
+                user_time = np.array([acquisition_time - delta
+                                      for delta in shiftamount])
+            else:
+                user_time = acquisition_time - shiftamount
         else:
             raise Exception("Unknown user_time value: %s" % user_time)
     if isinstance(user_time, float) or isinstance(user_time, int):
@@ -375,6 +445,18 @@ def compute_sinc_kernel(acquisition_time, user_time,
     sinc_kernel: 2D array of shape (len(user_time), 2n_scans - 1) if
     symmetricization trick has been used or (len(user_time), n_scans)
     otherwise
+
+    Raises
+    ------
+    AssertionError
+
+    Examples
+    --------
+    >>> import slice_timing as st
+    >>> from numpy import *
+    >>> at = st.get_acquisition_time(10)
+    >>> ut = st.get_user_time(21, 10, slice_index=9)
+    >>> k = st.compute_sinc_kernel(at, ut)
 
     """
 
@@ -440,8 +522,8 @@ class STC(object):
 
         corrected_B_k = dot(B_k, transpose(S_k)) ... (2)
 
-    Remarks
-    -------
+    Notes
+    -----
     1- In formula (1) above, it's assumed that k and k_0 have been mapped to
     their real values consistently with the underlying slice order /
     acquisition type.
@@ -479,9 +561,50 @@ class STC(object):
     -
     3Lv15
 
+    Examples
+    --------
+    >>> import slice_timing as st
+    >>> from numpy import *
+    >>> nx = 64
+    >>> ny = 80
+    >>> nz = 21
+    >>> n_slices = nz
+    >>> n_scans = 96
+    >>> brain_shape = (nx, ny, n_slices, n_scans)
+    >>> brain_data = random.random(brain_shape)
+    >>> stc = st.STC()
+    >>> kernels = stc.fit(raw_data=brain_data)
+    Estimating STC tranform (sinc kernel) for slice 1/21...
+    Estimating STC tranform (sinc kernel) for slice 2/21...
+    Estimating STC tranform (sinc kernel) for slice 3/21...
+    Estimating STC tranform (sinc kernel) for slice 4/21...
+    Estimating STC tranform (sinc kernel) for slice 5/21...
+    Estimating STC tranform (sinc kernel) for slice 6/21...
+    Estimating STC tranform (sinc kernel) for slice 7/21...
+    Estimating STC tranform (sinc kernel) for slice 8/21...
+    Estimating STC tranform (sinc kernel) for slice 9/21...
+    Estimating STC tranform (sinc kernel) for slice 10/21...
+    Estimating STC tranform (sinc kernel) for slice 11/21...
+    Estimating STC tranform (sinc kernel) for slice 12/21...
+    Estimating STC tranform (sinc kernel) for slice 13/21...
+    Estimating STC tranform (sinc kernel) for slice 14/21...
+    Estimating STC tranform (sinc kernel) for slice 15/21...
+    Estimating STC tranform (sinc kernel) for slice 16/21...
+    Estimating STC tranform (sinc kernel) for slice 17/21...
+    Estimating STC tranform (sinc kernel) for slice 18/21...
+    Estimating STC tranform (sinc kernel) for slice 19/21...
+    Estimating STC tranform (sinc kernel) for slice 20/21...
+    Estimating STC tranform (sinc kernel) for slice 21/21...
+
+    >>> resliced_brain_data = stc.transform()
+
     """
 
     def __init__(self):
+        """Default constructor
+
+        """
+
         self._n_scans = None
         self._n_slices = None
         self._raw_data = None
@@ -569,10 +692,12 @@ class STC(object):
             slice_order='ascending', interleaved=False,
             ref_slice=0,
             user_time='compute',
-            L=10,
+            L=INFINITY,
             symmetricization_trick=True,
             ):
-        """Computes a transform for ST correction
+        """Computes a transform for ST correction. The computed transform
+        is not applied to data right away; this action is postponed until
+        you explicitly invoke the transform(..) method.
 
         Parameters
         ----------
@@ -593,7 +718,7 @@ class STC(object):
             .5TR, ..., (n_scans - 1)TR + .5TR; if the value if -.7TR, then
             the instants will be TR - .7TR, ..., (n_scans - 1)TR - .7TR.
             N.B.:- This value must be in the range [0., 1.) .
-        L: int (optional, default 10)
+        L: int (optional, default 50)
             width of Hanning Window to use in windowing the sinc kernel
             (this should help preventing the 'teleportation' of artefacts
             across different TRs, and also make the kernel sparse, thus
@@ -608,7 +733,8 @@ class STC(object):
         self._tranform: 3D array of shape (n_slices, n_user_time, n_scans) or
         (n_slices, n_user_time, 2n_scans - 1) if symmetricization_trick is set,
         where n_user_time is the number of time points user is requesting
-        response prediction for
+        response prediction for. This transform is applied to the input data
+        when you later invoke the transform method.
 
         Raises
         ------
@@ -664,10 +790,12 @@ class STC(object):
 
         # compute user times (times for which the BOLD signal values
         # will be predicted for all voxels)
-        self._user_time = np.array([
-                get_user_time(self._user_time, self._n_slices, self._n_scans,
-                              slice_index=z, ref_slice=self._ref_slice,)
-                for z in self._slice_indices])
+        self._user_time = get_user_time(self._n_slices,
+                                        self._n_scans,
+                                        slice_index=self._slice_indices,
+                                        ref_slice=self._ref_slice,
+                                        user_time=self._user_time,
+                                        )
 
         # compute full brain ST correction transform
         self._transform = np.array([
@@ -743,6 +871,24 @@ class STC(object):
 
         return slice_data
 
+    def get_slice_transorm(self, z):
+        """Method returns the transform (sinc kernel) for the specified slice
+
+        Parameters
+        ----------
+        z: int
+            slice index for requested transform
+
+        Returns
+        -------
+        2D array (compressed sparse)
+
+        """
+
+        assert 0 <= z < self._n_slices
+
+        return self._transform[self._slice_indices[z]]
+
     def transform(self, raw_data=None,):
         """Applies the fitted transform to the input raw data. If raw_data
         is not specified, the _raw_data field of this object is used (probably
@@ -781,11 +927,10 @@ class STC(object):
         self._output_data = np.array([
                 apply_sinc_STC(
                     self.get_slice_data(j, raw_data),
-                    self._transform[z],
+                    self.get_slice_transorm(j),
                     symmetricize_data=self._symmetricization_trick,
                     )
-                for j, z in zip(xrange(self._n_slices),
-                                self._slice_indices)])
+                for j in xrange(self._n_slices)])
 
         # sanitize output shape
         if len(raw_data.shape) == 4:
@@ -838,11 +983,9 @@ class STC(object):
 
 
 def demo_HRF(n_slices=10,
-
-             # OK for QA, since STC acts slice-wise, not voxel-wise
              n_voxels_per_slice=1,
-
-             white_noise_std=1e-4):
+             white_noise_std=1e-4,
+             ):
     """STC for phase-shifted HRF in the presence of white-noise
 
     Parameters
@@ -937,11 +1080,12 @@ def demo_HRF(n_slices=10,
                 st_corrected_signal[slice_index][0],
                 ground_truth_signal=signal,
                 ground_truth_time=time,
-                title=("Slice-Timing Correction of sampled HRF time-course"
-                       " from voxel %i of slice %i \nN.B:- TR = %.2f, "
-                       "# slices = %i, # voxels per slice = %i, white-noise"
-                       " std = %f") % (vox, slice_index, TR, n_slices,
-                                       n_voxels_per_slice, white_noise_std,)
+                title=(
+                    "Slice-Timing Correction of sampled HRF time-course"
+                    " from voxel %i of slice %i \nN.B:- TR = %.2f, "
+                    "# slices = %i, # voxels per slice = %i, white-noise"
+                    " std = %f") % (vox, slice_index, TR, n_slices,
+                                    n_voxels_per_slice, white_noise_std,)
                 )
 
 
@@ -1011,7 +1155,6 @@ def demo_BOLD(dataset='spm-auditory',
 
         TR = 7.
     elif dataset == 'fsl-feeds':
-        output_filename = "/tmp/st_corrected_fsl_feeds.nii.gz"
         fmri_img = ni.load(
             "/home/elvis/CODE/datasets/fsl-feeds-data/fmri.nii.gz")
         fmri_data = fmri_img.get_data()
@@ -1026,7 +1169,6 @@ def demo_BOLD(dataset='spm-auditory',
         TR = 2.4
     elif dataset == 'face-rep-spm5':
         # XXX nibabel says the affines of the 3Ds are different
-        output_filename = "/tmp/st_corrected_face_rep_SPM5.nii.gz"
         fmri_img = ni.load(
             "/home/elvis/CODE/datasets/face_rep_SPM5/RawEPI/4D.nii.gz")
         fmri_data = fmri_img.get_data()
@@ -1038,7 +1180,7 @@ def demo_BOLD(dataset='spm-auditory',
 
     output_filename = os.path.join(
         output_dir,
-        dataset.rstrip(" ").replace("-", "_") + ".nii.gz",
+        "st_corrected_" + dataset.rstrip(" ").replace("-", "_") + ".nii.gz",
         )
 
     print "\r\n\t\t ---demo_BOLD (%s)---" % dataset
@@ -1198,6 +1340,6 @@ def demo_sinusoid(n_slices=10,
     # stc.show_slice_transform(4)
 
 if __name__ == '__main__':
-    # demo_sinusoid()
-    # demo_HRF()
-    demo_BOLD(dataset='face-rep-SPM5', QA=True)
+    demo_sinusoid()
+    demo_HRF()
+    demo_BOLD()
