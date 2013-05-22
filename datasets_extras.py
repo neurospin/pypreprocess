@@ -258,8 +258,8 @@ Function to fetch SPM auditory data.
     if redownload:
         try:
             print "Zapping all old downloads .."
-            shutil.rmtree(subject_dir)
-            os.remove(archive_path)
+            # shutil.rmtree(subject_dir)
+            # os.remove(archive_path)
         except OSError:
             pass
         finally:
@@ -267,7 +267,7 @@ Function to fetch SPM auditory data.
     if os.path.exists(subject_dir):
         subject_data = _glob_spm_auditory_data(subject_dir)
         if subject_data is None:
-            shutil.rmtree(subject_dir)
+            # shutil.rmtree(subject_dir)
             return fetch_spm_auditory_data(data_dir)
         else:
             return subject_data
@@ -276,7 +276,7 @@ Function to fetch SPM auditory data.
             _uncompress_file(archive_path)
         except:
             print "Archive corrupted, trying to download it again."
-            os.remove(archive_path)
+            # os.remove(archive_path)
             return fetch_spm_auditory_data(data_dir)
     else:
         _fetch_file(url, data_dir)
@@ -284,7 +284,7 @@ Function to fetch SPM auditory data.
             _uncompress_file(archive_path)
         except:
             print "Archive corrupted, trying to download it again."
-            os.remove(archive_path)
+            # os.remove(archive_path)
             return fetch_spm_auditory_data(data_dir)
         return _glob_spm_auditory_data(subject_dir)
 

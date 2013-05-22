@@ -10,7 +10,7 @@ import pylab as pl
 import matplotlib.pyplot as plt
 import scipy
 import scipy.sparse
-
+import nibabel as ni
 
 # some useful constants
 INFINITY = np.inf
@@ -61,8 +61,10 @@ def plot_slicetiming_results(TR,
     else:
         N = len(ground_truth_signal)
 
+    ground_truth_signal = ground_truth_signal.ravel()
+
     if ground_truth_time is None:
-        assert len(ground_truth_signal) == len(acquisition_time)
+        assert len(ground_truth_signal) == n_scans
         ground_truth_time = acquisition_time
 
     plt.figure()
@@ -76,7 +78,9 @@ def plot_slicetiming_results(TR,
     n_cols = 1 if n_methods == 1 else 2
     n_rows = (n_methods - 1) / n_cols
     n_rows += 1  # because subplots are counted from 1, not 0
-    n_rows += 1  # becase we'll add a modularity plot at the end
+
+    if N:
+        n_rows += 1  # becase we'll add a modularity plot at the end
 
     plt.rc('legend', fontsize=8,)
 
@@ -627,7 +631,9 @@ class STC(object):
         elif len(raw_data.shape) == 3:
             n_slices = raw_data.shape[0]
         else:
-            raise Exception("Input raw data must be 3D or 4D array")
+            raise Exception(
+                ("Input raw data must be 3D or 4D array, got"
+                 " %s") % str(raw_data.shape))
 
         n_scans = raw_data.shape[-1]
 
@@ -674,6 +680,14 @@ class STC(object):
         else:
             self._n_slices = n_slices
 
+    def _load_raw_data(self, raw_data):
+        if isinstance(raw_data, basestring):
+            return ni.load(raw_data).get_data()
+        elif isinstance(raw_data, ni.Nifti1Image):
+            return raw_data.get_data()
+        else:
+            return raw_data
+
     def _set_raw_data(self, raw_data):
         """Sets the value of the _raw_data field, after doing some sanity
         checks on the specified value
@@ -685,6 +699,7 @@ class STC(object):
         """
 
         if not raw_data is None:
+            self._load_raw_data(raw_data)
             self._check_raw_data_dims(raw_data)
             self._raw_data = raw_data
 
@@ -703,8 +718,8 @@ class STC(object):
         ----------
         raw_data: 4D array of shape (n_x, n_y, n_slices, n_scans) or 3D
         array of shape (n_slices, n_voxels_per_slice, n_scans) (optional,
-        default None)
-            input data for STC
+        default None), `nibabel.Nifti1Image`, or string (filename)
+            input data for STC (transforms will be fitted against this)
         ref_slice: int (optional, default 0)
             the slice number to be taken as the reference slice
         user_time: string, float (optional, default "compute")
@@ -743,6 +758,8 @@ class STC(object):
         """
 
         # sanity checks on raw_data, n_scans, and n_slices
+        raw_data = self._load_raw_data(raw_data)
+
         self._n_scans = n_scans
         self._n_slices = n_slices
         if not raw_data is None:
@@ -751,7 +768,9 @@ class STC(object):
             elif len(raw_data.shape) == 3:
                 self._set_n_slices(raw_data.shape[0])
             else:
-                raise Exception("Input raw data must be 3D or 4D array")
+                raise Exception(
+                    ("Input raw data must be 3D or 4D array, got"
+                     " %s") % str(raw_data.shape))
 
             self._set_n_scans(raw_data.shape[-1])
         else:
@@ -898,8 +917,8 @@ class STC(object):
         ----------
         raw_data: 4D array of shape (n_x, n_y, n_slices, n_scans) or 3D
         array of shape (n_slices, n_voxels_per_slice, n_scans) (optional,
-        default None)
-            input data to reslice
+        default None), `nibabel.Nifti1Image`, or string (filename)
+            data to reslice
 
         Returns
         -------
@@ -1138,25 +1157,38 @@ def demo_BOLD(dataset='spm-auditory',
 
     # demo specific imports
     import nibabel as ni
-    import glob
     import os
+    import sys
 
     # load the data
     slice_order = 'ascending'
     interleaved = False
     if dataset == 'spm-auditory':
-        fmri_img = ni.concat_images(
-            sorted(
-                glob.glob(
-                    ("/home/elvis/CODE/datasets/spm_auditory/fM00223"
-                     "/fM00223_*.img")
-                    )))
+        # pypreproces path
+        PYPREPROCESS_DIR = os.path.dirname(os.path.split(
+                os.path.abspath(__file__))[0])
+
+        sys.path.append(PYPREPROCESS_DIR)
+        from datasets_extras import fetch_spm_auditory_data
+
+        _subject_data = fetch_spm_auditory_data('/tmp/spm_auditory')
+
+        fmri_img = ni.concat_images(_subject_data['func'],)
         fmri_data = fmri_img.get_data()[:, :, :, 0, :]
 
         TR = 7.
     elif dataset == 'fsl-feeds':
-        fmri_img = ni.load(
-            "/home/elvis/CODE/datasets/fsl-feeds-data/fmri.nii.gz")
+        PYPREPROCESS_DIR = os.path.dirname(os.path.split(
+                os.path.abspath(__file__))[0])
+
+        sys.path.append(PYPREPROCESS_DIR)
+        from datasets_extras import fetch_fsl_feeds_data
+
+        _subject_data = fetch_fsl_feeds_data('/tmp/fsl_feeds')
+        if not _subject_data['func'].endswith('.gz'):
+            _subject_data['func'] += '.gz'
+
+        fmri_img = ni.load(_subject_data['func'],)
         fmri_data = fmri_img.get_data()
 
         TR = 3.
@@ -1340,6 +1372,6 @@ def demo_sinusoid(n_slices=10,
     # stc.show_slice_transform(4)
 
 if __name__ == '__main__':
-    demo_sinusoid()
-    demo_HRF()
-    demo_BOLD()
+    # demo_sinusoid()
+    # demo_HRF()
+    demo_BOLD(dataset='fsl-feeds')
