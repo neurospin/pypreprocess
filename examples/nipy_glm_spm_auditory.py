@@ -64,7 +64,9 @@ class SubjectData(object):
 
 
 subject_data = SubjectData()
-subject_data.func = _subject_data["func"]
+subject_data.func = _subject_data['func'] # [os.path.join(os.path.dirname(x),
+                                   # "a" + os.path.basename(x))
+                                   # for x in _subject_data["func"]]
 subject_data.func = '/tmp/st_corrected_spm_auditory.nii.gz'
 subject_data.anat = _subject_data["anat"]
 subject_data.output_dir = os.path.join(

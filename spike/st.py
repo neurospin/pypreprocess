@@ -1,6 +1,5 @@
 import os
 import sys
-import glob
 import nibabel as ni
 import scipy
 import numpy as np
@@ -30,13 +29,14 @@ class STC(object):
 
         # phi represents a range of phases up to the Nyquist frequency
         phi = np.zeros((n_slices, l))
-        for f in xrange(l / 2):
-            phi[:, f + 1] = -1. * shiftamount * 2 * np.pi / (l / (f + 1))
+        for k in xrange(n_slices):
+            for f in xrange(l / 2):
+                phi[k, f + 1] = -1. * shiftamount[k
+                                                  ] * 2 * np.pi / (l / (f + 1))
 
-        # mirror phi about the center
-        phi[:, 1 + l / 2 - offset:] = np.array(
-            [-np.flipud(phi[j, 1:l / 2 + offset])
-             for j in xrange(n_slices)])
+            # mirror phi about the center
+            phi[k, 1 + l / 2 - offset:] = -np.flipud(
+                phi[k, 1:l / 2 + offset])
 
         # return the phases
         return phi
@@ -87,39 +87,86 @@ class STC(object):
         return self._transform
 
     def pad_raw_data_with_zeros(self, raw_data):
+        n_scans = raw_data.shape[-1]
+        n_slices = raw_data.shape[0]
+        l = self._transform.shape[-1]
         if len(raw_data.shape) == 3:
-            _raw_data = np.zeros((raw_data.shape[0], raw_data.shape[1],
-                                  self._transform.shape[1]))
-            _raw_data[:, :, :raw_data.shape[-1]] = raw_data
-        elif len(raw_data.shape) == 4:
-            _raw_data = np.zeros((raw_data.shape[0], raw_data.shape[1],
-                                  raw_data.shape[2],
-                                  self._transform.shape[1]))
-            _raw_data[:, :, :, :raw_data.shape[-1]] = raw_data
+            n_voxels_per_slice = raw_data.shape[1]
+        else:
+            n_voxels_per_slice = np.prod(raw_data.shape[:2])
+
+        _raw_data = np.zeros((n_slices, n_voxels_per_slice,
+                              l))
+        _raw_data[:, :, :n_scans] = np.array([self.get_slice_data(raw_data,
+                                                                 z)
+                                              for z in xrange(n_slices)])
+
+        for z in xrange(n_slices):
+            for v in xrange(n_voxels_per_slice):
+                _raw_data[z, v, n_scans:] = np.linspace(_raw_data[z, v, n_scans],
+                                                        _raw_data[z, v, 0],
+                                                        num=l - n_scans,)
 
         return _raw_data
 
     def transform(self, raw_data):
-        _raw_data = self.pad_raw_data_with_zeros(raw_data)
+        ref_slice = 0
+        n_scans = raw_data.shape[-1]
+        n_slices = raw_data.shape[2]
+        n_rows, n_columns = raw_data.shape[:2]
+        l = 2 ** int(np.floor(np.log2(n_scans)) + 1)
+        factor = 1. / n_slices
+        slices = np.zeros((n_rows, n_columns, n_scans))
+        stack = np.zeros((l, n_rows))
 
-        self._output_data = np.array(
-            [np.real(np.fft.ifft(np.fft.fft(
-                            self.get_slice_data(
-                                _raw_data, j)) * self.get_slice_transform(j)))
-             for j in xrange(self._n_slices)])
+        # loop over slices
+        self._output_data = 0 * raw_data
+        for k in xrange(n_slices):
+            # set up time acquired within order
+            shiftamount = (k - ref_slice) * factor
 
-        # trim-off zeros at the tail
-        self._output_data = self._output_data[:, :, :self._n_scans]
+            # read slice k data for all volumes
+            slices[:, :, :n_scans] = raw_data[:, :, k, :]
 
-        # sanitize output shape
-        if len(raw_data.shape) == 4:
-            # the output has shape (n_slices, n_voxels_per_slice, n_scans)
-            # unravel it to match the input data's shape (n_x, n_y, n_slices,
-            # n_xcans)
-            self._output_data = self._output_data.swapaxes(0, 1).reshape(
-                raw_data.shape)
+            offset = l % 2
 
-        # return output (just in case caller is eager)
+            # phi represents a range of phases up to the Nyquist frequency
+            phi = np.zeros(l)
+            for f in xrange(l / 2):
+                phi[f + 1] = -1. * shiftamount * 2 * np.pi / (l / (f + 1))
+
+            # mirror phi about the center
+            phi[1 + l / 2 - offset:] = -np.flipud(phi[1:l / 2 + offset])
+
+            # transform phi to frequency domain, then take complex transpose
+            shifter = scipy.cos(phi) + scipy.sqrt(-1) * scipy.sin(phi)
+            shifter = np.array([shifter
+                                for _ in xrange(n_columns)]).T
+
+            # loop over columns of slice k (y axis)
+            for i in xrange(n_columns):
+                # extract columns from slices
+                stack[:n_scans, :] = slices[:, i, :].reshape(
+                    (n_rows, n_scans)).T
+
+                # fill-in continuous function to avoid edge effects
+                for g in xrange(stack.shape[1]):
+                    stack[n_scans:, g] = np.linspace(stack[n_scans - 1, g],
+                                                     stack[0, g],
+                                                     num=l - n_scans,).T
+
+                # shift the columns of slice k
+                stack = np.real(np.fft.ifft(
+                        np.fft.fft(stack, axis=0) * shifter, axis=0))
+
+                # re-insert shifted columns of slice k
+                slices[:, i, :] = stack[:n_scans, :].T.reshape((n_rows,
+                                                                n_scans))
+
+            # re-write slice k for all volumes
+            self._output_data[:, :, k, :] = slices[:, :, :n_scans]
+
+        # return output
         return self._output_data
 
     def get_last_output_data(self):
@@ -134,7 +181,7 @@ class TestSPMSTC(unittest.TestCase):
         stc = STC()
 
     def test_fit(self):
-        n_slices = 12
+        n_slices = 15
         n_scans = 40
         l = 2 ** int(np.floor(np.log2(n_scans)) + 1)
         stc = STC()
@@ -144,8 +191,9 @@ class TestSPMSTC(unittest.TestCase):
 
     def test_sinusoidal_mixture(self):
         n_slices = 4
-        n_scans = 100
-        n_voxels_per_slice = 1
+        n_rows = 1
+        n_columns = 1
+        n_voxels_per_slice = n_rows * n_columns
         introduce_artefact_in_these_volumes = None
         artefact_std = 4.
         white_noise_std = 1e-2
@@ -179,7 +227,6 @@ class TestSPMSTC(unittest.TestCase):
 
         # sample the time
         sampled_time = time[::freq]
-        n_scans = len(sampled_time)
 
         # corrupt the sampled time by shifting it to the right
         slice_TR = 1. * TR / n_slices
@@ -189,33 +236,35 @@ class TestSPMSTC(unittest.TestCase):
 
         # acquire the signal at the corrupt sampled time points
         acquired_signal = np.array([
-                [my_sinusoid(shifted_sampled_time[j])
-                 for vox in xrange(n_voxels_per_slice)]
-                for j in xrange(n_slices)])
+                [[my_sinusoid(shifted_sampled_time[j])
+                  for j in xrange(n_slices)]
+                 for y in xrange(n_columns)] for x in xrange(n_rows)]
+                                   )
 
         # add white noise
         acquired_signal += white_noise_std * np.random.randn(
             *acquired_signal.shape)
 
-        # add artefacts to specific volumes/TRs
+        # # add artefacts to specific volumes/TRs
         if introduce_artefact_in_these_volumes is None:
             introduce_artefact_in_these_volumes = []
-        if isinstance(introduce_artefact_in_these_volumes, int):
-            introduce_artefact_in_these_volumes = [
-                introduce_artefact_in_these_volumes]
-        elif introduce_artefact_in_these_volumes == "middle":
-            introduce_artefact_in_these_volumes = [n_scans / 2]
-        else:
-            assert hasattr(introduce_artefact_in_these_volumes, '__len__')
-        introduce_artefact_in_these_volumes = np.array(
-            introduce_artefact_in_these_volumes, dtype=int) % n_scans
-        acquired_signal[:, :, introduce_artefact_in_these_volumes
-                              ] += artefact_std * np.random.randn(
-            n_slices,
-            n_voxels_per_slice,
-            len(introduce_artefact_in_these_volumes))
+        # if isinstance(introduce_artefact_in_these_volumes, int):
+        #     introduce_artefact_in_these_volumes = [
+        #         introduce_artefact_in_these_volumes]
+        # elif introduce_artefact_in_these_volumes == "middle":
+        #     introduce_artefact_in_these_volumes = [n_scans / 2]
+        # else:
+        #     assert hasattr(introduce_artefact_in_these_volumes, '__len__')
+        # introduce_artefact_in_these_volumes = np.array(
+        #     introduce_artefact_in_these_volumes, dtype=int) % n_scans
+        # acquired_signal[:, :, introduce_artefact_in_these_volumes
+        #                       ] += artefact_std * np.random.randn(
+        #     n_slices,
+        #     n_voxels_per_slice,
+        #     len(introduce_artefact_in_these_volumes))
 
         # fit STC
+        n_scans = len(sampled_time)
         stc = STC()
         stc.fit(n_slices, n_scans)
 
@@ -225,35 +274,37 @@ class TestSPMSTC(unittest.TestCase):
         print "Done."
 
         for slice_index in xrange(n_slices):
-            for vox in xrange(n_voxels_per_slice):
-                title = ("Slice-Timing Correction of sampled sine mixeture "
-                         "time-course from voxel %i of slice %i \nN.B:- "
-                         "TR = %.2f, # slices = %i, # voxels per slice = %i, "
-                         "white-noise std = %f, artefact std = %.2f, volumes "
-                         "corrupt with artefact: %s") % (
-                    vox, slice_index, TR, n_slices, n_voxels_per_slice,
-                    white_noise_std, artefact_std,
-                    ", ".join([str(i)
-                               for i in introduce_artefact_in_these_volumes]),
-                    )
+            for x in xrange(n_rows):
+                for y in xrange(n_columns):
+                    title = (
+                        "Slice-Timing Correction of sampled sine mixeture "
+                        "time-course from voxel %s of slice %i \nN.B:- "
+                        "TR = %.2f, # slices = %i, # voxels per slice = %i, "
+                        "white-noise std = %f, artefact std = %.2f") % (
+                        str((x, y)),
+                        slice_index, TR, n_slices,
+                        n_voxels_per_slice,
+                        white_noise_std, artefact_std,
+                        )
 
-                plt.plot(time, signal)
-                plt.hold('on')
-                plt.plot(sampled_time, acquired_signal[slice_index][vox],
-                         'r--o')
-                plt.hold('on')
-                plt.plot(sampled_time, st_corrected_signal[slice_index][vox],
-                         's-')
-                plt.hold('on')
+                    plt.plot(time, signal)
+                    plt.hold('on')
+                    plt.plot(sampled_time, acquired_signal[x][y][slice_index],
+                             'r--o')
+                    plt.hold('on')
+                    plt.plot(sampled_time,
+                             st_corrected_signal[x][y][slice_index],
+                             's-')
+                    plt.hold('on')
 
-                # misc
-                plt.title(title)
-                plt.legend(("Ground-truth signal", "Acquired sample",
-                            "ST corrected sample"))
-                plt.xlabel("time (s)")
-                plt.ylabel("BOLD")
+                    # misc
+                    plt.title(title)
+                    plt.legend(("Ground-truth signal", "Acquired sample",
+                                "ST corrected sample"))
+                    plt.xlabel("time (s)")
+                    plt.ylabel("BOLD")
 
-                plt.show()
+                    plt.show()
 
     def test_spm_auditory(self):
         # path variables
@@ -290,8 +341,10 @@ class TestSPMSTC(unittest.TestCase):
         print "\r\n\t\t ---demo_BOLD (%s)---" % dataset
 
         # fit STC
+        n_scans = fmri_data.shape[-1]
+        n_slices = fmri_data.shape[2]
         stc = STC()
-        stc.fit(fmri_data.shape[2], fmri_data.shape[-1],
+        stc.fit(n_slices, n_scans,
                 )
 
         # do full-brain ST correction
@@ -299,16 +352,15 @@ class TestSPMSTC(unittest.TestCase):
         corrected_fmri_data = stc.transform(fmri_data)
         print "Done."
 
-        # # save output unto disk
-        # print "Saving ST corrected image to %s..." % output_filename
-        # ni.save(ni.Nifti1Image(corrected_fmri_data, fmri_img.get_affine()),
-        #         output_filename)
-        # print "Done."
+        # save output unto disk
+        print "Saving ST corrected image to %s..." % output_filename
+        ni.save(ni.Nifti1Image(corrected_fmri_data, fmri_img.get_affine()),
+                output_filename)
+        print "Done."
 
         # QA clinic
-        n_scans = fmri_data.shape[-1]
         sampled_time = np.linspace(0, (n_scans - 1) * TR, n_scans)
-        for z in xrange(7, 13):
+        for z in xrange(n_slices):
             ax1 = plt.subplot2grid((2, 1),
                                    (0, 0))
             # plot acquired sample
