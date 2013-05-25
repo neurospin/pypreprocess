@@ -22,6 +22,7 @@ def plot_slicetiming_results(TR,
                              ground_truth_signal=None,
                              ground_truth_time=None,
                              title="QA for Slice-Timing Correction",
+                             check_fft=True,
                              ):
 
     """Function to generate QA plots post-STC business, for a single voxel
@@ -46,76 +47,66 @@ def plot_slicetiming_results(TR,
     """
 
     # sanity checks
+    st_corrected_signal = np.array(st_corrected_signal)
     n_scans = len(acquired_signal)
     assert len(acquired_signal.shape) == 1
-    assert st_corrected_signal.shape[0] == n_scans
+    assert st_corrected_signal.shape[-1] == n_scans
 
     if len(st_corrected_signal.shape) == 1:
         st_corrected_signal = np.array([st_corrected_signal])
 
     acquisition_time = np.linspace(0, (n_scans - 1) * TR, n_scans)
 
-    N = None
-    if ground_truth_signal is None:
-        ground_truth_signal = st_corrected_signal
-    else:
-        N = len(ground_truth_signal)
-
-    ground_truth_signal = ground_truth_signal.ravel()
-
-    if ground_truth_time is None:
-        assert len(ground_truth_signal) == n_scans
-        ground_truth_time = acquisition_time
-
-    plt.figure()
-    plt.xlabel('t')
-
     if len(st_corrected_signal.shape) == 1:
         n_methods = 1
     else:
         n_methods = st_corrected_signal.shape[0]
 
-    n_cols = 1 if n_methods == 1 else 2
-    n_rows = (n_methods - 1) / n_cols
-    n_rows += 1  # because subplots are counted from 1, not 0
+    N = None
+    if ground_truth_signal is None:
+        if n_methods == 1:
+            ground_truth_signal = st_corrected_signal
+    else:
+        N = len(ground_truth_signal)
 
-    if N:
-        n_rows += 1  # becase we'll add a modularity plot at the end
+    if ground_truth_time is None:
+        if N:
+            assert len(ground_truth_signal) == n_scans
+            ground_truth_time = acquisition_time
 
     plt.rc('legend', fontsize=8,)
 
     if title:
         plt.suptitle(title, fontsize=14)
-    for j in xrange(n_methods):
-        # display graph, nodes colored according to their community
-        ax = plt.subplot2grid((n_rows, n_cols),
-                              np.unravel_index(j, (n_rows, n_cols)))
 
-        # plot true signal
-        ax.plot(ground_truth_time, ground_truth_signal, 'g')
-        ax.hold('on')
+    n_rows = 1
+    n_rows += int(check_fft) + int(not N is None)
 
-        # plot acquired signal (input to STC algorithm)
-        ax.plot(acquisition_time, acquired_signal, 'r--o')
-        ax.hold('on')
+    ax1 = plt.subplot2grid((n_rows, 1),
+                      (0, 0))
+    ax1_legends = []
 
-        # plot ST corrected signal
-        ax.plot(acquisition_time, st_corrected_signal[j], 'gs')
-        ax.hold('on')
+    # plot ground-truth signal
+    ax1.plot(ground_truth_time, ground_truth_signal)
+    ax1_legends.append("Ground-truth signal")
+    ax1.hold('on')
 
-        # legend
-        ax.legend(('Ground-Truth signal',
-                   'Input sample',
-                   'Output ST corrected sample',
-                   ),
-                  loc='best',
-                  )
+    # plot acquired sample
+    ax1.plot(acquisition_time, acquired_signal, '--o')
+    ax1_legends.append("Orignal sample")
+    ax1.hold('on')
 
-        # title
-        if n_methods > 1:
-            ax.set_title("method %i" % j, fontsize=8)
+    if check_fft:
+        ax2 = plt.subplot2grid((n_rows, 1),
+                               (1, 0))
+        ax2_legends = []
 
-    # plot error
+        # plot fft of acquired sample
+        ax2.plot(acquisition_time[1:],
+                 np.abs(np.fft.fft(acquired_signal))[1:])
+        ax2_legends.append("Original sample")
+        ax2.hold('on')
+
     if not N is None:
         sampling_freq = (N - 1) / (n_scans - 1)  # XXX formula correct ??
 
@@ -123,27 +114,61 @@ def plot_slicetiming_results(TR,
         sampled_ground_truth_signal = ground_truth_signal[
             ::sampling_freq]
 
-        # compute absolute error
-        abs_error = np.array([
-                np.abs(
-                    sampled_ground_truth_signal - st_corrected_signal[j])
-                for j in xrange(n_methods)])
-        # print 'Squared Error in Prediction:', (abs_error ** 2).sum()
+        ax3 = plt.subplot2grid((n_rows, 1),
+                           (2, 0))
+        ax3_legends = []
 
-        # plot abs error
-        ax = plt.subplot2grid((n_rows, n_cols), (n_rows - 1, 0),
-                               rowspan=1, colspan=n_cols)
+    for j in xrange(n_methods):
+        # plot ST corrected signal
+        ax1.plot(acquisition_time, st_corrected_signal[j], 's-')
+        ax1_legends.append("STC method %i" % (j + 1))
+        ax1.hold('on')
 
-        # title
-        ax.set_title(
-            "Absolute Error (between ground-truth and corrected sample)")
-        ax.plot(acquisition_time, abs_error.T)
+        if check_fft:
+            # plot fft of ST corrected sample
+            ax2.plot(acquisition_time[1:],
+                     np.abs(np.fft.fft(st_corrected_signal[j]))[1:])
+            ax2_legends.append(
+                "STC method %i" % (j + 1))
+            ax2.hold('on')
 
-        # legend
-        if n_methods > 1:
-            ax.legend(tuple(["method %i" % j for j in xrange(n_methods)]))
+    #     # legend
+    #     ax.legend(('Ground-Truth signal',
+    #                'Input sample',
+    #                'Output ST corrected sample',
+    #                ),
+    #               loc='best',
+    #               )
 
+    #     # title
+    #     if n_methods > 1:
+    #         ax.set_title("method %i" % j, fontsize=8)
+
+        # plot error
+        if not N is None:
+            # compute absolute error
+            abs_error = np.array([
+                    np.abs(
+                        sampled_ground_truth_signal - st_corrected_signal[j])
+                    for j in xrange(n_methods)])
+
+            ax3.plot(acquisition_time, abs_error.T)
+            ax3_legends.append("STC method %i" % (j + 1))
+
+    #     # legend
+    #     if n_methods > 1:
+    #         ax.legend(tuple(["method %i" % j for j in xrange(n_methods)]))
+
+    # misc
     plt.xlabel('time (s)')
+    ax1.legend(tuple(ax1_legends))
+    ax1.set_title("Data")
+    if check_fft:
+        ax2.legend(tuple(ax2_legends), ncol=2)
+        ax2.set_title("Absolute value of FFT")
+    if N:
+        ax3.legend(tuple(ax3_legends))
+        ax3.set_title("Absolute Error")
 
     # show all generated plots
     pl.show()
@@ -707,7 +732,7 @@ class STC(object):
             slice_order='ascending', interleaved=False,
             ref_slice=0,
             user_time='compute',
-            L=INFINITY,
+            L=None,
             symmetricization_trick=True,
             ):
         """Computes a transform for ST correction. The computed transform
@@ -1108,7 +1133,8 @@ def demo_HRF(n_slices=10,
                 )
 
 
-def STC_QA(raw_fmri, corrected_fmri, TR, x, y, slice_indices=None):
+def STC_QA(raw_fmri, corrected_fmri, TR, x, y, slice_indices=None,
+           compare_with=None):
 
     assert raw_fmri.shape == corrected_fmri.shape
 
@@ -1120,10 +1146,13 @@ def STC_QA(raw_fmri, corrected_fmri, TR, x, y, slice_indices=None):
     assert np.all((0 <= slice_indices) & (slice_indices < n_slices))
 
     for z in slice_indices:
+        output = corrected_fmri[x, y, z, :]
+        if not compare_with is None:
+            output = np.array([output, compare_with[x, y, z, :]])
         plot_slicetiming_results(
             TR,
             raw_fmri[x, y, z, :],
-            corrected_fmri[x, y, z, :],
+            output,
             title=(
                 "Slice-Timing Correction of BOLD time-course from a single"
                 " voxel \nN.B:- TR = %.2f, # slices = %i, x = %i, y = %i,"
@@ -1133,7 +1162,9 @@ def STC_QA(raw_fmri, corrected_fmri, TR, x, y, slice_indices=None):
 
 def demo_BOLD(dataset='spm-auditory',
               QA=True,
+              data_dir='/tmp/stc_demo',
               output_dir='/tmp',
+              compare_with=None,
               ):
     """XXX This only works on my machine since you surely don't have
     SPM single-subject auditory data or FSL FEEDS data installed on yours ;)
@@ -1167,14 +1198,18 @@ def demo_BOLD(dataset='spm-auditory',
         # pypreproces path
         PYPREPROCESS_DIR = os.path.dirname(os.path.split(
                 os.path.abspath(__file__))[0])
-
         sys.path.append(PYPREPROCESS_DIR)
         from datasets_extras import fetch_spm_auditory_data
 
-        _subject_data = fetch_spm_auditory_data('/tmp/spm_auditory')
+        _subject_data = fetch_spm_auditory_data(data_dir)
 
         fmri_img = ni.concat_images(_subject_data['func'],)
         fmri_data = fmri_img.get_data()[:, :, :, 0, :]
+
+        compare_with = ni.concat_images(
+            [os.path.join(os.path.dirname(x),
+                          "a" + os.path.basename(x))
+             for x in _subject_data['func']]).get_data()
 
         TR = 7.
     elif dataset == 'fsl-feeds':
@@ -1184,7 +1219,7 @@ def demo_BOLD(dataset='spm-auditory',
         sys.path.append(PYPREPROCESS_DIR)
         from datasets_extras import fetch_fsl_feeds_data
 
-        _subject_data = fetch_fsl_feeds_data('/tmp/fsl_feeds')
+        _subject_data = fetch_fsl_feeds_data(data_dir)
         if not _subject_data['func'].endswith('.gz'):
             _subject_data['func'] += '.gz'
 
@@ -1220,7 +1255,8 @@ def demo_BOLD(dataset='spm-auditory',
     # fit STC
     stc = STC()
     stc.fit(raw_data=fmri_data, slice_order=slice_order,
-            interleaved=interleaved,)
+            interleaved=interleaved,
+            )
 
     # do full-brain ST correction
     print "Applying full-brain STC transform..."
@@ -1238,7 +1274,8 @@ def demo_BOLD(dataset='spm-auditory',
         x = 32
         y = 32
         print "Starting QA clinic (free entrance to the masses)..."
-        STC_QA(fmri_data, corrected_fmri_data, TR, x, y)
+        STC_QA(fmri_data, corrected_fmri_data, TR, x, y,
+               compare_with=compare_with)
 
 
 def demo_sinusoid(n_slices=10,
@@ -1374,4 +1411,5 @@ def demo_sinusoid(n_slices=10,
 if __name__ == '__main__':
     # demo_sinusoid()
     # demo_HRF()
-    demo_BOLD(dataset='fsl-feeds')
+    demo_BOLD(dataset='spm-auditory',
+              data_dir="/home/elvis/CODE/datasets/spm_auditory")
