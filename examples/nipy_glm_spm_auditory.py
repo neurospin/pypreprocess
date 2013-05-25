@@ -28,7 +28,7 @@ PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
 
 sys.path.append(PYPREPROCESS_DIR)
 
-import nipy.reporting.glm_reporter as glm_reporter
+import reporting.glm_reporter as glm_reporter
 from datasets_extras import fetch_spm_auditory_data
 from io_utils import compute_mean_3D_image, do_3Dto4D_merge
 
