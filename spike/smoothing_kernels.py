@@ -112,18 +112,19 @@ def apply_llr_kernel(x_0, alpha_opt, beta_opt):
     return y_0
 
 
-def llreg(x_0, X, Y, k=2, jobtype="estimate", voxel_slice_index=None):
+def llreg(x_0, X, Y, k=2, jobtype="estimate", voxel_slice_index=None,
+          verbose=1):
     """Linear Local Regression
 
     Parameters
     ----------
-    x_0: float
-        point at which we wish to interpolate/extrapolate
+    x_0: float or array of floats
+        point(s) at which we wish to interpolate/extrapolate
 
     X: array
        realizations of predictor variable
 
-    Y: array
+    Y: array, same shape as X
        realizations of E(Y|X=x)
 
     k: int (optional, default 5)
@@ -158,7 +159,7 @@ def llreg(x_0, X, Y, k=2, jobtype="estimate", voxel_slice_index=None):
         print ("[+] Estimating LLR (Local Linear Regression) kernel for voxel"
                " %i of slice %i") % (
             voxel_slice_index[0], voxel_slice_index[1])
-    alpha_opt, beta_opt = solve_wlstsq(kernel, X, Y, verbose=0)
+    alpha_opt, beta_opt = solve_wlstsq(kernel, X, Y, verbose=verbose)
 
     if jobtype == "estimate":
         return alpha_opt, beta_opt
@@ -178,16 +179,25 @@ if __name__ == '__main__':
     # Y = np.random.randn(n_scans * n_user_times).reshape((n_user_times,
     #                                                      n_scans))
 
+    # sample the traing domain
     X = np.linspace(-10, 10, n_scans)
-    Y = np.sinc(X)
+    Y = X ** 3 - X
+
+    # add some wicked white noise
+    Y += 100 * np.random.rand(len(X))
+
+    # define the targe points (the points for which you want to predict the
+    # missing values)
     x_0 = X + .2  # np.array([.5, 1.5, 2.5, 3.5, 4.5])
 
+    # do ya thing
     y_0 = llreg(x_0, X, Y, jobtype='estwrite')
 
+    # visualize the results
     import pylab as pl
     pl.plot(X, Y)
     pl.hold('on')
     pl.plot(x_0, y_0, 'o')
+    pl.title("Local Polynomial Regression")
+    pl.legend(("Training sample", "Predicting values"))
     pl.show()
-
-    # alpha_opt, beta_opt = solve_wlstsq(K, X, Y)
