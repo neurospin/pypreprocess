@@ -73,12 +73,41 @@ def get_slice_indices(n_slices, slice_order='ascending',
 
 
 class STC(object):
+    """Correct differences in slice acquisition times. This correction
+    assumes that the data are band-limited (i.e. there is no meaningful
+    information present in the data at a frequency higher than that of
+    the Nyquist). This assumption is support by the study of Josephs
+    et al (1997, NeuroImage) that obtained event-related data at an
+    effective TR of 166 msecs. No physio-logical signal change was present
+    at frequencies higher than our typical Nyquist (0.25 HZ).
+
+    """
+
+    def __init__(self):
+        """Default constructor
+
+        """
+
+        self._n_scans = None
+        self._n_slices = None
+        self._ref_slice = None
+        self._slice_order = None
+        self._interleaved = None
+        self._output_data = None
+        self._transform = None
+
     def fit(self, n_slices, n_scans, slice_order='ascending',
             interleaved=False,
             ref_slice=0,
             ):
         """Fits an STC transform that can be later used (using the
-        transform(..) method) to re-slice compatible data
+        transform(..) method) to re-slice compatible data.
+
+        Each row of the fitter transform is precisely the filter by
+        which the signal will be convolved to introduce the phase
+        shift in the corresponding slice. It is constructed explicitly
+        in the Fourier domain. In the time domain, it can be described
+        via the Whittaker-Shannon formula (sinc interpolation).
 
         Parameters
         ----------
@@ -95,6 +124,17 @@ class STC(object):
             odd-numbered slices first, and then even-numbered slices
         ref_slice: int (optional, default 0)
             the slice number to be taken as the reference slice
+
+        Returns
+        -------
+        self._tranform: 2D array of shape (n_slices, least position integer
+        not less than self._n_scans)
+            fft transform (phase shifts mapped into frequency domain). Each row
+            is the filter by which the signal will be convolved to introduce
+            the phase shift in the corresponding slice. It is constructed
+            explicitly in the Fourier domain. In the time domain, it may be
+            described as an impulse (delta function) that has been shifted in
+            time the amount described by TimeShift
 
         """
 
@@ -170,14 +210,23 @@ class STC(object):
 
         Parameters
         ----------
-        raw_data: array
+        raw_data: array-like
             raw data array being scrutinized
+
+        Returns
+        -------
+        raw_data: array
+            sanitized raw_data
 
         Raises
         ------
         Exception if raw_data is badly shaped
 
+        XXX TODO: add support for nifti images, or filenames
+
         """
+
+        raw_data = np.array(raw_data)
 
         if len(raw_data.shape) != 4:
             raise Exception("raw_data must be 4D array")
@@ -193,6 +242,9 @@ class STC(object):
                 ("raw_data has wrong number of volumes: expecting %i, "
                  "got %i") % (self._n_scans, raw_data.shape[3]))
 
+        # return sanitized raw_dat
+        return raw_data
+
     def transform(self, raw_data):
         """Applies an STC transform to raw data
 
@@ -203,20 +255,27 @@ class STC(object):
 
         Returns
         -------
-        output_data: array of same shape as raw_data
+        self._output_data: array of same shape as raw_data
             ST corrected data
 
         Notes
         -----
-        Yes, there are quiet a bunch of for loops that may seem dull to you,
+        Yes, there are quite a bunch of for loops that may seem dull to you,
         and you might be legally tempted to vectorize 'em. Beware of
         voodoo vectorizations though, for those loops clumsy looking for
         ensure an ecological memory foot-print.
 
+        Raises
+        ------
+        Exception, if fit(...) has not yet been invoked
+
         """
 
+        if self._transform is None:
+            raise Exception("fit(...) method not yet invoked!")
+
         # sanitize raw_data
-        self._sanitize_raw_data(raw_data)
+        raw_data = self._sanitize_raw_data(raw_data)
 
         n_rows, n_columns = raw_data.shape[:2]
         N = self._transform.shape[-1]
@@ -269,21 +328,210 @@ class STC(object):
         return self._output_data
 
     def get_last_output_data(self):
+        """Returns the output data computed by the last call to the transform
+        method
+
+        Raises
+        ------
+        Exception, if transform(...) has not yet been invoked
+
+        """
+
+        if self._output_data is None:
+            raise Exception("transform(...) method not yet invoked!")
+
         return self._output_data
 
     def get_output_data(self):
+        """Wrapper for get_last_output_data method
+
+        """
+
         return self.get_last_output_data()
 
 
-def demo_sinusoid_mixture(n_slices=4, n_rows=1, n_columns=1,
+def plot_slicetiming_results(acquired_sample,
+                             st_corrected_sample,
+                             TR=1.,
+                             ground_truth_signal=None,
+                             ground_truth_time=None,
+                             x=None,
+                             y=None,
+                             compare_with=None,
+                             suptitle_prefix="",
+                             ):
+    """Function to generate QA plots post-STC business, for a single voxel
+
+    Parameters
+    ----------
+    acquired_sample: 1D array
+        the input sample signal to the STC
+    st_corrected_sample: 1D array same shape as
+    acquired_sample
+        the output corrected signal from the STC
+    TR: float
+        Repeation Time exploited by the STC algorithm
+    ground_truth_signal: 1D array (optional, default None), same length as
+    acquired_signal
+        ground truth signal
+    ground_truth_time: array (optional, default None), same length as
+    ground_truth_time
+        ground truth time w.r.t. which the ground truth signal was collected
+    x: int (optional, default None)
+        x coordinate of test voxel used for QA
+    y: int (optional, default None)
+        y coordinate of test voxel used for QA
+    compare_with: 1D array of same shape as st_corrected_array (optional,
+    default None)
+        output from another STC implementation, so we can compare ours
+        that implementation
+    suptitle_prefix: string (optional, default "")
+        prefix to append to suptitles
+
+    Returns
+    -------
+    None
+
+    """
+
+    # sanitize arrays
+    acquired_sample = np.array(acquired_sample)
+    st_corrected_sample = np.array(st_corrected_sample)
+
+    n_rows, n_columns, n_slices, n_scans = acquired_sample.shape
+
+    if not compare_with is None:
+        compare_with = np.array(compare_with)
+        assert compare_with.shape == acquired_sample.shape
+
+    # centralize x and y if None
+    x = n_rows / 2 if x is None else x
+    y = n_columns / 2 if y is None else y
+
+    print ("Starting QA engines %i for voxels in the line x = %i, y = %i"
+           " (close figure to see the next one)..." % (n_slices, x, y))
+
+    sampled_time = np.linspace(0, (n_scans - 1) * TR, n_scans)
+    for z in xrange(n_slices):
+        # setup for plotting
+        plt.figure()
+        plt.suptitle('%s: QA for voxel %s' % (suptitle_prefix, str((x, y, z))))
+
+        ax1 = plt.subplot2grid((2, 1),
+                               (0, 0))
+
+        # plot acquired sample
+        ax1.plot(sampled_time, acquired_sample[x][y][z],
+                 'r--o')
+        ax1.hold('on')
+
+        # plot ST corrected sample
+        ax1.plot(sampled_time, st_corrected_sample[x][y][z],
+                 's-')
+        ax1.hold('on')
+
+        # plot groud-truth (if provided)
+        if not ground_truth_signal is None and not ground_truth_time is None:
+            ax1.plot(ground_truth_time, ground_truth_signal)
+            plt.hold('on')
+
+        if not compare_with is None:
+            ax1.plot(sampled_time, compare_with[x][y][z],
+                     's-')
+            ax1.hold('on')
+
+        # plot ffts
+        ax2 = plt.subplot2grid((2, 1),
+                               (1, 0))
+
+        ax2.plot(sampled_time[1:],
+                 np.abs(np.fft.fft(acquired_sample[x][y][z])[1:]))
+
+        ax2.plot(sampled_time[1:],
+                 np.abs(np.fft.fft(st_corrected_sample[x][y][z])[1:]))
+
+        if not compare_with is None:
+            ax2.plot(sampled_time[1:],
+                     np.abs(np.fft.fft(compare_with[x][y][z])[1:]))
+
+        # misc
+        method1 = "ST corrected sample"
+        if not compare_with is None:
+            method1 = "STC method 1"
+
+        ax1.legend(("Acquired sample",
+                    method1,
+                    "STC method 2",
+                    "Ground-truth signal",))
+        ax1.set_ylabel("BOLD")
+        ax2.set_title("Absolute value of FFT")
+        ax2.legend(("Acquired sample",
+                    method1,
+                    "STC method 2"))
+        ax2.set_ylabel("energy")
+        plt.xlabel("time (s)")
+
+        # show generated plots
+        plt.show()
+
+    print "Done."
+
+
+def demo_random_brain(n_rows=62, n_columns=40, n_slices=10, n_scans=240):
+    """Now, about STC for a random brain ? ;)
+
+    """
+
+    print "\r\n\t\t ---demo_random_brain---"
+
+    # creat random brain
+    brain_data = np.random.randn(n_rows, n_columns, n_slices, n_scans)
+
+    # instantiate STC object
+    stc = STC()
+
+    # fit STC
+    stc.fit(n_slices, n_scans)
+
+    # re-slice random brain
+    stc.transform(brain_data)
+
+    # QA clinic
+    plot_slicetiming_results(brain_data, stc.get_last_output_data(),
+                             suptitle_prefix="Random brain",)
+
+
+def demo_sinusoidal_mixture(n_slices=10, n_rows=3, n_columns=2,
                           introduce_artefact_in_these_volumes=None,
                           artefact_std=4.,
                           white_noise_std=1e-2,
                           ):
+    """STC for time phase-shifted sinusoidal mixture in the presence of
+    white-noise and volume-specific artefacts. This is supposed to be a
+    BOLD time-course from a single voxel.
 
-    n_voxels_per_slice = n_rows * n_columns
+    Parameters
+    ----------
+    n_slices: int (optional)
+        number of slices per 3D volume of the acquisition
+    n_rows: int (optional)
+        number of rows in simulated acquisition
+    n_columns: int (optional)
+        number of columns in simmulated acquisition
+    white_noise_std: float (optional, default 1e-2)
+        amplitude of white noise to add to phase-shifted sample (spatial
+        corruption)
+    artefact_std: float (optional, default 4)
+        amplitude of artefact
+    introduce_artefact_in_these_volumesS: string, integer, or list of integers
+    (optional, "middle")
+        TR/volume index or indices to corrupt with an artefact (a spontaneous
+        stray spike, probably due to instability of scanner B-field) of
+        amplitude artefact_std
 
-    print "\r\n\t\t ---demo_sinusoid---"
+    """
+
+    print "\r\n\t\t ---demo_sinusoid_mixture---"
 
     slice_indices = np.arange(n_slices, dtype=int)
 
@@ -347,8 +595,9 @@ def demo_sinusoid_mixture(n_slices=4, n_rows=1, n_columns=1,
     acquired_signal[:, :, :, introduce_artefact_in_these_volumes
                           ] += artefact_std * np.random.randn(
         n_rows,
-         n_columns,
-         len(introduce_artefact_in_these_volumes))
+        n_columns,
+        n_slices,
+        len(introduce_artefact_in_these_volumes))
 
     # fit STC
     stc = STC()
@@ -357,38 +606,14 @@ def demo_sinusoid_mixture(n_slices=4, n_rows=1, n_columns=1,
     # apply STC
     st_corrected_signal = stc.transform(acquired_signal)
 
-    for slice_index in xrange(n_slices):
-        for x in xrange(n_rows):
-            for y in xrange(n_columns):
-                title = (
-                    "Slice-Timing Correction of sampled sine mixeture "
-                    "time-course from voxel %s of slice %i \nN.B:- "
-                    "TR = %.2f, # slices = %i, # voxels per slice = %i, "
-                    "white-noise std = %f, artefact std = %.2f") % (
-                    str((x, y)),
-                    slice_index, TR, n_slices,
-                    n_voxels_per_slice,
-                    white_noise_std, artefact_std,
-                    )
-
-                plt.plot(time, signal)
-                plt.hold('on')
-                plt.plot(sampled_time, acquired_signal[x][y][slice_index],
-                         'r--o')
-                plt.hold('on')
-                plt.plot(sampled_time,
-                         st_corrected_signal[x][y][slice_index],
-                         's-')
-                plt.hold('on')
-
-                # misc
-                plt.title(title)
-                plt.legend(("Ground-truth signal", "Acquired sample",
-                            "ST corrected sample"))
-                plt.xlabel("time (s)")
-                plt.ylabel("BOLD")
-
-                plt.show()
+    # QA clinic
+    plot_slicetiming_results(acquired_signal,
+                             st_corrected_signal,
+                             TR=TR,
+                             ground_truth_signal=signal,
+                             ground_truth_time=time,
+                             suptitle_prefix="Noisy sinusoidal mixture",
+                             )
 
 
 def demo_real_BOLD(dataset='localizer',
@@ -495,8 +720,9 @@ def demo_real_BOLD(dataset='localizer',
             interleaved=interleaved,
             )
 
-    # do full-brain ST coon
-    corrected_fmri_data = stc.transform(fmri_data)
+    # do full-brain ST correction
+    stc.transform(fmri_data)
+    corrected_fmri_data = stc.get_last_output_data()
 
     # save output unto disk
     print "Saving ST corrected image to %s..." % output_filename
@@ -505,57 +731,117 @@ def demo_real_BOLD(dataset='localizer',
     print "Done."
 
     # QA clinic
-    if QA:
-        sampled_time = np.linspace(0, (n_scans - 1) * TR, n_scans)
-        for z in xrange(n_slices):
-            ax1 = plt.subplot2grid((2, 1),
-                                   (0, 0))
-            # plot acquired sample
-            ax1.plot(sampled_time, fmri_data[32][32][z],
-                     'r--o')
-            ax1.hold('on')
+    plot_slicetiming_results(fmri_data,
+                             corrected_fmri_data,
+                             TR=TR,
+                             compare_with=compare_with,
+                             suptitle_prefix=dataset,
+                             )
 
-            # plot ST corrected sample
-            ax1.plot(sampled_time, corrected_fmri_data[32][32][z],
-                     's-')
-            ax1.hold('on')
 
-            if not compare_with is None:
-                ax1.plot(sampled_time, compare_with[32][32][z],
-                         's-')
-                ax1.hold('on')
+def demo_HRF(n_slices=10,
+             n_rows=2,
+             n_columns=3,
+             white_noise_std=1e-4,
+             ):
+    """STC for phase-shifted HRF in the presence of white-noise
 
-            # plot ffts
-            ax2 = plt.subplot2grid((2, 1),
-                                   (1, 0))
+    Parameters
+    ----------
+    n_slices: int (optional, default 21)
+        number of slices per 3D volume of the acquisition
+    n_voxels_per_slice: int (optional, default 1)
+        the number of voxels per slice in the simulated brain
+        (setting this to 1 is sufficient for most QA since STC works
+        slice-wise, and not voxel-wise)
+    white_noise_std: float (optional, default 1e-4)
+        STD of white noise to add to phase-shifted sample (spatial corruption)
 
-            ax2.plot(sampled_time[1:],
-                     np.abs(np.fft.fft(fmri_data[32][32][z])[1:]))
+    """
 
-            ax2.plot(sampled_time[1:],
-                     np.abs(np.fft.fft(corrected_fmri_data[32][32][z])[1:]))
+    print "\r\n\t\t ---demo_HRF---"
 
-            if not compare_with is None:
-                ax2.plot(sampled_time[1:],
-                         np.abs(np.fft.fft(compare_with[32][32][z])[1:]))
+    import math
 
-            # misc
-            ax1.set_title("Data")
-            ax1.legend(("Acquired sample",
-                        "STC method 1",
-                        "STC method 2"))
-            ax1.set_ylabel("BOLD")
-            ax2.set_title("Absolute value of FFT")
-            ax2.legend(("Acquired sample",
-                        "STC method 1",
-                        "STC method 2"))
-            ax2.set_ylabel("energy")
-            plt.xlabel("time (s)")
+    slice_indices = np.arange(n_slices, dtype=int)
 
-            # show generated plots
-            plt.show()
+    # create time values scaled at 1%
+    timescale = .01
+    n_timepoints = 24
+    time = np.linspace(0, n_timepoints, num=1 + (n_timepoints - 0) / timescale)
+
+    # create gamma functions
+    n1 = 4
+    lambda1 = 2
+    n2 = 7
+    lambda2 = 2
+    a = .3
+    c1 = 1
+    c2 = .5
+
+    def compute_hrf(t):
+        """Auxiliary function to compute HRF at given times (t)
+
+        """
+
+        hx = (t ** (n1 - 1)) * np.exp(
+            -t / lambda1) / ((lambda1 ** n1) * math.factorial(n1 - 1))
+        hy = (t ** (n2 - 1)) * np.exp(
+            -t / lambda2) / ((lambda2 ** n2) * math.factorial(n2 - 1))
+
+        # create hrf = weighted difference of two gammas
+        hrf = a * (c1 * hx - c2 * hy)
+
+        return hrf
+
+    # compute hrf
+    signal = compute_hrf(time)
+
+    # sample the time and the signal
+    freq = 100
+    TR = 3.
+    sampled_time = time[::TR * freq]
+    n_scans = len(sampled_time)
+
+    # corrupt the sampled time by shifting it to the right
+    slice_TR = 1. * TR / n_slices
+    time_shift = slice_indices * slice_TR
+    shifted_sampled_time = np.array([tau + sampled_time
+                                     for tau in time_shift])
+
+    # acquire the signal at the corrupt sampled time points
+    acquired_sample = np.array([np.vectorize(compute_hrf)(
+                shifted_sampled_time[j])
+                                for j in xrange(n_slices)])
+    acquired_sample = np.array([acquired_sample, ] * n_columns)
+    acquired_sample = np.array([acquired_sample, ] * n_rows)
+
+    # add white noise
+    acquired_sample += white_noise_std * np.random.randn(
+        *acquired_sample.shape)
+
+    # fit STC
+    stc = STC()
+    stc.fit(n_scans=n_scans, n_slices=n_slices)
+
+    # apply STC
+    stc.transform(acquired_sample)
+
+    # QA clinic
+    plot_slicetiming_results(acquired_sample,
+                             stc.get_last_output_data(),
+                             TR=TR,
+                             ground_truth_signal=signal,
+                             ground_truth_time=time,
+                             suptitle_prefix="Noisy HRF reconstruction",
+                             )
 
 
 if __name__ == '__main__':
-    demo_sinusoid_mixture()
+    # demo on simulated data
+    demo_random_brain()
+    demo_sinusoidal_mixture()
+    demo_HRF()
+
+    # demo on real data
     demo_real_BOLD(dataset="localizer")
