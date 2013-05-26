@@ -168,7 +168,7 @@ class STC(object):
             )
 
         for k in xrange(self._n_slices):
-            print "STC: Estimating time-shift transform for slice %i/%i..." % (
+            print "STC: Estimating phase-shift transform for slice %i/%i..." % (
                 k + 1,
                 self._n_slices)
 
@@ -291,7 +291,7 @@ class STC(object):
             print "STC: Correcting acquisition delay in slice %i/%i..." % (
                 z + 1, self._n_slices)
 
-            # get time-shifter for slice z
+            # get phase-shifter for slice z
             shifter = self._transform[z].copy()  # copy to avoid corruption
 
             # replicate shifter as many times as there are rows,
@@ -312,11 +312,12 @@ class STC(object):
                         stack[self._n_scans - 1, x], stack[0, x],
                         num=N - self._n_scans,).T
 
-                # time-shift column y of slice z of all 3D volumes
+                # phase-shift column y of slice z of all 3D volumes
                 stack = np.real(np.fft.ifft(
                         np.fft.fft(stack, axis=0) * shifter, axis=0))
 
-                # re-insert time-shifted column y of slice z for all 3D volumes
+                # re-insert phase-shifted column y of slice z for all 3D
+                # volumes
                 self._output_data[:, y, z, :] = stack[:self._n_scans,
                                                        :].T.reshape(
                     (n_rows,
