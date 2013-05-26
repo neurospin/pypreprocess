@@ -480,7 +480,7 @@ def plot_slicetiming_results(acquired_sample,
 
 
 def demo_random_brain(n_rows=62, n_columns=40, n_slices=10, n_scans=240):
-    """Now, about STC for brain packed with white-noise ? ;)
+    """Now, how about STC for brain packed with white-noise ? ;)
 
     """
 
