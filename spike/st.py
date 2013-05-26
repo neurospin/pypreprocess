@@ -152,29 +152,29 @@ class STC(object):
                                                 )
 
         # fix ref slice index, to be consistent with the slice order
-        # (acquisition type)
         self._ref_slice = self._slice_indices[self._ref_slice]
 
         # least power of 2 not less than n_scans
         N = 2 ** int(np.floor(np.log2(self._n_scans)) + 1)
 
-        # time of acquisition of a single slice
-        factor = 1. / self._n_slices
+        # time of acquisition of a single slice (TR normalized to 1)
+        slice_TR = 1. / self._n_slices
 
-        # this will hold time shifter of each slice
+        # this will hold phase shifter of each slice k
         self._transform = np.zeros(
             (self._n_slices, N),
             dtype=np.complex,  # beware, default dtype if float!
             )
 
-        for k in xrange(self._n_slices):
+        # loop over slices (z axis)
+        for z in xrange(self._n_slices):
             print ("STC: Estimating phase-shift transform for slice "
                    "%i/%i...") % (
-                k + 1,
+                z + 1,
                 self._n_slices)
 
-            # set up time acquired within order
-            shiftamount = (self._slice_indices[k] - self._ref_slice) * factor
+            # compute time delta for shifting this slice w.r.t. the reference
+            shiftamount = (self._slice_indices[z] - self._ref_slice) * slice_TR
 
             # phi represents a range of phases up to the Nyquist
             # frequency
@@ -196,9 +196,9 @@ class STC(object):
             # mirror phi about the center
             phi[1 + N / 2 - offset:] = -np.flipud(phi[1:N / 2 + offset])
 
-            # map phi to frequency domain: phi -> corresponding complex
-            # point z on unit circle
-            self._transform[k] = scipy.cos(
+            # map phi to frequency domain: phi -> complex
+            # point z = exp(i * phi) on unit circle
+            self._transform[z] = scipy.cos(
                 phi) + scipy.sqrt(-1) * scipy.sin(phi)
 
         print "Done."
