@@ -168,7 +168,8 @@ class STC(object):
             )
 
         for k in xrange(self._n_slices):
-            print "STC: Estimating phase-shift transform for slice %i/%i..." % (
+            print ("STC: Estimating phase-shift transform for slice "
+                   "%i/%i...") % (
                 k + 1,
                 self._n_slices)
 
