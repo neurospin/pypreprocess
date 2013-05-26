@@ -619,16 +619,36 @@ def demo_sinusoidal_mixture(n_slices=10, n_rows=3, n_columns=2,
 
 
 def demo_real_BOLD(dataset='localizer',
-              QA=True,
               data_dir='/tmp/stc_demo',
               output_dir='/tmp',
               compare_with=None,
+              QA=True,
               ):
-    """XXX This only works on my machine since you surely don't have
-    SPM single-subject auditory data or FSL FEEDS data installed on yours ;)
+    """Demo for real data.
 
-    XXX TODO: interpolation can produce signal out-side the brain;
-    solve this with proper masking
+    Parameters
+    ----------
+    dataset: string (optiona, defaul 'localizer')
+        name of dataset to demo. Possible values are:
+        spm-auditory: SPM single-subject auditory data (if absent,
+                      will try to grab it over the net)
+        fsl-feeds: FSL-Feeds fMRI data (if absent, will try to grab
+                   it over the net)
+        localizer: data used with nipy's localize_glm_ar.py demo; you'll
+                   need nipy test data installed
+        face-rep-SPM5 (you need to download the data and point data_dir
+        to the containing folder)
+    data_dir: string (optional, '/tmp/stc_demo')
+        path to directory containing data; or destination
+        for downloaded data (in case we fetch from the net)
+    output_dir: string (optional, default "/tmp")
+        path to directory where all output (niftis, etc.)
+        will be written
+    compare_with: 4D array (optional, default None)
+        data to compare STC results with, must be same shape as
+        corrected data
+    QA: boolean (optional, default True)
+        if set, then QA plots will be generated after STC
 
     Raises
     ------
