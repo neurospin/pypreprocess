@@ -480,13 +480,13 @@ def plot_slicetiming_results(acquired_sample,
 
 
 def demo_random_brain(n_rows=62, n_columns=40, n_slices=10, n_scans=240):
-    """Now, about STC for a random brain ? ;)
+    """Now, about STC for brain packed with white-noise ? ;)
 
     """
 
     print "\r\n\t\t ---demo_random_brain---"
 
-    # creat random brain
+    # populate brain with white-noise (for BOLD values)
     brain_data = np.random.randn(n_rows, n_columns, n_slices, n_scans)
 
     # instantiate STC object
