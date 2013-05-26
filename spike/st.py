@@ -228,38 +228,37 @@ class STC(object):
         self._output_data = 0 * raw_data
 
         # loop over slices (z axis)
-        for k in xrange(self._n_slices):
+        for z in xrange(self._n_slices):
             print "STC: Correcting acquisition delay in slice %i/%i..." % (
-                k + 1, self._n_slices)
+                z + 1, self._n_slices)
 
-            # get shifter for this slice
-            shifter = self._transform[k].copy()  # copy to avoid corruption
+            # get time-shifter for slice z
+            shifter = self._transform[z].copy()  # copy to avoid corruption
 
-            # replicate shifter as many times as there are columns
-            shifter = np.array([shifter
-                                for _ in xrange(n_rows)]).T
+            # replicate shifter as many times as there are rows,
+            # and then conjugate the result
+            shifter = np.array([shifter, ] * n_rows).T
 
-            # loop over columns of slice k (y axis)
-            for i in xrange(n_columns):
+            # loop over columns of slice z (y axis)
+            for y in xrange(n_columns):
                 # extract column i of slice k of all 3D volumes
-                stack[:self._n_scans, :] = raw_data[:, i, k, :].reshape(
+                stack[:self._n_scans, :] = raw_data[:, y, z, :].reshape(
                     (n_rows, self._n_scans)).T
 
                 # fill-in continuous function to avoid edge effects
                 # the technique is to simply linspace the displacement between
-                # the start and ending value of the BOLD response; cheap,
-                # smart and does the job
-                for g in xrange(stack.shape[1]):
-                    stack[self._n_scans:, g] = np.linspace(
-                        stack[self._n_scans - 1, g], stack[0, g],
+                # the start and ending value of the BOLD response
+                for x in xrange(stack.shape[1]):
+                    stack[self._n_scans:, x] = np.linspace(
+                        stack[self._n_scans - 1, x], stack[0, x],
                         num=N - self._n_scans,).T
 
-                # time-shift column i of slice k of all 3D volumes
+                # time-shift column y of slice z of all 3D volumes
                 stack = np.real(np.fft.ifft(
                         np.fft.fft(stack, axis=0) * shifter, axis=0))
 
-                # re-insert time-shifted column i of slice k for all 3D volumes
-                self._output_data[:, i, k, :] = stack[:self._n_scans,
+                # re-insert time-shifted column y of slice z for all 3D volumes
+                self._output_data[:, y, z, :] = stack[:self._n_scans,
                                                        :].T.reshape(
                     (n_rows,
                      self._n_scans))
