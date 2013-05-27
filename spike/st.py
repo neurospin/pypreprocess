@@ -10,7 +10,6 @@ import sys
 import nibabel as ni
 import scipy
 import numpy as np
-import unittest
 import matplotlib.pyplot as plt
 
 
@@ -410,25 +409,37 @@ def plot_slicetiming_results(acquired_sample,
     x = n_rows / 2 if x is None else x
     y = n_columns / 2 if y is None else y
 
+    # number of rows in plot
+    n_rows_plot = 2
+
+    if not ground_truth_signal is None and not ground_truth_time is None:
+        n_rows_plot += 1
+        N = len(ground_truth_signal)
+        sampling_freq = (N - 1) / (n_scans - 1)  # XXX formula correct ??
+
+        # acquire signal at same time points as corrected sample
+        sampled_ground_truth_signal = ground_truth_signal[
+            ::sampling_freq]
+
     print ("Starting QA engines %i for voxels in the line x = %i, y = %i"
            " (close figure to see the next one)..." % (n_slices, x, y))
 
-    sampled_time = np.linspace(0, (n_scans - 1) * TR, n_scans)
+    acquisition_time = np.linspace(0, (n_scans - 1) * TR, n_scans)
     for z in xrange(n_slices):
         # setup for plotting
         plt.figure()
         plt.suptitle('%s: QA for voxel %s' % (suptitle_prefix, str((x, y, z))))
 
-        ax1 = plt.subplot2grid((2, 1),
+        ax1 = plt.subplot2grid((n_rows_plot, 1),
                                (0, 0))
 
         # plot acquired sample
-        ax1.plot(sampled_time, acquired_sample[x][y][z],
+        ax1.plot(acquisition_time, acquired_sample[x][y][z],
                  'r--o')
         ax1.hold('on')
 
         # plot ST corrected sample
-        ax1.plot(sampled_time, st_corrected_sample[x][y][z],
+        ax1.plot(acquisition_time, st_corrected_sample[x][y][z],
                  's-')
         ax1.hold('on')
 
@@ -437,26 +448,46 @@ def plot_slicetiming_results(acquired_sample,
             ax1.plot(ground_truth_time, ground_truth_signal)
             plt.hold('on')
 
+            ax3 = plt.subplot2grid((n_rows_plot, 1),
+                                   (2, 0))
+
+            # compute absolute error and plot an error
+            abs_error = np.abs(
+                sampled_ground_truth_signal - st_corrected_sample[x][y][z])
+            ax3.plot(acquisition_time, abs_error)
+            ax3.hold("on")
+
+            # compute and plot absolute error for other method
+            if not compare_with is None:
+                compare_with_abs_error = np.abs(
+                    sampled_ground_truth_signal - compare_with[x][y][z])
+                ax3.plot(acquisition_time, compare_with_abs_error)
+                ax3.hold("on")
+
         if not compare_with is None:
-            ax1.plot(sampled_time, compare_with[x][y][z],
+            ax1.plot(acquisition_time, compare_with[x][y][z],
                      's-')
             ax1.hold('on')
 
         # plot ffts
-        ax2 = plt.subplot2grid((2, 1),
+        # XXX the zeroth time point has been removed in the plots below
+        # to enable a better appretiation of the y axis
+        ax2 = plt.subplot2grid((n_rows_plot, 1),
                                (1, 0))
 
-        ax2.plot(sampled_time[1:],
+        ax2.plot(acquisition_time[1:],
                  np.abs(np.fft.fft(acquired_sample[x][y][z])[1:]))
 
-        ax2.plot(sampled_time[1:],
+        ax2.plot(acquisition_time[1:],
                  np.abs(np.fft.fft(st_corrected_sample[x][y][z])[1:]))
 
         if not compare_with is None:
-            ax2.plot(sampled_time[1:],
+            ax2.plot(acquisition_time[1:],
                      np.abs(np.fft.fft(compare_with[x][y][z])[1:]))
 
         # misc
+        plt.xlabel("time (s)")
+
         method1 = "ST corrected sample"
         if not compare_with is None:
             method1 = "STC method 1"
@@ -466,12 +497,19 @@ def plot_slicetiming_results(acquired_sample,
                     "STC method 2",
                     "Ground-truth signal",))
         ax1.set_ylabel("BOLD")
+
         ax2.set_title("Absolute value of FFT")
         ax2.legend(("Acquired sample",
                     method1,
                     "STC method 2"))
         ax2.set_ylabel("energy")
-        plt.xlabel("time (s)")
+
+        if n_rows_plot > 2:
+            ax3.set_title(
+                "Absolute Error (between ground-truth and correctd sample")
+            ax3.legend((method1,
+                        "STC method 2",))
+            ax3.set_ylabel("absolute error")
 
         # show generated plots
         plt.show()
@@ -561,17 +599,17 @@ def demo_sinusoidal_mixture(n_slices=10, n_rows=3, n_columns=2,
     TR = freq * timescale
 
     # sample the time
-    sampled_time = time[::freq]
+    acquisition_time = time[::freq]
 
     # corrupt the sampled time by shifting it to the right
     slice_TR = 1. * TR / n_slices
     time_shift = slice_indices * slice_TR
-    shifted_sampled_time = np.array([tau + sampled_time
+    shifted_acquisition_time = np.array([tau + acquisition_time
                                      for tau in time_shift])
 
     # acquire the signal at the corrupt sampled time points
     acquired_signal = np.array([
-            [[my_sinusoid(shifted_sampled_time[j])
+            [[my_sinusoid(shifted_acquisition_time[j])
               for j in xrange(n_slices)]
              for y in xrange(n_columns)] for x in xrange(n_rows)]
                                )
@@ -580,7 +618,7 @@ def demo_sinusoidal_mixture(n_slices=10, n_rows=3, n_columns=2,
     acquired_signal += white_noise_std * np.random.randn(
         *acquired_signal.shape)
 
-    n_scans = len(sampled_time)
+    n_scans = len(acquisition_time)
 
     # add artefacts to specific volumes/TRs
     if introduce_artefact_in_these_volumes is None:
@@ -681,11 +719,6 @@ def demo_real_BOLD(dataset='localizer',
         fmri_img = ni.concat_images(_subject_data['func'],)
         fmri_data = fmri_img.get_data()[:, :, :, 0, :]
 
-        compare_with = ni.concat_images(
-            [os.path.join(os.path.dirname(x),
-                          "a" + os.path.basename(x))
-             for x in _subject_data['func']]).get_data()
-
         TR = 7.
     elif dataset == 'fsl-feeds':
         PYPREPROCESS_DIR = os.path.dirname(os.path.split(
@@ -753,12 +786,13 @@ def demo_real_BOLD(dataset='localizer',
     print "Done."
 
     # QA clinic
-    plot_slicetiming_results(fmri_data,
-                             corrected_fmri_data,
-                             TR=TR,
-                             compare_with=compare_with,
-                             suptitle_prefix=dataset,
-                             )
+    if QA:
+        plot_slicetiming_results(fmri_data,
+                                 corrected_fmri_data,
+                                 TR=TR,
+                                 compare_with=compare_with,
+                                 suptitle_prefix=dataset,
+                                 )
 
 
 def demo_HRF(n_slices=10,
@@ -822,18 +856,18 @@ def demo_HRF(n_slices=10,
     # sample the time and the signal
     freq = 100
     TR = 3.
-    sampled_time = time[::TR * freq]
-    n_scans = len(sampled_time)
+    acquisition_time = time[::TR * freq]
+    n_scans = len(acquisition_time)
 
     # corrupt the sampled time by shifting it to the right
     slice_TR = 1. * TR / n_slices
     time_shift = slice_indices * slice_TR
-    shifted_sampled_time = np.array([tau + sampled_time
+    shifted_acquisition_time = np.array([tau + acquisition_time
                                      for tau in time_shift])
 
     # acquire the signal at the corrupt sampled time points
     acquired_sample = np.array([np.vectorize(compute_hrf)(
-                shifted_sampled_time[j])
+                shifted_acquisition_time[j])
                                 for j in xrange(n_slices)])
     acquired_sample = np.array([acquired_sample, ] * n_columns)
     acquired_sample = np.array([acquired_sample, ] * n_rows)

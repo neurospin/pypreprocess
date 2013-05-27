@@ -120,8 +120,8 @@ def fetch_haxby_subject_data(data_dir, subject_id, url, redownload=False):
     if redownload:
         try:
             print "Zapping all old downloads .."
-            shutil.rmtree(subject_dir)
-            os.remove(archive_path)
+            # shutil.rmtree(subject_dir)
+            # os.remove(archive_path)
         except OSError:
             pass
         finally:
@@ -129,7 +129,7 @@ def fetch_haxby_subject_data(data_dir, subject_id, url, redownload=False):
     if os.path.exists(subject_dir):
         subject_data = _glob_haxby_subject_data(subject_dir)
         if subject_data is None:
-            shutil.rmtree(subject_dir)
+            # shutil.rmtree(subject_dir)
             return fetch_haxby_subject_data(data_dir, subject_id, url)
         else:
             return subject_id, subject_data
@@ -302,8 +302,8 @@ def fetch_fsl_feeds_data(data_dir, redownload=False):
     if redownload:
         try:
             print "Zapping all old downloads .."
-            shutil.rmtree(subject_dir)
-            os.remove(archive_path)
+            # shutil.rmtree(subject_dir)
+            # os.remove(archive_path)
         except OSError:
             pass
         finally:
@@ -311,7 +311,7 @@ def fetch_fsl_feeds_data(data_dir, redownload=False):
     if os.path.exists(subject_dir):
         subject_data = _glob_fsl_feeds_data(subject_dir)
         if subject_data is None:
-            shutil.rmtree(subject_dir)
+            # shutil.rmtree(subject_dir)
             return fetch_fsl_feeds_data(data_dir)
         else:
             return subject_data
