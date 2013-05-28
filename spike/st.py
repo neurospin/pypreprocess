@@ -157,6 +157,7 @@ class STC(object):
             slice_order='ascending',
             interleaved=False,
             ref_slice=0,
+            timing=None,
             ):
         """Fits an STC transform that can be later used (using the
         transform(..) method) to re-slice compatible data.
@@ -188,10 +189,14 @@ class STC(object):
             odd-numbered slices first, and then even-numbered slices
         ref_slice: int (optional, default 0)
             the slice number to be taken as the reference slice
+        timing: list or tuple of length 2 (optional, default None)
+            additional information for sequence timing
+            timing[0] = time between slices
+            timing[1] = time between last slices and next volume
 
         Returns
         -------
-        self._tranform: 2D array of shape (n_slices, least position integer
+        self._tranform: 2D array of shape (n_slices, least positive integer
         not less than self._n_scans)
             fft transform (phase shifts mapped into frequency domain). Each row
             is the filter by which the signal will be convolved to introduce
@@ -231,6 +236,17 @@ class STC(object):
 
         # fix ref slice index, to be consistent with the slice order
         self._ref_slice = self._slice_indices[self._ref_slice]
+
+        # timing info (slice_TR is the time of acquisition of a single slice,
+        # as a fractional multiple of the TR
+        if not timing is None:
+            TR = (self._n_slices - 1) * timing[0] + timing[1]
+            self._log("Your TR is %s" % TR)
+
+            slice_TR = timing[0] / TR
+        else:
+            # TR normalized to 1 (
+            slice_TR = 1. / self._n_slices
 
         # least power of 2 not less than n_scans
         N = 2 ** int(np.floor(np.log2(self._n_scans)) + 1)
@@ -278,7 +294,7 @@ class STC(object):
         return self._transform
 
     def transform(self, raw_data):
-        """Applies an STC transform to raw data
+        """Applies STC transform to raw data
 
         Parameters
         ----------
