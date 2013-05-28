@@ -22,7 +22,7 @@ def get_slice_indices(n_slices, slice_order='ascending',
     ----------
     n_slices: int
         the number of slices there're altogether
-    slice_order: string or array of ints or length `n_slices`
+    slice_order: string or array of ints or length n_slices
         slice order of acquisitions in a TR
         'ascending': slices were acquired from bottommost to topmost
         'descending': slices were acquired from topmost to bottommost
@@ -32,7 +32,7 @@ def get_slice_indices(n_slices, slice_order='ascending',
 
     Returns
     -------
-    slice_indices: int
+    slice_indices: 1D array of length n_slices
         slice indices consistent with slice order (i.e, slice_indices[k]
         if the corrected index of slice k according to the slice order)
 
@@ -40,17 +40,8 @@ def get_slice_indices(n_slices, slice_order='ascending',
     ------
     Exception
 
-    Examples
-    --------
-    >>> import slice_timing as st
-    >>> from numpy import *
-    >>> slice_indices = st.get_slice_indices(150)
-    >>> slice_indices = st.get_slice_indices(150, slice_order='descending',
-    ... interleaved=True)
-
     """
 
-    # sanity check
     if isinstance(slice_order, basestring):
         slice_indices = range(n_slices)
         if interleaved:
@@ -64,8 +55,12 @@ def get_slice_indices(n_slices, slice_order='ascending',
     else:
         # here, I'm assuming an explicitly specified slice order as a
         # permutation on n symbols
+        slice_order = np.array(slice_order, dtype='int')
+
         assert len(slice_order) == n_slices
-        slice_order = np.array(slice_order, dtype=int)
+        assert np.all((0 <= slice_order) & (slice_order < n_slices))
+        assert len(set(slice_order)) == n_slices
+
         slice_indices = slice_order
 
     return slice_indices
@@ -75,27 +70,91 @@ class STC(object):
     """Correct differences in slice acquisition times. This correction
     assumes that the data are band-limited (i.e. there is no meaningful
     information present in the data at a frequency higher than that of
-    the Nyquist). This assumption is support by the study of Josephs
+    the Nyquist). This assumption is supported by the study of Josephs
     et al (1997, NeuroImage) that obtained event-related data at an
     effective TR of 166 msecs. No physio-logical signal change was present
-    at frequencies higher than our typical Nyquist (0.25 HZ).
+    at frequencies higher than their typical Nyquist (0.25 HZ).
 
     """
 
-    def __init__(self):
-        """Default constructor
+    def __init__(self, verbose=1):
+        """Default constructor.
+
+        Parameters
+        ----------
+        verbose: int (optional, default 1)
+            verbosity level, set to 0 for no verbose
 
         """
 
-        self._n_scans = None
-        self._n_slices = None
-        self._ref_slice = None
-        self._slice_order = None
-        self._interleaved = None
-        self._output_data = None
+        self._verbose = verbose
+
+        # holds phase shifters for the slices, one row per slice
         self._transform = None
 
-    def fit(self, n_slices, n_scans, slice_order='ascending',
+        # this always holds the last output data produced by transform(..)
+        # method
+        self._output_data = None
+
+    def _log(self, msg):
+        """Prints a message, according to the verbosity level.
+
+        Parameters
+        ----------
+        msg: string
+            the message to be printed
+
+        """
+
+        if self._verbose:
+            print(msg)
+
+    def _sanitize_raw_data(self, raw_data):
+        """Checks that raw_data has shape that matches the fitted transform
+
+        Parameters
+        ----------
+        raw_data: array-like
+            raw data array being scrutinized
+
+        Returns
+        -------
+        raw_data: array
+            sanitized raw_data
+
+        Raises
+        ------
+        valueError if raw_data is badly shaped
+
+        XXX TODO: add support for nifti images, or filenames
+
+        """
+
+        raw_data = np.array(raw_data)
+
+        if len(raw_data.shape) != 4:
+            raise ValueError(
+                "raw_data must be 4D array, got %iD!" % len(raw_data.shape))
+
+        # sanitize n_slices of raw_data
+        if hasattr(self, "_n_slices"):
+            if raw_data.shape[2] != self._n_slices:
+                raise ValueError(
+                    "raw_data has wrong number of slices: expecting %i,"
+                    " got %i" % (self._n_slices, raw_data.shape[2]))
+
+        # sanitize n_scans of raw data
+        if hasattr(self, "_n_scans"):
+            if raw_data.shape[3] != self._n_scans:
+                raise ValueError(
+                    ("raw_data has wrong number of volumes: expecting %i, "
+                     "got %i") % (self._n_scans, raw_data.shape[3]))
+
+        # return sanitized raw_dat
+        return raw_data
+
+    def fit(self, raw_data=None, n_slices=None, n_scans=None,
+            slice_order='ascending',
             interleaved=False,
             ref_slice=0,
             ):
@@ -110,11 +169,17 @@ class STC(object):
 
         Parameters
         ----------
-        n_slices: int
-            number of slices in each 3D volume
-        n_scans: int
-            number of 3D volumes
-        slice_order: string or array of ints or length `n_slices`
+        raw_data: 4D array of shape (n_rows, n_colomns, n_slices,
+        n_scans) (optional, default None)
+            raw data to fit the transform on. If this is specified, then
+            n_slices and n_scans parameters should not be specified.
+        n_slices: int (optional, default None)
+            number of slices in each 3D volume. If the raw_data parameter
+            is specified then this parameter should not be specified
+        n_scans: int (optional, default None)
+            number of 3D volumes. If the raw_data parameter
+            is specified then this parameter should not be specified
+        slice_order: string or array of ints or length n_slices
             slice order of acquisitions in a TR
             'ascending': slices were acquired from bottommost to topmost
             'descending': slices were acquired from topmost to bottommost
@@ -130,16 +195,30 @@ class STC(object):
         not less than self._n_scans)
             fft transform (phase shifts mapped into frequency domain). Each row
             is the filter by which the signal will be convolved to introduce
-            the phase shift in the corresponding slice. It is constructed
-            explicitly in the Fourier domain. In the time domain, it may be
-            described as an impulse (delta function) that has been shifted in
-            time the amount described by TimeShift
+            the phase shift in the corresponding slice.
 
         """
 
         # set basic meta params
-        self._n_slices = n_slices
-        self._n_scans = n_scans
+        if not raw_data is None:
+            self._sanitize_raw_data(raw_data)
+            self._n_slices = raw_data.shape[2]
+            self._n_scans = raw_data.shape[-1]
+        else:
+            if n_slices is None:
+                raise ValueError(
+                    "raw_data parameter not specified. You need to"
+                    " specify a value for n_slices!")
+            else:
+                self._n_slices = n_slices
+            if n_scans is None:
+                raise ValueError(
+                    "raw_data parameter not specified. You need to"
+                    " specify a value for n_scans!")
+            else:
+                self._n_scans = n_scans
+
+        # slice acquisition info
         self._slice_order = slice_order
         self._interleaved = interleaved
         self._ref_slice = ref_slice
@@ -160,90 +239,43 @@ class STC(object):
         slice_TR = 1. / self._n_slices
 
         # this will hold phase shifter of each slice k
-        self._transform = np.zeros(
+        self._transform = np.ndarray(
             (self._n_slices, N),
-            dtype=np.complex,  # beware, default dtype if float!
+            dtype=np.complex,  # beware, default dtype is float!
             )
 
         # loop over slices (z axis)
         for z in xrange(self._n_slices):
-            print ("STC: Estimating phase-shift transform for slice "
-                   "%i/%i...") % (
-                z + 1,
-                self._n_slices)
+            self._log(("STC: Estimating phase-shift transform for slice "
+                       "%i/%i...") % (z + 1, self._n_slices))
 
             # compute time delta for shifting this slice w.r.t. the reference
-            shiftamount = (self._slice_indices[z] - self._ref_slice) * slice_TR
+            shift_amount = (
+                self._slice_indices[z] - self._ref_slice) * slice_TR
 
             # phi represents a range of phases up to the Nyquist
             # frequency
-            phi = np.zeros(N)
+            phi = np.ndarray(N)
+            phi[0] = 0.
             for f in xrange(N / 2):
-                # In the spm_slice_timing.m source code, the line below
-                # reads: "phi(f+1) = -1*shiftamount*2*pi/(len/f)".
-                # However, we can't do this in python since the expression
-                # (len / f) first evaluated to machine precision with
-                # floating-point error, before the "(f + 1) /" division is
-                # performed, leading to a final result which is severely
-                # prune to error!
-                phi[f + 1] = -1. * shiftamount * 2 * np.pi * (f + 1) / N
+                phi[f + 1] = -1. * shift_amount * 2 * np.pi * (f + 1) / N
 
             # check if signal length is odd or even -- impacts how phases
             # (phi) are reflected across Nyquist frequency
             offset = N % 2
 
             # mirror phi about the center
-            phi[1 + N / 2 - offset:] = -np.flipud(phi[1:N / 2 + offset])
+            phi[1 + N / 2 - offset:] = -phi[N / 2 + offset - 1:0:-1]
 
             # map phi to frequency domain: phi -> complex
             # point z = exp(i * phi) on unit circle
             self._transform[z] = scipy.cos(
                 phi) + scipy.sqrt(-1) * scipy.sin(phi)
 
-        print "Done."
+        self._log("Done.")
 
         # return computed transform
         return self._transform
-
-    def _sanitize_raw_data(self, raw_data):
-        """Checks that raw_data has shape that matches the fitted transform
-
-        Parameters
-        ----------
-        raw_data: array-like
-            raw data array being scrutinized
-
-        Returns
-        -------
-        raw_data: array
-            sanitized raw_data
-
-        Raises
-        ------
-        Exception if raw_data is badly shaped
-
-        XXX TODO: add support for nifti images, or filenames
-
-        """
-
-        raw_data = np.array(raw_data)
-
-        if len(raw_data.shape) != 4:
-            raise Exception("raw_data must be 4D array")
-
-        if raw_data.shape[2] != self._n_slices:
-            raise Exception(
-                "raw_data has wrong number of slices: expecting %i, got %i" % (
-                    self._n_slices,
-                    raw_data.shape[2]))
-
-        if raw_data.shape[3] != self._n_scans:
-            raise Exception(
-                ("raw_data has wrong number of volumes: expecting %i, "
-                 "got %i") % (self._n_scans, raw_data.shape[3]))
-
-        # return sanitized raw_dat
-        return raw_data
 
     def transform(self, raw_data):
         """Applies an STC transform to raw data
@@ -257,13 +289,6 @@ class STC(object):
         -------
         self._output_data: array of same shape as raw_data
             ST corrected data
-
-        Notes
-        -----
-        Yes, there are quite a bunch of for loops that may seem dull to you,
-        and you might be legally tempted to vectorize 'em. Beware of
-        voodoo vectorizations though, for those loops clumsy looking for
-        ensure an ecological memory foot-print.
 
         Raises
         ------
@@ -281,26 +306,23 @@ class STC(object):
         N = self._transform.shape[-1]
 
         # our workspace; organization is (extended) time x rows
-        stack = np.zeros((N, n_rows))
+        stack = np.ndarray((N, n_rows))
 
         # empty slate to hold corrected data
         self._output_data = 0 * raw_data
 
         # loop over slices (z axis)
         for z in xrange(self._n_slices):
-            print "STC: Correcting acquisition delay in slice %i/%i..." % (
-                z + 1, self._n_slices)
+            self._log(
+                "STC: Correcting acquisition delay in slice %i/%i..." % (
+                    z + 1, self._n_slices))
 
-            # get phase-shifter for slice z
-            shifter = self._transform[z].copy()  # copy to avoid corruption
-
-            # replicate shifter as many times as there are rows,
-            # and then conjugate the result
-            shifter = np.array([shifter, ] * n_rows).T
+            # prepare phase-shifter for this slice
+            shifter = np.array([self._transform[z], ] * n_rows).T
 
             # loop over columns of slice z (y axis)
             for y in xrange(n_columns):
-                # extract column i of slice k of all 3D volumes
+                # extract column y of slice z of all 3D volumes
                 stack[:self._n_scans, :] = raw_data[:, y, z, :].reshape(
                     (n_rows, self._n_scans)).T
 
@@ -323,7 +345,7 @@ class STC(object):
                     (n_rows,
                      self._n_scans))
 
-        print "Done."
+        self._log("Done.")
 
         # return output
         return self._output_data
@@ -342,13 +364,6 @@ class STC(object):
             raise Exception("transform(...) method not yet invoked!")
 
         return self._output_data
-
-    def get_output_data(self):
-        """Wrapper for get_last_output_data method
-
-        """
-
-        return self.get_last_output_data()
 
 
 def plot_slicetiming_results(acquired_sample,
@@ -421,7 +436,7 @@ def plot_slicetiming_results(acquired_sample,
         sampled_ground_truth_signal = ground_truth_signal[
             ::sampling_freq]
 
-    print ("Starting QA engines %i for voxels in the line x = %i, y = %i"
+    print ("Starting QA engines for %i voxels in the line x = %i, y = %i"
            " (close figure to see the next one)..." % (n_slices, x, y))
 
     acquisition_time = np.linspace(0, (n_scans - 1) * TR, n_scans)
@@ -531,7 +546,7 @@ def demo_random_brain(n_rows=62, n_columns=40, n_slices=10, n_scans=240):
     stc = STC()
 
     # fit STC
-    stc.fit(n_slices, n_scans)
+    stc.fit(raw_data=brain_data)
 
     # re-slice random brain
     stc.transform(brain_data)
@@ -641,7 +656,7 @@ def demo_sinusoidal_mixture(n_slices=10, n_rows=3, n_columns=2,
 
     # fit STC
     stc = STC()
-    stc.fit(n_slices, n_scans)
+    stc.fit(n_slices=n_slices, n_scans=n_scans)
 
     # apply STC
     st_corrected_signal = stc.transform(acquired_signal)
@@ -767,10 +782,8 @@ def demo_real_BOLD(dataset='localizer',
     print "\r\n\t\t ---demo_real_BOLD (%s)---" % dataset
 
     # fit STC
-    n_scans = fmri_data.shape[-1]
-    n_slices = fmri_data.shape[2]
     stc = STC()
-    stc.fit(n_slices, n_scans,
+    stc.fit(raw_data=fmri_data,
             slice_order=slice_order,
             interleaved=interleaved,
             )
