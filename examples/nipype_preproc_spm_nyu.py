@@ -42,6 +42,12 @@ same participants.</p>
 /">here</a>.</p>
 """
 
+DARTEL = False
+
+BAD_SUBJECTS = ["sub39529",  # in func, a couple of volumes are blank!
+                "sub45463",  # anat has bad header info
+                ]
+
 if __name__ == '__main__':
     # sanitize input
     if len(sys.argv) < 3:
@@ -60,22 +66,29 @@ if __name__ == '__main__':
 
     # subject data factory
     def subject_factory():
-        for j in list(xrange(len(nyu_data.subject_ids))):
+        for j in xrange(len(nyu_data.func)):
             subject_data = nipype_preproc_spm_utils.SubjectData()
 
-            subject_id = nyu_data.subject_ids[j]
-            subject_data.subject_id = subject_id
-
+            # set anat image file
             subject_data.anat = nyu_data.anat_skull[j].replace(".gz", "")
             unzip_nii_gz(os.path.dirname(subject_data.anat))
 
+            # set func image file
             subject_data.func = nyu_data.func[j].replace(".gz", "")
             unzip_nii_gz(os.path.dirname(subject_data.func))
 
+            # set session id and subject id
+            subject_data.session_id = nyu_data.session[j]
+            subject_data.subject_id = os.path.basename(
+                os.path.dirname(os.path.dirname(subject_data.func)))
+
+            # check that subject is not condemned
+            if subject_data.subject_id in BAD_SUBJECTS:
+                continue
+
+            # set subject output directory
             subject_data.output_dir = os.path.join(
-                os.path.join(
-                    OUTPUT_DIR, subject_data.session_id),
-                subject_data.subject_id)
+                OUTPUT_DIR, subject_data.subject_id)
 
             yield subject_data
 
@@ -84,7 +97,8 @@ if __name__ == '__main__':
                                    "_report.html")
     nipype_preproc_spm_utils.do_subjects_preproc(
         subject_factory(),
-        delete_orientation=True,
-        do_dartel=True,
+        output_dir=OUTPUT_DIR,
+        do_deleteorient=True,
+        do_dartel=DARTEL,
         dataset_description=DATASET_DESCRIPTION,
         report_filename=report_filename)

@@ -38,7 +38,7 @@ def get_slice_indices(n_slices, slice_order='ascending',
 
     Raises
     ------
-    Exception
+    ValueError
 
     """
 
@@ -51,7 +51,7 @@ def get_slice_indices(n_slices, slice_order='ascending',
         elif slice_order.lower() == 'descending':
             slice_indices = np.flipud(slice_indices)
         else:
-            raise Exception("Unknown slice order '%s'!" % slice_order)
+            raise ValueError("Unknown slice order '%s'!" % slice_order)
     else:
         # here, I'm assuming an explicitly specified slice order as a
         # permutation on n symbols
@@ -109,7 +109,7 @@ class STC(object):
         if self._verbose:
             print(msg)
 
-    def _sanitize_raw_data(self, raw_data):
+    def _sanitize_raw_data(self, raw_data, fitting=False):
         """Checks that raw_data has shape that matches the fitted transform
 
         Parameters
@@ -137,18 +137,19 @@ class STC(object):
                 "raw_data must be 4D array, got %iD!" % len(raw_data.shape))
 
         # sanitize n_slices of raw_data
-        if hasattr(self, "_n_slices"):
-            if raw_data.shape[2] != self._n_slices:
-                raise ValueError(
-                    "raw_data has wrong number of slices: expecting %i,"
-                    " got %i" % (self._n_slices, raw_data.shape[2]))
+        if not fitting:
+            if hasattr(self, "_n_slices"):
+                if raw_data.shape[2] != self._n_slices:
+                    raise ValueError(
+                        "raw_data has wrong number of slices: expecting %i,"
+                        " got %i" % (self._n_slices, raw_data.shape[2]))
 
-        # sanitize n_scans of raw data
-        if hasattr(self, "_n_scans"):
-            if raw_data.shape[3] != self._n_scans:
-                raise ValueError(
-                    ("raw_data has wrong number of volumes: expecting %i, "
-                     "got %i") % (self._n_scans, raw_data.shape[3]))
+            # sanitize n_scans of raw data
+            if hasattr(self, "_n_scans"):
+                if raw_data.shape[3] != self._n_scans:
+                    raise ValueError(
+                        ("raw_data has wrong number of volumes: expecting %i, "
+                         "got %i") % (self._n_scans, raw_data.shape[3]))
 
         # return sanitized raw_dat
         return raw_data
@@ -206,7 +207,7 @@ class STC(object):
 
         # set basic meta params
         if not raw_data is None:
-            self._sanitize_raw_data(raw_data)
+            self._sanitize_raw_data(raw_data, fitting=True,)
             self._n_slices = raw_data.shape[2]
             self._n_scans = raw_data.shape[-1]
         else:
@@ -792,7 +793,7 @@ def demo_real_BOLD(dataset='localizer',
 
     output_filename = os.path.join(
         output_dir,
-        "st_corrected_" + dataset.rstrip(" ").replace("-", "_") + ".nii.gz",
+        "st_corrected_" + dataset.rstrip(" ").replace("-", "_") + ".nii",
         )
 
     print "\r\n\t\t ---demo_real_BOLD (%s)---" % dataset

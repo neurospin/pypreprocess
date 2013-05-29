@@ -153,7 +153,8 @@ class SubjectData(Bunch):
                 self.anat, self.output_dir)
 
     def sanitize(self, do_deleteorient=False):
-        if isinstance(self.session_id, basestring):
+        if isinstance(self.session_id,
+                      basestring) or isinstance(self.session_id, int):
             self.session_id = [self.session_id]
 
         if isinstance(self.func, basestring):
@@ -891,7 +892,7 @@ def _do_subject_preproc(
                 final_thumbnail.description += ' (failed realignment)'
                 finalize_report()
                 raise RuntimeError(
-                    ("spm.Realign failed for subject %s!"
+                    ("spm.Realign failed for subject %s (outputs is None)!"
                      ) % subject_data.subject_id)
 
         subject_data.func = realign_result.outputs.realigned_files
