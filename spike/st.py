@@ -7,6 +7,7 @@
 
 import os
 import sys
+import glob
 import nibabel as ni
 import scipy
 import numpy as np
@@ -51,7 +52,7 @@ def get_slice_indices(n_slices, slice_order='ascending',
         elif slice_order.lower() == 'descending':
             slice_indices = np.flipud(slice_indices)
         else:
-            raise Exception("Unknown slice order '%s'!" % slice_order)
+            raise ValueError("Unknown slice order '%s'!" % slice_order)
     else:
         # here, I'm assuming an explicitly specified slice order as a
         # permutation on n symbols
@@ -196,6 +197,10 @@ class STC(object):
             fft transform (phase shifts mapped into frequency domain). Each row
             is the filter by which the signal will be convolved to introduce
             the phase shift in the corresponding slice.
+
+        Raises
+        ------
+        ValueError, in case parameters are insane
 
         """
 
@@ -423,6 +428,10 @@ def plot_slicetiming_results(acquired_sample,
     # centralize x and y if None
     x = n_rows / 2 if x is None else x
     y = n_columns / 2 if y is None else y
+
+    # sanitize x and y
+    x = x % n_rows
+    y = y % n_columns
 
     # number of rows in plot
     n_rows_plot = 2
@@ -717,11 +726,13 @@ def demo_real_BOLD(dataset='localizer',
     if output_dir is None:
         output_dir = '/tmp'
 
-    # demo specific imports
+    print "\r\n\t\t ---demo_real_BOLD (%s)---" % dataset
 
     # load the data
     slice_order = 'ascending'
     interleaved = False
+    ref_slice = 0
+    print("Loading data...")
     if dataset == 'spm-auditory':
         # pypreproces path
         PYPREPROCESS_DIR = os.path.dirname(os.path.split(
@@ -755,7 +766,7 @@ def demo_real_BOLD(dataset='localizer',
             os.environ["HOME"],
             ".nipy/tests/data/s12069_swaloc1_corr.nii.gz")
         if not os.path.exists(data_path):
-            raise Exception("You don't have nipy test data installed!")
+            raise RuntimeError("You don't have nipy test data installed!")
 
         fmri_img = ni.load(data_path)
         fmri_data = fmri_img.get_data()
@@ -763,29 +774,34 @@ def demo_real_BOLD(dataset='localizer',
         TR = 2.4
     elif dataset == 'face-rep-spm5':
         # XXX nibabel says the affines of the 3Ds are different
-        if not os.path.basename(os.environ["HOME"]) in ["elvis", "edohmato"]:
-            raise Exception("Oops! This demo will sure fail on your PC!")
-        fmri_img = ni.load(
-            "/home/elvis/CODE/datasets/face_rep_SPM5/RawEPI/4D.nii.gz")
-        fmri_data = fmri_img.get_data()
+        fmri_data = np.array([ni.load(x).get_data() for x in sorted(glob.glob(
+                        os.path.join(
+                            data_dir,
+                            "RawEPI/sM03953_0005_*.img")))])[:, :, :, 0, :]
+        if len(fmri_data) == 0:
+            raise RuntimeError(
+                "face-rep-SPM5 data not found in %s; install it it set the "
+                "parameter data_dir to the directory containing it")
 
         TR = 2.
         slice_order = 'descending'
+        ref_slice = fmri_data.shape[2] / 2  # middle slice
     else:
-        raise Exception("Unknown dataset: %s" % dataset)
+        raise RuntimeError("Unknown dataset: %s" % dataset)
 
     output_filename = os.path.join(
         output_dir,
         "st_corrected_" + dataset.rstrip(" ").replace("-", "_") + ".nii.gz",
         )
 
-    print "\r\n\t\t ---demo_real_BOLD (%s)---" % dataset
+    print("Done.")
 
     # fit STC
     stc = STC()
     stc.fit(raw_data=fmri_data,
             slice_order=slice_order,
             interleaved=interleaved,
+            ref_slice=ref_slice,
             )
 
     # do full-brain ST correction
