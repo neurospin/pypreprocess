@@ -212,7 +212,7 @@ class STC(object):
 
         # set basic meta params
         if not raw_data is None:
-            self._sanitize_raw_data(raw_data, fitting=True,)
+            raw_data = self._sanitize_raw_data(raw_data, fitting=True,)
             self._n_slices = raw_data.shape[2]
             self._n_scans = raw_data.shape[-1]
         else:
@@ -247,18 +247,15 @@ class STC(object):
         # as a fractional multiple of the TR
         if not timing is None:
             TR = (self._n_slices - 1) * timing[0] + timing[1]
-            self._log("Your TR is %s" % TR)
-
             slice_TR = timing[0] / TR
+            assert 0 <= slice_TR < 1
+            self._log("Your TR is %s" % TR)
         else:
             # TR normalized to 1 (
             slice_TR = 1. / self._n_slices
 
         # least power of 2 not less than n_scans
         N = 2 ** int(np.floor(np.log2(self._n_scans)) + 1)
-
-        # time of acquisition of a single slice (TR normalized to 1)
-        slice_TR = 1. / self._n_slices
 
         # this will hold phase shifter of each slice k
         self._transform = np.ndarray(
@@ -305,7 +302,8 @@ class STC(object):
         Parameters
         ----------
         raw_data: 4D array of shape (n_rows, n_columns, n_slices, n_scans)
-            the data to be ST corrected
+            the data to be ST corrected. raw_data is Not modified in memory;
+            another array is returned.
 
         Returns
         -------
@@ -348,15 +346,15 @@ class STC(object):
                 stack[:self._n_scans, :] = raw_data[:, y, z, :].reshape(
                     (n_rows, self._n_scans)).T
 
-                # fill-in continuous function to avoid edge effects
-                # the technique is to simply linspace the displacement between
-                # the start and ending value of the BOLD response
+                # fill-in continuous function to avoid edge effects (wrapping,
+                # etc.): simply linspace the displacement between the start
+                # and ending value of each BOLD response time-series
                 for x in xrange(stack.shape[1]):
                     stack[self._n_scans:, x] = np.linspace(
                         stack[self._n_scans - 1, x], stack[0, x],
                         num=N - self._n_scans,).T
 
-                # phase-shift column y of slice z of all 3D volumes
+                # apply phase-shift to column y of slice z of all 3D volumes
                 stack = np.real(np.fft.ifft(
                         np.fft.fft(stack, axis=0) * shifter, axis=0))
 
@@ -364,8 +362,7 @@ class STC(object):
                 # volumes
                 self._output_data[:, y, z, :] = stack[:self._n_scans,
                                                        :].T.reshape(
-                    (n_rows,
-                     self._n_scans))
+                    (n_rows, self._n_scans))
 
         self._log("Done.")
 
