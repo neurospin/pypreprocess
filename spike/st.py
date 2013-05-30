@@ -244,7 +244,7 @@ class STC(object):
         self._ref_slice = self._slice_indices[self._ref_slice]
 
         # timing info (slice_TR is the time of acquisition of a single slice,
-        # as a fractional multiple of the TR
+        # as a fractional multiple of the TR)
         if not timing is None:
             TR = (self._n_slices - 1) * timing[0] + timing[1]
             slice_TR = timing[0] / TR
