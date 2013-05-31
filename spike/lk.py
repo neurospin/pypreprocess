@@ -10,6 +10,7 @@ import numpy as np
 import scipy.signal
 import scipy.linalg
 import matplotlib.pyplot as plt
+import sys
 
 
 def _compute_spatial_gradient_kernel(ndim=1):
@@ -204,8 +205,18 @@ def LucasKanade(im1, im2, window=9, n_levels=1, alpha=.001, iterations=1):
 
 if __name__ == '__main__':
     # data acquisition
-    im1 = plt.imread('flower_frame_0060_LEVEL0.jpg')
-    im2 = plt.imread('flower_frame_0061_LEVEL0.jpg')
+    im1_filename = 'flower_frame_0060_LEVEL0.jpg'
+    im2_filename = 'flower_frame_0061_LEVEL0.jpg'
+    if len(sys.argv) > 2:
+        print sys.argv
+        im1_filename, im2_filename = sys.argv[1:3]
+
+    im1 = plt.imread(im1_filename)
+    if len(im1.shape) == 3:
+        im1 = im1[:, :, 0]
+    im2 = plt.imread(im2_filename)
+    if len(im2.shape) == 3:
+        im2 = im2[:, :, 0]
 
     # estimate motion
     u, v = LucasKanade(im1, im2,)
@@ -213,6 +224,13 @@ if __name__ == '__main__':
     # plot velocity field
     plt.quiver(u, v, headwidth=1, scale_units='xy', angles='xy', scale=3,
                color='b')
+
+    # misc
+    plt.xlabel("width")
+    plt.ylabel("height")
+    plt.title(
+        ("Velocity field for motion estimated by Lucas-Kanade optical "
+         "flow algorithm"))
 
     # show plots
     plt.show()
