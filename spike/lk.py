@@ -12,6 +12,65 @@ import scipy.linalg
 import matplotlib.pyplot as plt
 
 
+def _compute_spatial_gradient_kernel(ndim=1):
+    """Computes ndim-dimensional gradient kernel using
+    a robust diff technique
+
+    Parameters
+    ----------
+    ndim: int (optional, default 1)
+        dimensionality of gradient kernel to be computed
+
+    Returns
+    -------
+    grad_kernel: array of shape ndim x 2^ndim (i.e ndim ndim-dimensional
+    hypercubes)
+       gradient kernel; each grad_kernel[q] when convoluted with an
+       ndim-dimensional image, gives gradient of the image along the q
+       axis
+
+    """
+
+    # 1D differential element
+    dq = np.array([-1., 1.])
+
+    # replice dq ndim times
+    while len(dq.shape) != ndim:
+        dq = np.array([dq, ] * ndim)
+
+    # volume of ndim-dimensional hypercube with sides dq
+    dvol = np.prod(dq.shape)
+
+    # return gradient kernel
+    return np.array([dq.swapaxes(ndim - 1 - q, -1)
+                            for q in xrange(ndim)]) / dvol
+
+
+def _compute_spatial_gradient(im, grad_kernel=None,):
+    """Applies a gradient kernel to an image
+
+    Parameters
+    ----------
+    img: ndim-dimensional array
+        image whose gradient is sought for
+    grad_kernel: ndim x 2^ndim-dimensional array (optional, default None)
+        kernel w.r.t. gradient will be computed. If grad_kernel is None,
+        it will be calculated
+
+    """
+
+    ndim = len(im.shape)
+
+    # sanitize grad kernel
+    if grad_kernel == None:
+        grad_kernel = _compute_spatial_gradient_kernel(ndim)
+
+    # convolve image with kernel, along each axis thus computing the former's
+    # spatial gradient
+    return [scipy.signal.convolve(im, grad_kernel[q])
+            for q in xrange(ndim)]
+
+
 def LucasKanade(im1, im2, window=9, n_levels=1, alpha=.001, iterations=1):
     """Estimates the velocity field for im2 -> im1 registration using
     regularized Lucas-Kanade optical flow algorithm with iterative refinement
@@ -43,6 +102,14 @@ def LucasKanade(im1, im2, window=9, n_levels=1, alpha=.001, iterations=1):
 
     # radius of window
     hw = int(np.floor(window / 2))
+
+    # gradient kernel
+    ndim = len(im1.shape)
+    grad_kernel = _compute_spatial_gradient_kernel(ndim)
+
+    # temporal filter
+    dvol = 1. * np.prod(grad_kernel[0].shape)
+    temporal_kernel = np.ones(grad_kernel[0].shape) / dvol
 
     for p in xrange(n_levels):
         # init
@@ -84,31 +151,27 @@ def LucasKanade(im1, im2, window=9, n_levels=1, alpha=.001, iterations=1):
                         # estimates
                         patch2 = im2[lr - 1:hr, lc - 1:hc]
 
-                        # compute spatial gra0dient along x axis using Sobel
-                        # filter
-                        Dx_im1 = scipy.signal.convolve(patch1,
-                                                        .25 * np.array(
-                                [[-1, 1], [-1, 1]]))
-                        Dx_im2 = scipy.signal.convolve(patch2,
-                                                        .25 * np.array(
-                                [[-1, 1], [-1, 1]]))
+                        # compute spatial gradient of patch1
+                        Dx_im1, Dy_im1 = _compute_spatial_gradient(patch1,
+                                                                   grad_kernel)
+
+                        # compute spatial gradient of patch2
+                        Dx_im2, Dy_im2 = _compute_spatial_gradient(patch2,
+                                                                   grad_kernel)
+
+                        # compute spatial gradient of film [patch1, patch2]
+                        # along x axis
                         Dx = (Dx_im1 + Dx_im2)[1:window - 1, 1:window - 1].T
 
-                        # compute spatial gradient along y axis using Sobel
-                        # filter
-                        Dy_im1 = scipy.signal.convolve(patch1,
-                                                        .25 * np.array(
-                                [[-1, -1], [1, 1]]))
-                        Dy_im2 = scipy.signal.convolve(patch2,
-                                                        .25 * np.array(
-                                [[-1, -1], [1, 1]]))
+                        # compute spatial gradient of film [patch1, patch2]
+                        # along y axis
                         Dy = (Dy_im1 + Dy_im2)[1:window - 1, 1:window - 1].T
 
-                        # compute temporal gradient
+                        # compute temporal gradient film [patch1, patch2]
                         Dt_1 = scipy.signal.convolve(patch1,
-                                                      .25 * np.ones((2, 2)))
+                                                     temporal_kernel)
                         Dt_2 = scipy.signal.convolve(patch2,
-                                                      .25 * np.ones((2, 2)))
+                                                      temporal_kernel)
                         Dt = (Dt_1 - Dt_2)[1:window - 1, 1:window - 1].T
 
                         # make (rank-deficient) coefficient matrix A
@@ -129,6 +192,12 @@ def LucasKanade(im1, im2, window=9, n_levels=1, alpha=.001, iterations=1):
                         u[i, j] += V[0]
                         v[i, j] += V[1]
 
+    # resizing
+    u = u[window - 1:u.shape[0] - window + 1,
+          window - 1:u.shape[1] - window + 1]
+    v = v[window - 1:v.shape[0] - window + 1,
+          window - 1:v.shape[1] - window + 1]
+
     # return flow velocity field
     return u, v
 
@@ -139,10 +208,11 @@ if __name__ == '__main__':
     im2 = plt.imread('flower_frame_0061_LEVEL0.jpg')
 
     # estimate motion
-    u, v = LucasKanade(im1, im2)
+    u, v = LucasKanade(im1, im2,)
 
     # plot velocity field
-    plt.quiver(u, v)
+    plt.quiver(u, v, headwidth=1, scale_units='xy', angles='xy', scale=3,
+               color='b')
 
     # show plots
     plt.show()
