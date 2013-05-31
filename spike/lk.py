@@ -33,18 +33,15 @@ def _compute_spatial_gradient_kernel(ndim=1):
     """
 
     # 1D differential element
-    dq = np.array([-1., 1.])
+    dq = np.array([-1., 1.]) / 2.
 
-    # replice dq ndim times
+    # replicate dq ndim times
     while len(dq.shape) != ndim:
         dq = np.array([dq, ] * ndim)
 
-    # volume of ndim-dimensional hypercube with sides dq
-    dvol = np.prod(dq.shape)
-
     # return gradient kernel
     return np.array([dq.swapaxes(ndim - 1 - q, -1)
-                            for q in xrange(ndim)]) / dvol
+                     for q in xrange(ndim)])
 
 
 def _compute_spatial_gradient(im, grad_kernel=None,):
@@ -109,8 +106,7 @@ def LucasKanade(im1, im2, window=9, n_levels=1, alpha=.001, iterations=1):
     grad_kernel = _compute_spatial_gradient_kernel(ndim)
 
     # temporal filter
-    dvol = 1. * np.prod(grad_kernel[0].shape)
-    temporal_kernel = np.ones(grad_kernel[0].shape) / dvol
+    temporal_kernel = np.ones(grad_kernel[0].shape) / 2.
 
     for p in xrange(n_levels):
         # init
@@ -162,26 +158,28 @@ def LucasKanade(im1, im2, window=9, n_levels=1, alpha=.001, iterations=1):
 
                         # compute spatial gradient of film [patch1, patch2]
                         # along x axis
-                        Dx = (Dx_im1 + Dx_im2)[1:window - 1, 1:window - 1].T
+                        Dx = (Dx_im1 + Dx_im2)[1:window - 1,
+                                               1:window - 1].T / 2.
 
                         # compute spatial gradient of film [patch1, patch2]
                         # along y axis
-                        Dy = (Dy_im1 + Dy_im2)[1:window - 1, 1:window - 1].T
+                        Dy = (Dy_im1 + Dy_im2)[1:window - 1,
+                                               1:window - 1].T / 2.
 
-                        # compute temporal gradient film [patch1, patch2]
+                        # compute temporal gradient of film [patch1, patch2]
                         Dt_1 = scipy.signal.convolve(patch1,
                                                      temporal_kernel)
                         Dt_2 = scipy.signal.convolve(patch2,
                                                       temporal_kernel)
-                        Dt = (Dt_1 - Dt_2)[1:window - 1, 1:window - 1].T
+                        Dt = (Dt_1 - Dt_2)[1:window - 1, 1:window - 1].T / 2.
 
-                        # make (rank-deficient) coefficient matrix A
+                        # make coefficient matrix A
                         A = np.vstack((Dx.ravel(), Dy.ravel())).T
 
                         # compute G = A'A
                         G = np.dot(A.T, A)
 
-                        # dope G
+                        # regularize G (to ensure solubility of LS problem)
                         G[0, 0] += alpha
                         G[1, 1] += alpha
 
