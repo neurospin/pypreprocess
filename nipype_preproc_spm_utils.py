@@ -46,11 +46,6 @@ N_JOBS = -1
 if 'N_JOBS' in os.environ:
     N_JOBS = int(os.environ['N_JOBS'])
 
-# use nipype caching or not
-NIPYPE_CACHING = True
-if 'NIPYPE_CACHING' in os.environ:
-    NIPYPE_CACHING = int(os.environ['NIPYPE_CACHING'])
-
 # set matlab exec path
 MATLAB_EXEC = "/neurospin/local/matlab/bin/matlab"
 if not os.path.exists(MATLAB_EXEC):
@@ -205,18 +200,13 @@ def _do_subject_realign(output_dir,
         progress_logger.log('<b>Motion Correction</b><br/><br/>')
 
     # prepare for smart caching
-    if NIPYPE_CACHING:
-        cache_dir = os.path.join(output_dir, 'cache_dir')
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
-        mem = Memory(base_dir=cache_dir)
-
+    cache_dir = os.path.join(output_dir, 'cache_dir')
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    mem = Memory(base_dir=cache_dir)
     # run workflow
-    if NIPYPE_CACHING:
-        realign = mem.cache(spm.Realign)
-        realign_result = realign(**spm_realign_kwargs)
-    else:
-        realign_result = spm.Realign().run(**spm_realign_kwargs)
+    realign = mem.cache(spm.Realign)
+    realign_result = realign(**spm_realign_kwargs)
 
     # generate gallery for HTML report
     if do_report:
@@ -506,7 +496,7 @@ def _do_subject_normalize(output_dir,
             progress_logger.log('<hr/>')
 
         # do smoothing
-        if fwhm:
+        if np.sum(fwhm):
             smooth = mem.cache(spm.Smooth)
             smooth_result = smooth(
                 in_files=output['result'].outputs.normalized_files,
@@ -879,7 +869,7 @@ def _do_subject_preproc(
             in_files=subject_data.func,
             register_to_mean=True,
             jobtype='estwrite',
-            ignore_exception=ignore_exception,
+            # ignore_exception=ignore_exception,
             )
 
         # collect output
@@ -1769,8 +1759,6 @@ def do_subjects_preproc(subjects,
                     # add other args to exclude below
                     ]
                  ))
-
-        print base_reporter.__file__
 
         # initialize results gallery
         loader_filename = os.path.join(

@@ -85,7 +85,8 @@ def dict_to_html_ul(mydict):
         if isinstance(stuff, dict):
             val = "<ul>"
             for _k, _v in stuff.iteritems():
-                val += "<li>%s: %s</li>" % (_k, make_li(_v))
+                if not _v is None:
+                    val += "<li>%s: %s</li>" % (_k, make_li(_v))
             val += "</ul>"
         # handle tuple type
         elif isinstance(stuff, tuple):
@@ -101,7 +102,8 @@ def dict_to_html_ul(mydict):
         return val
 
     for k, v in mydict.iteritems():
-        html_ul += "<li>%s: %s</li>" % (k, make_li(v))
+        if not v is None:
+            html_ul += "<li>%s: %s</li>" % (k, make_li(v))
     html_ul += "</ul>"
 
     return html_ul
