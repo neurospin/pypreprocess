@@ -1,5 +1,5 @@
--e git+https://github.com/nipy/nipype.git#egg=nipype
+-e git+https://github.com/nipy/nipype.git@ea909c7f2386cf7e515c84abd1be155f5ed03983#egg=nipype
 
--e git+https://github.com/nipy/nipy.git#egg=nipy
+-e git+https://github.com/nipy/nipy.git@5cc72af09b76e59953b71ddc829a2fa92363f09d#egg=nipy
 
--e git+https://github.com/joblib/joblib.git#egg=joblib
+-e git+https://github.com/joblib/joblib.git@ede6fa732ea4462c589ad238e39caf29ea803911#egg=joblib

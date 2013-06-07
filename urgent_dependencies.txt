@@ -2,6 +2,6 @@ nibabel==1.3.0
 
 networkx==1.7
 
--e git+https://github.com/enthought/traits.git#egg=traits
+-e git+https://github.com/enthought/traits.git@4d78de27c89751c888b838cccb8c146a412d6f6a#egg=traits
 
--e git+https://github.com/sympy/sympy.git#egg=sympy
+-e git+https://github.com/sympy/sympy.git@ec1ac094e006856de50da08adb690fc4c7698827#egg=sympy
