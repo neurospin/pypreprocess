@@ -48,10 +48,6 @@ unzip_nii_gz(data_dir)
 stats_start_time = time.ctime()
 n_scans = 180
 TR = 3.
-TR * n_scans
-TR * n_scans / 60
-TR * n_scans / 90
-np.linspace(0, TR * (n_scans - 1), 9)
 EV1_epoch_duration = 2 * 30
 EV2_epoch_duration = 2 * 45
 TA = TR * n_scans
@@ -81,18 +77,18 @@ design_matrix = make_dmtx(frametimes,
 _subject_data = fetch_fsl_feeds_data(data_dir)
 subject_data = nipype_preproc_spm_utils.SubjectData()
 subject_data.subject_id = "sub001"
-subject_data.func = "/tmp/st_corrected_fsl_feeds.nii"  # _subject_data["func"]
+subject_data.func = _subject_data["func"]
 unzip_nii_gz(os.path.dirname(subject_data.func))
 subject_data.anat = _subject_data["anat"]
 subject_data.output_dir = os.path.join(
     output_dir, subject_data.subject_id)
+unzip_nii_gz(os.path.dirname(subject_data.anat))
 
 """preprocess the data"""
 results = nipype_preproc_spm_utils.do_subjects_preproc(
     [subject_data],
     output_dir=output_dir,
-    TR=TR,
-    fwhm=[5, 5, 5],
+    # fwhm=[5, 5, 5],
     dataset_id="FSL FEEDS single-subject",
     dataset_description=DATASET_DESCRIPTION,
     do_shutdown_reloaders=False,
