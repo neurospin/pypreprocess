@@ -35,7 +35,7 @@ def get_slice_indices(n_slices, slice_order='ascending',
     -------
     slice_indices: 1D array of length n_slices
         slice indices consistent with slice order (i.e, slice_indices[k]
-        if the corrected index of slice k according to the slice order)
+        is the corrected index of slice k according to the slice order)
 
     Raises
     ------
@@ -46,7 +46,8 @@ def get_slice_indices(n_slices, slice_order='ascending',
     if isinstance(slice_order, basestring):
         slice_indices = range(n_slices)
         if interleaved:
-            slice_indices = slice_indices[1::2] + slice_indices[0::2]
+            # python indexing begins from 0 (MATLAB begins from 1)
+            slice_indices = slice_indices[0::2] + slice_indices[1::2]
         if slice_order.lower() == 'ascending':
             pass
         elif slice_order.lower() == 'descending':
@@ -63,6 +64,10 @@ def get_slice_indices(n_slices, slice_order='ascending',
         assert len(set(slice_order)) == n_slices
 
         slice_indices = slice_order
+
+    slice_indices = np.array(slice_indices)
+    slice_indices = np.array([np.nonzero(slice_indices == z)[0][0]
+                              for z in xrange(n_slices)])
 
     return slice_indices
 
