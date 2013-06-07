@@ -25,6 +25,7 @@ sys.path.append(os.path.dirname(
         os.path.dirname(os.path.abspath(sys.argv[0]))))
 import nipype_preproc_spm_utils
 
+# data fetching imports
 from external.nisl.datasets import fetch_nyu_rest
 from datasets_extras import unzip_nii_gz
 
@@ -42,12 +43,18 @@ same participants.</p>
 /">here</a>.</p>
 """
 
-DARTEL = False
+# use DARTEL for normalization or not ?
+DARTEL = True
 
+# session ids we're interested in
+SESSIONS = [1, 2, 3]
+
+# bad subjects
 BAD_SUBJECTS = ["sub39529",  # in func, a couple of volumes are blank!
                 "sub45463",  # anat has bad header info
                 ]
 
+# main code follows
 if __name__ == '__main__':
     # sanitize input
     if len(sys.argv) < 3:
@@ -62,43 +69,62 @@ if __name__ == '__main__':
         os.makedirs(OUTPUT_DIR)
 
     # fetch data
-    nyu_data = fetch_nyu_rest(data_dir=sys.argv[1])
+    nyu_data = fetch_nyu_rest(data_dir=sys.argv[1], sessions=[1, 2, 3])
 
     # subject data factory
-    def subject_factory():
-        for j in xrange(len(nyu_data.func)):
-            subject_data = nipype_preproc_spm_utils.SubjectData()
+    def subject_factory(session_output_dir, session):
+        session_func = [x for x in nyu_data.func if "session%i" % session in x]
+        session_anat = [
+            x for x in nyu_data.anat_skull if "session%i" % session in x]
 
-            # set anat image file
-            subject_data.anat = nyu_data.anat_skull[j].replace(".gz", "")
-            unzip_nii_gz(os.path.dirname(subject_data.anat))
-
-            # set func image file
-            subject_data.func = nyu_data.func[j].replace(".gz", "")
-            unzip_nii_gz(os.path.dirname(subject_data.func))
-
-            # set session id and subject id
-            subject_data.session_id = nyu_data.session[j]
-            subject_data.subject_id = os.path.basename(
-                os.path.dirname(os.path.dirname(subject_data.func)))
+        for subject_id in set([os.path.basename(
+                    os.path.dirname
+                    (os.path.dirname(x)))
+                               for x in session_func]):
 
             # check that subject is not condemned
-            if subject_data.subject_id in BAD_SUBJECTS:
+            if subject_id in BAD_SUBJECTS:
                 continue
+
+            # instantiate subject_data object
+            subject_data = nipype_preproc_spm_utils.SubjectData()
+            subject_data.subject_id = subject_id
+            subject_data.session_id = session
+
+            # set func
+            subject_data.func = [
+                x.replace(".gz", "") for x in session_func if subject_id in x]
+            assert len(subject_data.func) == 1
+            subject_data.func = subject_data.func[0]
+            unzip_nii_gz(os.path.dirname(subject_data.func))
+
+            # set anat
+            subject_data.anat = [
+                x.replace(".gz", "") for x in session_anat if subject_id in x]
+            assert len(subject_data.anat) == 1
+            subject_data.anat = subject_data.anat[0]
+            unzip_nii_gz(os.path.dirname(subject_data.anat))
 
             # set subject output directory
             subject_data.output_dir = os.path.join(
-                OUTPUT_DIR, subject_data.subject_id)
+                session_output_dir, subject_data.subject_id)
 
             yield subject_data
 
     # do preprocessing proper
-    report_filename = os.path.join(OUTPUT_DIR,
-                                   "_report.html")
-    nipype_preproc_spm_utils.do_subjects_preproc(
-        subject_factory(),
-        output_dir=OUTPUT_DIR,
-        do_deleteorient=True,
-        do_dartel=DARTEL,
-        dataset_description=DATASET_DESCRIPTION,
-        report_filename=report_filename)
+    for session in SESSIONS:
+        session_output_dir = os.path.join(OUTPUT_DIR, "session%i" % session)
+
+        # preproprec this session for all subjects
+        print ("\r\n\r\n\t\t\tPreprocessing session %i for all subjects..."
+               "\r\n\r\n") % session
+        nipype_preproc_spm_utils.do_subjects_preproc(
+            subject_factory(session_output_dir, session),
+            output_dir=session_output_dir,
+            do_deleteorient=True,
+            do_dartel=DARTEL,
+            dataset_id="NYU Test Rest session %i" % session,
+            dataset_description=DATASET_DESCRIPTION,
+            )
+
+    print "Done (NYU Test Rest preprocessing)"

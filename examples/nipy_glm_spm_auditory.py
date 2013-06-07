@@ -80,7 +80,6 @@ print subject_data.func
 results = nipype_preproc_spm_utils.do_subjects_preproc(
     [subject_data],
     output_dir=OUTPUT_DIR,
-    TR=tr,
     dataset_id="SPM single-subject auditory",
     dataset_description=DATASET_DESCRIPTION,
     do_shutdown_reloaders=False,
