@@ -75,7 +75,6 @@ subject_data.anat = _subject_data["anat"]
 subject_data.output_dir = os.path.join(
     OUTPUT_DIR, subject_data.subject_id)
 
-print subject_data.func
 """preprocess the data"""
 results = nipype_preproc_spm_utils.do_subjects_preproc(
     [subject_data],
@@ -85,8 +84,6 @@ results = nipype_preproc_spm_utils.do_subjects_preproc(
     do_shutdown_reloaders=False,
     )
 
-
-"""collect preprocessed data"""
 """collect preprocessed data"""
 fmri_files = results[0]['func']
 anat_file = results[0]['anat']

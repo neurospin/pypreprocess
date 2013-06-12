@@ -41,7 +41,7 @@ CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
 
 # extention of web-related files (increment this as we support more
 # and more file extensions for web business)
-WEBBY_EXTENSION_PATTERN = ".*\.(?:png|jpeg|html|php|css|txt|rst)$"
+WEBBY_EXTENSION_PATTERN = ".*\.(?:png|jpeg|html|php|css|txt|rst|js|gif)$"
 
 
 def get_nipype_report_filename(
@@ -222,8 +222,9 @@ def export_report(src, tag="", make_archive=True):
     dst = os.path.join(src, "frozen_report_%s" % tag)
 
     if os.path.exists(dst):
-        print "Removing old %s." % dst
-        shutil.rmtree(dst)
+        # print "Removing old %s." % dst
+        # shutil.rmtree(dst)
+        pass
 
     # copy hierarchy
     print "Copying files directory structure from %s to %s" % (src, dst)

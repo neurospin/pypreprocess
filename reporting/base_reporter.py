@@ -410,6 +410,8 @@ def make_standalone_colorbar(cmap, vmin, vmax, colorbar_outfile=None):
 
     """
 
+    vmin, vmax = min(vmin, vmax), max(vmin, vmax)
+
     fig = pl.figure(figsize=(6, 1))
     ax = fig.add_axes([0.05, 0.4, 0.9, 0.5])
 
@@ -534,3 +536,18 @@ def copy_web_conf_files(output_dir):
     for icon_file in glob.glob(os.path.join(ROOT_DIR,
                                           "icons/*.gif")):
         shutil.copy(icon_file, output_dir)
+
+
+def copy_report_files(src, dst):
+    """Backs-up report files (*.html, *.js, etc.) from src to dst
+
+    """
+
+    if not os.path.exists(dst):
+        os.makedirs(dst)
+
+    for ext in ["css", "html", "js", "php", "png", "jpeg",
+                "jpg", "gif", "json"]:
+        for x in glob.glob(os.path.join(src,
+                                        "*.%s" % ext)):
+            shutil.copy(x, dst)

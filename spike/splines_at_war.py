@@ -50,21 +50,24 @@ def compute_gradient_along_axis(im, axis, grid=None, mode='wrap'):
 
     # create working grid
     if grid is None:
+
         grid = np.indices(im.shape)
 
     # warp filtered image by translating -.5 units along axis
-    grid[axis] += -.5
+    g = grid.copy()
+    g[axis] += -.5
     left = scipy.ndimage.map_coordinates(filtered_im,
-                                         [grid[j].ravel()
+                                         [g[j].ravel()
                                           for j in xrange(len(im.shape))],
                                          order=1,  # linear splines will do
                                          mode=mode,
                                          prefilter=False)
 
     # warp filtered image by translating +.5 units along axis
-    grid[axis] += 1
+    g = grid.copy()
+    g[axis] += .5
     right = scipy.ndimage.map_coordinates(filtered_im,
-                                          [grid[j].ravel()
+                                          [g[j].ravel()
                                            for j in xrange(len(im.shape))],
                                           order=1,
                                           mode=mode,

@@ -795,16 +795,24 @@ def _do_subject_preproc(
     # slice-timing
     ###############
     if do_slicetiming:
-        assert not TR is None, "Need valid value for TR"
-
         import algorithms.slice_timing.slice_timing as st
 
-        realignment_cache_dir = os.path.join(subject_data.output_dir,
-                                             "cache_dir", "slice_timing")
-        if not os.path.isdir(realignment_cache_dir):
-            os.makedirs(realignment_cache_dir)
+        # st_cache_dir = os.path.join(subject_data.output_dir,
+        #                                      "cache_dir", "slice_timing")
+        # if not os.path.isdir(st_cache_dir):
+        #     os.makedirs(st_cache_dir)
 
-        mem = joblib.Memory(cachedir=realignment_cache_dir, verbose=100)
+        # mem = joblib.Memory(cachedir=st_cache_dir, verbose=100)
+
+        stc = st.STC()
+
+        for func in subject_data.func:
+            stc.fit(raw_data=func, slice_order=slice_order,
+                    interleaved=interleaved,)
+
+            stc.transform(func)
+
+
         realigner = mem.cache(st.do_slicetiming_and_motion_correction)
 
         # run realigment ( = slice timing + motion correction)
@@ -1823,9 +1831,13 @@ def do_subjects_preproc(subjects,
             _do_subject_preproc)(
                 subject_data, **kwargs) for subject_data in subjects)
 
+    subject_ids = [output['subject_id'] for _, output in results]
+
+    # collect subject output dirs
+    subject_output_dirs = [output['output_dir'] for _, output in results]
+
     if do_dartel:
         # collect subject_ids and session_ids
-        subject_ids = [output['subject_id'] for _, output in results]
         session_ids = [output['session_id'] for _, output in results]
         _preproc_undergone = dict((output['subject_id'],
                                    output['preproc_undergone'])
@@ -1852,9 +1864,6 @@ def do_subjects_preproc(subjects,
                 for _, output in results]
         else:
             functional_files = [output['func'] for _, output in results]
-
-        # collect subject output dirs
-        subject_output_dirs = [output['output_dir'] for _, output in results]
 
         # collect gallery related subject-specific stuff
         subject_final_thumbs = None
@@ -1977,14 +1986,22 @@ def do_subjects_preproc(subjects,
 
         print "HTML report (dynamic) written to %s" % report_filename
 
-    # export report (so it can be emailed and QA'ed offline, for example)
-    if do_report:
-        if do_export_report:
-            if do_dartel:
-                tag = "DARTEL_workflow"
-            else:
-                tag = "standard_workflow"
-            preproc_reporter.export_report(os.path.dirname(report_filename),
-                                   tag=tag)
+    # export report (so it can be emailed and commented offline, for example)
+    if do_report and do_export_report:
+        tag = "DARTEL" if do_dartel else "standard"
 
+        # dst dir for the frozen reports
+        frozen_report_dir = os.path.join(output_dir,
+                                         "frozen_report_%s" % tag)
+
+        # copy group-level report files
+        base_reporter.copy_report_files(output_dir, frozen_report_dir)
+
+        # copy subject-level report files
+        for subject_output_dir in subject_output_dirs:
+            dst = os.path.join(frozen_report_dir,
+                                  os.path.basename(subject_output_dir))
+            base_reporter.copy_report_files(subject_output_dir, dst)
+
+    # return preproc results
     return results
