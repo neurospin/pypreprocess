@@ -17,6 +17,7 @@ import splines_at_war as saw
 import glob
 import os
 
+# house-hold convenience naming
 MOTION_PARAMS_NAMES = {0x0: 'Tx',
                        0x1: 'Ty',
                        0x2: 'Tz',
@@ -276,14 +277,12 @@ def make_A(M, x1, x2, x3, Gx, Gy, Gz, lkp=xrange(6), condensed_coords=False):
 
 
 class Realign(object):
-    """Implements within-modality rigd-body registration.
+    """Implements within-modality rigid-body registration.
 
     """
 
-    def __init__(self, sep=4, interp=3, fwhm=5.,
-                 quality=.9, rtm=False, lkp=[0, 1, 2, 3, 4, 5],
-                 PW=None,
-                 verbose=1,
+    def __init__(self, sep=4, interp=3, fwhm=5., quality=.9, rtm=False,
+                 lkp=[0, 1, 2, 3, 4, 5], PW=None, verbose=1,
                  ):
         """Default constructor.
 
@@ -396,9 +395,9 @@ class Realign(object):
         x3 += np.random.randn(*x3.shape) * .5
 
         # ravel working grid
-        x1 = x1.ravel(order='C')
-        x2 = x2.ravel(order='C')
-        x3 = x3.ravel(order='C')
+        x1 = x1.ravel()
+        x2 = x2.ravel()
+        x3 = x3.ravel()
 
         # smooth volume to absorb noise before differentiating
         smoothing_kernel = LinearFilter(P[0].coordmap, P[0].shape,
@@ -413,7 +412,7 @@ class Realign(object):
         # compute gradient of reference image
         Gx, Gy, Gz = np.gradient(svol)
 
-        # resample gradients to working grid
+        # resample gradient unto working grid
         Gx = ndi.map_coordinates(Gx, [x1.ravel(), x2.ravel(), x3.ravel()],
                                 order=self._interp,
                                 mode='wrap',).reshape(x1.shape)
@@ -424,20 +423,14 @@ class Realign(object):
                                 order=self._interp,
                                 mode='wrap',).reshape(x1.shape)
 
-        # import scipy.io
-        # X = scipy.io.loadmat('/media/Lexar/CODE/datasets/grad.mat',
-        #                      squeeze_me=True,
-        #                      struct_as_record=False)
-        # Gx, Gy, Gz = [X[k] for k in ['dG1', 'dG2', 'dG3']]
-
-        # # compute rate of change of chi2 w.r.t. parameters
+        # compute rate of change of chi2 w.r.t. parameters
         A0 = make_A(P[0].coordmap.affine, x1, x2, x3, Gx, Gy, Gz,
                 )
 
-        G = G.ravel(order='C')
-        Gx = Gx.ravel(order='C')
-        Gy = Gy.ravel(order='C')
-        Gz = Gz.ravel(order='C')
+        G = G.ravel()
+        Gx = Gx.ravel()
+        Gy = Gy.ravel()
+        Gz = Gz.ravel()
 
         b = G.copy()
 
@@ -571,8 +564,8 @@ class Realign(object):
 
 # demo for motion estimation
 if __name__ == '__main__':
-    data_wildcat = ("/home/elvis/CODE/datasets/spm_multimodal/fMRI/Session1"
-                    "/fMETHODS-0005-0*.img")
+    data_wildcat = ("/home/edohmato/CODE/datasets/henry_mondor"
+                    "/f38*.img")
 
     r = Realign()
     motion_parameters = r.fit(sorted(glob.glob(data_wildcat)))

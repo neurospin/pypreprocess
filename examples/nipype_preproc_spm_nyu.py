@@ -44,7 +44,7 @@ same participants.</p>
 """
 
 # use DARTEL for normalization or not ?
-DARTEL = False
+DARTEL = True
 
 # session ids we're interested in
 SESSIONS = [1, 2, 3]
