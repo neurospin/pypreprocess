@@ -11,6 +11,7 @@ import os
 import numpy as np
 import scipy.ndimage as ndi
 import scipy.linalg
+import itertools
 import kernel_smooth
 import affine_transformations
 
@@ -53,10 +54,7 @@ def make_A(M, x1, x2, x3, Gx, Gy, Gz, lkp=xrange(6), condensed_coords=False):
     Gz = Gz.ravel()
 
     if condensed_coords:
-        grid = np.array([(x, y, z) for x in x1 for y in x2 for z in x3])
-        x1 = grid[..., 0]
-        x2 = grid[..., 1]
-        x3 = grid[..., 2]
+        x1, x2, x3 = zip(*itertools.product(x1, x2, x3))
     else:
         x1 = x1.ravel()
         x2 = x2.ravel()
