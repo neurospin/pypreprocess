@@ -79,7 +79,7 @@ for x in xrange(2):
 
     timing = scipy.io.loadmat(os.path.join(DATA_DIR,
                                            "fMRI/trials_ses%i.mat" % (x + 1)),
-                              squeeze_me=True, struct_as_record=False)
+                              squeeze_me=True, struxct_as_record=False)
 
     faces_onsets = timing['onsets'][0].ravel()
     scrambled_onsets = timing['onsets'][1].ravel()

@@ -1,202 +1,18 @@
 """
 :Module: spm_realign
-:Synopsis: motion correction SPM style
+:Synopsis: MRI within-modality Motion Correction, SPM style
 :Author: DOHMATOB Elvis Dopgima
 
 """
 
-import numpy as np
-import scipy.ndimage as ndi
-import scipy.signal
-import scipy.interpolate
-import scipy.linalg
-from nipy.algorithms.kernel_smooth import LinearFilter
-import nipy
-import matplotlib.pyplot as plt
-import splines_at_war as saw
+import nibabel as ni
 import glob
 import os
-
-# house-hold convenience naming
-MOTION_PARAMS_NAMES = {0x0: 'Tx',
-                       0x1: 'Ty',
-                       0x2: 'Tz',
-                       0x3: 'Rx',
-                       0x4: 'Ry',
-                       0x5: 'Rz',
-                       0x6: 'Zx',
-                       0x7: 'Zy',
-                       0x8: 'Zz',
-                       0x9: 'Sx',
-                       0xA: 'Sy',
-                       0xB: 'Sz',
-                       }
-
-
-def get_initial_motion_params():
-    """Returns an array of length 12 (3 translations, 3 rotations, 3 zooms,
-    and 3 shears) corresponding to the identity orthogonal transformation
-    eye(4). Thus this is precisely made of: no zeto translation, zero rotation,
-    a unit zoom of in each coordinate direction, and zero shear.
-
-    """
-
-    p = np.zeros(12)  # zero everything
-    p[6:9] = 1.  # but unit zoom
-
-    return p
-
-
-def spm_matrix(p, order='T*R*Z*S'):
-    """spm_matrix returns a matrix defining an orthogonal linear (translation,
-    rotation, scaling and/or shear) transformation given a vector of
-    parameters (p).  By default, the transformations are applied in the
-    following order (i.e., the opposite to which they are specified):
-
-    1) shear
-    2) scale (zoom)
-    3) rotation - yaw, roll & pitch
-    4) translation
-
-    This order can be changed by calling spm_matrix with a string as a
-    second argument. This string may contain any valid MATLAB expression
-    that returns a 4x4 matrix after evaluation. The special characters 'S',
-    'Z', 'R', 'T' can be used to reference the transformations 1)-4)
-    above.
-
-    Parameters
-    ----------
-    p: array_like of length 12
-        vector of parameters
-        p(0)  - x translation
-        p(1)  - y translation
-        p(2)  - z translation
-        p(3)  - x rotation about - {pitch} (radians)
-        p(4)  - y rotation about - {roll}  (radians)
-        p(5)  - z rotation about - {yaw}   (radians)
-        p(6)  - x scaling
-        p(7)  - y scaling
-        p(8)  - z scaling
-        p(9) - x shear
-        p(10) - y shear
-        p(11) - z shear
-    order: string optional (default 'T*R*Z*S')
-        application order of transformations.
-
-    Returns
-    -------
-    A: 2D array of shape (4, 4)
-        orthogonal transformation matrix
-
-    """
-
-    # fill-up up p to length 12, if too short
-    q = get_initial_motion_params()
-    p = np.hstack((p, q[len(p):12]))
-
-    # translation
-    T = np.eye(4)
-    T[:3, -1] = p[:3]
-
-    # yaw
-    R1 = np.eye(4)
-    R1[1, 1:3] = np.cos(p[3]), np.sin(p[3])
-    R1[2, 1:3] = -np.sin(p[3]), np.cos(p[3])
-
-    # roll
-    R2 = np.eye(4)
-    R2[0, [0, 2]] = np.cos(p[4]), np.sin(p[4])
-    R2[2, [0, 2]] = -np.sin(p[4]), np.cos(p[4])
-
-    # pitch
-    R3 = np.eye(4)
-    R3[0, 0:2] = np.cos(p[5]), np.sin(p[5])
-    R3[1, 0:2] = -np.sin(p[5]), np.cos(p[5])
-
-    # rotation
-    R = np.dot(R1, np.dot(R2, R3))
-
-    # zoom
-    Z = np.eye(4)
-    np.fill_diagonal(Z[0:3, 0:3], p[6:9])
-
-    # scaling
-    S = np.eye(4)
-    S[0, 1:3] = p[9:11]
-    S[1, 2] = p[11]
-
-    # affine transformation
-    M = np.dot(T, np.dot(R, np.dot(Z, S)))
-
-    return M
-
-
-def spm_imatrix(M):
-    """Returns parameters the 12 parameters for creating a given affine
-    transformation.
-
-    Parameters
-    ----------
-    M: array_like of shape (4, 4)
-        affine transformation matrix
-
-   Returns
-   -------
-   p: 1D array of length 12
-       parameters for creating the afine transformation M
-
-   """
-
-    # there may be slight rounding errors making |b| > 1
-    def rang(b):
-        return min(max(b, -1), 1)
-
-    # translations and zooms
-    R = M[:3, :3]
-    C = scipy.linalg.cholesky(np.dot(R.T, R), lower=False)
-    p = np.hstack((M[:3, 3], [0, 0, 0], np.diag(C), [0, 0, 0]))
-
-    # handle case of -ve determinant
-    if scipy.linalg.det(R) < 0:
-        p[6] *= -1.
-
-    # shears
-    C = scipy.linalg.lstsq(np.diag(np.diag(C)), C)[0]
-    p[9:12] = C.ravel()[[3, 6, 7]]
-    R0 = spm_matrix(np.hstack(([0, 0, 0, 0, 0, 0], p[6:12])))
-    R0 = R0[:3, :3]
-    R1 = np.dot(R, scipy.linalg.inv(R0))
-
-    # this just leaves rotations in matrix R1
-    p[4] = np.arcsin(rang(R1[0, 2]))
-    if (np.abs(p[4]) - np.pi / 2.) ** 2 < 1e-9:
-        p[3] = 0.
-        p[5] = np.arctan2(-rang(R1[1, 0]), rang(-R1[2, 0] / R[1, 3]))
-    else:
-        c = np.cos(p[4])
-        p[3] = np.arctan2(rang(R1[1, 2] / c), rang(R1[2, 2] / c))
-        p[5] = np.arctan2(rang(R1[0, 1] / c), rang(R1[0, 0] / c))
-
-    # return parameters
-    return p
-
-
-def coords(p, M1, M2, x1, x2, x3):
-    """Rigidly transforms the current set of coordinates (working grid)
-    according to current motion estimates, p
-
-    """
-
-    # build coordinate transformation (matrix for passing from M2 space to
-    # M1 space)
-    M = np.dot(scipy.linalg.inv(np.dot(spm_matrix(p), M2)), M1)
-
-    # apply the transformation
-    _x1 = M[0, 0] * x1 + M[0, 1] * x2 + M[0, 2] * x3 + M[0, 3]
-    _x2 = M[1, 0] * x1 + M[1, 1] * x2 + M[1, 2] * x3 + M[1, 3]
-    _x3 = M[2, 0] * x1 + M[2, 1] * x2 + M[2, 2] * x3 + M[2, 3]
-
-    return _x1, _x2, _x3
+import numpy as np
+import scipy.ndimage as ndi
+import scipy.linalg
+import kernel_smooth
+import affine_transformations
 
 
 def make_A(M, x1, x2, x3, Gx, Gy, Gz, lkp=xrange(6), condensed_coords=False):
@@ -250,14 +66,14 @@ def make_A(M, x1, x2, x3, Gx, Gy, Gz, lkp=xrange(6), condensed_coords=False):
 
     # loop over parameters (this loop computes columns of A)
     for i in xrange(len(lkp)):
-        pt = get_initial_motion_params()
+        pt = affine_transformations.get_initial_motion_params()
 
         # regularization ith parameter
         pt[lkp[i]] = pt[i] + 1e-6
 
         # map cartesian coordinate space according to motion
         # parameters pt (using jacobian associated with the transformation)
-        y1, y2, y3  = coords(pt, M, M, x1, x2, x3)
+        y1, y2, y3  = affine_transformations.coords(pt, M, M, x1, x2, x3)
 
         # compute change in cartesian coordinates as a result of change in
         # motion parameters
@@ -276,13 +92,20 @@ def make_A(M, x1, x2, x3, Gx, Gy, Gz, lkp=xrange(6), condensed_coords=False):
     return A
 
 
-class Realign(object):
-    """Implements within-modality rigid-body registration.
+class MRIMotionCorrection(object):
+    """Implements within-modality rigid-body registration of MRI volumes.
+
+    The fit(...) method  estimates affine transformations necessary in other to
+    rigidly align the other volumes to the Oth volume (hereafter referred to as
+    the reference), whilst the transform(...) method actually writes these
+    realigned files unto disk.
 
     """
 
     def __init__(self, sep=4, interp=3, fwhm=5., quality=.9, rtm=False,
                  lkp=[0, 1, 2, 3, 4, 5], PW=None, verbose=1,
+                 output_dir=None,
+                 prefix='r',
                  ):
         """Default constructor.
 
@@ -295,7 +118,7 @@ class Realign(object):
         fwhm: float, optional (default 10)
             the FWHM of the Gaussian smoothing kernel (mm) applied to the
             images before estimating the realignment parameters.
-        sep: int or list of ints, optional (default 4)
+        sep: intx, optional (default 4)
             the default separation (mm) to sample the images
         rtm: boolean, optional (default False)
             register to mean.  If field exists then a two pass procedure is
@@ -323,6 +146,11 @@ class Realign(object):
             If field does not exist, then no weighting is done.
         verbose: int, optional (default 1)
             controls verbosity level. 0 means no verbose at all
+        output_dir: string, optional (default None)
+            existing dirname, where all output (i.e realigned files) will be
+            written
+        prefix: string, optional (default 'r')
+            prefix to be prepended to output file basenames
 
         """
 
@@ -334,6 +162,16 @@ class Realign(object):
         self._lkp = lkp
         self._PW = PW
         self._verbose = verbose
+        self._output_dir = output_dir
+        self._prefix = prefix
+
+        # check against unimplemented option rtm
+        if self._rtm:
+            raise NotImplementedError("rtm: Option not yet implemented")
+
+        # check against unimplemented option PW
+        if self._PW:
+            raise NotImplementedError("PW: Option not yet implemented")
 
         pass
 
@@ -351,7 +189,8 @@ class Realign(object):
             print(msg)
 
     def fit(self, filenames):
-        """Estimation of within modality rigid body movement parameters.
+        """Estimation of within-modality rigid-body movement parameters.
+
         All operations are performed relative to the first image. That is,
         registration is to the first image, and resampling of images is
         into the space of the first image.
@@ -361,30 +200,45 @@ class Realign(object):
 
         Parameters
         ----------
-        filenames: array_like of strings
-            list of filenames (3D volumes) to be registered.
+        filenames: string or list of strings
+            filename of single 4D image, or list of filenames of 3D volumes
 
         Returns
         -------
         rp: 2D array of shape (n_scans, 6)
             realignment parameters
 
+        Notes
+        -----
+        For now, we don't have support for multiple sessions!
+
         Raises
         ------
-        RuntimeError
+        RuntimeError, ValueError
 
         """
 
         # load data
-        if isinstance(filenames, basestring):
-            filenames = [filenames]
-        P = [nipy.load_image(fmri_filename) for fmri_filename in filenames]
+        self._filenames = filenames if len(filenames) > 1 else filenames[0]
+        if isinstance(self._filenames, basestring):
+            film = ni.load(self._filenames)
+            if not len(film.shape) == 4:
+                raise ValueError(
+                    "Expecting 4D image, got %iD!" % len(film.shape))
+            self._P = [ni.Nifti1Image(film.get_data()[..., t],
+                                      film.get_affine())
+                       for t in xrange(film.shape[-1])]
+        else:
+            self._P = [ni.load(filename) for filename in self._filenames]
 
-        skip = np.sqrt(np.sum(P[0].coordmap.affine[:3, :3] ** 2, axis=0)
+        # voxel dimensions on the working grid
+        skip = np.sqrt(np.sum(self._P[0].get_affine()[:3, :3] ** 2, axis=0)
                        ) ** (-1) * self._sep
-        dim = P[0].shape[:3]
 
-        # compute working grid
+        # aus variable of volume shape
+        dim = self._P[0].shape[:3]
+
+        # build working grid
         x1, x2, x3 = np.mgrid[:dim[0] - .5 - 1:skip[0],
                                :dim[1] - .5 - 1:skip[1],
                                :dim[2] - .5 - 1:skip[2]]
@@ -399,18 +253,17 @@ class Realign(object):
         x2 = x2.ravel()
         x3 = x3.ravel()
 
-        # smooth volume to absorb noise before differentiating
-        smoothing_kernel = LinearFilter(P[0].coordmap, P[0].shape,
-                                        fwhm=self._fwhm)
-        svol = smoothing_kernel.smooth(P[0], clean=True).get_data()
+        # smooth 0th volume to absorb noise before differentiating
+        sref_vol = kernel_smooth.smooth_image(self._P[0],
+                                              self._fwhm).get_data()
 
-        # resample the image and its gradient
-        G = ndi.map_coordinates(svol, [x1.ravel(), x2.ravel(), x3.ravel()],
+        # resample the smoothed reference volume unto doped working grid
+        G = ndi.map_coordinates(sref_vol, [x1.ravel(), x2.ravel(), x3.ravel()],
                                 order=self._interp,
                                 mode='wrap',).reshape(x1.shape)
 
-        # compute gradient of reference image
-        Gx, Gy, Gz = np.gradient(svol)
+        # compute gradient of reference volume
+        Gx, Gy, Gz = np.gradient(sref_vol)
 
         # resample gradient unto working grid
         Gx = ndi.map_coordinates(Gx, [x1.ravel(), x2.ravel(), x3.ravel()],
@@ -424,50 +277,47 @@ class Realign(object):
                                 mode='wrap',).reshape(x1.shape)
 
         # compute rate of change of chi2 w.r.t. parameters
-        A0 = make_A(P[0].coordmap.affine, x1, x2, x3, Gx, Gy, Gz,
+        A0 = make_A(self._P[0].get_affine(), x1, x2, x3, Gx, Gy, Gz,
                 )
 
+        # ravel everything
         G = G.ravel()
         Gx = Gx.ravel()
         Gy = Gy.ravel()
         Gz = Gz.ravel()
 
-        b = G.copy()
+        b = G
 
         # Remove voxels that contribute very little to the final estimate.
         # It's essentially sufficient to remove voxels that contribute the
         # least to the determinant of the inverse convariance matrix
-        # (the precision matrix)
+        # (i.e of the precision matrix)
         self._log(
-            ("Eliminating unimportant voxels (target quality: %s)"
+            ("\r\nEliminating unimportant voxels (target quality: %s)"
              "...") % self._quality)
         alpha = np.vstack((A0.T, b)).T
         alpha = np.dot(alpha.T, alpha)
         det0 = scipy.linalg.det(alpha)
         det1 = det0  # det1 / det0 is a precision measure
         iteration = 0
-        # XXX the following loop is unusually slow!!!
         while det1 / det0 > self._quality:
             iteration += 1
-            self._log(
-                "\tIteration %i: current quality = %s" % (iteration,
-                                                          det1 / det0))
 
-            # determine voxels unimportant voxels to eliminate
+            # determine unimportant voxels to eliminate
             dets = np.ndarray(A0.shape[0])
-            for i in xrange(A0.shape[0]):
-                tmp = np.hstack((A0[i, ...], b[i])).reshape((1,
+            for t in xrange(A0.shape[0]):
+                tmp = np.hstack((A0[t, ...], b[t])).reshape((1,
                                                              A0.shape[1] + 1))
-                dets[i] = scipy.linalg.det(alpha - np.dot(tmp.T, tmp))
+                dets[t] = scipy.linalg.det(alpha - np.dot(tmp.T, tmp))
             msk = np.argsort(det1 - dets)
             msk = msk[:np.round(len(dets) / 10.)]
 
             # eliminate unimportant voxels
             self._log(
-                "\t\tEliminating %i voxels..." % len(msk))
+                "\tEliminating %i voxels (current quality = %s)..." % (
+                    len(msk), det1 / det0))
             A0 = np.delete(A0, msk, axis=0)
             b = np.delete(b, msk, axis=0)
-            G = np.delete(G, msk, axis=0)
             x1 = np.delete(x1, msk, axis=0)
             x2 = np.delete(x2, msk, axis=0)
             x3 = np.delete(x3, msk, axis=0)
@@ -480,25 +330,27 @@ class Realign(object):
             alpha = np.dot(alpha.T, alpha)
             det1 = scipy.linalg.det(alpha)
 
-        self._log("Registering images to reference...")
-        for i in xrange(1, len(P)):
-            self._log("\tRegistering image %i/%i..." % (i, len(P) - 1))
+        # register the volumes to the reference volume
+        self._log("\r\nRegistering volumes to reference...")
+        for t in xrange(1, len(self._P)):
+            self._log("\tRegistering volume %i/%i..." % (t, len(self._P) - 1))
 
-            # smooth image i
-            smoothing_kernel = LinearFilter(P[i].coordmap, P[i].shape,
-                                            fwhm=self._fwhm)
-            V = smoothing_kernel.smooth(P[i]).get_data()
+            # smooth tth volume
+            V = kernel_smooth.smooth_image(self._P[t], self._fwhm).get_data()
 
             # Run Gauss-Newton Iterated LS (this should normally converge after
-            # as few as 5 iterations
+            # about as few as 5 iterations)
             dim = np.hstack((V.shape, [1, 1]))
             dim = dim[:3]
             ss = -np.inf
             countdown = -1
             for iteration in xrange(64):
-                # pass from image i's grid to that of the reference image (0)
-                y1, y2, y3 = coords([0, 0, 0, 0, 0, 0], P[0].coordmap.affine,
-                                    P[i].coordmap.affine, x1, x2, x3)
+                # pass from tth volume's grid to that of the reference
+                # volume (0)
+                y1, y2, y3 = affine_transformations.coords(
+                    [0, 0, 0, 0, 0, 0],
+                    self._P[0].get_affine(),
+                    self._P[t].get_affine(), x1, x2, x3)
 
                 # sanity mask: some points might have fallen into hell, find'em
                 # and zap'em
@@ -513,7 +365,7 @@ class Realign(object):
                          "Game over!")
                         )
 
-                # warp: resample image i on this new grid
+                # warp: resample tth volume on this new grid
                 F = ndi.map_coordinates(V, [y1[msk], y2[msk], y3[msk]],
                                         order=3,
                                         mode='wrap',)
@@ -526,46 +378,124 @@ class Realign(object):
                 soln = scipy.linalg.lstsq(np.dot(A.T, A), np.dot(A.T, b1))[0]
 
                 # compute motion parameter estimates
-                p = get_initial_motion_params()
+                p = affine_transformations.get_initial_motion_params()
                 p[self._lkp] += soln.T
 
-                # modify image i's by appling the learnt affine transformation
-                P[i].coordmap.affine = np.dot(scipy.linalg.inv(spm_matrix(p)),
-                                              P[i].coordmap.affine)
+                # apply the learnt affine transformation to tth volume
+                self._P[t] = ni.Nifti1Image(
+                    self._P[t].get_data(),
+                    np.dot(scipy.linalg.inv(
+                            affine_transformations.spm_matrix(p)),
+                           self._P[t].get_affine()))
 
                 # compute convergence criterion variables
                 pss = ss
                 ss = np.sum(b1 ** 2) / len(b1)
 
-                # check whether we've stopped converging altogether
+                # compute relative gain over last iteration
                 relative_gain = np.abs((pss - ss) / pss)
+                self._log(
+                    "\t\trelative gain over last iteration: %s" % relative_gain
+                    )
+
+                # check whether we've stopped converging altogether
                 if relative_gain < 1e-8 and countdown == -1:
                     countdown = 2
 
-                self._log("\t\trelative gain: %s" % relative_gain)
-
                 # countdown
                 if countdown != -1:
-                    # converged ?
+                    # converge
                     if countdown == 0:
                         break
                     countdown -= 1
 
         # extract the estimated motion params from the final affines
-        rp = np.ndarray((len(P), 12))
-        iref_affine = scipy.linalg.inv(P[0].coordmap.affine)
-        for i in xrange(len(P)):
-            rp[i, ...] = spm_imatrix(np.dot(P[i].coordmap.affine,
-                                            iref_affine))
+        self._rp = np.ndarray((len(self._P), 12))
+        iref_affine = scipy.linalg.inv(self._P[0].get_affine())
+        for t in xrange(len(self._P)):
+            self._rp[t, ...] = affine_transformations.spm_imatrix(np.dot(
+                    self._P[t].get_affine(), iref_affine))
 
         # return estimated motion (realignment parameters)
-        return rp
+        return self._rp
+
+    def transform(self, output_dir=None):
+        """Saves realigned volumes and the realigment parameters to disk.
+
+        The input volumes were as specified in a single filename, then
+        the output realigned volumes will have basename of the form
+        rmy_4D_basename_volume_t.ext, where 'r' is the prefix, my_4D_basename
+        is the input file basename, t is the index of the specific a
+        volume, and ext is the extension (.nii, .nii.gz, .img, etc.).
+        Otherwise, the realigned volumes will be stored in files
+        rmy_3D_volume_t.ext, where 'r' is the extension, my_3D_volume_t is
+        if the basename of the corresponding input 3D volume for time scan
+        number t, and ext is the extension.
+
+        Parameters
+        ----------
+        output_dir: string, optional (default None)
+            existing dirname where output will be written
+
+        """
+
+        # make sure fit(...) method has been invoked
+        if not hasattr(self, '_filenames') or not hasattr(self, '_P'):
+            raise RuntimeError(
+                "fit(...) method not yet invoked; nothing to do!")
+
+        # sanitize output_dir
+        ref_filename = self._filenames if isinstance(
+            self._filenames, basestring) else self._filenames[0]
+        if self._output_dir is None:
+            self._output_dir = output_dir
+        if self._output_dir is None:
+            self._output_dir = os.path.dirname(ref_filename)
+        if not os.path.exists(self._output_dir):
+            os.makedirs(self._output_dir)
+
+        # save realignment parameters to disk
+        rp_filename = os.path.join(self._output_dir,
+                                   "rp_%s.txt" % os.path.basename(
+                ref_filename).split('.')[0])
+        np.savetxt(rp_filename, self._rp[..., :6])
+
+        # save realigned files to disk
+        self._log('\r\nSaving realigned volumes to %s' % self._output_dir)
+        if isinstance(self._filenames, basestring):
+            for t in xrange(len(self._P)):
+                _parts = os.path.basename(
+                    ref_filename).split('.')
+                ref_filebasname, ext = _parts[0], ".".join(_parts[1:])
+                output_filename = os.path.join(self._output_dir,
+                                               "%s%s_volume_%i.%s" % (
+                        self._prefix, ref_filebasname, t, ext))
+                ni.save(self._P[t], output_filename)
+        else:
+            for filename, vol in zip(self._filenames, self._P):
+                output_filename = os.path.join(self._output_dir,
+                                               "%s%s" % (
+                        self._prefix,
+                        os.path.basename(filename)))
+                ni.save(vol, output_filename)
 
 
 # demo for motion estimation
 if __name__ == '__main__':
-    data_wildcat = ("/home/edohmato/CODE/datasets/henry_mondor"
-                    "/f38*.img")
+    # set data path (replace with your own demo data)
+    data_wildcat = (
+        "/home/elvis/CODE/datasets/henry_mondor/f38*.img")
+    filenames = sorted(glob.glob(data_wildcat))
+    if not filenames:
+        raise RuntimeError(
+            ("Data (%s) not found. Replace path with your demo data."
+             ) % data_wildcat)
 
-    r = Realign()
-    motion_parameters = r.fit(sorted(glob.glob(data_wildcat)))
+    # instantiate realigner
+    mc = MRIMotionCorrection()
+
+    # fit realigner
+    mc.fit(filenames)
+
+    # write realigned files to disk
+    mc.transform()
