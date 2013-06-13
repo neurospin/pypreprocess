@@ -480,8 +480,17 @@ class MRIMotionCorrection(object):
                 ni.save(vol, output_filename)
 
 
-def _demo(subjects):
+def _demo(subjects, dataset_id):
     """Demo runner.
+
+    Parameters
+    ----------
+    subjects: iterable for subject data
+        each subject data can be anything, with a func (string or list
+        of strings; existing file path(s)) and an output_dir (string,
+        existing dir path) field
+    dataset_id: string
+        a short string describing the data being processed (e.g. "HAXBY!")
 
     Notes
     -----
@@ -494,7 +503,7 @@ def _demo(subjects):
 
     # loop over subjects
     for subject_data in subjects:
-        print "\t\tMotion correction for %s" % subject_data.subject_id
+        print("\t\tMotion correction for %s" % subject_data.subject_id)
 
         # instantiate realigner
         mc = MRIMotionCorrection(fwhm=5., interp=2)
@@ -510,7 +519,9 @@ def _demo(subjects):
                                              "rp_*.txt"))[0]
         plot_spm_motion_parameters(
             rp_filename,
-            title="Estimated motion for %s" % subject_data.subject_id)
+            title="Estimated motion for %s of '%s'" % (
+                subject_data.subject_id,
+                dataset_id))
         plt.show()
 
 
@@ -578,7 +589,7 @@ def demo_nyu_rest(DATA_DIR="/tmp/nyu_data",
             yield subject_data
 
     # invoke demon to run de demo
-    _demo(subject_factory())
+    _demo(subject_factory(), "NYU Resting State")
 
 
 def demo_fsl_feeds(DATA_DIR="/tmp/fsl_feeds_data",
@@ -606,8 +617,6 @@ def demo_fsl_feeds(DATA_DIR="/tmp/fsl_feeds_data",
     # fetch data
     fsl_feeds_data = fetch_fsl_feeds_data(data_dir=DATA_DIR)
 
-    print fsl_feeds_data
-
     class SubjectData(object):
         pass
 
@@ -626,10 +635,18 @@ def demo_fsl_feeds(DATA_DIR="/tmp/fsl_feeds_data",
             yield subject_data
 
     # invoke demon to run de demo
-    _demo(subject_factory())
+    _demo(subject_factory(), "FSL FEEDS")
 
 
 # main
 if __name__ == '__main__':
+    import sys
+    warning = ("%s: THIS SCRIPT MUST BE RUN FROM ITS PARENT "
+               "DIRECTORY!") % sys.argv[0]
+    banner = "#" * len(warning)
+    separator = "\r\n\t"
+
+    print separator.join(['', banner, warning, banner, ''])
+
     # run FSL FEEDS demo
     demo_fsl_feeds()
