@@ -480,22 +480,156 @@ class MRIMotionCorrection(object):
                 ni.save(vol, output_filename)
 
 
-# demo for motion estimation
+def _demo(subjects):
+    """Demo runner.
+
+    Notes
+    -----
+    Don't invoke this directly!
+
+    """
+
+    from reporting.check_preprocessing import plot_spm_motion_parameters
+    import matplotlib.pyplot as plt
+
+    # loop over subjects
+    for subject_data in subjects:
+        print "\t\tMotion correction for %s" % subject_data.subject_id
+
+        # instantiate realigner
+        mc = MRIMotionCorrection(fwhm=5., interp=2)
+
+        # fit realigner
+        mc.fit(subject_data.func)
+
+        # write realigned files to disk
+        mc.transform(output_dir=subject_data.output_dir)
+
+        # plot results
+        rp_filename = glob.glob(os.path.join(subject_data.output_dir,
+                                             "rp_*.txt"))[0]
+        plot_spm_motion_parameters(
+            rp_filename,
+            title="Estimated motion for %s" % subject_data.subject_id)
+        plt.show()
+
+
+def demo_nyu_rest(DATA_DIR="/tmp/nyu_data",
+                  OUTPUT_DIR="/tmp/nyu_mrimc_output",
+                  ):
+    """Demo for FSL Feeds data.
+
+    Parameters
+    ----------
+    DATA_DIR: string, optional
+        where the data is located on your disk, where it will be
+        downloaded to
+    OUTPUT_DIR: string, optional
+        where output will be written to
+
+    """
+
+    import sys
+    sys.path.append(
+        os.path.dirname(os.path.dirname(
+                os.path.split(os.path.abspath(__file__))[0])))
+    from external.nisl.datasets import fetch_nyu_rest
+
+    # fetch data
+    nyu_data = fetch_nyu_rest(data_dir=DATA_DIR)
+
+    class SubjectData(object):
+        pass
+
+    # subject data factory
+    def subject_factory(session=1):
+        session_output_dir = os.path.join(OUTPUT_DIR, "session%i" % session)
+
+        session_func = [x for x in nyu_data.func if "session%i" % session in x]
+        session_anat = [
+            x for x in nyu_data.anat_skull if "session%i" % session in x]
+
+        for subject_id in set([os.path.basename(
+                    os.path.dirname
+                    (os.path.dirname(x)))
+                               for x in session_func]):
+
+            # instantiate subject_data object
+            subject_data = SubjectData()
+            subject_data.subject_id = subject_id
+            subject_data.session_id = session
+
+            # set func
+            subject_data.func = [
+                x for x in session_func if subject_id in x]
+            assert len(subject_data.func) == 1
+            subject_data.func = subject_data.func[0]
+
+            # set anat
+            subject_data.anat = [
+                x for x in session_anat if subject_id in x]
+            assert len(subject_data.anat) == 1
+            subject_data.anat = subject_data.anat[0]
+
+            # set subject output directory
+            subject_data.output_dir = os.path.join(
+                session_output_dir, subject_data.subject_id)
+
+            yield subject_data
+
+    # invoke demon to run de demo
+    _demo(subject_factory())
+
+
+def demo_fsl_feeds(DATA_DIR="/tmp/fsl_feeds_data",
+                  OUTPUT_DIR="/tmp/fsl_feeds_mrimc_output",
+                  ):
+    """Demo for FSL Feeds data.
+
+    Parameters
+    ----------
+    DATA_DIR: string, optional
+        where the data is located on your disk, where it will be
+        downloaded to
+    OUTPUT_DIR: string, optional
+        where output will be written to
+
+    """
+
+    import sys
+    sys.path.append(
+        os.path.dirname(os.path.dirname(
+                os.path.split(os.path.abspath(__file__))[0])))
+    from datasets_extras import fetch_fsl_feeds_data
+    from reporting.check_preprocessing import plot_spm_motion_parameters
+
+    # fetch data
+    fsl_feeds_data = fetch_fsl_feeds_data(data_dir=DATA_DIR)
+
+    print fsl_feeds_data
+
+    class SubjectData(object):
+        pass
+
+    # subject data factory
+    def subject_factory(session=1):
+            # instantiate subject_data object
+            subject_data = SubjectData()
+            subject_data.subject_id = "sub001"
+
+            # set func
+            subject_data.func = fsl_feeds_data['func'] + ".gz"
+
+            # set subject output directory
+            subject_data.output_dir = OUTPUT_DIR
+
+            yield subject_data
+
+    # invoke demon to run de demo
+    _demo(subject_factory())
+
+
+# main
 if __name__ == '__main__':
-    # set data path (replace with your own demo data)
-    data_wildcat = (
-        "/home/elvis/CODE/datasets/henry_mondor/f38*.img")
-    filenames = sorted(glob.glob(data_wildcat))
-    if not filenames:
-        raise RuntimeError(
-            ("Data (%s) not found. Replace path with your demo data."
-             ) % data_wildcat)
-
-    # instantiate realigner
-    mc = MRIMotionCorrection()
-
-    # fit realigner
-    mc.fit(filenames)
-
-    # write realigned files to disk
-    mc.transform()
+    # run FSL FEEDS demo
+    demo_fsl_feeds()
