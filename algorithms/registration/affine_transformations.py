@@ -1,3 +1,11 @@
+"""
+:Module: affine_transformations
+:Synopsis: routine functions for doing affine
+transformation-related business
+:Author: DOHMATOB Elvis Dopgima
+
+"""
+
 import numpy as np
 import scipy.linalg
 
