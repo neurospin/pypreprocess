@@ -126,14 +126,7 @@ def fetch_haxby_subject_data(data_dir, subject_id, url, redownload=False):
             pass
         finally:
             print "Done."
-    if os.path.exists(subject_dir):
-        subject_data = _glob_haxby_subject_data(subject_dir)
-        if subject_data is None:
-            # shutil.rmtree(subject_dir)
-            return fetch_haxby_subject_data(data_dir, subject_id, url)
-        else:
-            return subject_id, subject_data
-    elif os.path.exists(archive_path):
+    if os.path.exists(archive_path):
         try:
             _uncompress_file(archive_path)
         except:
@@ -308,14 +301,7 @@ def fetch_fsl_feeds_data(data_dir, redownload=False):
             pass
         finally:
             print "Done."
-    if os.path.exists(subject_dir):
-        subject_data = _glob_fsl_feeds_data(subject_dir)
-        if subject_data is None:
-            # shutil.rmtree(subject_dir)
-            return fetch_fsl_feeds_data(data_dir)
-        else:
-            return subject_data
-    elif os.path.exists(archive_path):
+    if os.path.exists(archive_path):
         try:
             _uncompress_file(archive_path)
         except:
