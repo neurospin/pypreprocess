@@ -1006,6 +1006,9 @@ def _do_subject_preproc(
             )
 
         segment_result = segment_output['result']
+        output['gm'] = segment_result.outputs.normalized_gm_image
+        output['wm'] = segment_result.outputs.normalized_wm_image
+
 
         # if failed to segment, return
         if segment_result.outputs is None:
@@ -1964,6 +1967,13 @@ def do_subjects_preproc(subjects,
                     subject_result['estimated_motion'] = item[
                         'estimated_motion']
                     subject_result['realigned_func'] = item['realigned_func']
+
+                if do_segment:
+                    # output segmented GM compartment
+                    subject_result['gm'] = item['gm']
+
+                    # output segmented WM compartment
+                    subject_result['wm'] = item['wm']
 
                 subject_result['output_dir'] = item['output_dir']
 
