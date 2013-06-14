@@ -1,3 +1,11 @@
+"""
+:Module: spm_multimodal_fmri
+:Synopsis: script for preproc + stats on SPM multi-modal face data set
+http://www.fil.ion.ucl.ac.uk/spm/data/mmfaces/
+:Author: DOHMATOB Elvis Dopgima
+
+"""
+
 import pylab as pl
 import numpy as np
 from nipy.modalities.fmri.experimental_paradigm import EventRelatedParadigm
