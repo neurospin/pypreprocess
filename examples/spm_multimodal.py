@@ -24,7 +24,6 @@ sys.path.append(PYPREPROCESS_DIR)
 # import pypreprocess plugins
 import nipype_preproc_spm_utils
 import reporting.glm_reporter as glm_reporter
-# from io_utils import do_3Dto4D_merge
 
 # set data and output paths (change as you will)
 DATA_DIR = "/home/edohmato/CODE/datasets/spm_multimodal"
@@ -63,7 +62,7 @@ results = nipype_preproc_spm_utils.do_subjects_preproc(
     do_shutdown_reloaders=False,
     )
 
-"""collect preprocessed data"""
+# collect preprocessed data
 fmri_imgs = [ni.concat_images(session_func)
              for session_func in results[0]['func']]
 anat_img = ni.load(results[0]['anat'])
@@ -112,6 +111,7 @@ contrasts['effects_of_interest'] = contrasts['faces'] + contrasts['scrambled']
 # we've thesame contrasts over sessions, so let's replicate
 contrasts = dict((contrast_id, [contrast_val] * 2)
                  for contrast_id, contrast_val in contrasts.iteritems())
+
 # fit GLM
 print('\r\nFitting a GLM (this takes time)...')
 fmri_glm = FMRILinearModel(fmri_imgs,
@@ -158,8 +158,7 @@ for contrast_id, contrast_val in contrasts.iteritems():
 if DO_REPORT:
     stats_report_filename = os.path.join(subject_data.output_dir,
                                          "report_stats.html")
-    contrasts = dict((contrast_id, [contrasts[contrast_id],
-                                    contrasts[contrast_id]])
+    contrasts = dict((contrast_id, contrasts[contrast_id])
                      for contrast_id in z_maps.keys())
     glm_reporter.generate_subject_stats_report(
         stats_report_filename,
