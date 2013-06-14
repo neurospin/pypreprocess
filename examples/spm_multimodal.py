@@ -9,7 +9,6 @@ import time
 import glob
 import sys
 import os
-import nipy.reporting.glm_reporter as glm_reporter
 
 warning = ("%s: THIS SCRIPT MUST BE RUN FROM ITS PARENT "
            "DIRECTORY!") % sys.argv[0]
@@ -18,73 +17,77 @@ separator = "\r\n\t"
 
 print separator.join(['', banner, warning, banner, ''])
 
-# # pypreproces path
-# PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
-# sys.path.append(PYPREPROCESS_DIR)
+# pypreproces path
+PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
+sys.path.append(PYPREPROCESS_DIR)
 
-# # import pypreprocess plugins
-# import nipype_preproc_spm_utils
-# import reporting.glm_reporter as glm_reporter
+# import pypreprocess plugins
+import nipype_preproc_spm_utils
+import reporting.glm_reporter as glm_reporter
 # from io_utils import do_3Dto4D_merge
 
-DATA_DIR = "/home/elvis/CODE/datasets/spm_multimodal"
+# set data and output paths (change as you will)
+DATA_DIR = "/home/edohmato/CODE/datasets/spm_multimodal"
+print "\tDATA_DIR: %s" % DATA_DIR
 OUTPUT_DIR = "spm_multimodal_runs"
+print "\tOUTPUT_DIR: %s" % OUTPUT_DIR
+print
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
 DO_REPORT = True
 
-# # fetch the data
-# subject_data = nipype_preproc_spm_utils.SubjectData()
+# fetch the data
+subject_data = nipype_preproc_spm_utils.SubjectData()
 
-# subject_data.subject_id = "sub001"
-# subject_data.session_id = ["Session1", "Session2"]
+subject_data.subject_id = "sub001"
+subject_data.session_id = ["Session1", "Session2"]
 
-# subject_data.func = [sorted(glob.glob(os.path.join(
-#                 DATA_DIR,
-#                 "fMRI/%s/fMETHODS-*.img" % s)))
-#                      for s in subject_data.session_id]
+subject_data.func = [sorted(glob.glob(os.path.join(
+                DATA_DIR,
+                "fMRI/%s/fMETHODS-*.img" % s)))
+                     for s in subject_data.session_id]
 
-# subject_data.anat = os.path.join(DATA_DIR, "sMRI/smri.img")
+subject_data.anat = os.path.join(DATA_DIR, "sMRI/smri.img")
 
-# subject_data.output_dir = os.path.join(OUTPUT_DIR,
-#                                        subject_data.subject_id)
+subject_data.output_dir = os.path.join(OUTPUT_DIR,
+                                       subject_data.subject_id)
 
 
-# """preprocess the data"""
-# results = nipype_preproc_spm_utils.do_subjects_preproc(
-#     [subject_data],
-#     output_dir=OUTPUT_DIR,
-#     fwhm=[8, 8, 8],
-#     dataset_id="SPM MULTIMODAL (see @alex)",
-#     do_shutdown_reloaders=False,
-#     do_report=0,
-#     )
+# preprocess the data
+results = nipype_preproc_spm_utils.do_subjects_preproc(
+    [subject_data],
+    output_dir=OUTPUT_DIR,
+    fwhm=[8, 8, 8],
+    dataset_id="SPM MULTIMODAL (see @alex)",
+    do_shutdown_reloaders=False,
+    )
 
 """collect preprocessed data"""
-fmri_files = ["/media/Lexar/CODE/datasets/wrfMETHODS_sess14D.nii.gz",
-              "/media/Lexar/CODE/datasets/wrfMETHODS_sess24D.nii.gz"]
+fmri_imgs = [ni.concat_images(session_func)
+             for session_func in results[0]['func']]
+anat_img = ni.load(results[0]['anat'])
 
-"""experimental paradigm meta-params"""
+# experimental paradigm meta-params
 stats_start_time = time.ctime()
 tr = 2.
 drift_model = 'Cosine'
 hrf_model = 'Canonical With Derivative'
 hfcut = 128.
 
-""" make dmats for sessions"""
+# make design matrices
 design_matrices = []
 for x in xrange(2):
-    n_scans = ni.load(fmri_files[x]).shape[-1]
+    n_scans = fmri_imgs[x].shape[-1]
 
     timing = scipy.io.loadmat(os.path.join(DATA_DIR,
                                            "fMRI/trials_ses%i.mat" % (x + 1)),
-                              squeeze_me=True, struxct_as_record=False)
+                              squeeze_me=True, struct_as_record=False)
 
     faces_onsets = timing['onsets'][0].ravel()
     scrambled_onsets = timing['onsets'][1].ravel()
     onsets = np.hstack((faces_onsets, scrambled_onsets))
-    onsets *= tr
+    onsets *= tr  # because onsets were reporting in 'scans' units
     conditions = ['faces'] * len(faces_onsets) + ['scrambled'] * len(
         scrambled_onsets)
     paradigm = EventRelatedParadigm(conditions, onsets)
@@ -95,24 +98,28 @@ for x in xrange(2):
 
     design_matrices.append(design_matrix)
 
-"""specify contrasts"""
+# specify contrasts
 contrasts = {}
 n_columns = len(design_matrix.names)
 for i in xrange(paradigm.n_conditions):
     contrasts['%s' % design_matrix.names[2 * i]] = np.eye(n_columns)[2 * i]
 
-"""more interesting contrasts"""
+# more interesting contrasts
 contrasts['faces-scrambled'] = contrasts['faces'] - contrasts['scrambled']
 contrasts['scrambled-faces'] = contrasts['scrambled'] - contrasts['faces']
+contrasts['effects_of_interest'] = contrasts['faces'] + contrasts['scrambled']
 
-"""fit GLM"""
+# we've thesame contrasts over sessions, so let's replicate
+contrasts = dict((contrast_id, [contrast_val] * 2)
+                 for contrast_id, contrast_val in contrasts.iteritems())
+# fit GLM
 print('\r\nFitting a GLM (this takes time)...')
-fmri_glm = FMRILinearModel(fmri_files,
+fmri_glm = FMRILinearModel(fmri_imgs,
                            [dmat.matrix for dmat in design_matrices],
                            mask='compute')
 fmri_glm.fit(do_scaling=True, model='ar1')
 
-"""save computed mask"""
+# save computed mask
 mask_path = os.path.join(OUTPUT_DIR, "mask.nii.gz")
 print "Saving mask image %s" % mask_path
 ni.save(fmri_glm.mask, mask_path)
@@ -122,7 +129,7 @@ z_maps = {}
 for contrast_id, contrast_val in contrasts.iteritems():
     print "\tcontrast id: %s" % contrast_id
     z_map, t_map, eff_map, var_map = fmri_glm.contrast(
-        [contrast_val, contrast_val],
+        contrast_val,
         con_id=contrast_id,
         output_z=True,
         output_stat=True,
@@ -142,15 +149,14 @@ for contrast_id, contrast_val in contrasts.iteritems():
         ni.save(out_map, map_path)
 
         # collect zmaps for contrasts we're interested in
-        z_maps[contrast_id] = map_path
+        if dtype == 'z':
+            z_maps[contrast_id] = map_path
 
         print "\t\t%s map: %s" % (dtype, map_path)
 
-    print
-
-"""do stats report"""
+# do stats report
 if DO_REPORT:
-    stats_report_filename = os.path.join(OUTPUT_DIR,
+    stats_report_filename = os.path.join(subject_data.output_dir,
                                          "report_stats.html")
     contrasts = dict((contrast_id, [contrasts[contrast_id],
                                     contrasts[contrast_id]])
@@ -160,6 +166,8 @@ if DO_REPORT:
         contrasts,
         z_maps,
         fmri_glm.mask,
+        anat=anat_img.get_data(),
+        anat_affine=anat_img.get_affine(),
         design_matrices=design_matrices,
         subject_id="sub001",
         cluster_th=50,  # we're only interested in this 'large' clusters
