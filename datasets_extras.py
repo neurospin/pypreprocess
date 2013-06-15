@@ -239,47 +239,29 @@ def fetch_haxby(data_dir=None, subject_ids=None, redownload=False,
     return subjects
 
 
-def fetch_spm_auditory_data(data_dir, redownload=False):
+def fetch_spm_auditory_data(data_dir):
     '''
-Function to fetch SPM auditory data.
+    Function to fetch SPM auditory data.
 
-'''
+    '''
 
+    # maybe data_dir already contents the data ?
+    data = _glob_spm_auditory_data(data_dir)
+    if not data is None:
+        return data
+
+    # download the data
+    print("Data absent, downloading...")
     url = "ftp://ftp.fil.ion.ucl.ac.uk/spm/data/MoAEpilot/MoAEpilot.zip"
-    subject_dir = data_dir
-    archive_path = os.path.join(subject_dir, os.path.basename(url))
-    if redownload:
-        try:
-            print "Zapping all old downloads .."
-            # shutil.rmtree(subject_dir)
-            # os.remove(archive_path)
-        except OSError:
-            pass
-        finally:
-            print "Done."
-    if os.path.exists(subject_dir):
-        subject_data = _glob_spm_auditory_data(subject_dir)
-        if subject_data is None:
-            # shutil.rmtree(subject_dir)
-            return fetch_spm_auditory_data(data_dir)
-        else:
-            return subject_data
-    elif os.path.exists(archive_path):
-        try:
-            _uncompress_file(archive_path)
-        except:
-            print "Archive corrupted, trying to download it again."
-            # os.remove(archive_path)
-            return fetch_spm_auditory_data(data_dir)
-    else:
-        _fetch_file(url, data_dir)
-        try:
-            _uncompress_file(archive_path)
-        except:
-            print "Archive corrupted, trying to download it again."
-            # os.remove(archive_path)
-            return fetch_spm_auditory_data(data_dir)
-        return _glob_spm_auditory_data(subject_dir)
+    archive_path = os.path.join(data_dir, os.path.basename(url))
+    _fetch_file(url, data_dir)
+    try:
+        _uncompress_file(archive_path)
+    except:
+        print "Archive corrupted, trying to download it again."
+        return fetch_spm_auditory_data(data_dir)
+
+    return _glob_spm_auditory_data(data_dir)
 
 
 def fetch_fsl_feeds_data(data_dir, redownload=False):
@@ -288,35 +270,25 @@ def fetch_fsl_feeds_data(data_dir, redownload=False):
 
     '''
 
+    # maybe data_dir already contents the data ?
+    data = _glob_fsl_feeds_data(data_dir)
+    if not data is None:
+        return data
+
+    # download the data
+    print("Data absent, downloading...")
     url = ("http://fsl.fmrib.ox.ac.uk/fsldownloads/oldversions/"
            "fsl-4.1.0-feeds.tar.gz")
-    subject_dir = data_dir
-    archive_path = os.path.join(subject_dir, os.path.basename(url))
-    if redownload:
-        try:
-            print "Zapping all old downloads .."
-            # shutil.rmtree(subject_dir)
-            # os.remove(archive_path)
-        except OSError:
-            pass
-        finally:
-            print "Done."
-    if os.path.exists(archive_path):
-        try:
-            _uncompress_file(archive_path)
-        except:
-            print "Archive corrupted, trying to download it again."
-            os.remove(archive_path)
-            return fetch_fsl_feeds_data(data_dir)
-    else:
-        _fetch_file(url, data_dir)
-        try:
-            _uncompress_file(archive_path)
-        except:
-            print "Archive corrupted, trying to download it again."
-            os.remove(archive_path)
-            return fetch_fsl_feeds_data(data_dir)
-        return _glob_fsl_feeds_data(subject_dir)
+    archive_path = os.path.join(data_dir, os.path.basename(url))
+    _fetch_file(url, data_dir)
+    try:
+        _uncompress_file(archive_path)
+    except:
+        print "Archive corrupted, trying to download it again."
+        os.remove(archive_path)
+        return fetch_fsl_feeds_data(data_dir)
+
+    return _glob_fsl_feeds_data(data_dir)
 
 
 def fetch_poldrack_mixed_gambles(data_dir=None):
