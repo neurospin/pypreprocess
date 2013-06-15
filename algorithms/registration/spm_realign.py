@@ -5,7 +5,7 @@
 
 """
 
-import nibabel as ni
+import nibabel
 import glob
 import os
 import numpy as np
@@ -16,28 +16,17 @@ import kernel_smooth
 import affine_transformations
 
 
-def make_A(M, x1, x2, x3, Gx, Gy, Gz, lkp=xrange(6), condensed_coords=False):
+def compute_rate_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
     """Constructs matrix of rate of change of chi2 w.r.t. parameter changes
 
     Parameters
     -----------
     M: 2D array of shape (4, 4)
         affine matrix of source image
-    x1: 1D array
-        x coordinates of working grid
-    x2: 1D array or same size as x1
-        y coordinates of working grid
-    x3: 1D array of same size ax x1
-        z coordinates of working grid
-    Gx: 1D array of of same size as x1
-        gradient of volume at the points (x1[i], x2[i], x3[i]), along
-        the x axis
-    Gy: 1D array of of same size as x1
-        gradient of volume at the points (x1[i], x2[i], x3[i]), along
-        the y axis
-    Gz: 1D array of of same size as x1
-        gradient of volume at the points (x1[i], x2[i], x3[i]), along
-        the z axis
+    coords: 2D array_like of shape (3, n_voxels)
+        number of voxels in the problem (i.e on the working grid)
+    gradG: 2D array_like of shape (3, n_voxels)
+        gradient of reference volume, computed at the coords
     lkp: 1D array of length not greather than 12, optional (default
     [0, 1, 2, 3, 4, 5])
         motion parameters we're interested in
@@ -48,21 +37,14 @@ def make_A(M, x1, x2, x3, Gx, Gy, Gz, lkp=xrange(6), condensed_coords=False):
 
     """
 
-    # sanity
-    Gx = Gx.ravel()
-    Gy = Gy.ravel()
-    Gz = Gz.ravel()
+    # ravel gradient
+    gradG = np.reshape(gradG, (3, -1))
 
-    if condensed_coords:
-        x1, x2, x3 = zip(*itertools.product(x1, x2, x3))
-    else:
-        x1 = x1.ravel()
-        x2 = x2.ravel()
-        x3 = x3.ravel()
-
-    A = np.ndarray((len(x1), len(lkp)))
+    # ravel coords
+    coords = np.reshape(coords, (3, -1))
 
     # loop over parameters (this loop computes columns of A)
+    A = np.ndarray((coords.shape[1], len(lkp)))
     for i in xrange(len(lkp)):
         pt = affine_transformations.get_initial_motion_params()
 
@@ -71,15 +53,16 @@ def make_A(M, x1, x2, x3, Gx, Gy, Gz, lkp=xrange(6), condensed_coords=False):
 
         # map cartesian coordinate space according to motion
         # parameters pt (using jacobian associated with the transformation)
-        y1, y2, y3  = affine_transformations.coords(pt, M, M, x1, x2, x3)
+        transformed_coords  = affine_transformations.transform_coords(pt, M, M,
+                                                                      coords)
 
         # compute change in cartesian coordinates as a result of change in
         # motion parameters
-        dspace = np.vstack((y1 - x1, y2 - x2, y3 - x3))
+        dcoords = transformed_coords - coords
 
         # compute change in image intensities, as a result of the a change
         # in motion parameters
-        dG = np.vstack((Gx, Gy, Gz)) * dspace
+        dG = gradG * dcoords
 
         # compute ith column of A
         A[..., i] = dG.T.sum(axis=1)
@@ -101,9 +84,10 @@ class MRIMotionCorrection(object):
     """
 
     def __init__(self, sep=4, interp=3, fwhm=5., quality=.9, rtm=False,
-                 lkp=[0, 1, 2, 3, 4, 5], PW=None, verbose=1,
+                 lkp=[0, 1, 2, 3, 4, 5], pw=None, verbose=1,
                  output_dir=None,
                  prefix='r',
+                 n_iterations=66,
                  ):
         """Default constructor.
 
@@ -139,7 +123,7 @@ class MRIMotionCorrection(object):
             9  - x shear
             10 - y shear
             11 - z shear
-        PW: string, optional (default None)
+        pw: string, optional (default None)
             a filename of a weighting image (reciprocal of standard deviation).
             If field does not exist, then no weighting is done.
         verbose: int, optional (default 1)
@@ -149,6 +133,9 @@ class MRIMotionCorrection(object):
             written
         prefix: string, optional (default 'r')
             prefix to be prepended to output file basenames
+        n_iterations: int, optional (dafault 64)
+            max number of Gauss-Newton iterations when solving LSP for
+            registering a volume to the reference
 
         """
 
@@ -158,18 +145,19 @@ class MRIMotionCorrection(object):
         self._quality = quality
         self._rtm = rtm
         self._lkp = lkp
-        self._PW = PW
+        self._pw = pw
         self._verbose = verbose
         self._output_dir = output_dir
         self._prefix = prefix
+        self._n_iterations = n_iterations
 
         # check against unimplemented option rtm
         if self._rtm:
             raise NotImplementedError("rtm: Option not yet implemented")
 
-        # check against unimplemented option PW
-        if self._PW:
-            raise NotImplementedError("PW: Option not yet implemented")
+        # check against unimplemented option pw
+        if self._pw:
+            raise NotImplementedError("pw: Option not yet implemented")
 
         pass
 
@@ -219,15 +207,15 @@ class MRIMotionCorrection(object):
         # load data
         self._filenames = filenames if len(filenames) > 1 else filenames[0]
         if isinstance(self._filenames, basestring):
-            film = ni.load(self._filenames)
+            film = nibabel.load(self._filenames)
             if not len(film.shape) == 4:
                 raise ValueError(
                     "Expecting 4D image, got %iD!" % len(film.shape))
-            self._P = [ni.Nifti1Image(film.get_data()[..., t],
+            self._P = [nibabel.Nifti1Image(film.get_data()[..., t],
                                       film.get_affine())
                        for t in xrange(film.shape[-1])]
         else:
-            self._P = [ni.load(filename) for filename in self._filenames]
+            self._P = [nibabel.load(filename) for filename in self._filenames]
 
         # voxel dimensions on the working grid
         skip = np.sqrt(np.sum(self._P[0].get_affine()[:3, :3] ** 2, axis=0)
@@ -256,35 +244,26 @@ class MRIMotionCorrection(object):
                                               self._fwhm).get_data()
 
         # resample the smoothed reference volume unto doped working grid
-        G = ndi.map_coordinates(sref_vol, [x1.ravel(), x2.ravel(), x3.ravel()],
-                                order=self._interp,
+        G = ndi.map_coordinates(sref_vol, [x1, x2, x3], order=self._interp,
                                 mode='wrap',).reshape(x1.shape)
 
         # compute gradient of reference volume
         Gx, Gy, Gz = np.gradient(sref_vol)
 
         # resample gradient unto working grid
-        Gx = ndi.map_coordinates(Gx, [x1.ravel(), x2.ravel(), x3.ravel()],
-                                order=self._interp,
-                                mode='wrap',).reshape(x1.shape)
-        Gy = ndi.map_coordinates(Gy, [x1.ravel(), x2.ravel(), x3.ravel()],
-                                order=self._interp,
-                                mode='wrap',).reshape(x1.shape)
-        Gz = ndi.map_coordinates(Gz, [x1.ravel(), x2.ravel(), x3.ravel()],
-                                order=self._interp,
-                                mode='wrap',).reshape(x1.shape)
+        Gx = ndi.map_coordinates(Gx, [x1, x2, x3], order=self._interp,
+                                 mode='wrap',).reshape(x1.shape)
+        Gy = ndi.map_coordinates(Gy, [x1, x2, x3], order=self._interp,
+                                 mode='wrap',).reshape(x1.shape)
+        Gz = ndi.map_coordinates(Gz, [x1, x2, x3], order=self._interp,
+                                 mode='wrap',).reshape(x1.shape)
 
         # compute rate of change of chi2 w.r.t. parameters
-        A0 = make_A(self._P[0].get_affine(), x1, x2, x3, Gx, Gy, Gz,
-                )
+        A0 = compute_rate_change_of_chisq(self._P[0].get_affine(),
+                                          [x1, x2, x3], [Gx, Gy, Gz])
 
-        # ravel everything
-        G = G.ravel()
-        Gx = Gx.ravel()
-        Gy = Gy.ravel()
-        Gz = Gz.ravel()
-
-        b = G
+        # compute intercept vector for LSPs
+        b = G.ravel()
 
         # Remove voxels that contribute very little to the final estimate.
         # It's essentially sufficient to remove voxels that contribute the
@@ -333,24 +312,25 @@ class MRIMotionCorrection(object):
         for t in xrange(1, len(self._P)):
             self._log("\tRegistering volume %i/%i..." % (t, len(self._P) - 1))
 
-            # smooth tth volume
+            # smooth volume t
             V = kernel_smooth.smooth_image(self._P[t], self._fwhm).get_data()
 
-            # Run Gauss-Newton Iterated LS (this should normally converge after
-            # about as few as 5 iterations)
+            # global optical flow problem with affine motion model: run
+            # Gauss-Newton iterated LS (this loop should normally converge
+            # after about as few as 5 iterations)
             dim = np.hstack((V.shape, [1, 1]))
             dim = dim[:3]
             ss = -np.inf
             countdown = -1
-            for iteration in xrange(64):
-                # pass from tth volume's grid to that of the reference
+            for iteration in xrange(self._n_iterations):
+                # pass from volume t's grid to that of the reference
                 # volume (0)
-                y1, y2, y3 = affine_transformations.coords(
-                    [0, 0, 0, 0, 0, 0],
+                y1, y2, y3 = affine_transformations.transform_coords(
+                    np.zeros(6),
                     self._P[0].get_affine(),
-                    self._P[t].get_affine(), x1, x2, x3)
+                    self._P[t].get_affine(), [x1, x2, x3])
 
-                # sanity mask: some points might have fallen into hell, find'em
+                # sanity mask: some voxels might have fallen out of business;
                 # and zap'em
                 msk = np.nonzero((y1 >= 0) & (y1 < dim[0]) & (y2 >= 0)
                                  & (y2 < dim[1]) & (y3 >= 0)
@@ -359,32 +339,30 @@ class MRIMotionCorrection(object):
                 # if mask is too small, then we're screwed anyway
                 if len(msk) < 32:
                     raise RuntimeError(
-                        ("Mask too small, we can't learn anythx useful. "
-                         "Game over!")
-                        )
+                        ("Almost all voxels eliminated. Only %i voxels"
+                         "survived. Registration can't work." % len(msk)))
 
-                # warp: resample tth volume on this new grid
+                # warp: resample volume t on this new grid
                 F = ndi.map_coordinates(V, [y1[msk], y2[msk], y3[msk]],
-                                        order=3,
-                                        mode='wrap',)
+                                        order=3, mode='wrap')
 
-                # formulate and solve LS problem
+                # formulate and solve LS problem for updating p
                 A = A0[msk, :].copy()
                 b1 = b[msk].copy()
                 sc = np.sum(b1) / np.sum(F)
                 b1 -= F * sc
-                soln = scipy.linalg.lstsq(np.dot(A.T, A), np.dot(A.T, b1))[0]
+                p_update = scipy.linalg.lstsq(np.dot(A.T, A),
+                                              np.dot(A.T, b1))[0]
 
                 # compute motion parameter estimates
                 p = affine_transformations.get_initial_motion_params()
-                p[self._lkp] += soln.T
+                p[self._lkp] += p_update.T
 
-                # apply the learnt affine transformation to tth volume
-                self._P[t] = ni.Nifti1Image(
-                    self._P[t].get_data(),
-                    np.dot(scipy.linalg.inv(
+                # apply the learnt affine transformation to volume t
+                self._P[t] = nibabel.Nifti1Image(
+                    self._P[t].get_data(), np.dot(scipy.linalg.inv(
                             affine_transformations.spm_matrix(p)),
-                           self._P[t].get_affine()))
+                                                  self._P[t].get_affine()))
 
                 # compute convergence criterion variables
                 pss = ss
@@ -442,9 +420,10 @@ class MRIMotionCorrection(object):
             raise RuntimeError(
                 "fit(...) method not yet invoked; nothing to do!")
 
-        # sanitize output_dir
+        # sanitize output_diir
         ref_filename = self._filenames if isinstance(
             self._filenames, basestring) else self._filenames[0]
+        ref_file_basename = os.path.basename(ref_filename)
         if self._output_dir is None:
             self._output_dir = output_dir
         if self._output_dir is None:
@@ -454,197 +433,21 @@ class MRIMotionCorrection(object):
 
         # save realignment parameters to disk
         rp_filename = os.path.join(self._output_dir,
-                                   "rp_%s.txt" % os.path.basename(
-                ref_filename).split('.')[0])
+                                   "rp_%s.txt" % ref_file_basename)
         np.savetxt(rp_filename, self._rp[..., :6])
 
         # save realigned files to disk
         self._log('\r\nSaving realigned volumes to %s' % self._output_dir)
         if isinstance(self._filenames, basestring):
             for t in xrange(len(self._P)):
-                _parts = os.path.basename(
-                    ref_filename).split('.')
-                ref_filebasname, ext = _parts[0], ".".join(_parts[1:])
                 output_filename = os.path.join(self._output_dir,
-                                               "%s%s_volume_%i.%s" % (
-                        self._prefix, ref_filebasname, t, ext))
-                ni.save(self._P[t], output_filename)
+                                               "%s%i%s" % (
+                        self._prefix, t, ref_file_basename))
+                nibabel.save(self._P[t], output_filename)
         else:
             for filename, vol in zip(self._filenames, self._P):
                 output_filename = os.path.join(self._output_dir,
                                                "%s%s" % (
                         self._prefix,
                         os.path.basename(filename)))
-                ni.save(vol, output_filename)
-
-
-def _demo(subjects, dataset_id):
-    """Demo runner.
-
-    Parameters
-    ----------
-    subjects: iterable for subject data
-        each subject data can be anything, with a func (string or list
-        of strings; existing file path(s)) and an output_dir (string,
-        existing dir path) field
-    dataset_id: string
-        a short string describing the data being processed (e.g. "HAXBY!")
-
-    Notes
-    -----
-    Don't invoke this directly!
-
-    """
-
-    from reporting.check_preprocessing import plot_spm_motion_parameters
-    import matplotlib.pyplot as plt
-
-    # loop over subjects
-    for subject_data in subjects:
-        print("\t\tMotion correction for %s" % subject_data.subject_id)
-
-        # instantiate realigner
-        mc = MRIMotionCorrection(fwhm=5., interp=2)
-
-        # fit realigner
-        mc.fit(subject_data.func)
-
-        # write realigned files to disk
-        mc.transform(output_dir=subject_data.output_dir)
-
-        # plot results
-        rp_filename = glob.glob(os.path.join(subject_data.output_dir,
-                                             "rp_*.txt"))[0]
-        plot_spm_motion_parameters(
-            rp_filename,
-            title="Estimated motion for %s of '%s'" % (
-                subject_data.subject_id,
-                dataset_id))
-        plt.show()
-
-
-def demo_nyu_rest(DATA_DIR="/tmp/nyu_data",
-                  OUTPUT_DIR="/tmp/nyu_mrimc_output",
-                  ):
-    """Demo for FSL Feeds data.
-
-    Parameters
-    ----------
-    DATA_DIR: string, optional
-        where the data is located on your disk, where it will be
-        downloaded to
-    OUTPUT_DIR: string, optional
-        where output will be written to
-
-    """
-
-    import sys
-    sys.path.append(
-        os.path.dirname(os.path.dirname(
-                os.path.split(os.path.abspath(__file__))[0])))
-    from external.nisl.datasets import fetch_nyu_rest
-
-    # fetch data
-    nyu_data = fetch_nyu_rest(data_dir=DATA_DIR)
-
-    class SubjectData(object):
-        pass
-
-    # subject data factory
-    def subject_factory(session=1):
-        session_output_dir = os.path.join(OUTPUT_DIR, "session%i" % session)
-
-        session_func = [x for x in nyu_data.func if "session%i" % session in x]
-        session_anat = [
-            x for x in nyu_data.anat_skull if "session%i" % session in x]
-
-        for subject_id in set([os.path.basename(
-                    os.path.dirname
-                    (os.path.dirname(x)))
-                               for x in session_func]):
-
-            # instantiate subject_data object
-            subject_data = SubjectData()
-            subject_data.subject_id = subject_id
-            subject_data.session_id = session
-
-            # set func
-            subject_data.func = [
-                x for x in session_func if subject_id in x]
-            assert len(subject_data.func) == 1
-            subject_data.func = subject_data.func[0]
-
-            # set anat
-            subject_data.anat = [
-                x for x in session_anat if subject_id in x]
-            assert len(subject_data.anat) == 1
-            subject_data.anat = subject_data.anat[0]
-
-            # set subject output directory
-            subject_data.output_dir = os.path.join(
-                session_output_dir, subject_data.subject_id)
-
-            yield subject_data
-
-    # invoke demon to run de demo
-    _demo(subject_factory(), "NYU Resting State")
-
-
-def demo_fsl_feeds(DATA_DIR="/tmp/fsl_feeds_data",
-                  OUTPUT_DIR="/tmp/fsl_feeds_mrimc_output",
-                  ):
-    """Demo for FSL Feeds data.
-
-    Parameters
-    ----------
-    DATA_DIR: string, optional
-        where the data is located on your disk, where it will be
-        downloaded to
-    OUTPUT_DIR: string, optional
-        where output will be written to
-
-    """
-
-    import sys
-    sys.path.append(
-        os.path.dirname(os.path.dirname(
-                os.path.split(os.path.abspath(__file__))[0])))
-    from datasets_extras import fetch_fsl_feeds_data
-    from reporting.check_preprocessing import plot_spm_motion_parameters
-
-    # fetch data
-    fsl_feeds_data = fetch_fsl_feeds_data(data_dir=DATA_DIR)
-
-    class SubjectData(object):
-        pass
-
-    # subject data factory
-    def subject_factory(session=1):
-            # instantiate subject_data object
-            subject_data = SubjectData()
-            subject_data.subject_id = "sub001"
-
-            # set func
-            subject_data.func = fsl_feeds_data['func'] + ".gz"
-
-            # set subject output directory
-            subject_data.output_dir = OUTPUT_DIR
-
-            yield subject_data
-
-    # invoke demon to run de demo
-    _demo(subject_factory(), "FSL FEEDS")
-
-
-# main
-if __name__ == '__main__':
-    import sys
-    warning = ("%s: THIS SCRIPT MUST BE RUN FROM ITS PARENT "
-               "DIRECTORY!") % sys.argv[0]
-    banner = "#" * len(warning)
-    separator = "\r\n\t"
-
-    print separator.join(['', banner, warning, banner, ''])
-
-    # run FSL FEEDS demo
-    demo_fsl_feeds()
+                nibabel.save(vol, output_filename)

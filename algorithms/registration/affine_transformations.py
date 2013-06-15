@@ -117,7 +117,7 @@ def spm_matrix(p, order='T*R*Z*S'):
     S[0, 1:3] = p[9:11]
     S[1, 2] = p[11]
 
-    # affine transformation
+    # compute the complete affine transformation
     M = np.dot(T, np.dot(R, np.dot(Z, S)))
 
     return M
@@ -173,26 +173,62 @@ def spm_imatrix(M):
     return p
 
 
-def coords(p, M1, M2, x1, x2, x3):
+def transform_coords(p, M1, M2, coords):
     """Rigidly transforms the current set of coordinates (working grid)
-    according to current motion estimates, p
+    according to current motion estimates, p, from one native space M1
+    to another M2
+
+    Parameters
+    ----------
+    p: 1D array_like of length at most 12
+       current motion estimates
+    M1: 2D array_like of shape (4, 4)
+        affine definining the source space
+    M2: 2D array_like of shape (4, 4)
+        affine definining the destination space
+    coords: 2D array_like of shape (3, n_voxels)
+        the coordinates of the voxel(s) being transformed
+
+    Returns
+    -------
+    array of same shape as the input coords:
+        the transformed coordinates
 
     """
+
+    # sanitize coords
+    coords = np.reshape(coords, (3, -1))
+    coords_shape = coords.shape
+
+    # append row of ones
+    coords = np.vstack((coords, np.ones(coords.shape[1])))
 
     # build coordinate transformation (matrix for passing from M2 space to
     # M1 space)
     M = np.dot(scipy.linalg.inv(np.dot(spm_matrix(p), M2)), M1)
 
     # apply the transformation
-    _x1 = M[0, 0] * x1 + M[0, 1] * x2 + M[0, 2] * x3 + M[0, 3]
-    _x2 = M[1, 0] * x1 + M[1, 1] * x2 + M[1, 2] * x3 + M[1, 3]
-    _x3 = M[2, 0] * x1 + M[2, 1] * x2 + M[2, 2] * x3 + M[2, 3]
-
-    return np.array([_x1, _x2, _x3])
+    return np.dot(M, coords)[:-1].reshape(coords_shape)
 
 
-def get_physical_coords(affine, point):
-    point = np.array(point).reshape((-1, 3))
+def get_physical_coords(affine, voxel):
+    """Get the scanner coordinates of a voxel (or set of voxels) in the brain.
 
-    return coords([0, 0, 0, 0, 0, 0], affine, np.eye(4), point[..., 0],
-                  point[..., 1], point[..., 2]).reshape(point.shape).T
+    Parameters
+    ----------
+    affine: 2D array of shape (4, 4)
+        affine of the brain
+    voxel: array_like of shape (3, n_voxels)
+        voxel(s) under consideration
+
+    Returns
+    -------
+    array of same shape as voxel input
+
+    """
+
+    # sanitize voxel
+    voxel = np.array(voxel).reshape((3, -1))
+
+    # compute and return the coords
+    return transform_coords([0, 0, 0, 0, 0, 0], affine, np.eye(4), voxel)

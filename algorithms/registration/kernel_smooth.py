@@ -3,8 +3,8 @@
 :Synopsis: assorted utilities for smoothing images (to absorb noise before
 computing a gradient, etc.). A good starting point for understanding this code
 is the smooth_image(..) wrapper function
-:Author: DOHMATOB Elvis Dopgima, adapted from nipy source code.
-Credits to nipy dev.
+:Author: DOHMATOB Elvis Dopgima, adapted from nipy source code. Credits
+to nipy dev.
 
 """
 
@@ -21,12 +21,12 @@ def fwhm2sigma(fwhm):
 
     Parameters
     ----------
-    fwhm : array-like
+    fwhm: array-like
        FWHM value or values
 
     Returns
     -------
-    sigma : array or float
+    sigma: array or float
        sigma values corresponding to `fwhm` values
 
     Examples
@@ -48,12 +48,12 @@ def sigma2fwhm(sigma):
 
     Parameters
     ----------
-    sigma : array-like
+    sigma: array-like
        sigma value or values
 
     Returns
     -------
-    fwhm : array or float
+    fwhm: array or float
        fwhm values corresponding to `sigma` values
 
     Examples
@@ -71,18 +71,58 @@ def _crop(X, tol=1.0e-10):
     """Find a bounding box for support of fabs(X) > tol and returned
     crop region.
 
+    Parameters
+    ----------
+    X: array_like
+        data to be cropped
+    tol: float, optional (default 1e-10)
+       tolerance for threholding the box
+
+    Returns
+    -------
+    cropped version of X
+
     """
 
     aX = np.fabs(X)
-    n = len(X.shape)
+    ndim = X.ndim
     I = np.indices(X.shape)[:, np.greater(aX, tol)]
     if I.shape[1] > 0:
-        m = [I[i].min() for i in range(n)]
-        M = [I[i].max() for i in range(n)]
-        slices = [slice(m[i], M[i] + 1, 1) for i in range(n)]
+        m = [I[i].min() for i in range(ndim)]
+        M = [I[i].max() for i in range(ndim)]
+        slices = [slice(m[i], M[i] + 1, 1) for i in range(ndim)]
         return X[slices]
     else:
-        return np.zeros((1, ) * n)
+        return np.zeros((1, ) * ndim)
+
+
+def _get_kernel_norm(kernel, normalization):
+    """Computes the norm of a kernel, viewed an nd array.
+
+    Parameters
+    ----------
+    kernel: array_like
+        the kernel under consideration
+    normalization: string
+        value controlling what kind of normalization is done. Possible
+        values are: l2, l2, and l1sum; their meanings are obvious.
+
+    Returns
+    -------
+    float, the computed norm
+
+    """
+
+    # sanitize kernel
+    kernel = np.array(kernel)
+
+    # compute and return the norm
+    if normalization == 'l2':
+        return np.sqrt((kernel ** 2).sum())
+    elif normalization == 'l1':
+        return np.sum(np.fabs(kernel))
+    elif normalization == 'l1sum':
+        return np.sum(kernel)
 
 
 class LinearFilter(object):
@@ -92,23 +132,23 @@ class LinearFilter(object):
 
     """
 
-    normalization = 'l1sum'
-
     def __init__(self, affine, shape, fwhm=6.0, scale=1.0, location=0.0,
-                 cov=None):
-        """
+                 cov=None, normalization='l1sum'):
+        """Default constructor.
+
         Parameters
         ----------
-        affine : 2D array of shape (4, 4)
-        shape : sequence
-        fwhm : float, optional
+        affine: 2D array of shape (4, 4)
+        shape: sequence
+        fwhm: float, optional
            fwhm for Gaussian kernel, default is 6.0
-        scale : float, optional
+        scale: float, optional
            scaling to apply to data after smooth, default 1.0
-        location : float
+        location: float
            offset to apply to data after smooth and scaling, default 0
-        cov : None or array, optional
+        cov: None or array, optional
            Covariance matrix
+        normalization: string
 
         """
 
@@ -119,11 +159,14 @@ class LinearFilter(object):
         self._scale = scale
         self._location = location
         self._cov = cov
+        self._normalization = normalization
+
+        # setupt the smoothing kernel
         self._setup_kernel()
 
     def _setup_kernel(self):
         # voxel indices of array implied by shape
-        voxels = np.indices(self._bshape).astype(np.float64)
+        voxels = np.indices(self._bshape, dtype=np.float64)
 
         # coordinates of physical center.  XXX - why the 'floor' here?
         vox_center = np.floor((np.array(self._bshape) - 1) / 2.0)
@@ -136,22 +179,23 @@ class LinearFilter(object):
         voxels.shape = (voxels.shape[0], np.product(voxels.shape[1:]))
 
         # physical coordinates relative to center
-        X = (affine_transformations.get_physical_coords(self._affine,
-                                                        voxels.T) - phys_center
-             ).T
+        X = affine_transformations.get_physical_coords(self._affine,
+                                                        voxels) - phys_center
+
         X.shape = (self._ndims[1],) + tuple(self._bshape)
 
         # compute kernel from these positions
         kernel = self(X, axis=0)
         kernel = _crop(kernel)
-        self.norms = {'l2': np.sqrt((kernel ** 2).sum()),
-                      'l1': np.fabs(kernel).sum(),
-                      'l1sum': kernel.sum()}
+
+        # compute kernel norm
+        self._norm = _get_kernel_norm(kernel, self._normalization)
+
         self._kernel = kernel
         self._shape = (np.ceil((np.asarray(self._bshape) +
                               np.asarray(kernel.shape)) / 2) * 2 + 2)
         self.fkernel = np.zeros(self._shape)
-        slices = [slice(0, kernel.shape[i]) for i in range(len(kernel.shape))]
+        slices = [slice(0, kernel.shape[i]) for i in range(kernel.ndim)]
         self.fkernel[slices] = kernel
         self.fkernel = npfft.rfftn(self.fkernel)
 
@@ -160,13 +204,13 @@ class LinearFilter(object):
     def _normsq(self, X, axis=-1):
         """
         Compute the (periodic, i.e. on a torus) squared distance needed for
-        FFT smoothing. Assumes coordinate system is linear.
+        FFT smoothing.
 
         Parameters
         ----------
-        X : array
+        X: array
            array of points
-        axis : int, optional
+        axis: int, optional
            axis containing coordinates. Default -1
 
         """
@@ -186,7 +230,7 @@ class LinearFilter(object):
                 _X[i] /= f[i]
 
         # whiten ?
-        if self._cov != None:
+        if not self._cov is None:
             _chol = scipy.linalg.cholesky(self._cov)
             _X = np.dot(scipy.linalg.inv(_chol), _X)
         # compute squared distance
@@ -199,9 +243,9 @@ class LinearFilter(object):
 
         Parameters
         ----------
-        X : array
+        X: array
            array of points
-        axis : int, optional
+        axis: int, optional
            axis containing coordinates.  Default -1
 
         """
@@ -212,26 +256,33 @@ class LinearFilter(object):
         return np.exp(-np.minimum(_normsq, 15)) * t
 
     def smooth(self, in_data, clean=False, is_fft=False):
-        """Apply smoothing to `inimage`
+        """Apply smoothing to `in_data`
 
         Parameters
         ----------
-        in_data : array_like
+        in_data: array_like
            The array to be smoothed. should be same shape as the
            shape provided during instantiation of this object
-        clean : bool, optional
+        clean: bool, optional
            Should we call ``nan_to_num`` on the data before smoothing?
-        is_fft : bool, optional
+        is_fft: bool, optional
            Has the data already been fft'd?
 
         Returns
         -------
-        s_image : `Image`
-           New image, with smoothing applied
+        _out: array of same shape as input nin_data
+           smoothed in_data
+
+        Notes
+        -----
+        XXX: is the manual garbage collection --via calls to gc.collect()--
+        actually necessary ? Is it dangerous ?
 
         """
 
-        ndim = len(in_data.shape)
+        # get dimensionality of input data
+        in_data = np.array(in_data)
+        ndim = in_data.ndim
 
         if ndim == 4:
             _out = np.ndarray(in_data.shape)
@@ -239,8 +290,10 @@ class LinearFilter(object):
         elif ndim == 3:
             n_scans = 1
         else:
-            raise NotImplementedError('expecting either 3 or 4-d image')
+            raise ValueError('expecting either 3 or 4-d image')
 
+        slices = [slice(0, self._bshape[i], 1)
+                  for i in range(len(self._shape))]
         for _scan in range(n_scans):
             if ndim == 4:
                 data = in_data[..., _scan]
@@ -249,9 +302,9 @@ class LinearFilter(object):
             if clean:
                 data = np.nan_to_num(data)
             if not is_fft:
-                data = self._presmooth(data)
+                data = self._presmooth(data, slices)
             data *= self.fkernel
-            data = npfft.irfftn(data) / self.norms[self.normalization]
+            data = npfft.irfftn(data) / self._norm
             gc.collect()
             _dslice = [slice(0, self._bshape[i], 1) for i in range(3)]
             if self._scale != 1:
@@ -264,19 +317,16 @@ class LinearFilter(object):
                 _out[..., _scan] = data
             else:
                 _out = data
-            _scan += 1
 
-        gc.collect()
-        _out = _out[[slice(self._kernel.shape[i] / 2, self._bshape[i] +
-                           self._kernel.shape[i] / 2)
+        # collect output
+        _out = _out[[slice(self._kernel.shape[i] // 2, self._bshape[i] +
+                           self._kernel.shape[i] // 2)
                      for i in range(len(self._bshape))]]
 
         # return output
         return _out
 
-    def _presmooth(self, indata):
-        slices = [slice(0, self._bshape[i], 1)
-                  for i in range(len(self._shape))]
+    def _presmooth(self, indata, slices):
         _buffer = np.zeros(self._shape)
         _buffer[slices] = indata
 
