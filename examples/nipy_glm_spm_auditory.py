@@ -30,9 +30,8 @@ sys.path.append(PYPREPROCESS_DIR)
 
 import nipype_preproc_spm_utils
 import reporting.glm_reporter as glm_reporter
-from datasets_extras import fetch_spm_auditory_data
+from external.nisl.datasets import fetch_spm_auditory_data
 from io_utils import compute_mean_3D_image, do_3Dto4D_merge
-
 
 DATASET_DESCRIPTION = """\
 <p>MoAEpilot <a href="http://www.fil.ion.ucl.ac.uk/spm/data/auditory/">\
@@ -70,8 +69,8 @@ hfcut = 2 * 2 * epoch_duration
 _subject_data = fetch_spm_auditory_data(DATA_DIR)
 subject_data = nipype_preproc_spm_utils.SubjectData()
 subject_data.subject_id = "sub001"
-subject_data.func = _subject_data["func"]
-subject_data.anat = _subject_data["anat"]
+subject_data.func = _subject_data.func
+subject_data.anat = _subject_data.anat
 subject_data.output_dir = os.path.join(
     OUTPUT_DIR, subject_data.subject_id)
 

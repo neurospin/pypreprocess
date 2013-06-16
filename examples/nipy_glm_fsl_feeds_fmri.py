@@ -23,7 +23,8 @@ sys.path.append(
 import nipype_preproc_spm_utils
 import reporting.glm_reporter as glm_reporter
 import reporting.base_reporter as base_reporter
-from datasets_extras import unzip_nii_gz, fetch_fsl_feeds_data
+from external.nisl.datasets import fetch_fsl_feeds_data
+from datasets_extras import unzip_nii_gz
 from io_utils import compute_mean_3D_image
 
 """MISC"""
@@ -77,9 +78,9 @@ design_matrix = make_dmtx(frametimes,
 _subject_data = fetch_fsl_feeds_data(data_dir)
 subject_data = nipype_preproc_spm_utils.SubjectData()
 subject_data.subject_id = "sub001"
-subject_data.func = _subject_data["func"]
+subject_data.func = _subject_data.func.rstrip('.gz')
 unzip_nii_gz(os.path.dirname(subject_data.func))
-subject_data.anat = _subject_data["anat"]
+subject_data.anat = _subject_data.anat.rstrip('.gz')
 subject_data.output_dir = os.path.join(
     output_dir, subject_data.subject_id)
 unzip_nii_gz(os.path.dirname(subject_data.anat))

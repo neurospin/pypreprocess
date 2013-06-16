@@ -1,10 +1,12 @@
+# -*- encoding: utf-8 -*-
 """
 Utilities to download NeuroImaging datasets
 """
-# Author: Alexandre Abraham
+# Author: Alexandre Abraham, Philippe Gervais
 # License: simplified BSD
 
 import os
+import os.path
 import urllib
 import urllib2
 import tarfile
@@ -13,8 +15,14 @@ import sys
 import shutil
 import time
 import hashlib
-
+import re
+import glob
+import gzip
+import numpy as np
+from scipy import ndimage
 from nipype.interfaces.base import Bunch
+
+import nibabel
 
 
 def _format_time(t):
@@ -25,7 +33,7 @@ def _format_time(t):
 
 
 def _md5_sum_file(path):
-    """ Calculates the MD5 sum of a file
+    """ Calculates the MD5 sum of a file.
     """
     f = open(path, 'rb')
     m = hashlib.md5()
@@ -38,7 +46,7 @@ def _md5_sum_file(path):
 
 
 def _read_md5_sum_file(path):
-    """ Reads a MD5 checksum file and returns hashes as a dictionnary
+    """ Reads a MD5 checksum file and returns hashes as a dictionary.
     """
     f = open(path, "r")
     hashes = {}
@@ -53,31 +61,30 @@ def _read_md5_sum_file(path):
 
 class ResumeURLOpener(urllib.FancyURLopener):
     """Create sub-class in order to overide error 206.  This error means a
-       partial file is being sent,
-       which is ok in this case.  Do nothing with this error.
+       partial file is being sent, which is fine in this case.
+       Do nothing with this error.
 
        Note
        ----
        This was adapted from:
        http://code.activestate.com/recipes/83208-resuming-download-of-a-file/
     """
-
     def http_error_206(self, url, fp, errcode, errmsg, headers, data=None):
         pass
 
 
 def _chunk_report_(bytes_so_far, total_size, t0):
-    """Show downloading percentage
+    """Show downloading percentage.
 
     Parameters
     ----------
-    bytes_so_far: integer
+    bytes_so_far: int
         Number of downloaded bytes
 
-    total_size: integer, optional
+    total_size: int, optional
         Total size of the file. None is valid
 
-    t0: integer, optional
+    t0: int, optional
         The time in seconds (as returned by time.time()) at which the
         download was started.
     """
@@ -109,10 +116,10 @@ def _chunk_read_(response, local_file, chunk_size=8192, report_hook=None,
     local_file: file
         Hard disk file where data should be written
 
-    chunk_size: integer, optional
+    chunk_size: int, optional
         Size of downloaded chunks. Default: 8192
 
-    report_hook: boolean
+    report_hook: bool
         Whether or not to show downloading advancement. Default: None
 
     initial_size: int, optional
@@ -153,7 +160,8 @@ def _chunk_read_(response, local_file, chunk_size=8192, report_hook=None,
     return
 
 
-def _get_dataset_dir(dataset_name, data_dir=None):
+def _get_dataset_dir(dataset_name, data_dir=None, folder=None,
+                     create_dir=True):
     """ Create if necessary and returns data directory of given dataset.
 
     Parameters
@@ -161,9 +169,15 @@ def _get_dataset_dir(dataset_name, data_dir=None):
     dataset_name: string
         The unique name of the dataset.
 
-    data_dir: string
+    data_dir: string, optional
         Path of the data directory. Used to force data storage in a specified
         location. Default: None
+
+    folder: string, optional
+        Folder in which the file must be fetched inside the dataset folder.
+
+    create_dir: bool, optional
+        If the directory does not exist, determine whether or not it is created
 
     Returns
     -------
@@ -182,7 +196,9 @@ def _get_dataset_dir(dataset_name, data_dir=None):
         data_dir = os.getenv("NISL_DATA", os.path.join(os.getcwd(),
                              'nisl_data'))
     data_dir = os.path.join(data_dir, dataset_name)
-    if not os.path.exists(data_dir):
+    if folder is not None:
+        data_dir = os.path.join(data_dir, folder)
+    if not os.path.exists(data_dir) and create_dir:
         os.makedirs(data_dir)
     return data_dir
 
@@ -195,7 +211,7 @@ def _uncompress_file(file, delete_archive=True):
     file: string
         path of file to be uncompressed.
 
-    delete_archive: boolean, optional
+    delete_archive: bool, optional
         Wheteher or not to delete archive once it is uncompressed.
         Default: True
 
@@ -207,17 +223,30 @@ def _uncompress_file(file, delete_archive=True):
     data_dir = os.path.dirname(file)
     # We first try to see if it is a zip file
     try:
-        ext = os.path.splitext(file)[1]
+        filename, ext = os.path.splitext(file)
+        processed = False
         if ext == '.zip':
             z = zipfile.ZipFile(file)
             z.extractall(data_dir)
             z.close()
-        elif ext in ['.tar', '.tgz', '.gz', '.bz2']:
+            processed = True
+        elif ext == '.gz':
+            import gzip
+            gz = gzip.open(file)
+            out = open(filename, 'wb')
+            shutil.copyfileobj(gz, out, 8192)
+            gz.close()
+            out.close()
+            # If file is .tar.gz, this will be handle in the next case
+            filename, ext = os.path.splitext(filename)
+            processed = True
+        if ext in ['.tar', '.tgz', '.bz2']:
             tar = tarfile.open(file, "r")
             tar.extractall(path=data_dir)
             tar.close()
-        else:
-            raise IOError("Uncompress: unknown file extesion: %s" % ext)
+            processed = True
+        if not processed:
+            raise IOError("Uncompress: unknown file extension: %s" % ext)
         if delete_archive:
             os.remove(file)
         print '   ...done.'
@@ -228,38 +257,38 @@ def _uncompress_file(file, delete_archive=True):
 
 def _fetch_file(url, data_dir, resume=True, overwrite=False, md5sum=None,
                 verbose=0):
-    """Load requested file, downloading it if needed or requested
+    """Load requested file, downloading it if needed or requested.
 
     Parameters
     ----------
-    urls: array of strings
-        Contains the urls of files to be downloaded.
+    url: string
+        Contains the url of the file to be downloaded.
 
     data_dir: string, optional
         Path of the data directory. Used to force data storage in a specified
         location. Default: None
 
-    resume: boolean, optional
+    resume: bool, optional
         If true, try to resume partially downloaded files
 
-    overwrite: boolean, optional
+    overwrite: bool, optional
         If true and file already exists, delete it.
 
     md5sum: string, optional
         MD5 sum of the file. Checked if download of the file is required
 
-    verbose: integer, optional
+    verbose: int, optional
         Defines the level of verbosity of the output
 
     Returns
     -------
-    files: array of string
-        Absolute paths of downloaded files on disk
+    files: string
+        Absolute path of downloaded file.
 
     Notes
     -----
-    If, for any reason, the download procedure fails, all downloaded data are
-    cleaned.
+    If, for any reason, the download procedure fails, all downloaded files are
+    removed.
     """
     # Determine data path
     if not os.path.exists(data_dir):
@@ -303,6 +332,9 @@ def _fetch_file(url, data_dir, resume=True, overwrite=False, md5sum=None,
             local_file = open(temp_full_name, "wb")
         _chunk_read_(data, local_file, report_hook=True,
                      initial_size=initial_size, verbose=verbose)
+        # temp file must be closed prior to the move
+        if not local_file.closed:
+            local_file.close()
         shutil.move(temp_full_name, full_name)
         dt = time.time() - t0
         print '...done. (%i seconds, %i min)' % (dt, dt / 60)
@@ -320,7 +352,8 @@ def _fetch_file(url, data_dir, resume=True, overwrite=False, md5sum=None,
         raise
     finally:
         if local_file is not None:
-            local_file.close()
+            if not local_file.closed:
+                local_file.close()
     if md5sum is not None:
         if (_md5_sum_file(full_name) != md5sum):
             raise ValueError("File %s checksum verification has failed."
@@ -330,49 +363,45 @@ def _fetch_file(url, data_dir, resume=True, overwrite=False, md5sum=None,
 
 def _fetch_dataset(dataset_name, urls, data_dir=None, uncompress=True,
                    resume=True, folder=None, md5sums=None, verbose=0):
-    """Load requested dataset, downloading it if needed or requested
+    """Load requested dataset, downloading it if needed or requested.
 
     Parameters
     ----------
     dataset_name: string
         Unique dataset name
 
-    urls: array of strings
+    urls: iterable of strings
         Contains the urls of files to be downloaded.
 
     data_dir: string, optional
         Path of the data directory. Used to force data storage in a specified
         location. Default: None
 
-    uncompress: boolean, optional
+    uncompress: bool, optional
         Ask for uncompression of the dataset. The type of the archive is
         determined automatically.
 
-    resume: boolean, optional
+    resume: bool, optional
         If true, try resuming download if possible
 
     folder: string, optional
         Folder in which the file must be fetched inside the dataset folder.
 
-    md5sums: dictionary, optional
+    md5sums: dict, optional
         Dictionary of MD5 sums of files to download
 
     Returns
     -------
-    files: array of string
+    files: list of string
         Absolute paths of downloaded files on disk
 
     Notes
     -----
-    If, for any reason, the download procedure fails, all downloaded data are
-    cleaned.
+    If, for any reason, the download procedure fails, all downloaded files are
+    removed.
     """
     # Determine data path
-    data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir)
-    if not (folder is None):
-        data_dir = os.path.join(data_dir, folder)
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir)
+    data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir, folder=folder)
 
     files = []
     for url in urls:
@@ -387,22 +416,22 @@ def _fetch_dataset(dataset_name, urls, data_dir=None, uncompress=True,
                 _uncompress_file(full_name)
             files.append(full_name)
         except Exception:
-            print 'An error occured, abort fetching.' \
-                ' Please see the full log above.'
+            print ('An error occured, fetching aborted.' +
+                   ' Please see the full log above.')
             shutil.rmtree(data_dir)
             raise
     return files
 
 
 def _get_dataset(dataset_name, file_names, data_dir=None, folder=None):
-    """Returns absolute paths of a dataset files if exist
+    """Returns absolute paths of a dataset files if they exist.
 
     Parameters
     ----------
     dataset_name: string
         Unique dataset name
 
-    file_names: array of strings
+    file_names: iterable of strings
         File that compose the dataset to be retrieved on the disk.
 
     folder: string, optional
@@ -414,16 +443,14 @@ def _get_dataset(dataset_name, file_names, data_dir=None, folder=None):
 
     Returns
     -------
-    files: array of string
+    files: list of string
         List of dataset files on disk
 
     Notes
     -----
     If at least one file is missing, an IOError is raised.
     """
-    data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir)
-    if not (folder is None):
-        data_dir = os.path.join(data_dir, folder)
+    data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir, folder=folder)
 
     file_paths = []
     for file_name in file_names:
@@ -437,8 +464,222 @@ def _get_dataset(dataset_name, file_names, data_dir=None, folder=None):
 ###############################################################################
 # Dataset downloading functions
 
+def fetch_craddock_2011_atlas(data_dir=None, url=None, resume=True, verbose=0):
+    """Download and return file names for the Craddock 2011 parcellation
+
+    The provided images are in MNI152 space.
+
+    Parameters
+    ----------
+    data_dir: string
+        directory where data should be downloaded and unpacked.
+
+    url: string
+        url of file to download.
+
+    resume: bool
+        whether to resumed download of a partly-downloaded file.
+
+    verbose: int
+        verbosity level (0 means no message).
+
+    Returns
+    -------
+    data: sklearn.datasets.base.Bunch
+        dictionary-like object, keys are:
+        scorr_mean, tcorr_mean,
+        scorr_2level, tcorr_2level,
+        random
+
+    References
+    ----------
+    Licence: Creative Commons Attribution Non-commercial Share Alike
+    http://creativecommons.org/licenses/by-nc-sa/2.5/
+
+    Craddock, R. Cameron, G.Andrew James, Paul E. Holtzheimer, Xiaoping P. Hu,
+    and Helen S. Mayberg. "A Whole Brain fMRI Atlas Generated via Spatially
+    Constrained Spectral Clustering". Human Brain Mapping 33, no 8 (2012):
+    1914–1928. doi:10.1002/hbm.21333.
+
+    See http://www.nitrc.org/projects/cluster_roi/ for more information
+    on this parcellation.
+    """
+    dataset_name = "craddock_2011"
+    keys = ("scorr_mean", "tcorr_mean",
+            "scorr_2level", "tcorr_2level",
+            "random")
+    filenames = ["scorr05_mean_all.nii.gz", "tcorr05_mean_all.nii.gz",
+                 "scorr05_2level_all.nii.gz", "tcorr05_2level_all.nii.gz",
+                 "random_all.nii.gz"]
+
+    try:
+        sub_files = _get_dataset(dataset_name, filenames, data_dir=data_dir)
+    except IOError:
+        if url is None:
+            url = "ftp://www.nitrc.org/home/groups/cluster_roi/htdocs"\
+                  + "/Parcellations/craddock_2011_parcellations.tar.gz"
+            _fetch_dataset(dataset_name, [url], data_dir=data_dir,
+                           resume=resume, verbose=verbose)
+            sub_files = _get_dataset(dataset_name,
+                                     filenames, data_dir=data_dir)
+
+    params = dict(zip(keys, sub_files))
+    return Bunch(**params)
+
+
+def fetch_yeo_2011_atlas(data_dir=None, url=None, resume=True, verbose=0):
+    """Download and return file names for the Yeo 2011 parcellation.
+
+    The provided images are in MNI152 space.
+
+    Parameters
+    ----------
+    data_dir: string
+        directory where data should be downloaded and unpacked.
+
+    url: string
+        url of file to download.
+
+    resume: bool
+        whether to resumed download of a partly-downloaded file.
+
+    verbose: int
+        verbosity level (0 means no message).
+
+    Returns
+    -------
+    data: sklearn.datasets.base.Bunch
+        dictionary-like object, keys are:
+
+        - "tight_7", "liberal_7": 7-region parcellations, resp. tightly
+          fitted to cortex shape, and liberally fitted.
+
+        - "tight_17", "liberal_17": 17-region parcellations.
+
+        - "colors_7", "colors_17": colormaps (text files) for 7- and 17-region
+          parcellation respectively.
+
+        - "anat": anatomy image.
+
+    Notes
+    -----
+    For more information on this dataset's structure, see
+    http://surfer.nmr.mgh.harvard.edu/fswiki/CorticalParcellation_Yeo2011
+
+    Yeo BT, Krienen FM, Sepulcre J, Sabuncu MR, Lashkari D, Hollinshead M,
+    Roffman JL, Smoller JW, Zollei L., Polimeni JR, Fischl B, Liu H,
+    Buckner RL. The organization of the human cerebral cortex estimated by
+    intrinsic functional connectivity. J Neurophysiol 106(3):1125-65, 2011.
+
+    Licence: unknown.
+    """
+    dataset_name = "yeo_2011"
+    keys = ("tight_7", "liberal_7",
+            "tight_17", "liberal_17",
+            "colors_7", "colors_17", "anat")
+    filenames = [os.path.join("Yeo_JNeurophysiol11_MNI152", f) for f in (
+        "Yeo2011_7Networks_MNI152_FreeSurferConformed1mm.nii.gz",
+        "Yeo2011_7Networks_MNI152_FreeSurferConformed1mm_LiberalMask.nii.gz",
+        "Yeo2011_17Networks_MNI152_FreeSurferConformed1mm.nii.gz",
+        "Yeo2011_17Networks_MNI152_FreeSurferConformed1mm_LiberalMask.nii.gz",
+        "Yeo2011_7Networks_ColorLUT.txt",
+        "Yeo2011_17Networks_ColorLUT.txt",
+        "FSL_MNI152_FreeSurferConformed_1mm.nii.gz")
+                 ]
+
+    try:
+        sub_files = _get_dataset(dataset_name, filenames, data_dir=data_dir)
+    except IOError:
+        if url is None:
+            url = "ftp://surfer.nmr.mgh.harvard.edu/pub/data/"\
+                  "Yeo_JNeurophysiol11_MNI152.zip"
+            _fetch_dataset(dataset_name, [url], data_dir=data_dir,
+                           resume=resume, verbose=verbose)
+            sub_files = _get_dataset(dataset_name,
+                                     filenames, data_dir=data_dir)
+
+    params = dict(zip(keys, sub_files))
+    return Bunch(**params)
+
+
+def fetch_icbm152_2009(data_dir=None, url=None, resume=True, verbose=0):
+    """Download and load the ICBM152 template (dated 2009)
+
+    Parameters
+    ----------
+    data_dir: string, optional
+        Path of the data directory. Use to forec data storage in a non-
+        standard location. Default: None (meaning: default)
+    url: string, optional
+        Download URL of the dataset. Overwrite the default URL.
+
+    Returns
+    -------
+    data: sklearn.datasets.base.Bunch
+        dictionary-like object, interest keys are:
+        "t1", "t2", "t2_relax", "pd": anatomical images obtained with the
+        given modality (resp. T1, T2, T2 relaxometry and proton
+        density weighted). Values are file paths.
+        "gm", "wm", "csf": segmented images, giving resp. gray matter,
+        white matter and cerebrospinal fluid. Values are file paths.
+        "eye_mask", "face_mask", "mask": use these images to mask out
+        parts of mri images. Values are file paths.
+
+    References
+    ----------
+    VS Fonov, AC Evans, K Botteron, CR Almli, RC McKinstry, DL Collins
+    and BDCG, "Unbiased average age-appropriate atlases for pediatric studies",
+    NeuroImage,Volume 54, Issue 1, January 2011
+
+    VS Fonov, AC Evans, RC McKinstry, CR Almli and DL Collins,
+    "Unbiased nonlinear average age-appropriate brain templates from birth
+    to adulthood", NeuroImage, Volume 47, Supplement 1, July 2009, Page S102
+    Organization for Human Brain Mapping 2009 Annual Meeting.
+
+    DL Collins, AP Zijdenbos, WFC Baaré and AC Evans,
+    "ANIMAL+INSECT: Improved Cortical Structure Segmentation",
+    IPMI Lecture Notes in Computer Science, 1999, Volume 1613/1999, 210–223
+
+    Notes
+    -----
+    For more information about this dataset's structure:
+    http://www.bic.mni.mcgill.ca/ServicesAtlases/ICBM152NLin2009
+    """
+
+    keys = ("csf", "gm", "wm",
+            "pd", "t1", "t2", "t2_relax",
+            "eye_mask", "face_mask", "mask")
+    filenames = [os.path.join("mni_icbm152_nlin_sym_09a", name)
+                 for name in ("mni_icbm152_csf_tal_nlin_sym_09a.nii",
+                              "mni_icbm152_gm_tal_nlin_sym_09a.nii",
+                              "mni_icbm152_wm_tal_nlin_sym_09a.nii",
+
+                              "mni_icbm152_pd_tal_nlin_sym_09a.nii",
+                              "mni_icbm152_t1_tal_nlin_sym_09a.nii",
+                              "mni_icbm152_t2_tal_nlin_sym_09a.nii",
+                              "mni_icbm152_t2_relx_tal_nlin_sym_09a.nii",
+
+                              "mni_icbm152_t1_tal_nlin_sym_09a_eye_mask.nii",
+                              "mni_icbm152_t1_tal_nlin_sym_09a_face_mask.nii",
+                              "mni_icbm152_t1_tal_nlin_sym_09a_mask.nii")]
+
+    try:
+        sub_files = _get_dataset("icbm152_2009", filenames, data_dir=data_dir)
+    except IOError:
+        if url is None:
+            url = "http://www.bic.mni.mcgill.ca/~vfonov/icbm/2009/"\
+                  "mni_icbm152_nlin_sym_09a_nifti.zip"
+            _fetch_dataset("icbm152_2009", [url], data_dir=data_dir,
+                           resume=resume, verbose=verbose)
+            sub_files = _get_dataset("icbm152_2009",
+                                     filenames, data_dir=data_dir)
+
+    params = dict(zip(keys, sub_files))
+    return Bunch(**params)
+
+
 def fetch_haxby_simple(data_dir=None, url=None, resume=True, verbose=0):
-    """Download and loads an example haxby dataset
+    """Download and load an example haxby dataset
 
     Parameters
     ----------
@@ -448,17 +689,14 @@ def fetch_haxby_simple(data_dir=None, url=None, resume=True, verbose=0):
 
     Returns
     -------
-    data: Bunch
-        Dictionary-like object, the interest attributes are :
-        'func': string
-            Path to nifti file with bold data
-        'session_target': string
-            Path to text file containing session and target data
-        'mask': string
-            Path to nifti mask file
-        'session': string
-            Path to text file containing labels (can be used for
-            LeaveOneLabelOut cross validation for example)
+    data: sklearn.datasets.base.Bunch
+        Dictionary-like object, interest attributes are:
+        'func': string.  Path to nifti file with bold data.
+        'session_target': string. Path to text file containing session and
+        target data.
+        'mask': string. Path to nifti mask file.
+        'session': string. Path to text file containing labels (can be used
+        for LeaveOneLabelOut cross validation for example).
 
     References
     ----------
@@ -511,29 +749,24 @@ def fetch_haxby(data_dir=None, n_subjects=1, url=None, resume=True, verbose=0):
         Path of the data directory. Used to force data storage in a specified
         location. Default: None
 
-    n_subjects: integer, optional
+    n_subjects: int, optional
         Number of subjects, from 1 to 5.
 
     Returns
     -------
-    data: Bunch
+    data: sklearn.datasets.base.Bunch
         Dictionary-like object, the interest attributes are :
-        'anat': string list
-            Paths to anatomic images
-        'func': string list
-            Paths to nifti file with bold data
-        'session_target': string list
-            Paths to text file containing session and target data
-        'mask_vt': string list
-            Paths to nifti ventral temporal mask file
-        'mask_face': string list
-            Paths to nifti ventral temporal mask file
-        'mask_house': string list
-            Paths to nifti ventral temporal mask file
-        'mask_face_little': string list
-            Paths to nifti ventral temporal mask file
-        'mask_house_little': string list
-            Paths to nifti ventral temporal mask file
+        'anat': string list. Paths to anatomic images.
+        'func': string list. Paths to nifti file with bold data.
+        'session_target': string list. Paths to text file containing
+        session and target data.
+        'mask_vt': string list. Paths to nifti ventral temporal mask file.
+        'mask_face': string list. Paths to nifti ventral temporal mask file.
+        'mask_house': string list. Paths to nifti ventral temporal mask file.
+        'mask_face_little': string list. Paths to nifti ventral temporal
+        mask file.
+        'mask_house_little': string list. Paths to nifti ventral temporal
+        mask file.
 
     References
     ----------
@@ -543,14 +776,14 @@ def fetch_haxby(data_dir=None, n_subjects=1, url=None, resume=True, verbose=0):
 
     Notes
     -----
-    PyMVPA provides a tutorial using this dataset :
+    PyMVPA provides a tutorial making use of this dataset:
     http://www.pymvpa.org/tutorial.html
 
     More informations about its structure :
     http://dev.pymvpa.org/datadb/haxby2001.html
 
     See `additional information
-    <http://www.sciencemag.org/content/293/5539/2425>`_
+    <http://www.sciencemag.org/content/293/5539/2425>`
     """
 
     # definition of dataset files
@@ -560,32 +793,10 @@ def fetch_haxby(data_dir=None, n_subjects=1, url=None, resume=True, verbose=0):
                   'mask8_house_vt.nii.gz']
 
     if n_subjects > 5:
-        sys.stderr.write('Warning: there is only 5 subjects')
+        sys.stderr.write('Warning: there are only 5 subjects')
         n_subjects = 5
 
-    file_names = [os.path.join('subj%d' % i, name)
-                  for i in range(1, n_subjects + 1)
-                  for name in file_names]
-
     # load the dataset
-    try:
-        # Try to load the dataset
-        files = _get_dataset("haxby2001", file_names, data_dir=data_dir)
-    except IOError:
-        # If the dataset does not exists, we download it
-        if url is None:
-            url = 'http://data.pymvpa.org/datasets/haxby2001/'
-        # Get the MD5sums file
-        md5sums = _fetch_file(url + 'MD5SUMS',
-                              data_dir=_get_dataset_dir("haxby2001", data_dir))
-        if md5sums:
-            md5sums = _read_md5_sum_file(md5sums)
-        urls = ["%ssubj%d-2010.01.14.tar.gz" % (url, i)
-                for i in range(1, n_subjects + 1)]
-        _fetch_dataset('haxby2001', urls, data_dir=data_dir,
-                       resume=resume, md5sums=md5sums, verbose=verbose)
-        files = _get_dataset("haxby2001", file_names, data_dir=data_dir)
-
     anat = []
     func = []
     session_target = []
@@ -595,17 +806,42 @@ def fetch_haxby(data_dir=None, n_subjects=1, url=None, resume=True, verbose=0):
     mask_face_little = []
     mask_house_little = []
 
-    for i in range(n_subjects):
-        # We are considering files 8 by 8
-        i *= 8
-        anat.append(files[i])
-        func.append(files[i + 1])
-        session_target.append(files[i + 2])
-        mask_vt.append(files[i + 3])
-        mask_face.append(files[i + 4])
-        mask_house.append(files[i + 5])
-        mask_face_little.append(files[i + 6])
-        mask_house_little.append(files[i + 7])
+    md5sums = None
+
+    for i in range(1, n_subjects + 1):
+        file_paths = [os.path.join('subj%d' % i, name)
+                      for name in file_names]
+
+        try:
+            # Try to load the dataset
+            sub_files = _get_dataset("haxby2001", file_paths,
+                                     data_dir=data_dir)
+        except IOError:
+            # If the dataset does not exists, we download it
+            if url is None:
+                url = 'http://data.pymvpa.org/datasets/haxby2001/'
+            # Get the MD5sums file
+            if md5sums is None:
+                md5sums = _fetch_file(url + 'MD5SUMS',
+                                      data_dir=_get_dataset_dir("haxby2001",
+                                                                data_dir))
+                if md5sums:
+                    md5sums = _read_md5_sum_file(md5sums)
+
+            _fetch_dataset('haxby2001',
+                           ["%ssubj%d-2010.01.14.tar.gz" % (url, i)],
+                           data_dir=data_dir, resume=resume, verbose=verbose)
+            sub_files = _get_dataset("haxby2001", file_paths,
+                                     data_dir=data_dir)
+
+        anat.append(sub_files[0])
+        func.append(sub_files[1])
+        session_target.append(sub_files[2])
+        mask_vt.append(sub_files[3])
+        mask_face.append(sub_files[4])
+        mask_house.append(sub_files[5])
+        mask_face_little.append(sub_files[6])
+        mask_house_little.append(sub_files[7])
 
     # return the data
     return Bunch(
@@ -620,15 +856,15 @@ def fetch_haxby(data_dir=None, n_subjects=1, url=None, resume=True, verbose=0):
 
 
 def fetch_nyu_rest(n_subjects=None, sessions=[1], data_dir=None, verbose=0):
-    """Download and loads the NYU resting-state test-retest dataset
+    """Download and loads the NYU resting-state test-retest dataset.
 
     Parameters
     ----------
-    n_subjects: integer optional
+    n_subjects: int, optional
         The number of subjects to load. If None is given, all the
         subjects are used.
 
-    n_sessions: array of integers optional
+    sessions: iterable of int, optional
         The sessions to load. Load only the first session by default.
 
     data_dir: string, optional
@@ -637,20 +873,15 @@ def fetch_nyu_rest(n_subjects=None, sessions=[1], data_dir=None, verbose=0):
 
     Returns
     -------
-    data : Bunch
+    data: sklearn.datasets.base.Bunch
         Dictionary-like object, the interest attributes are :
-        'func': string list
-            Paths to functional images
-        'anat_anon': string list
-            Paths to anatomic images
-        'anat_skull': string
-            Paths to skull-stripped images
-        'session': numpy array
-            List of ids corresponding to images sessions
+        'func': string list. Paths to functional images.
+        'anat_anon': string list. Paths to anatomic images.
+        'anat_skull': string. Paths to skull-stripped images.
+        'session': numpy array. List of ids corresponding to images sessions.
 
     Notes
     ------
-
     This dataset is composed of 3 sessions of 26 participants (11 males).
     For each session, three sets of data are available:
 
@@ -769,11 +1000,11 @@ def fetch_nyu_rest(n_subjects=None, sessions=[1], data_dir=None, verbose=0):
 
 def fetch_adhd(n_subjects=None, data_dir=None, url=None, resume=True,
                verbose=0):
-    """Download and loads the ADHD resting-state dataset
+    """Download and load the ADHD resting-state dataset.
 
     Parameters
     ----------
-    n_subjects: integer optional
+    n_subjects: int, optional
         The number of subjects to load. If None is given, all the
         40 subjects are used.
 
@@ -787,12 +1018,10 @@ def fetch_adhd(n_subjects=None, data_dir=None, url=None, resume=True,
 
     Returns
     -------
-    data : Bunch
+    data: sklearn.datasets.base.Bunch
         Dictionary-like object, the interest attributes are :
-        'func': string list
-            Paths to functional images
-        'parameters': string list
-            Parameters of preprocessing steps
+        - 'func': string list. Paths to functional images
+        - 'parameters': string list. Parameters of preprocessing steps
 
     References
     ----------
@@ -846,3 +1075,365 @@ def fetch_adhd(n_subjects=None, data_dir=None, url=None, resume=True,
         confounds.append(files[i])
 
     return Bunch(func=func, confounds=confounds)
+
+
+def fetch_msdl_atlas(data_dir=None, url=None, resume=True, verbose=0):
+    """Download and load the MSDL brain atlas.
+
+    Parameters
+    ----------
+    data_dir: string, optional
+        Path of the data directory. Used to force data storage in a specified
+        location. Default: None
+
+    url: string, optional
+        Override download URL. Used for test only (or if you setup a mirror of
+        the data).
+
+    Returns
+    -------
+    data: sklearn.datasets.base.Bunch
+        Dictionary-like object, the interest attributes are :
+        - 'labels': str. Path to csv file containing labels.
+        - 'maps': str. path to nifti file containing regions definition.
+
+    References
+    ----------
+    :Download:
+        https://team.inria.fr/parietal/files/2013/05/MSDL_rois.zip
+
+    :Paper to cite:
+        `Multi-subject dictionary learning to segment an atlas of brain
+        spontaneous activity <http://hal.inria.fr/inria-00588898/en>`_
+        Gaël Varoquaux, Alexandre Gramfort, Fabian Pedregosa, Vincent Michel,
+        Bertrand Thirion. Information Processing in Medical Imaging, 2011,
+        pp. 562-573, Lecture Notes in Computer Science.
+
+    :Other references:
+        `Learning and comparing functional connectomes across subjects
+        <http://hal.inria.fr/hal-00812911/en>`_.
+        Gaël Varoquaux, R.C. Craddock NeuroImage, 2013.
+
+    """
+    dataset_name = "msdl_atlas"
+    file_names = ['msdl_rois_labels.csv', 'msdl_rois.nii']
+    tars = ['MSDL_rois.zip']
+    path = "MSDL_rois"  # created by unzipping the above archive.
+
+    paths = [os.path.join(path, fname) for fname in file_names]
+
+    try:
+        files = _get_dataset(dataset_name, paths, data_dir=data_dir)
+    except IOError:
+        if url is None:
+            url = 'https://team.inria.fr/parietal/files/2013/05/' + tars[0]
+        _fetch_dataset(dataset_name, [url], data_dir=data_dir, resume=resume,
+                       verbose=verbose)
+        files = _get_dataset(dataset_name, paths, data_dir=data_dir)
+
+    return Bunch(labels=files[0], maps=files[1])
+
+
+def load_harvard_oxford(atlas_name,
+                        dirname="/usr/share/data/harvard-oxford-atlases/"
+                        "HarvardOxford/", symmetric_split=False):
+    """Load Harvard-Oxford parcellation.
+
+    This function does not download anything, files must all be already on
+    disk. They are distributed with FSL.
+
+    Parameters
+    ==========
+    atlas_name: string
+        Name of atlas to load. Can be:
+        cort-maxprob-thr0-1mm,  cort-maxprob-thr0-2mm,
+        cort-maxprob-thr25-1mm, cort-maxprob-thr25-2mm,
+        cort-maxprob-thr50-1mm, cort-maxprob-thr50-2mm,
+        sub-maxprob-thr0-1mm,  sub-maxprob-thr0-2mm,
+        sub-maxprob-thr25-1mm, sub-maxprob-thr25-2mm,
+        sub-maxprob-thr50-1mm, sub-maxprob-thr50-2mm,
+        cort-prob-1mm, cort-prob-2mm,
+        sub-prob-1mm, sub-prob-2mm
+
+    dirname: string, optional
+        This is the neurodebian's directory for FSL data. It may be different
+        with another distribution / installation.
+
+    symmetric_split: bool, optional
+        If True, split every symmetric region in left and right parts.
+        Effectively doubles the number of regions. Default: False.
+        Not implemented for probabilistic atlas (*-prob-* atlases)
+
+    Returns
+    =======
+    regions: nibabel.Nifti1Image
+        regions definition, as a label image.
+    """
+    if atlas_name not in ("cort-maxprob-thr0-1mm", "cort-maxprob-thr0-2mm",
+                          "cort-maxprob-thr25-1mm", "cort-maxprob-thr25-2mm",
+                          "cort-maxprob-thr50-1mm", "cort-maxprob-thr50-2mm",
+                          "sub-maxprob-thr0-1mm", "sub-maxprob-thr0-2mm",
+                          "sub-maxprob-thr25-1mm", "sub-maxprob-thr25-2mm",
+                          "sub-maxprob-thr50-1mm", "sub-maxprob-thr50-2mm",
+                          "cort-prob-1mm", "cort-prob-2mm",
+                          "sub-prob-1mm", "sub-prob-2mm"
+                          ):
+        raise ValueError("Invalid atlas name: {0}".format(atlas_name))
+
+    filename = os.path.join(dirname, "HarvardOxford-") + atlas_name + ".nii.gz"
+    regions_img = nibabel.load(filename)
+
+    if not symmetric_split:
+        return regions_img
+
+    if atlas_name in ("cort-prob-1mm", "cort-prob-2mm",
+                      "sub-prob-1mm", "sub-prob-2mm"):
+        raise ValueError("Region splitting not supported for probabilistic "
+                         "atlases")
+
+    regions = regions_img.get_data()
+
+    labels = np.unique(regions)
+    slices = ndimage.find_objects(regions)
+    middle_ind = (regions.shape[0] - 1) / 2
+    crosses_middle = [s.start < middle_ind and s.stop > middle_ind
+             for s, _, _ in slices]
+
+    # Split every zone crossing the median plane into two parts.
+    # Assumes that the background label is zero.
+    half = np.zeros(regions.shape, dtype=np.bool)
+    half[:middle_ind, ...] = True
+    new_label = max(labels) + 1
+    # Put zeros on the median plane
+    regions[middle_ind, ...] = 0
+    for label, crosses in zip(labels[1:], crosses_middle):
+        if not crosses:
+            continue
+        regions[np.logical_and(regions == label, half)] = new_label
+        new_label += 1
+
+    return nibabel.Nifti1Image(regions, regions_img.get_affine())
+
+
+def fetch_spm_auditory_data(data_dir):
+    """Function to fetch SPM auditory single-subject data.
+
+    Parameters
+    ----------
+    data_dir: string
+        path of the data directory. Used to force data storage in a specified
+        location. If the data is already present there, then will simply
+        glob it.
+    data: sklearn.datasets.base.Bunch
+        Dictionary-like object, the interest attributes are:
+        - 'func': string list. Paths to functional images
+        - 'anat': string list. Path to anat image
+
+    """
+
+    # definition of consituent files of the dataset
+    SPM_AUDITORY_DATA_FILES = ["fM00223/fM00223_%03i.img" % index
+                               for index in xrange(4, 100)]
+    SPM_AUDITORY_DATA_FILES.append("sM00223/sM00223_002.img")
+
+    def _glob_spm_auditory_data(subject_dir):
+        """glob data from subject_dir.
+
+        """
+
+        if not os.path.exists(subject_dir):
+            return None
+
+        subject_data = {}
+        subject_data["subject_dir"] = subject_dir
+        for file_name in SPM_AUDITORY_DATA_FILES:
+            file_path = os.path.join(subject_dir, file_name)
+            if os.path.exists(file_path):
+                subject_data[file_name] = file_path
+            else:
+                print("%s missing from filelist!" % file_name)
+                return None
+
+        _subject_data = {}
+        _subject_data["func"] = sorted([subject_data[x]
+                                        for x in subject_data.keys()
+                                        if re.match("^fM00223_0\d\d\.img$",
+                                                    os.path.basename(x))])
+
+        _subject_data["anat"] = [subject_data[x] for x in subject_data.keys()
+                                 if re.match("^sM00223_002\.img$",
+                                             os.path.basename(x))][0]
+        return Bunch(**_subject_data)
+
+    # maybe data_dir already contains the data ?
+    data = _glob_spm_auditory_data(data_dir)
+    if not data is None:
+        return data
+
+    # No. Download the data
+    print("Data absent, downloading...")
+    url = "ftp://ftp.fil.ion.ucl.ac.uk/spm/data/MoAEpilot/MoAEpilot.zip"
+    archive_path = os.path.join(data_dir, os.path.basename(url))
+    _fetch_file(url, data_dir)
+    try:
+        _uncompress_file(archive_path)
+    except:
+        print("Archive corrupted, trying to download it again.")
+        return fetch_spm_auditory_data(data_dir)
+
+    return _glob_spm_auditory_data(data_dir)
+
+
+def fetch_fsl_feeds_data(data_dir, redownload=False):
+    """Function to fetch FSL FEEDS dataset (single-subject)
+
+    Parameters
+    ----------
+    data_dir: string
+        path of the data directory. Used to force data storage in a specified
+        location. If the data is already present there, then will simply
+        glob it.
+    data: sklearn.datasets.base.Bunch
+        Dictionary-like object, the interest attributes are:
+        - 'func': string list. Paths to functional images
+        - 'anat': string list. Path to anat image
+
+    """
+
+    FSL_FEEDS_DATA_FILES = ["fmri.nii.gz", "structural_brain.nii.gz"]
+
+    def _glob_fsl_feeds_data(subject_dir):
+        """glob data from subject_dir.
+
+        """
+
+        if not os.path.exists(subject_dir):
+            return None
+
+        subject_data = {}
+        subject_data["subject_dir"] = subject_dir
+        for file_name in FSL_FEEDS_DATA_FILES:
+            file_path = os.path.join(subject_dir, file_name)
+            if os.path.exists(file_path) or os.path.exists(
+                file_path.rstrip(".gz")):
+                file_name = re.sub("(?:\.nii\.gz|\.txt)", "", file_name)
+                subject_data[file_name] = file_path
+            else:
+                if not os.path.basename(subject_dir) == 'data':
+                    return _glob_fsl_feeds_data(os.path.join(subject_dir,
+                                                             'feeds/data'))
+                else:
+                    print "%s missing from filelist!" % file_name
+                    return None
+
+        _subject_data = {"func": os.path.join(subject_dir,
+                                              "fmri.nii.gz"),
+                         "anat": os.path.join(subject_dir,
+                                              "structural_brain.nii.gz")
+                         }
+
+        return Bunch(**_subject_data)
+
+    # maybe data_dir already contents the data ?
+    data = _glob_fsl_feeds_data(data_dir)
+    if not data is None:
+        return data
+
+    # download the data
+    print("Data absent, downloading...")
+    url = ("http://fsl.fmrib.ox.ac.uk/fsldownloads/oldversions/"
+           "fsl-4.1.0-feeds.tar.gz")
+    archive_path = os.path.join(data_dir, os.path.basename(url))
+    _fetch_file(url, data_dir)
+    try:
+        _uncompress_file(archive_path)
+    except:
+        print "Archive corrupted, trying to download it again."
+        os.remove(archive_path)
+        return fetch_fsl_feeds_data(data_dir)
+
+    return _glob_fsl_feeds_data(data_dir)
+
+
+def fetch_spm_multimodal_fmri_data(data_dir):
+    """Function to fetch SPM auditory single-subject data.
+
+    Parameters
+    ----------
+    data_dir: string
+        path of the data directory. Used to force data storage in a specified
+        location. If the data is already present there, then will simply
+        glob it.
+    data: sklearn.datasets.base.Bunch
+        Dictionary-like object, the interest attributes are:
+        - 'func1': string list. Paths to functional images for session 1
+        - 'func2': string list. Paths to functional images for session 2
+        - 'trials_ses1': string list. Path to onsets file for session 1
+        - 'trials_ses2': string list. Path to onsets file for session 2
+        - 'anat': string. Path to anat file
+
+    """
+
+    def _glob_spm_multimodal_fmri_data(subject_dir):
+        """glob data from subject_dir.
+
+        """
+
+        _subject_data = {}
+        for s in xrange(2):
+            # glob func data for session s + 1
+            session_func = sorted(glob.glob(
+                    os.path.join(
+                        subject_dir,
+                        ("fMRI/Session%i/fMETHODS-000%i-*-01.img" % (
+                                s + 1, s + 5)))))
+            if len(session_func) < 390:
+                return None
+            else:
+                _subject_data['func%i' % (s + 1)] = session_func
+
+            # glob trials .mat file
+            sess_trials = os.path.join(
+                subject_dir,
+                "fMRI/trials_ses%i.mat" % (s + 1))
+            if not os.path.isfile(sess_trials):
+                return None
+            else:
+                _subject_data['trails_ses%i' % (s + 1)] = sess_trials
+
+        # glob for anat data
+        anat = os.path.join(subject_dir, "sMRI/smri.img")
+        if not os.path.isfile(anat):
+            return None
+        else:
+            _subject_data["anat"] = anat
+
+        return Bunch(**_subject_data)
+
+    # maybe data_dir already contains the data ?
+    data = _glob_spm_multimodal_fmri_data(data_dir)
+    if not data is None:
+        return data
+
+    # No. Download the data
+    print("Data absent, downloading...")
+    urls = [
+        # fmri
+        ("http://www.fil.ion.ucl.ac.uk/spm/download/data/mmfaces/"
+        "multimodal_fmri.zip"),
+
+        # structural
+        ("http://www.fil.ion.ucl.ac.uk/spm/download/data/mmfaces/"
+         "multimodal_smri.zip")
+        ]
+
+    for url in urls:
+        archive_path = os.path.join(data_dir, os.path.basename(url))
+        _fetch_file(url, data_dir)
+        try:
+            _uncompress_file(archive_path)
+        except:
+            print("Archive corrupted, trying to download it again.")
+            return fetch_spm_multimodal_fmri_data(data_dir)
+
+    return _glob_spm_multimodal_fmri_data(data_dir)
