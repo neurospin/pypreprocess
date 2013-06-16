@@ -205,8 +205,8 @@ class MRIMotionCorrection(object):
         """
 
         # load data
-        self._filenames = filenames if len(filenames) > 1 else filenames[0]
-        if isinstance(self._filenames, basestring):
+        if isinstance(filenames, basestring):
+            self._filenames = filenames
             film = nibabel.load(self._filenames)
             if not len(film.shape) == 4:
                 raise ValueError(
@@ -214,8 +214,12 @@ class MRIMotionCorrection(object):
             self._P = [nibabel.Nifti1Image(film.get_data()[..., t],
                                       film.get_affine())
                        for t in xrange(film.shape[-1])]
-        else:
+        elif isinstance(filenames, list):
+            self._filenames = filenames if len(filenames) > 1 else filenames[0]
             self._P = [nibabel.load(filename) for filename in self._filenames]
+        else:
+            raise TypeError(
+                "filenames arg must be string or list of strings.")
 
         # voxel dimensions on the working grid
         skip = np.sqrt(np.sum(self._P[0].get_affine()[:3, :3] ** 2, axis=0)
@@ -225,9 +229,9 @@ class MRIMotionCorrection(object):
         dim = self._P[0].shape[:3]
 
         # build working grid
-        x1, x2, x3 = np.mgrid[:dim[0] - .5 - 1:skip[0],
-                               :dim[1] - .5 - 1:skip[1],
-                               :dim[2] - .5 - 1:skip[2]]
+        x1, x2, x3 = np.mgrid[0:dim[0] - .5 - 1:skip[0],
+                               0:dim[1] - .5 - 1:skip[1],
+                               0:dim[2] - .5 - 1:skip[2]]
 
         # dope the grid so we're not perfectly aligned with its vertices
         x1 += np.random.randn(*x1.shape) * .5
@@ -347,7 +351,7 @@ class MRIMotionCorrection(object):
                                         order=3, mode='wrap')
 
                 # formulate and solve LS problem for updating p
-                A = A0[msk, :].copy()
+                A = A0[msk, ...].copy()
                 b1 = b[msk].copy()
                 sc = np.sum(b1) / np.sum(F)
                 b1 -= F * sc
@@ -434,7 +438,7 @@ class MRIMotionCorrection(object):
         # save realignment parameters to disk
         rp_filename = os.path.join(self._output_dir,
                                    "rp_%s.txt" % ref_file_basename)
-        np.savetxt(rp_filename, self._rp[..., :6])
+        np.savetxt(rp_filename, self._rp[..., 0:6])
 
         # save realigned files to disk
         self._log('\r\nSaving realigned volumes to %s' % self._output_dir)
