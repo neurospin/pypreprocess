@@ -142,4 +142,4 @@ if __name__ == '__main__':
     print separator.join(['', banner, warning, banner, ''])
 
     # run FSL FEEDS demo
-    demo_fsl_feeds("/home/elvis/CODE/datasets/fsl-feeds-data")
+    demo_fsl_feeds()
