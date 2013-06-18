@@ -17,7 +17,6 @@ import time
 import hashlib
 import re
 import glob
-import gzip
 import numpy as np
 from scipy import ndimage
 from nipype.interfaces.base import Bunch
@@ -1245,7 +1244,6 @@ def fetch_spm_auditory_data(data_dir):
             return None
 
         subject_data = {}
-        subject_data["subject_dir"] = subject_dir
         for file_name in SPM_AUDITORY_DATA_FILES:
             file_path = os.path.join(subject_dir, file_name)
             if os.path.exists(file_path):
@@ -1263,6 +1261,7 @@ def fetch_spm_auditory_data(data_dir):
         _subject_data["anat"] = [subject_data[x] for x in subject_data.keys()
                                  if re.match("^sM00223_002\.img$",
                                              os.path.basename(x))][0]
+
         return Bunch(**_subject_data)
 
     # maybe data_dir already contains the data ?

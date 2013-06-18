@@ -149,7 +149,7 @@ def demo_spm_multimodal_fmri(data_dir="/tmp/spm_multimodal_fmri",
 
     # fetch data
     spm_multimodal_fmri_data = fetch_spm_multimodal_fmri_data(
-        data_dir=data_dir)
+        data_dir)
 
     # subject data factory
     def subject_factory(session=1):

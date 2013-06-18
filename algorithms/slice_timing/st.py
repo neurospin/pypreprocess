@@ -399,6 +399,7 @@ def plot_slicetiming_results(acquired_sample,
                              y=None,
                              compare_with=None,
                              suptitle_prefix="",
+                             output_dir=None,
                              ):
     """Function to generate QA plots post-STC business, for a single voxel
 
@@ -468,7 +469,7 @@ def plot_slicetiming_results(acquired_sample,
            " (close figure to see the next one)..." % (n_slices, x, y))
 
     acquisition_time = np.linspace(0, (n_scans - 1) * TR, n_scans)
-    for z in xrange(n_slices):
+    for z in [-1 % n_slices]:  # ]xrange(n_slices):
         # setup for plotting
         plt.figure()
         plt.suptitle('%s: QA for voxel %s' % (suptitle_prefix, str((x, y, z))))
@@ -554,7 +555,12 @@ def plot_slicetiming_results(acquired_sample,
                         "STC method 2",))
             ax3.set_ylabel("absolute error")
 
-        # show generated plots
+        if not output_dir is None:
+            output_filename = os.path.join(output_dir,
+                                           "stc_results_%i.png" % z)
+            # dump image unto disk
+            plt.savefig(output_filename, bbox_inches="tight", dpi=200)
+
         plt.show()
 
     print "Done."
@@ -943,9 +949,9 @@ def demo_HRF(n_slices=10,
 
 if __name__ == '__main__':
     # demo on simulated data
-    demo_random_brain()
-    demo_sinusoidal_mixture()
-    demo_HRF()
+    # demo_random_brain()
+    # demo_sinusoidal_mixture()
+    # demo_HRF()
 
-    # demo on real data
+    # # demo on real data
     demo_real_BOLD(dataset="localizer")
