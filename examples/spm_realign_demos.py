@@ -17,7 +17,7 @@ from external.nisl.datasets import fetch_nyu_rest, fetch_fsl_feeds_data,\
 SubjectData = namedtuple('SubjectData', 'subject_id func output_dir')
 
 
-def _demo(subjects, dataset_id):
+def _demo(subjects, dataset_id, **spm_realign_kwargs):
     """Demo runner.
 
     Parameters
@@ -42,7 +42,7 @@ def _demo(subjects, dataset_id):
                                                    dataset_id))
 
         # instantiate realigner
-        mc = MRIMotionCorrection(fwhm=5., interp=2)
+        mc = MRIMotionCorrection(**spm_realign_kwargs)
 
         # fit realigner
         mc.fit(subject_data.func)
