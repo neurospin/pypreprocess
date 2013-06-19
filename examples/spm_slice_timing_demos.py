@@ -13,7 +13,7 @@ sys.path.append(PYPREPROCESS_DIR)
 from algorithms.slice_timing.spm_slice_timing import STC, \
     plot_slicetiming_results
 from external.nisl.datasets import fetch_nyu_rest, fetch_fsl_feeds_data,\
- fetch_spm_multimodal_fmri_data
+    fetch_spm_multimodal_fmri_data
 
 # datastructure for subject data
 SubjectData = namedtuple('SubjectData', 'subject_id func output_dir')
@@ -158,151 +158,6 @@ def demo_sinusoidal_mixture(n_slices=10, n_rows=3, n_columns=2,
                              )
 
 
-def demo_real_BOLD(dataset='localizer',
-              data_dir='/tmp/stc_demo',
-              output_dir='/tmp',
-              compare_with=None,
-              QA=True,
-              ):
-    """Demo for real data.
-
-    Parameters
-    ----------
-    dataset: string (optiona, defaul 'localizer')
-        name of dataset to demo. Possible values are:
-        spm-auditory: SPM single-subject auditory data (if absent,
-                      will try to grab it over the net)
-        fsl-feeds: FSL-Feeds fMRI data (if absent, will try to grab
-                   it over the net)
-        localizer: data used with nipy's localize_glm_ar.py demo; you'll
-                   need nipy test data installed
-        face-rep-SPM5 (you need to download the data and point data_dir
-        to the containing folder)
-    data_dir: string (optional, '/tmp/stc_demo')
-        path to directory containing data; or destination
-        for downloaded data (in case we fetch from the net)
-    output_dir: string (optional, default "/tmp")
-        path to directory where all output (niftis, etc.)
-        will be written
-    compare_with: 4D array (optional, default None)
-        data to compare STC results with, must be same shape as
-        corrected data
-    QA: boolean (optional, default True)
-        if set, then QA plots will be generated after STC
-
-    Raises
-    ------
-    Exception
-
-    """
-
-    # sanitize dataset name
-    assert isinstance(dataset, basestring)
-    dataset = dataset.lower()
-
-    # sanitize output dir
-    if output_dir is None:
-        output_dir = '/tmp'
-
-    print "\r\n\t\t ---demo_real_BOLD (%s)---" % dataset
-
-    # load the data
-    slice_order = 'ascending'
-    interleaved = False
-    ref_slice = 0
-    print("Loading data...")
-    if dataset == 'spm-auditory':
-        # pypreproces path
-        PYPREPROCESS_DIR = os.path.dirname(os.path.split(
-                os.path.abspath(__file__))[0])
-        sys.path.append(PYPREPROCESS_DIR)
-        from datasets_extras import fetch_spm_auditory_data
-
-        _subject_data = fetch_spm_auditory_data(data_dir)
-
-        fmri_img = nibabel.concat_images(_subject_data['func'],)
-        fmri_data = fmri_img.get_data()[:, :, :, 0, :]
-
-        TR = 7.
-    elif dataset == 'fsl-feeds':
-        PYPREPROCESS_DIR = os.path.dirname(os.path.split(
-                os.path.abspath(__file__))[0])
-
-        sys.path.append(PYPREPROCESS_DIR)
-
-        _subject_data = fetch_fsl_feeds_data(data_dir)
-        if not _subject_data['func'].endswith('.gz'):
-            _subject_data['func'] += '.gz'
-
-        fmri_img = nibabel.load(_subject_data['func'],)
-        fmri_data = fmri_img.get_data()
-
-        TR = 3.
-    elif dataset == 'localizer':
-        data_path = os.path.join(
-            os.environ["HOME"],
-            ".nipy/tests/data/s12069_swaloc1_corr.nii.gz")
-        if not os.path.exists(data_path):
-            raise RuntimeError("You don't have nipy test data installed!")
-
-        fmri_img = nibabel.load(data_path)
-        fmri_data = fmri_img.get_data()
-
-        TR = 2.4
-    elif dataset == 'face-rep-spm5':
-        # XXX nibabel says the affines of the 3Ds are different
-        fmri_data = np.array([nibabel.load(x).get_data()
-                              for x in sorted(glob.glob(
-                        os.path.join(
-                            data_dir,
-                            "RawEPI/sM03953_0005_*.img")))])[:, :, :, 0, :]
-        if len(fmri_data) == 0:
-            raise RuntimeError(
-                "face-rep-SPM5 data not found in %s; install it it set the "
-                "parameter data_dir to the directory containing it")
-
-        TR = 2.
-        slice_order = 'descending'
-        ref_slice = fmri_data.shape[2] / 2  # middle slice
-    else:
-        raise RuntimeError("Unknown dataset: %s" % dataset)
-
-    output_filename = os.path.join(
-        output_dir,
-        "st_corrected_" + dataset.rstrip(" ").replace("-", "_") + ".nii",
-        )
-
-    print("Done.")
-
-    # fit STC
-    stc = STC()
-    stc.fit(raw_data=fmri_data,
-            slice_order=slice_order,
-            interleaved=interleaved,
-            ref_slice=ref_slice,
-            )
-
-    # do full-brain ST correction
-    stc.transform(fmri_data)
-    corrected_fmri_data = stc.get_last_output_data()
-
-    # save output unto disk
-    print "Saving ST corrected image to %s..." % output_filename
-    nibabel.save(nibabel.Nifti1Image(corrected_fmri_data,
-                                     fmri_img.get_affine()),
-            output_filename)
-    print "Done."
-
-    # QA clinic
-    if QA:
-        plot_slicetiming_results(fmri_data,
-                                 corrected_fmri_data,
-                                 TR=TR,
-                                 compare_with=compare_with,
-                                 suptitle_prefix=dataset,
-                                 )
-
-
 def demo_HRF(n_slices=10,
              n_rows=2,
              n_columns=3,
@@ -420,19 +275,24 @@ def _fmri_demo_runner(subjects, dataset_id, **spm_slice_timing_kwargs):
     """
 
     def _load_fmri_data(fmri_files):
-        """Helper function to load fmri data from filename or list of filenames
+        """Helper function to load fmri data from filename / ndarray or list
+        of such
 
         """
+
+        if isinstance(fmri_files, np.ndarray):
+            return fmri_files
 
         if isinstance(fmri_files, basestring):
             return nibabel.load(fmri_files).get_data()
         else:
             n_scans = len(fmri_files)
-            data = np.ndarray(tuple(list(nibabel.load(fmri_files[0]
-                                                      ).shape[:3]
+            _first = _load_fmri_data(fmri_files[0])
+            data = np.ndarray(tuple(list(_first.shape[:3]
                                          ) + [n_scans]))
-            for scan in xrange(n_scans):
-                data[..., scan] = nibabel.load(fmri_files[scan]).get_data()
+            data[..., 0] = _first
+            for scan in xrange(1, n_scans):
+                data[..., scan] = _load_fmri_data(fmri_files[scan])
 
             return data
 
@@ -459,6 +319,20 @@ def _fmri_demo_runner(subjects, dataset_id, **spm_slice_timing_kwargs):
                                  )
 
         plt.show()
+
+
+def demo_localizer(output_dir="/tmp/localizer_output"):
+    data_path = os.path.join(
+        os.environ["HOME"],
+        ".nipy/tests/data/s12069_swaloc1_corr.nii.gz")
+    if not os.path.exists(data_path):
+        raise RuntimeError("You don't have nipy test data installed!")
+
+    subject_id = 'sub001'
+    subject_data = SubjectData(subject_id=subject_id, func=data_path,
+                               output_dir=os.path.join(output_dir, subject_id))
+
+    _fmri_demo_runner([subject_data], "localizer")
 
 
 def demo_spm_multimodal_fmri(data_dir="/tmp/spm_multimodal_fmri",
@@ -495,7 +369,7 @@ def demo_spm_multimodal_fmri(data_dir="/tmp/spm_multimodal_fmri",
 
 def demo_nyu_rest(data_dir="/tmp/nyu_data",
                   n_subjects=1,
-                  output_dir="/tmp/nyu_mrimc_output",
+                  output_dir="/tmp/nyu_rest_output",
                   ):
     """Demo for FSL Feeds data.
 
@@ -536,12 +410,11 @@ def demo_nyu_rest(data_dir="/tmp/nyu_data",
 
 
 if __name__ == '__main__':
-    # # demo on simulated data
-    # demo_random_brain()
-    # demo_sinusoidal_mixture()
-    # demo_HRF()
+    # demo on simulated data
+    demo_random_brain()
+    demo_sinusoidal_mixture()
+    demo_HRF()
 
-    # # # demo on real data
-    # demo_real_BOLD(dataset="localizer")
-
-    demo_nyu_rest()
+    # demo on real data
+    demo_localizer()
+    demo_spm_multimodal_fmri()
