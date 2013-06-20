@@ -34,7 +34,7 @@ import reporting.glm_reporter as glm_reporter
 from external.nisl.datasets import fetch_spm_multimodal_fmri_data
 
 # set data and output paths (change as you will)
-DATA_DIR = "/home/elvis/Downloads/alex_spm"
+DATA_DIR = "spm_multimodal_fmri"
 print "\tDATA_DIR: %s" % DATA_DIR
 OUTPUT_DIR = "spm_multimodal_runs"
 print "\tOUTPUT_DIR: %s" % OUTPUT_DIR
