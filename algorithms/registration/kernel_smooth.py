@@ -128,7 +128,7 @@ def _get_kernel_norm(kernel, normalization):
 class LinearFilter(object):
     """A class to implement some FFT smoothers for Image objects.
     By default, this does a Gaussian kernel smooth. More choices
-    would be better!
+    would be better.
 
     """
 
