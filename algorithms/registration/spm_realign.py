@@ -6,12 +6,10 @@
 """
 
 import nibabel
-import glob
 import os
 import numpy as np
 import scipy.ndimage as ndi
 import scipy.linalg
-import itertools
 import kernel_smooth
 import affine_transformations
 

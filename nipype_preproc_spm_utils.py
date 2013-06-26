@@ -29,6 +29,7 @@ import pylab as pl
 
 # imports i/o
 import numpy as np
+import nibabel
 from nipype.interfaces.base import Bunch
 from io_utils import delete_orientation, is_3D, get_vox_dims,\
     resample_img, do_3Dto4D_merge, compute_mean_image
@@ -589,6 +590,102 @@ def _do_subject_normalize(output_dir,
     return output
 
 
+def _do_subject_smooth(output_dir,
+                        do_report=True,
+                        results_gallery=None,
+                        progress_logger=None,
+                        brain="EPI",
+                        cmap=None,
+                        **spm_smooth_kwargs):
+    output = {}
+
+    # sanity
+    def get_norm_apply_to_files(files):
+        if isinstance(files, basestring):
+            norm_apply_to_files = files
+            file_types = 'string'
+        else:
+            file_types = []
+            norm_apply_to_files = []
+            for x in files:
+                if isinstance(x, basestring):
+                    norm_apply_to_files.append(x)
+                    file_types.append('string')
+                else:
+                    norm_apply_to_files += x
+                    file_types.append(('list', len(x)))
+
+        return norm_apply_to_files, file_types
+
+    if 'in_files' in spm_smooth_kwargs:
+        spm_smooth_kwargs['in_files'], file_types = \
+            get_norm_apply_to_files(spm_smooth_kwargs['in_files'])
+
+    # prepare for smart caching
+    cache_dir = os.path.join(output_dir, 'cache_dir')
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    mem = Memory(base_dir=cache_dir)
+
+    # do smoothing
+    smooth = mem.cache(spm.Smooth)
+    smooth_result = smooth(**spm_smooth_kwargs)
+
+    # collect ouput
+    output['result'] = smooth_result
+    if not smooth_result.outputs is None:
+        smoothed_files = smooth_result.outputs.smoothed_files
+        output['smoothed_files'] = smoothed_files
+
+        if 'in_files' in spm_smooth_kwargs:
+            if not isinstance(file_types, basestring):
+                _tmp = []
+                s = 0
+                for x in file_types:
+                    if x == 'string':
+                        if isinstance(smoothed_files, basestring):
+                            _tmp = smoothed_files
+                            break
+                        else:
+                            _tmp.append(
+                                smoothed_files[s])
+                            s += 1
+                    else:
+                        _tmp.append(
+                            smoothed_files[s: s + x[1]])
+                        s += x[1]
+
+                smoothed_files = _tmp
+
+        output['smoothed_files'] = smoothed_files
+
+        # define execution log html output filename
+        execution_log_html_filename = os.path.join(
+            output_dir,
+            'smoothening_of_%s_execution_log.html' % brain,
+            )
+
+        # grab execution log
+        execution_log = preproc_reporter.get_nipype_report(
+            preproc_reporter.get_nipype_report_filename(
+                smoothed_files))
+
+        # write execution log
+        open(execution_log_html_filename, 'w').write(
+            execution_log)
+
+        # update progress bar
+        if progress_logger:
+            progress_logger.log(
+                '<b>Smoothening of %s</b><br/><br/>' % brain)
+            progress_logger.log(execution_log)
+            progress_logger.log('<hr/>')
+
+    # collect ouput
+    output['result'] = smooth_result
+    return output
+
+
 def _do_subject_preproc(
     subject_data,
     do_deleteorient=False,
@@ -596,8 +693,8 @@ def _do_subject_preproc(
     fwhm=None,
     do_bet=False,
     do_slicetiming=False,
-    TR=None,
     slice_order='ascending',
+    interleaved=False,
     do_realign=True,
     do_coreg=True,
     func_to_anat=False,
@@ -795,7 +892,7 @@ def _do_subject_preproc(
     # slice-timing
     ###############
     if do_slicetiming:
-        import algorithms.slice_timing.slice_timing as st
+        import algorithms.slice_timing.spm_slice_timing as spm_slice_timing
 
         # st_cache_dir = os.path.join(subject_data.output_dir,
         #                                      "cache_dir", "slice_timing")
@@ -804,70 +901,132 @@ def _do_subject_preproc(
 
         # mem = joblib.Memory(cachedir=st_cache_dir, verbose=100)
 
-        stc = st.STC()
+        def _load_fmri_data(fmri_files):
+            """Helper function to load fmri data from filename /
+            ndarray or list of such
 
-        for func in subject_data.func:
-            stc.fit(raw_data=func, slice_order=slice_order,
+            """
+
+            if isinstance(fmri_files, np.ndarray):
+                return fmri_files
+
+            if isinstance(fmri_files, basestring):
+                return nibabel.load(fmri_files).get_data()
+            else:
+                n_scans = len(fmri_files)
+                _first = _load_fmri_data(fmri_files[0])
+                data = np.ndarray(tuple(list(_first.shape[:3]
+                                             ) + [n_scans]))
+                data[..., 0] = _first
+                for scan in xrange(1, n_scans):
+                    data[..., scan] = _load_fmri_data(fmri_files[scan])
+
+                return data
+
+        def _save_stc_output(output_data, output_dir,
+                             input_filenames,
+                             prefix='a'):
+
+            print "Saving STC output to %s..." % output_dir
+
+            print output_data.shape
+            n_scans = output_data.shape[-1]
+
+            # sanitize output_diir
+            ref_filename = input_filenames if isinstance(
+                input_filenames, basestring) else input_filenames[0]
+            ref_file_basename = os.path.basename(ref_filename)
+            if output_dir is None:
+                output_dir = output_dir
+            if output_dir is None:
+                output_dir = os.path.dirname(ref_filename)
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+            # save realigned files to disk
+            if isinstance(input_filenames, basestring):
+                affine = nibabel.load(input_filenames).get_affine()
+
+                for t in xrange(n_scans):
+                    output_filename = os.path.join(output_dir,
+                                                   "%s%i%s" % (
+                            prefix, t, ref_file_basename))
+
+                    nibabel.save(nibabel.Nifti1Image(output_data[..., t],
+                                                     affine),
+                                 output_filename)
+
+                output_filenames = output_filename
+            else:
+                output_filenames = []
+                for filename, t in zip(input_filenames, xrange(n_scans)):
+                    affine = nibabel.load(filename).get_affine()
+                    output_filename = os.path.join(output_dir,
+                                                   "%s%s" % (
+                            prefix,
+                            os.path.basename(filename)))
+
+                    nibabel.save(nibabel.Nifti1Image(output_data[..., t],
+                                                     affine),
+                                 output_filename)
+
+                    output_filenames.append(output_filename)
+
+            return output_filenames
+
+        stc = spm_slice_timing.STC()
+
+        stc_func = []
+        for s, func in zip(subject_data.session_id, subject_data.func):
+            print "\r\nLoading fmri data for session %s..." % s
+            fmri_data = _load_fmri_data(func)
+            stc.fit(raw_data=fmri_data, slice_order=slice_order,
                     interleaved=interleaved,)
 
-            stc.transform(func)
+            stc.transform(fmri_data)
 
+            stc_func.append(_save_stc_output(
+                    stc.get_last_output_data(),
+                    os.path.join(subject_data.output_dir,
+                                 "STC_session%s" % s),
+                    func))
 
-        realigner = mem.cache(st.do_slicetiming_and_motion_correction)
+        subject_data.func = stc_func
 
-        # run realigment ( = slice timing + motion correction)
-        realigned_func_files, rp_files = realigner(
-            subject_data.func,
-            subject_data.output_dir,
-            tr=TR, slice_order=slice_order,
-            time_interp=True)
+        # # realigner = mem.cache(st.do_slicetiming_and_motion_correction)
 
-        # collect outputs (pipeline-like)
-        subject_data.func = realigned_func_files
-        output['estimated_motion'] = rp_files
-        output['realigned_func'] = realigned_func_files
+        # # run realigment ( = slice timing + motion correction)
+        # realigned_func_files, rp_files = realigner(
+        #     subject_data.func,
+        #     subject_data.output_dir,
+        #     tr=TR, slice_order=slice_order,
+        #     time_interp=True)
 
-        # generate gallery for HTML report
-        if do_report:
-            sessions = subject_data.session_id
-            estimated_motion = rp_files
-            if isinstance(estimated_motion, basestring):
-                estimated_motion = [estimated_motion]
+        # # collect outputs (pipeline-like)
+        # subject_data.func = realigned_func_files
+        # output['estimated_motion'] = rp_files
+        # output['realigned_func'] = realigned_func_files
 
-            assert len(sessions) == len(estimated_motion), estimated_motion
+        # # generate gallery for HTML report
+        # if do_report:
+        #     sessions = subject_data.session_id
+        #     estimated_motion = rp_files
+        #     if isinstance(estimated_motion, basestring):
+        #         estimated_motion = [estimated_motion]
 
-            output.update(preproc_reporter.generate_realignment_thumbnails(
-                    estimated_motion,
-                    subject_data.output_dir,
-                    sessions=sessions,
-                    results_gallery=results_gallery,
-                    progress_logger=subject_progress_logger,
-                    ))
+        #     assert len(sessions) == len(estimated_motion), estimated_motion
 
-        # compute reference image
-        if do_coreg:
-            # manually compute mean (along time axis) of fMRI images
-            # XXX derive a more sensible path for the ref_func
-            ref_func = os.path.join(
-                subject_data.output_dir,
-                'meanfunc.nii')
-
-            if not os.path.exists(ref_func):
-                import nibabel as ni
-                img = ni.load(realigned_func_files[0])
-                if is_3D(img):
-                    ref_func = realigned_func_files[
-                        len(realigned_func_files) / 2]
-                else:
-                    middle_3D = ni.Nifti1Image(
-                        img.get_data()[:, :, :, img.shape[-1] / 2],
-                        img.get_affine())
-                    ni.save(middle_3D, ref_func)
-
+        #     output.update(preproc_reporter.generate_realignment_thumbnails(
+        #             estimated_motion,
+        #             subject_data.output_dir,
+        #             sessions=sessions,
+        #             results_gallery=results_gallery,
+        #             progress_logger=subject_progress_logger,
+        #             ))
     #####################
     #  motion correction
     #####################
-    elif do_realign:
+    if do_realign:
         realign_output = _do_subject_realign(
             subject_data.output_dir,
             sessions=subject_data.session_id,
@@ -1209,6 +1368,49 @@ def _do_subject_preproc(
                 % subject_data.subject_id)
 
         output['anat'] = norm_output['normalized_files']
+    elif fwhm:
+        # smooth func
+        smooth_output = _do_subject_smooth(
+            subject_data.output_dir,
+            results_gallery=results_gallery,
+            progress_logger=subject_progress_logger,
+            in_files=subject_data.func,
+            fwhm=fwhm)
+
+        smooth_result = smooth_output['result']
+
+        if smooth_result is None:
+            if do_report:
+                final_thumbnail.img.src = 'failed.png'
+                final_thumbnail.description += ' (failed smoothing)'
+                finalize_report()
+            raise RuntimeError(
+                ("spm.Smooth failed (EPI) for subject %s")
+                % subject_data.subject_id)
+
+        output['func'] = smooth_output['smoothed_files']
+
+        # smooth anat
+        if not subject_data.anat is None:
+            smooth_output = _do_subject_smooth(
+                subject_data.output_dir,
+                results_gallery=results_gallery,
+                progress_logger=subject_progress_logger,
+                in_files=subject_data.anat,
+                fwhm=fwhm)
+
+            smooth_result = smooth_output['result']
+
+            if smooth_result is None:
+                if do_report:
+                    final_thumbnail.img.src = 'failed.png'
+                    final_thumbnail.description += ' (failed smoothing)'
+                    finalize_report()
+                raise RuntimeError(
+                    ("spm.Smooth failed (anat) for subject %s")
+                    % subject_data.subject_id)
+
+        output['anat'] = smooth_output['smoothed_files']
 
     if do_report:
         # generate cv plots
@@ -1609,7 +1811,6 @@ def do_subjects_preproc(subjects,
                         fwhm=0,
                         do_bet=False,
                         do_slicetiming=False,
-                        TR=None,
                         do_realign=True,
                         do_coreg=True,
                         do_segment=True,
@@ -1659,7 +1860,6 @@ def do_subjects_preproc(subjects,
               'do_segment': do_segment, 'do_normalize': do_normalize,
               'do_cv_tc': do_cv_tc,
               'fwhm': fwhm,
-              'TR': TR,
               'ignore_exception': ignore_exception,
               'last_stage': not do_dartel,
               }
@@ -1960,14 +2160,9 @@ def do_subjects_preproc(subjects,
                 subject_result['func'] = item['func']
                 if 'anat' in item.keys():
                     subject_result['anat'] = item['anat']
-                if do_coreg:
-                    subject_result['coregistered_anat'] = item[
-                        'coregistered_anat']
                 if do_realign:
                     subject_result['estimated_motion'] = item[
                         'estimated_motion']
-                    subject_result['realigned_func'] = item['realigned_func']
-
                 if do_segment:
                     # output segmented GM compartment
                     subject_result['gm'] = item['gm']

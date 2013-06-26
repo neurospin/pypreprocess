@@ -8,7 +8,7 @@
 import os
 import sys
 import glob
-import nibabel as ni
+import nibabel
 import scipy
 import numpy as np
 import matplotlib.pyplot as plt
@@ -220,6 +220,8 @@ class STC(object):
             raw_data = self._sanitize_raw_data(raw_data, fitting=True,)
             self._n_slices = raw_data.shape[2]
             self._n_scans = raw_data.shape[-1]
+
+            self._raw_data = raw_data
         else:
             if n_slices is None:
                 raise ValueError(
@@ -301,14 +303,18 @@ class STC(object):
         # return computed transform
         return self._transform
 
-    def transform(self, raw_data):
-        """Applies STC transform to raw data
+    def transform(self, raw_data=None):
+        """
+        Applies STC transform to raw data, thereby correcting for time-delay
+        in acquisition.
 
         Parameters
         ----------
-        raw_data: 4D array of shape (n_rows, n_columns, n_slices, n_scans)
+        raw_data: 4D array of shape (n_rows, n_columns, n_slices, n_scans),
+        optional (default None)
             the data to be ST corrected. raw_data is Not modified in memory;
-            another array is returned.
+            another array is returned. If not specified, then the fitted
+            data if used in place
 
         Returns
         -------
@@ -325,6 +331,14 @@ class STC(object):
             raise Exception("fit(...) method not yet invoked!")
 
         # sanitize raw_data
+        if raw_data is None:
+            if hasattr(self, '_raw_data'):
+                self._log('raw_data no specified, using fitted data')
+                raw_data = self._raw_data
+            else:
+                raise RuntimeError(
+                    'You need to specify raw_data that will be transformed.')
+
         raw_data = self._sanitize_raw_data(raw_data)
 
         n_rows, n_columns = raw_data.shape[:2]
@@ -388,6 +402,118 @@ class STC(object):
             raise Exception("transform(...) method not yet invoked!")
 
         return self._output_data
+
+
+class fMRISTC(STC):
+    def _sanitize_raw_data(self, raw_data, **kwargs):
+        """
+        Re-implementation of parent method to sanitize fMRI data.
+
+        """
+
+        if isinstance(raw_data, np.ndarray) or isinstance(raw_data, list) \
+                or isinstance(raw_data, basestring):
+            raw_data = self._load_fmri_data(raw_data)
+
+        return STC._sanitize_raw_data(self, raw_data, **kwargs)
+
+    def _load_fmri_data(self, fmri_files, is_3D=False):
+        """
+        Helper function to load fmri data from filename /
+        ndarray or list of such.
+
+        Parameters
+        ----------
+        fmri_files: `np.ndarray` or string of list of strings, or (recursive)
+        of list of such
+            the data to be loaded.
+            if string, it should be the filename of a single 3D vol or 4D
+            fmri film.
+        is_3D: boolean
+            flag specifying whether loaded data is in fact 3D. This is useful
+            for loading volumes with shapes like (25, 34, 56, 1), where the
+            last dimension can be ignored altogether
+
+        Returns
+        -------
+        data: `np.ndarray`
+            the loaded data
+
+        """
+
+        if isinstance(fmri_files, np.ndarray):
+            data = fmri_files
+        elif isinstance(fmri_files, basestring):
+            data = nibabel.load(fmri_files).get_data()
+        else:
+            # assuming list of (perhaps list of ...) filenames (strings)
+            n_scans = len(fmri_files)
+            _first = self._load_fmri_data(fmri_files[0], is_3D=True)
+            data = np.ndarray(tuple(list(_first.shape
+                                         ) + [n_scans]))
+            data[..., 0] = _first
+            for scan in xrange(1, n_scans):
+                data[..., scan] = self._load_fmri_data(fmri_files[scan],
+                                                       is_3D=True)
+
+        if is_3D:
+            if data.ndim == 4:
+                data = data[..., 0]
+
+        return data
+
+    def get_raw_data(self):
+        return self._raw_data
+
+    # def _save_stc_output(self, output_dir,
+    #                      input_filenames,
+    #                      prefix='a'):
+
+    #     self._log("Saving STC output to %s..." % output_dir)
+
+    #     # sanitize output_diir
+    #     ref_filename = input_filenames if isinstance(
+    #         input_filenames, basestring) else input_filenames[0]
+    #     ref_file_basename = os.path.basename(ref_filename)
+    #     if output_dir is None:
+    #         output_dir = output_dir
+    #     if output_dir is None:
+    #         output_dir = os.path.dirname(ref_filename)
+    #     if not os.path.exists(output_dir):
+    #         os.makedirs(output_dir)
+
+    #     # save corrected image files to disk
+    #     if isinstance(input_filenames, basestring):
+    #         affine = nibabel.load(input_filenames).get_affine()
+
+    #         for t in xrange(self._n_scans):
+    #             output_filename = os.path.join(output_dir,
+    #                                            "%s%i%s" % (
+    #                     prefix, t, ref_file_basename))
+
+    #             nibabel.save(nibabel.Nifti1Image(
+    #                     self.get_last_output_data[..., t],
+    #                     affine),
+    #                          output_filename)
+
+    #         output_filenames = output_filename
+    #     else:
+    #         output_filenames = []
+    #         for filename, t in zip(input_filenames, xrange(self._n_scans)):
+    #             affine = nibabel.load(filename).get_affine()
+    #             output_filename = os.path.join(output_dir,
+    #                                            "%s%s" % (
+    #                     prefix,
+    #                     os.path.basename(filename)))
+
+    #             nibabel.save(nibabel.Nifti1Image(
+    #                     self.get_last_output_data[..., t],
+    #                     affine),
+    #                          output_filename)
+
+    #             output_filenames.append(output_filename)
+
+    #     return output_filenames
 
 
 def plot_slicetiming_results(acquired_sample,
