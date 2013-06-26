@@ -1,7 +1,6 @@
 import numpy as np
 import os
 import sys
-import glob
 import nibabel
 from collections import namedtuple
 import matplotlib.pyplot as plt

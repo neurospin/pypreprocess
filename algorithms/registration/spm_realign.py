@@ -213,11 +213,17 @@ class MRIMotionCorrection(object):
                                       film.get_affine())
                        for t in xrange(film.shape[-1])]
         elif isinstance(filenames, list):
+            # assuming list of image objects or filenames
             self._filenames = filenames if len(filenames) > 1 else filenames[0]
-            self._P = [nibabel.load(filename) for filename in self._filenames]
+            self._P = []
+            for filename in self._filenames:
+                if isinstance(filename, basestring):
+                    self._P.append(nibabel.load(filename))
+                else:
+                    self._P.append(filename)
         else:
             raise TypeError(
-                "filenames arg must be string or list of strings.")
+                "filenames arg must be string, image object, or list of such.")
 
         # voxel dimensions on the working grid
         skip = np.sqrt(np.sum(self._P[0].get_affine()[:3, :3] ** 2, axis=0)

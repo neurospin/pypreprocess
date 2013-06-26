@@ -15,6 +15,7 @@ from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
 import nibabel
 import time
+from collections import namedtuple
 
 warning = ("%s: THIS SCRIPT MUST BE RUN FROM ITS PARENT "
            "DIRECTORY!") % sys.argv[0]
@@ -28,10 +29,11 @@ PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
 
 sys.path.append(PYPREPROCESS_DIR)
 
-import nipype_preproc_spm_utils
 import reporting.glm_reporter as glm_reporter
 from external.nisl.datasets import fetch_spm_auditory_data
 from io_utils import compute_mean_3D_image, do_3Dto4D_merge
+from algorithms.registration.spm_realign import MRIMotionCorrection
+from algorithms.slice_timing.spm_slice_timing import fMRISTC
 
 DATASET_DESCRIPTION = """\
 <p>MoAEpilot <a href="http://www.fil.ion.ucl.ac.uk/spm/data/auditory/">\
@@ -67,35 +69,45 @@ hfcut = 2 * 2 * epoch_duration
 
 """fetch spm auditory data"""
 _subject_data = fetch_spm_auditory_data(DATA_DIR)
-subject_data = nipype_preproc_spm_utils.SubjectData()
-subject_data.subject_id = "sub001"
-subject_data.func = _subject_data.func
-subject_data.anat = _subject_data.anat
-subject_data.output_dir = os.path.join(
-    OUTPUT_DIR, subject_data.subject_id)
+_subject_data.subject_id = 'sub001'
+_subject_data.output_dir = os.path.join(OUTPUT_DIR, _subject_data.subject_id)
+if not os.path.exists(_subject_data.output_dir):
+    os.makedirs(_subject_data.output_dir)
 
 """preprocess the data"""
-results = nipype_preproc_spm_utils.do_subjects_preproc(
-    [subject_data],
-    output_dir=OUTPUT_DIR,
-    fwhm=6.,  # 6mm isotropic Gaussian kernel
-    dataset_id="SPM single-subject auditory",
-    dataset_description=DATASET_DESCRIPTION,
-    do_shutdown_reloaders=False,
-    )
+# STC
+fmristc = fMRISTC()
+fmristc.fit(raw_data=_subject_data.func)
+fmristc.transform()
 
-"""collect preprocessed data"""
-fmri_files = results[0]['func']
-anat_file = results[0]['anat']
+# motion correction
+mrimc = MRIMotionCorrection()
+mrimc.fit([nibabel.Nifti1Image(fmristc.get_last_output_data()[..., t],
+                               nibabel.load(_subject_data.func[t]
+                                            ).get_affine())
+           for t in xrange(n_scans)])
 
-import nibabel as ni
-if isinstance(fmri_files, basestring):
-    fmri_img = ni.load(fmri_files)
-else:
-    output_filename = '/tmp/spm_auditory.nii.gz'
-    fmri_img = do_3Dto4D_merge(fmri_files,
-                               output_filename=output_filename)
-    fmri_files = output_filename
+# results = nipype_preproc_spm_utils.do_subjects_preproc(
+#     [subject_data],
+#     output_dir=OUTPUT_DIR,
+#     fwhm=6.,  # 6mm isotropic Gaussian kernel
+#     dataset_id="SPM single-subject auditory",
+#     dataset_description=DATASET_DESCRIPTION,
+#     do_shutdown_reloaders=False,
+#     )
+
+# """collect preprocessed data"""
+# fmri_files = results[0]['func']
+# anat_file = results[0]['anat']
+
+# import nibabel as ni
+# if isinstance(fmri_files, basestring):
+#     fmri_img = ni.load(fmri_files)
+# else:
+#     output_filename = '/tmp/spm_auditory.nii.gz'
+#     fmri_img = do_3Dto4D_merge(fmri_files,
+#                                output_filename=output_filename)
+#     fmri_files = output_filename
 
 """construct design matrix"""
 frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)
@@ -109,7 +121,7 @@ design_matrix = make_dmtx(frametimes,
 ax = design_matrix.show()
 ax.set_position([.05, .25, .9, .65])
 ax.set_title('Design matrix')
-dmat_outfile = os.path.join(subject_data.output_dir, 'design_matrix.png')
+dmat_outfile = os.path.join(_subject_data.output_dir, 'design_matrix.png')
 pl.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
 
 """specify contrasts"""
@@ -123,7 +135,7 @@ contrasts['active-rest'] = contrasts['active'] - contrasts['rest']
 
 """fit GLM"""
 print('\r\nFitting a GLM (this takes time) ..')
-fmri_glm = FMRILinearModel(fmri_files, design_matrix.matrix,
+fmri_glm = FMRILinearModel(do_3Dto4D_merge(mrimc._P), design_matrix.matrix,
            mask='compute')
 fmri_glm.fit(do_scaling=True, model='ar1')
 
