@@ -161,7 +161,7 @@ def generate_preproc_undergone_docstring(
         if max(list(fwhm)) > 0:
             preproc_undergone += (
                 "<li>"
-                "Normalized images have been "
+                "These images have been "
                 "smoothed with a %smm x %smm x %smm "
                 "Gaussian kernel.</li>") % tuple(fwhm)
 

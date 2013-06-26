@@ -10,10 +10,10 @@ import matplotlib.pyplot as plt
 PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
 sys.path.append(PYPREPROCESS_DIR)
 
-from algorithms.slice_timing.spm_slice_timing import STC, \
-    plot_slicetiming_results
-from external.nisl.datasets import fetch_nyu_rest, fetch_fsl_feeds_data,\
-    fetch_spm_multimodal_fmri_data
+from algorithms.slice_timing.spm_slice_timing import (
+    STC, fMRISTC, plot_slicetiming_results)
+from external.nisl.datasets import (fetch_nyu_rest, fetch_fsl_feeds_data,
+                                    fetch_spm_multimodal_fmri_data)
 
 # datastructure for subject data
 SubjectData = namedtuple('SubjectData', 'subject_id func output_dir')
@@ -302,18 +302,18 @@ def _fmri_demo_runner(subjects, dataset_id, **spm_slice_timing_kwargs):
                                                    subject_data.subject_id,
                                                    dataset_id))
 
-        # instantiate realigner
-        raw_data = _load_fmri_data(subject_data.func)
-        stc = STC(**spm_slice_timing_kwargs)
+        # instantiate corrector
+        stc = fMRISTC(**spm_slice_timing_kwargs)
 
-        # fit realigner
-        stc.fit(raw_data=raw_data)
+        # fit
+        stc.fit(subject_data.func)
 
-        # write realigned files to disk
-        stc.transform(raw_data)
+        # transform
+        stc.transform()
 
         # plot results
-        plot_slicetiming_results(raw_data, stc.get_last_output_data(),
+        plot_slicetiming_results(stc.get_raw_data(),
+                                 stc.get_last_output_data(),
                                  suptitle_prefix="%s of '%s'" % (
                 subject_data.subject_id, dataset_id)
                                  )
@@ -410,11 +410,11 @@ def demo_nyu_rest(data_dir="/tmp/nyu_data",
 
 
 if __name__ == '__main__':
-    # demo on simulated data
-    demo_random_brain()
-    demo_sinusoidal_mixture()
-    demo_HRF()
+    # # demo on simulated data
+    # demo_random_brain()
+    # demo_sinusoidal_mixture()
+    # demo_HRF()
 
     # demo on real data
     demo_localizer()
-    demo_spm_multimodal_fmri()
+    # demo_spm_multimodal_fmri()  # XXX incorrect assumed slice order!

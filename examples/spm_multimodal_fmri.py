@@ -13,7 +13,6 @@ from nipy.modalities.fmri.glm import FMRILinearModel
 import nibabel as ni
 import scipy.io
 import time
-import glob
 import sys
 import os
 
@@ -34,9 +33,11 @@ import reporting.glm_reporter as glm_reporter
 from external.nisl.datasets import fetch_spm_multimodal_fmri_data
 
 # set data and output paths (change as you will)
-DATA_DIR = "/home/elvis/Downloads/alex_spm"
+DATA_DIR = "spm_multimodal_fmri"
 print "\tDATA_DIR: %s" % DATA_DIR
 OUTPUT_DIR = "spm_multimodal_runs"
+if len(sys.argv) > 1:
+    OUTPUT_DIR = sys.argv[1]
 print "\tOUTPUT_DIR: %s" % OUTPUT_DIR
 print
 if not os.path.exists(OUTPUT_DIR):
@@ -62,6 +63,9 @@ results = nipype_preproc_spm_utils.do_subjects_preproc(
     [subject_data],
     output_dir=OUTPUT_DIR,
     fwhm=[8, 8, 8],
+    # do_slicetiming=True,
+    do_segment=False,
+    do_normalize=False,
     dataset_id="SPM MULTIMODAL (see @alex)",
     do_shutdown_reloaders=False,
     )
@@ -185,5 +189,8 @@ if DO_REPORT:
         drift_model=drift_model,
         hrf_model=hrf_model,
         )
+
+    from reporting.base_reporter import ProgressReport
+    ProgressReport().finish_dir(OUTPUT_DIR)
 
     print "\r\nStatistic report written to %s\r\n" % stats_report_filename

@@ -78,6 +78,7 @@ subject_data.output_dir = os.path.join(
 results = nipype_preproc_spm_utils.do_subjects_preproc(
     [subject_data],
     output_dir=OUTPUT_DIR,
+    fwhm=6.,  # 6mm isotropic Gaussian kernel
     dataset_id="SPM single-subject auditory",
     dataset_description=DATASET_DESCRIPTION,
     do_shutdown_reloaders=False,
