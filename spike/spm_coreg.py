@@ -204,6 +204,10 @@ def _tpvd_interp(f, fshape, x, y, z):
 
     """
 
+    # return scipy.ndimage.map_coordinates(f, [x, y, z], order=1,
+    #                                      mode='wrap',  # for SPM results
+    #                                      )
+
     ix = np.floor(x)
     dx1 = x - ix
     dx2 = 1.0 - dx1
@@ -216,16 +220,20 @@ def _tpvd_interp(f, fshape, x, y, z):
     dz1 = z - iz
     dz2 = 1.0 - dz1
 
-    ff = f[ix - 1 + fshape[0] * (iy - 1 + fshape[1] * (iz - 1)):]
-    k222 = ff[0]
-    k122 = ff[1]
-    k212 = ff[fshape[0]]
-    k112 = ff[fshape[0] + 1]
-    ff = ff[fshape[0] * fshape[1]:]
-    k221 = ff[0]
-    k121 = ff[1]
-    k211 = ff[fshape[0]]
-    k111 = ff[fshape[0] + 1]
+    print "wizardry..."
+    offsets = np.array([ix[j] - 1 + fshape[0] * (iy[j] - 1 + fshape[1] * (
+                    iz[j] - 1)) for j in xrange(len(x))])
+
+    k222, k122, k212, k112 = np.array([
+            (f[offset], f[offset + 1], f[offset + fshape[0]],
+             f[offset + fshape[0] + 1]) for offset in offsets]).T
+
+    offsets = offsets + fshape[0] * fshape[1]
+
+    k221, k121, k211, k111 = np.array([
+            (f[offset], f[offset + 1], f[offset + fshape[0]],
+             f[offset + fshape[0] + 1]) for offset in offsets]).T
+    print "Done (wizardry)."
 
     vf = (((k222 * dx2 + k122 * dx1) * dy2  +\
                (k212 * dx2 + k112 * dx1) * dy1)) * dz2 +\
@@ -235,29 +243,44 @@ def _tpvd_interp(f, fshape, x, y, z):
     return vf
 
 
-def _joint_histogram(M, g, f, gshape, fshape, s=[1, 1, 1]):
+def _joint_histogram(g, f, M=None, gshape=None, fshape=None, s=[1, 1, 1]):
     """
     Computes the joint histogram of g and f[warp(f, M)],
     where M is an affine transformation, and g and f are
     3-dimensional images (scalars defined on the vertices of polytopes)
-    of possible different shapes (i.e different resolutions).
+    of possible different shapes (i.e different resolutions). The bins are
+    (256, 256) --i.e 8-bit gray-scale, so that the computed histogram is
+    a vector of length 65536.
 
     Parameters
     ----------
-    f: array_like
+    f: 3D array_like (or 1D Fortran-order ravelled version of)
         3-dimensional image
-    g: array_like
-        3-dimensional image
-    M: array_like of shape (4, 4)
+    g: 3D array_like (or 1D Fortran-order ravelled version of)
+        3-dimensional other image
+    M: array_like of shape (4, 4), optional (default None)
         affine transformation with which f will be warped before
         computing the histogram
 
     Returns
     -------
-    H: joint histogram, structure from numpy.histogram2d back-end.
+    jh: joint histogram
 
     """
 
+    # everythx should be 8-bit gray-scale
+    g = np.uint8(g)
+    f = np.uint8(f)
+
+    # sanitize shapes
+    if gshape is None:
+        assert g.ndim == 3
+        gshape = g.shape
+    if fshape is None:
+        assert f.ndim == 3
+        fshape = f.shape
+
+    # table of magic numbers
     ran = np.array([0.656619, 0.891183, 0.488144, 0.992646, 0.373326, 0.531378,
                     0.181316, 0.501944, 0.422195, 0.660427, 0.673653, 0.95733,
                     0.191866, 0.111216, 0.565054, 0.969166, 0.0237439,
@@ -278,9 +301,11 @@ def _joint_histogram(M, g, f, gshape, fshape, s=[1, 1, 1]):
                     0.311059, 0.168534, 0.896648
                     ])
 
-    # compute the joint histogram H for g and f
-    H = np.zeros(256 * 256)  # assuming 8-bit grayscale
-    iran = 0
+    # construct voxels of interest
+    rx = []
+    ry = []
+    rz = []
+    iran = 0  # index for ran table
     z = 1.
     while z < gshape[2] - s[2]:
         y = 1.
@@ -289,37 +314,15 @@ def _joint_histogram(M, g, f, gshape, fshape, s=[1, 1, 1]):
             while x < gshape[0] - s[0]:
                 # print (x, y, z)
                 iran = (iran + 1) % 97
-                rx  = x + ran[iran] * s[0]
+                _rx  = x + ran[iran] * s[0]
                 iran = (iran + 1) % 97
-                ry  = y + ran[iran] * s[1]
+                _ry  = y + ran[iran] * s[1]
                 iran = (iran + 1) % 97
-                rz  = z + ran[iran] * s[2]
+                _rz  = z + ran[iran] * s[2]
 
-                # map voxel (rx, ry, rz) under the affine transformation
-                xp, yp, zp, _ = np.dot(M, [rx, ry, rz, 1.])
-
-                # hereunder, if we haven't fallen out of the FOV, we update the
-                # bin to which the joint intensity pair (g[rx, ry, rz],
-                # f[xp, yp, zp]) belongs.
-                if ((zp >= 1.) and (zp < fshape[2]) and (yp >= 1.) and
-                    (yp < fshape[1]) and (xp >= 1.) and (xp < fshape[0])):
-
-                    print (rx, ry, rz), '->', (xp, yp, zp)
-
-                    # interpolate f at (rx, ry, rz)
-                    vf  = _tpvd_interp(f, fshape, xp, yp, zp)
-                    ivf = np.floor(vf).astype('int')
-
-                    # interpolate g at voxel (xp, yp, zp)
-                    ivg = np.floor(_tpvd_interp(g, gshape, rx, ry, rz) + 0.5
-                                   ).astype('int')
-
-                    # update corresponding bin
-                    H[(ivf + ivg * 256)] += (1 - (vf - ivf))
-
-                    # handle special boundary condition
-                    if (ivf < 255):
-                        H[(ivf + 1 + ivg * 256)] += (vf - ivf)
+                rx.append(_rx)
+                ry.append(_ry)
+                rz.append(_rz)
 
                 # update x
                 x += s[0]
@@ -330,8 +333,41 @@ def _joint_histogram(M, g, f, gshape, fshape, s=[1, 1, 1]):
         # update z
         z += s[2]
 
-    # return 256 x 256 (fortran-order!) joint histogram
-    return H.reshape((256, 256), order='F')
+    rx, ry, rz = np.array([rx, ry, rz])
+
+    # map voxels (rx, ry, rz) under the affine transformation
+    xp, yp, zp, _ = np.dot(M, [rx, ry, rz, np.ones(len(rx))])
+
+    # remove all voxel that have falling out of the FOV
+    fov_msk = ((zp >= 1.) & (zp < fshape[2]) & (yp >= 1.) &
+               (yp < fshape[1]) & (xp >= 1.) & (xp < fshape[0]))
+    rx = rx[fov_msk]
+    ry = ry[fov_msk]
+    rz = rz[fov_msk]
+    xp = xp[fov_msk]
+    yp = yp[fov_msk]
+    zp = zp[fov_msk]
+
+    # interpolate f at voxels (rx, ry, rz)
+    vf  = _tpvd_interp(f, fshape, xp, yp, zp)
+
+    # interpolate g at voxels (xp, yp, zp)
+    ivg = np.floor(_tpvd_interp(g, gshape, rx, ry, rz) + 0.5
+                   ).astype('int')
+    ivf = np.floor(vf).astype('int')
+
+    # camera ready: compute joint histogram
+    jh = np.zeros(256 * 256)  # 8-bit grayscale joint-histogram
+    for j in xrange(len(xp)):
+        # update corresponding bin
+        jh[(ivf[j] + ivg[j] * 256)] += (1 - (vf[j] - ivf[j]))
+
+        # handle special boundary
+        if ivg[j] < 255:
+            jh[(ivf[j] + 1 + ivg[j] * 256)] += (vf[j] - ivf[j])
+
+    # return joint histogram
+    return jh
 
 
 def optfunc(x, VG, VF, s=[1, 1, 1], cf='mi', fwhm=[7, 7]):
