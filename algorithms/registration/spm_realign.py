@@ -194,7 +194,7 @@ class MRIMotionCorrection(object):
 
         Notes
         -----
-        For now, we don't have support for multiple sessions!
+        For now, we don't have support for multiple sessions.
 
         Raises
         ------
@@ -208,7 +208,7 @@ class MRIMotionCorrection(object):
             film = nibabel.load(self._filenames)
             if not len(film.shape) == 4:
                 raise ValueError(
-                    "Expecting 4D image, got %iD!" % len(film.shape))
+                    "Expecting 4D image, got %iD." % len(film.shape))
             self._P = [nibabel.Nifti1Image(film.get_data()[..., t],
                                       film.get_affine())
                        for t in xrange(film.shape[-1])]
@@ -431,7 +431,7 @@ class MRIMotionCorrection(object):
         # make sure fit(...) method has been invoked
         if not hasattr(self, '_filenames') or not hasattr(self, '_P'):
             raise RuntimeError(
-                "fit(...) method not yet invoked; nothing to do!")
+                "fit(...) method not yet invoked; nothing to do.")
 
         # sanitize output_diir
         ref_filename = self._filenames if isinstance(
