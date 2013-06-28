@@ -229,7 +229,7 @@ class MRIMotionCorrection(object):
         skip = np.sqrt(np.sum(self._P[0].get_affine()[:3, :3] ** 2, axis=0)
                        ) ** (-1) * self._sep
 
-        # aus variable of volume shape
+        # aux variable of volume shape
         dim = self._P[0].shape[:3]
 
         # build working grid
@@ -318,7 +318,8 @@ class MRIMotionCorrection(object):
         # register the volumes to the reference volume
         self._log("\r\nRegistering volumes to reference...")
         for t in xrange(1, len(self._P)):
-            self._log("\tRegistering volume %i/%i..." % (t, len(self._P) - 1))
+            self._log("\r\n\tRegistering volume %i/%i..." % (t,
+                                                             len(self._P) - 1))
 
             # smooth volume t
             V = kernel_smooth.smooth_image(self._P[t], self._fwhm).get_data()
@@ -347,8 +348,9 @@ class MRIMotionCorrection(object):
                 # if mask is too small, then we're screwed anyway
                 if len(msk) < 32:
                     raise RuntimeError(
-                        ("Almost all voxels eliminated. Only %i voxels"
-                         "survived. Registration can't work." % len(msk)))
+                        ("Almost all voxels have fallen out of the FOV. Only "
+                         "%i voxels survived. Registration can't work." % len(
+                                msk)))
 
                 # warp: resample volume t on this new grid
                 F = ndi.map_coordinates(V, [y1[msk], y2[msk], y3[msk]],
@@ -366,7 +368,7 @@ class MRIMotionCorrection(object):
                 p = affine_transformations.get_initial_motion_params()
                 p[self._lkp] += p_update.T
 
-                # apply the learnt affine transformation to volume t
+                # update affine matrix for volume t
                 self._P[t] = nibabel.Nifti1Image(
                     self._P[t].get_data(), np.dot(scipy.linalg.inv(
                             affine_transformations.spm_matrix(p)),
@@ -378,9 +380,12 @@ class MRIMotionCorrection(object):
 
                 # compute relative gain over last iteration
                 relative_gain = np.abs((pss - ss) / pss)
-                self._log(
-                    "\t\trelative gain over last iteration: %s" % relative_gain
-                    )
+
+                # update progress bar
+                token = "\t\t" + " ".join(['%-8.4g' % x for x in p[self._lkp]])
+                token += " " * (len(self._lkp) * 12 - len(token)
+                                ) + "| %.5g" % relative_gain
+                self._log(token)
 
                 # check whether we've stopped converging altogether
                 if relative_gain < 1e-8 and countdown == -1:
