@@ -295,6 +295,9 @@ def _fmri_demo_runner(subjects, dataset_id, **spm_slice_timing_kwargs):
 
             return data
 
+    def _save_output_data(output_data, input_filenames, output_dir):
+        n_scans = output_data.shape[-1]
+
     # loop over subjects
     for subject_data in subjects:
         print("%sSlice-Timing Correction for %s (%s)" % ('\t',

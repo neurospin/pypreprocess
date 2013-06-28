@@ -10,8 +10,8 @@ sys.path.append(PYPREPROCESS_DIR)
 
 from algorithms.registration.spm_realign import MRIMotionCorrection
 from reporting.check_preprocessing import plot_spm_motion_parameters
-from external.nisl.datasets import fetch_nyu_rest, fetch_fsl_feeds_data,\
- fetch_spm_multimodal_fmri_data
+from external.nisl.datasets import (fetch_nyu_rest, fetch_fsl_feeds_data,
+                                    fetch_spm_multimodal_fmri_data)
 
 # datastructure for subject data
 SubjectData = namedtuple('SubjectData', 'subject_id func output_dir')
