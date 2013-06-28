@@ -166,6 +166,8 @@ class MRIMotionCorrection(object):
         ----------
         msg: string
             message to log
+        verbose: int, optional (default 0)
+            verbose level for msg
 
         """
 
@@ -382,8 +384,9 @@ class MRIMotionCorrection(object):
                 relative_gain = np.abs((pss - ss) / pss)
 
                 # update progress bar
-                token = "\t\t" + " ".join(['%-8.4g' % x for x in p[self._lkp]])
-                token += " " * (len(self._lkp) * 12 - len(token)
+                token = "\t\t" + "  ".join(['%-8.4g' % x
+                                            for x in p[self._lkp]])
+                token += " " * (len(self._lkp) * 13 - len(token)
                                 ) + "| %.5g" % relative_gain
                 self._log(token)
 

@@ -172,11 +172,11 @@ if __name__ == '__main__':
 
     print separator.join(['', banner, warning, banner, ''])
 
-    # run spm multimodal demo
-    demo_spm_multimodal_fmri()
+    # # run spm multimodal demo
+    # demo_spm_multimodal_fmri()
 
     # run fsl feeds demo
     demo_fsl_feeds()
 
-    # run nyu_rest demo()
-    demo_nyu_rest()
+    # # run nyu_rest demo()
+    # demo_nyu_rest()
