@@ -58,6 +58,7 @@ def _demo(subjects, dataset_id, **spm_realign_kwargs):
             title="Estimated motion for %s of '%s'" % (
                 subject_data.subject_id,
                 dataset_id))
+
         plt.show()
 
 

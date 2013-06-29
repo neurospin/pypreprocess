@@ -1,7 +1,6 @@
 """
 :Module: affine_transformations
-:Synopsis: routine functions for doing affine
-transformation-related business
+:Synopsis: routine functions for doing affine transformation-related business
 :Author: DOHMATOB Elvis Dopgima
 
 """
@@ -212,7 +211,8 @@ def transform_coords(p, M1, M2, coords):
 
 
 def get_physical_coords(affine, voxel):
-    """Get the scanner coordinates of a voxel (or set of voxels) in the brain.
+    """Get the scanner (world) coordinates of a voxel (or set of voxels) in
+    the brain.
 
     Parameters
     ----------
@@ -227,8 +227,8 @@ def get_physical_coords(affine, voxel):
 
     """
 
-    # sanitize voxel
+    # sanitize voxel dim
     voxel = np.array(voxel).reshape((3, -1))
 
     # compute and return the coords
-    return transform_coords([0, 0, 0, 0, 0, 0], affine, np.eye(4), voxel)
+    return transform_coords(np.zeros(6), affine, np.eye(4), voxel)
