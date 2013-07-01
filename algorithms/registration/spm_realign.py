@@ -12,6 +12,7 @@ import scipy.ndimage as ndi
 import scipy.linalg
 import kernel_smooth
 import affine_transformations
+import spm_reslice
 
 INFINITY = np.inf
 
@@ -83,11 +84,9 @@ class MRIMotionCorrection(object):
 
     """
 
-    def __init__(self, sep=4, interp=3, fwhm=5., quality=.9, rtm=False,
-                 lkp=[0, 1, 2, 3, 4, 5], pw=None, verbose=1,
-                 output_dir=None,
-                 prefix='r',
-                 n_iterations=66,
+    def __init__(self, sep=4, interp=3, fwhm=5., quality=.9, tol=1e-8,
+                 lkp=[0, 1, 2, 3, 4, 5], verbose=1,
+                 n_iterations=64,
                  ):
         """Default constructor.
 
@@ -97,15 +96,13 @@ class MRIMotionCorrection(object):
             The idea is that some voxels contribute little to the estimation
             of the realignment parameters. This parameter is involved in
             selecting the number of voxels that are used.
+        tol: float, optional (defaul 1e-8)
+            tolerance for Gauss-Newton LS iterations
         fwhm: float, optional (default 10)
             the FWHM of the Gaussian smoothing kernel (mm) applied to the
             images before estimating the realignment parameters.
         sep: intx, optional (default 4)
             the default separation (mm) to sample the images
-        rtm: boolean, optional (default False)
-            register to mean.  If field exists then a two pass procedure is
-            to be used in order to register the images to the mean of the image
-            after the first realignment
         interp: int, optional (default 3)
             B-spline degree used for interpolation
         lkp: arry_like of ints, optional (default [0, 1, 2, 3, 4, 5])
@@ -123,9 +120,6 @@ class MRIMotionCorrection(object):
             9  - x shear
             10 - y shear
             11 - z shear
-        pw: string, optional (default None)
-            a filename of a weighting image (reciprocal of standard deviation).
-            If field does not exist, then no weighting is done.
         verbose: int, optional (default 1)
             controls verbosity level. 0 means no verbose at all
         output_dir: string, optional (default None)
@@ -143,21 +137,10 @@ class MRIMotionCorrection(object):
         self._interp = interp
         self._fwhm = fwhm
         self._quality = quality
-        self._rtm = rtm
+        self._tol = tol
         self._lkp = lkp
-        self._pw = pw
         self._verbose = verbose
-        self._output_dir = output_dir
-        self._prefix = prefix
         self._n_iterations = n_iterations
-
-        # check against unimplemented option rtm
-        if self._rtm:
-            raise NotImplementedError("rtm: Option not yet implemented")
-
-        # check against unimplemented option pw
-        if self._pw:
-            raise NotImplementedError("pw: Option not yet implemented")
 
         pass
 
@@ -173,36 +156,6 @@ class MRIMotionCorrection(object):
 
         if self._verbose:
             print(msg)
-
-    def _load_vol(self, t):
-        """Helper function to load a 3D volume.
-
-        Paremeters
-        ----------
-        t: int
-            scan index for the volume (0 for fist volume,
-            -1 for last volume, etc.)
-
-        """
-
-        if isinstance(self._vols, list):
-            x = self._vols[t]
-            if isinstance(x, basestring):
-                return nibabel.load(x)
-            elif isinstance(x, nibabel.Nifti1Image):
-                return x
-            else:
-                raise TypeError("Unhandled volume type: %s" % type(x))
-        elif isinstance(self._vols, nibabel.Nifti1Image):
-            return nibabel.Nifti1Image(self._vols.get_data()[..., t],
-                                       self._vols.get_affine())
-        elif isinstance(self._vols, basestring):
-            self._vols = nibabel.load(self._vols)
-            return nibabel.Nifti1Image(self._vols.get_data()[..., t],
-                                       self._vols.get_affine())
-        else:  # unhandled type
-            raise TypeError(
-                "imgs arg must be string, image object, or list of such.")
 
     def fit(self, vols):
         """Estimation of within-modality rigid-body movement parameters.
@@ -244,7 +197,16 @@ class MRIMotionCorrection(object):
                     ("Each volume must be string, image object, got:"
                      " %s") % type(x))
 
-            assert len(vol.shape) == 3
+            if len(vol.shape) == 4:
+                if vol.shape[-1] == 1:
+                    vol = nibabel.Nifti1Image(vol.get_data()[..., 0],
+                                              vol.get_affine())
+                else:
+                    raise ValueError(
+                        "Each volume must be 3D, got %iD" % len(vol.shape))
+            elif len(vol.shape) != 3:
+                    raise ValueError(
+                        "Each volume must be 3D, got %iD" % len(vol.shape))
 
             return vol
 
@@ -332,10 +294,8 @@ class MRIMotionCorrection(object):
         alpha = np.dot(alpha.T, alpha)
         det0 = scipy.linalg.det(alpha)
         det1 = det0  # det1 / det0 is a precision measure
-        iteration = 0
+        n_eliminated_voxels = 0
         while det1 / det0 > self._quality:
-            iteration += 1
-
             # determine unimportant voxels to eliminate
             dets = np.ndarray(A0.shape[0])
             for t in xrange(A0.shape[0]):
@@ -346,6 +306,7 @@ class MRIMotionCorrection(object):
             msk = msk[:np.round(len(dets) / 10.)]
 
             # eliminate unimportant voxels
+            n_eliminated_voxels += len(msk)
             self._log(
                 "\tEliminating %i voxels (current quality = %s)..." % (
                     len(msk), det1 / det0))
@@ -362,7 +323,7 @@ class MRIMotionCorrection(object):
             alpha = np.vstack((A0.T, b)).T
             alpha = np.dot(alpha.T, alpha)
             det1 = scipy.linalg.det(alpha)
-        self._log("... done.")
+        self._log("... done; eliminated %i voxels." % n_eliminated_voxels)
 
         # register the volumes to the reference volume
         self._log("\r\nRegistering volumes to reference...")
@@ -441,7 +402,7 @@ class MRIMotionCorrection(object):
                 self._log(token)
 
                 # check whether we've stopped converging altogether
-                if relative_gain < 1e-8 and countdown == -1:
+                if relative_gain < self._tol and countdown == -1:
                     countdown = 2
 
                 # countdown
@@ -451,15 +412,26 @@ class MRIMotionCorrection(object):
                         break
                     countdown -= 1
 
+            # what happened ?
+            comments = " after %i iterations" % (iteration + 1)
+            if iteration + 1 == self._n_iterations:
+                comments = "did not coverge" + comments
+            else:
+                if relative_gain < self._tol:
+                    comments = "converged" + comments
+                else:
+                    comments = "stopped converging" + comments
+
             # store estimated motion for volume t
-            self._log("\t\t... done.")
+            self._log("\t\t... done; %s." % comments)
             self._rp[t, ...] = affine_transformations.spm_imatrix(np.dot(
                     self._vols[t].get_affine(), iref_affine))
 
         # return realigned vols and realignment params
         return {"rvols": self._vols, "rp": self._rp}
 
-    def transform(self, output_dir=None, prefix="r", ext=".nii.gz"):
+    def transform(self, reslice=False, output_dir=None, prefix="r",
+                  ext=".nii.gz"):
         """Saves realigned volumes and the realigment parameters to disk.
         Realigment parameters are stored in output_dir/rp.txt and Volumes
         are saved in output_dir/prefix_vol_t.ext where and t is the scan
@@ -467,6 +439,8 @@ class MRIMotionCorrection(object):
 
         Parameters
         ----------
+        reslice: bool, optional (default False)
+            reslice the realigned volumes
         output_dir: string, optional (dafault None)
             existing dirname where output will be written
         prefix: string, optional (default 'r')
@@ -490,7 +464,7 @@ class MRIMotionCorrection(object):
 
         """
 
-        output = {'rvols': []}
+        output = {}
 
         # sanitize output_dir
         if not output_dir is None:
@@ -504,28 +478,25 @@ class MRIMotionCorrection(object):
             output['rp_filename'] = os.path.join(output_dir, "rp.txt")
             np.savetxt(output['rp_filename'], self._rp[..., self._lkp])
 
+        # reslice vols
+        if reslice:
+            self._log('Reslicing volumes...')
+            self._vols = spm_reslice.reslice_vols(self._vols, log=self._log)
+            self._log('... done.')
+
         # save realigned files to disk
         self._log('\r\nSaving realigned volumes to %s' % output_dir)
         n_scans = len(self._vols)
         for t in xrange(n_scans):
-            # load volume t
-            vol_t = self._load_vol(t)
-
-            # apply realignment transformation vol_0 -> vol_t
-            if t > 0:
-                vol_t = nibabel.Nifti1Image(
-                    vol_t.get_data(), np.dot(scipy.linalg.inv(
-                            affine_transformations.spm_matrix(
-                                self._rp[t, ...])), vol_t.get_affine()))
-
             # save realigned vol unto disk
             output_filename = os.path.join(output_dir,
-                                           "%s_vol_%i.nii.gz" % (prefix, t))
-            nibabel.save(self._load_vol(t), output_filename)
+                                           "%s_vol_%i.%s" % (prefix, t, ext))
+            nibabel.save(self._vols[t], output_filename)
 
             # update rvols and realigned_files
-            output['rvols'].append(vol_t)
             output['realigned_files'].append(output_filename)
+        self._log('... done.')
 
         # return output
+        output["rvols"] = self._vols
         return output

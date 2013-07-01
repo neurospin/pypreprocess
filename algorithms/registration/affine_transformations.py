@@ -210,14 +210,14 @@ def transform_coords(p, M1, M2, coords):
     return np.dot(M, coords)[:-1].reshape(coords_shape)
 
 
-def get_physical_coords(affine, voxel):
+def get_physical_coords(M, voxel):
     """Get the scanner (world) coordinates of a voxel (or set of voxels) in
     the brain.
 
     Parameters
     ----------
-    affine: 2D array of shape (4, 4)
-        affine of the brain
+    M: 2D array of shape (4, 4)
+        affine transformation describing voxel to world mapping
     voxel: array_like of shape (3, n_voxels)
         voxel(s) under consideration
 
@@ -231,4 +231,18 @@ def get_physical_coords(affine, voxel):
     voxel = np.array(voxel).reshape((3, -1))
 
     # compute and return the coords
-    return transform_coords(np.zeros(6), affine, np.eye(4), voxel)
+    return transform_coords(np.zeros(6), M, np.eye(4), voxel)
+
+
+def get_mask(M, voxel, dim, wrp=[1, 1, 0]):
+    tiny = 5e-2
+
+    physical_coords = get_physical_coords(M, voxel)
+    mask = np.ones(physical_coords.shape[-1]).astype('bool')
+
+    for j in xrange(3):
+        if not wrp[j]:
+            mask = mask & (physical_coords[j] >= -tiny
+                           ) & (physical_coords[j] < dim[j] + tiny)
+
+    return mask, physical_coords
