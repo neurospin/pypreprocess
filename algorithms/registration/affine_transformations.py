@@ -217,7 +217,7 @@ def get_physical_coords(M, voxel):
     Parameters
     ----------
     M: 2D array of shape (4, 4)
-        affine transformation describing voxel to world mapping
+        affine transformation describing voxel-to-world mapping
     voxel: array_like of shape (3, n_voxels)
         voxel(s) under consideration
 
@@ -234,15 +234,44 @@ def get_physical_coords(M, voxel):
     return transform_coords(np.zeros(6), M, np.eye(4), voxel)
 
 
-def get_mask(M, voxel, dim, wrp=[1, 1, 0]):
-    tiny = 5e-2
+def get_mask(M, coords, dim, wrp=[1, 1, 0], tiny=5e-2):
+    """
+    Wrapper for get_physical_coords(...) with optional wrapping of dimensions.
 
-    physical_coords = get_physical_coords(M, voxel)
-    mask = np.ones(physical_coords.shape[-1]).astype('bool')
+    Parameters
+    ----------
+    M: 2D array of shape (4, 4)
+        affine transformation describing voxel-to-world mapping
+    coords: array_like of shape (3, n_voxels)
+        voxel(s) under consideration
+    dim: list of 3 ints
+        dimensions (nx, ny, nz) of the voxel space (for example [64, 56, 21])
+    wrp: list of 3 bools, optional (default [1, 1, 0])
+        each coordinate value indicates whether wrapping should be done in the
+        corresponding dimension or not. Possible values are:
+        [0, 0, 0]: no wrapping; use this value for PET data
+        [1, 1, 0]: wrap all except z (slice-wise) dimension; use this value for
+        fMRI data
+    tiny: float, optional (default 5e-2)
+        threshold for filtering voxels that have fallen out of the FOV
+
+    Returns
+    -------
+    Tuple (fov_mask, physical_coords), where:
+    fov_mask: 1D array_like of len voxel.shape[1]
+        mask for filtering voxels that are still in the FOV. 1 means 'OK',
+        0 means 'fell out of FOV'
+    physical_coords: array of same shape as input coords
+        transformed coords
+
+    """
+
+    physical_coords = get_physical_coords(M, coords)
+    fov_mask = np.ones(physical_coords.shape[-1]).astype('bool')
 
     for j in xrange(3):
         if not wrp[j]:
-            mask = mask & (physical_coords[j] >= -tiny
-                           ) & (physical_coords[j] < dim[j] + tiny)
+            fov_mask = fov_mask & (physical_coords[j] >= -tiny
+                                   ) & (physical_coords[j] < dim[j] + tiny)
 
-    return mask, physical_coords
+    return fov_mask, physical_coords

@@ -245,17 +245,12 @@ class MRIMotionCorrection(object):
         # build working grid
         x1, x2, x3 = np.mgrid[0:dim[0] - .5 - 1:skip[0],
                               0:dim[1] - .5 - 1:skip[1],
-                              0:dim[2] - .5 - 1:skip[2]]
+                              0:dim[2] - .5 - 1:skip[2]].reshape((3, -1))
 
         # dope the grid so we're not perfectly aligned with its vertices
         x1 += np.random.randn(*x1.shape) * .5
         x2 += np.random.randn(*x2.shape) * .5
         x3 += np.random.randn(*x3.shape) * .5
-
-        # ravel working grid
-        x1 = x1.ravel()
-        x2 = x2.ravel()
-        x3 = x3.ravel()
 
         # smooth 0th volume to absorb noise before differentiating
         sref_vol = kernel_smooth.smooth_image(self._vols[0],

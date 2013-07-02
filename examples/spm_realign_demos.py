@@ -48,7 +48,7 @@ def _demo(subjects, dataset_id, **spm_realign_kwargs):
         mc.fit(subject_data.func)
 
         # write realigned files to disk
-        mc.transform(output_dir=subject_data.output_dir)
+        mc.transform(reslice=True, output_dir=subject_data.output_dir)
 
         # plot results
         rp_filename = glob.glob(os.path.join(subject_data.output_dir,
