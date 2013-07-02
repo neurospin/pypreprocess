@@ -1368,7 +1368,7 @@ def _do_subject_preproc(
                 % subject_data.subject_id)
 
         output['anat'] = norm_output['normalized_files']
-    elif fwhm:
+    elif np.sum(fwhm) > 0:
         # smooth func
         smooth_output = _do_subject_smooth(
             subject_data.output_dir,
