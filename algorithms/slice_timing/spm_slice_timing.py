@@ -6,9 +6,7 @@
 """
 
 import os
-import sys
-import glob
-import nibabel as ni
+import nibabel
 import scipy
 import numpy as np
 import matplotlib.pyplot as plt
@@ -83,15 +81,32 @@ class STC(object):
 
     """
 
-    def __init__(self, verbose=1):
+    def __init__(self, slice_order='ascending',
+                 interleaved=False,
+                 ref_slice=0,
+                 verbose=1):
         """Default constructor.
 
         Parameters
         ----------
+        slice_order: string or array of ints or length n_slices
+            slice order of acquisitions in a TR
+            'ascending': slices were acquired from bottommost to topmost
+            'descending': slices were acquired from topmost to bottommost
+        interleaved: bool (optional, default False)
+            if set, then slices were acquired in interleaved order,
+            odd-numbered slices first, and then even-numbered slices
+        ref_slice: int (optional, default 0)
+            the slice number to be taken as the reference slice
         verbose: int (optional, default 1)
             verbosity level, set to 0 for no verbose
 
         """
+
+        # slice acquisition info
+        self._slice_order = slice_order
+        self._interleaved = interleaved
+        self._ref_slice = ref_slice
 
         self._verbose = verbose
 
@@ -161,9 +176,6 @@ class STC(object):
         return raw_data
 
     def fit(self, raw_data=None, n_slices=None, n_scans=None,
-            slice_order='ascending',
-            interleaved=False,
-            ref_slice=0,
             timing=None,
             ):
         """Fits an STC transform that can be later used (using the
@@ -187,15 +199,6 @@ class STC(object):
         n_scans: int (optional, default None)
             number of 3D volumes. If the raw_data parameter
             is specified then this parameter should not be specified
-        slice_order: string or array of ints or length n_slices
-            slice order of acquisitions in a TR
-            'ascending': slices were acquired from bottommost to topmost
-            'descending': slices were acquired from topmost to bottommost
-        interleaved: bool (optional, default False)
-            if set, then slices were acquired in interleaved order,
-            odd-numbered slices first, and then even-numbered slices
-        ref_slice: int (optional, default 0)
-            the slice number to be taken as the reference slice
         timing: list or tuple of length 2 (optional, default None)
             additional information for sequence timing
             timing[0] = time between slices
@@ -220,6 +223,8 @@ class STC(object):
             raw_data = self._sanitize_raw_data(raw_data, fitting=True,)
             self._n_slices = raw_data.shape[2]
             self._n_scans = raw_data.shape[-1]
+
+            self._raw_data = raw_data
         else:
             if n_slices is None:
                 raise ValueError(
@@ -233,11 +238,6 @@ class STC(object):
                     " specify a value for n_scans!")
             else:
                 self._n_scans = n_scans
-
-        # slice acquisition info
-        self._slice_order = slice_order
-        self._interleaved = interleaved
-        self._ref_slice = ref_slice
 
         # fix slice indices consistently with slice order
         self._slice_indices = get_slice_indices(self._n_slices,
@@ -301,14 +301,18 @@ class STC(object):
         # return computed transform
         return self._transform
 
-    def transform(self, raw_data):
-        """Applies STC transform to raw data
+    def transform(self, raw_data=None):
+        """
+        Applies STC transform to raw data, thereby correcting for time-delay
+        in acquisition.
 
         Parameters
         ----------
-        raw_data: 4D array of shape (n_rows, n_columns, n_slices, n_scans)
+        raw_data: 4D array of shape (n_rows, n_columns, n_slices, n_scans),
+        optional (default None)
             the data to be ST corrected. raw_data is Not modified in memory;
-            another array is returned.
+            another array is returned. If not specified, then the fitted
+            data if used in place
 
         Returns
         -------
@@ -325,6 +329,13 @@ class STC(object):
             raise Exception("fit(...) method not yet invoked!")
 
         # sanitize raw_data
+        if raw_data is None:
+            if hasattr(self, '_raw_data'):
+                raw_data = self._raw_data
+            else:
+                raise RuntimeError(
+                    'You need to specify raw_data that will be transformed.')
+
         raw_data = self._sanitize_raw_data(raw_data)
 
         n_rows, n_columns = raw_data.shape[:2]
@@ -390,6 +401,118 @@ class STC(object):
         return self._output_data
 
 
+class fMRISTC(STC):
+    def _sanitize_raw_data(self, raw_data, **kwargs):
+        """
+        Re-implementation of parent method to sanitize fMRI data.
+
+        """
+
+        if isinstance(raw_data, np.ndarray) or isinstance(raw_data, list) \
+                or isinstance(raw_data, basestring):
+            raw_data = self._load_fmri_data(raw_data)
+
+        return STC._sanitize_raw_data(self, raw_data, **kwargs)
+
+    def _load_fmri_data(self, fmri_files, is_3D=False):
+        """
+        Helper function to load fmri data from filename /
+        ndarray or list of such.
+
+        Parameters
+        ----------
+        fmri_files: `np.ndarray` or string of list of strings, or (recursive)
+        of list of such
+            the data to be loaded.
+            if string, it should be the filename of a single 3D vol or 4D
+            fmri film.
+        is_3D: boolean
+            flag specifying whether loaded data is in fact 3D. This is useful
+            for loading volumes with shapes like (25, 34, 56, 1), where the
+            last dimension can be ignored altogether
+
+        Returns
+        -------
+        data: `np.ndarray`
+            the loaded data
+
+        """
+
+        if isinstance(fmri_files, np.ndarray):
+            data = fmri_files
+        elif isinstance(fmri_files, basestring):
+            data = nibabel.load(fmri_files).get_data()
+        else:
+            # assuming list of (perhaps list of ...) filenames (strings)
+            n_scans = len(fmri_files)
+            _first = self._load_fmri_data(fmri_files[0], is_3D=True)
+            data = np.ndarray(tuple(list(_first.shape
+                                         ) + [n_scans]))
+            data[..., 0] = _first
+            for scan in xrange(1, n_scans):
+                data[..., scan] = self._load_fmri_data(fmri_files[scan],
+                                                       is_3D=True)
+
+        if is_3D:
+            if data.ndim == 4:
+                data = data[..., 0]
+
+        return data
+
+    def get_raw_data(self):
+        return self._raw_data
+
+    # def _save_stc_output(self, output_dir,
+    #                      input_filenames,
+    #                      prefix='a'):
+
+    #     self._log("Saving STC output to %s..." % output_dir)
+
+    #     # sanitize output_diir
+    #     ref_filename = input_filenames if isinstance(
+    #         input_filenames, basestring) else input_filenames[0]
+    #     ref_file_basename = os.path.basename(ref_filename)
+    #     if output_dir is None:
+    #         output_dir = output_dir
+    #     if output_dir is None:
+    #         output_dir = os.path.dirname(ref_filename)
+    #     if not os.path.exists(output_dir):
+    #         os.makedirs(output_dir)
+
+    #     # save corrected image files to disk
+    #     if isinstance(input_filenames, basestring):
+    #         affine = nibabel.load(input_filenames).get_affine()
+
+    #         for t in xrange(self._n_scans):
+    #             output_filename = os.path.join(output_dir,
+    #                                            "%s%i%s" % (
+    #                     prefix, t, ref_file_basename))
+
+    #             nibabel.save(nibabel.Nifti1Image(
+    #                     self.get_last_output_data[..., t],
+    #                     affine),
+    #                          output_filename)
+
+    #         output_filenames = output_filename
+    #     else:
+    #         output_filenames = []
+    #         for filename, t in zip(input_filenames, xrange(self._n_scans)):
+    #             affine = nibabel.load(filename).get_affine()
+    #             output_filename = os.path.join(output_dir,
+    #                                            "%s%s" % (
+    #                     prefix,
+    #                     os.path.basename(filename)))
+
+    #             nibabel.save(nibabel.Nifti1Image(
+    #                     self.get_last_output_data[..., t],
+    #                     affine),
+    #                          output_filename)
+
+    #             output_filenames.append(output_filename)
+
+    #     return output_filenames
+
+
 def plot_slicetiming_results(acquired_sample,
                              st_corrected_sample,
                              TR=1.,
@@ -399,6 +522,7 @@ def plot_slicetiming_results(acquired_sample,
                              y=None,
                              compare_with=None,
                              suptitle_prefix="",
+                             output_dir=None,
                              ):
     """Function to generate QA plots post-STC business, for a single voxel
 
@@ -427,6 +551,8 @@ def plot_slicetiming_results(acquired_sample,
         that implementation
     suptitle_prefix: string (optional, default "")
         prefix to append to suptitles
+    output_dir: string, optional (default None)
+        dirname where generated plots will be saved
 
     Returns
     -------
@@ -554,398 +680,12 @@ def plot_slicetiming_results(acquired_sample,
                         "STC method 2",))
             ax3.set_ylabel("absolute error")
 
-        # show generated plots
+        if not output_dir is None:
+            output_filename = os.path.join(output_dir,
+                                           "stc_results__slice_%i.png" % z)
+            # dump image unto disk
+            plt.savefig(output_filename, bbox_inches="tight", dpi=200)
+
         plt.show()
 
     print "Done."
-
-
-def demo_random_brain(n_rows=62, n_columns=40, n_slices=10, n_scans=240):
-    """Now, how about STC for brain packed with white-noise ? ;)
-
-    """
-
-    print "\r\n\t\t ---demo_random_brain---"
-
-    # populate brain with white-noise (for BOLD values)
-    brain_data = np.random.randn(n_rows, n_columns, n_slices, n_scans)
-
-    # instantiate STC object
-    stc = STC()
-
-    # fit STC
-    stc.fit(raw_data=brain_data)
-
-    # re-slice random brain
-    stc.transform(brain_data)
-
-    # QA clinic
-    plot_slicetiming_results(brain_data, stc.get_last_output_data(),
-                             suptitle_prefix="Random brain",)
-
-
-def demo_sinusoidal_mixture(n_slices=10, n_rows=3, n_columns=2,
-                          introduce_artefact_in_these_volumes=None,
-                          artefact_std=4.,
-                          white_noise_std=1e-2,
-                          ):
-    """STC for time phase-shifted sinusoidal mixture in the presence of
-    white-noise and volume-specific artefacts. This is supposed to be a
-    BOLD time-course from a single voxel.
-
-    Parameters
-    ----------
-    n_slices: int (optional)
-        number of slices per 3D volume of the acquisition
-    n_rows: int (optional)
-        number of rows in simulated acquisition
-    n_columns: int (optional)
-        number of columns in simmulated acquisition
-    white_noise_std: float (optional, default 1e-2)
-        amplitude of white noise to add to phase-shifted sample (spatial
-        corruption)
-    artefact_std: float (optional, default 4)
-        amplitude of artefact
-    introduce_artefact_in_these_volumesS: string, integer, or list of integers
-    (optional, "middle")
-        TR/volume index or indices to corrupt with an artefact (a spontaneous
-        stray spike, probably due to instability of scanner B-field) of
-        amplitude artefact_std
-
-    """
-
-    print "\r\n\t\t ---demo_sinusoid_mixture---"
-
-    slice_indices = np.arange(n_slices, dtype=int)
-
-    timescale = .01
-    sine_freq = [.5, .8, .11,
-                  .7]  # number of complete cycles per unit time
-
-    def my_sinusoid(t):
-        """Creates mixture of sinusoids with different frequencies
-
-        """
-
-        res = t * 0
-
-        for f in sine_freq:
-            res += np.sin(2 * np.pi * t * f)
-
-        return res
-
-    time = np.arange(0, 24 + timescale, timescale)
-    signal = my_sinusoid(time)
-
-    # define timing vars
-    freq = 10
-    TR = freq * timescale
-
-    # sample the time
-    acquisition_time = time[::freq]
-
-    # corrupt the sampled time by shifting it to the right
-    slice_TR = 1. * TR / n_slices
-    time_shift = slice_indices * slice_TR
-    shifted_acquisition_time = np.array([tau + acquisition_time
-                                     for tau in time_shift])
-
-    # acquire the signal at the corrupt sampled time points
-    acquired_signal = np.array([
-            [[my_sinusoid(shifted_acquisition_time[j])
-              for j in xrange(n_slices)]
-             for y in xrange(n_columns)] for x in xrange(n_rows)]
-                               )
-
-    # add white noise
-    acquired_signal += white_noise_std * np.random.randn(
-        *acquired_signal.shape)
-
-    n_scans = len(acquisition_time)
-
-    # add artefacts to specific volumes/TRs
-    if introduce_artefact_in_these_volumes is None:
-        introduce_artefact_in_these_volumes = []
-    if isinstance(introduce_artefact_in_these_volumes, int):
-        introduce_artefact_in_these_volumes = [
-            introduce_artefact_in_these_volumes]
-    elif introduce_artefact_in_these_volumes == "middle":
-        introduce_artefact_in_these_volumes = [n_scans / 2]
-    else:
-        assert hasattr(introduce_artefact_in_these_volumes, '__len__')
-    introduce_artefact_in_these_volumes = np.array(
-        introduce_artefact_in_these_volumes, dtype=int) % n_scans
-    acquired_signal[:, :, :, introduce_artefact_in_these_volumes
-                          ] += artefact_std * np.random.randn(
-        n_rows,
-        n_columns,
-        n_slices,
-        len(introduce_artefact_in_these_volumes))
-
-    # fit STC
-    stc = STC()
-    stc.fit(n_slices=n_slices, n_scans=n_scans)
-
-    # apply STC
-    st_corrected_signal = stc.transform(acquired_signal)
-
-    # QA clinic
-    plot_slicetiming_results(acquired_signal,
-                             st_corrected_signal,
-                             TR=TR,
-                             ground_truth_signal=signal,
-                             ground_truth_time=time,
-                             suptitle_prefix="Noisy sinusoidal mixture",
-                             )
-
-
-def demo_real_BOLD(dataset='localizer',
-              data_dir='/tmp/stc_demo',
-              output_dir='/tmp',
-              compare_with=None,
-              QA=True,
-              ):
-    """Demo for real data.
-
-    Parameters
-    ----------
-    dataset: string (optiona, defaul 'localizer')
-        name of dataset to demo. Possible values are:
-        spm-auditory: SPM single-subject auditory data (if absent,
-                      will try to grab it over the net)
-        fsl-feeds: FSL-Feeds fMRI data (if absent, will try to grab
-                   it over the net)
-        localizer: data used with nipy's localize_glm_ar.py demo; you'll
-                   need nipy test data installed
-        face-rep-SPM5 (you need to download the data and point data_dir
-        to the containing folder)
-    data_dir: string (optional, '/tmp/stc_demo')
-        path to directory containing data; or destination
-        for downloaded data (in case we fetch from the net)
-    output_dir: string (optional, default "/tmp")
-        path to directory where all output (niftis, etc.)
-        will be written
-    compare_with: 4D array (optional, default None)
-        data to compare STC results with, must be same shape as
-        corrected data
-    QA: boolean (optional, default True)
-        if set, then QA plots will be generated after STC
-
-    Raises
-    ------
-    Exception
-
-    """
-
-    # sanitize dataset name
-    assert isinstance(dataset, basestring)
-    dataset = dataset.lower()
-
-    # sanitize output dir
-    if output_dir is None:
-        output_dir = '/tmp'
-
-    print "\r\n\t\t ---demo_real_BOLD (%s)---" % dataset
-
-    # load the data
-    slice_order = 'ascending'
-    interleaved = False
-    ref_slice = 0
-    print("Loading data...")
-    if dataset == 'spm-auditory':
-        # pypreproces path
-        PYPREPROCESS_DIR = os.path.dirname(os.path.split(
-                os.path.abspath(__file__))[0])
-        sys.path.append(PYPREPROCESS_DIR)
-        from datasets_extras import fetch_spm_auditory_data
-
-        _subject_data = fetch_spm_auditory_data(data_dir)
-
-        fmri_img = ni.concat_images(_subject_data['func'],)
-        fmri_data = fmri_img.get_data()[:, :, :, 0, :]
-
-        TR = 7.
-    elif dataset == 'fsl-feeds':
-        PYPREPROCESS_DIR = os.path.dirname(os.path.split(
-                os.path.abspath(__file__))[0])
-
-        sys.path.append(PYPREPROCESS_DIR)
-        from datasets_extras import fetch_fsl_feeds_data
-
-        _subject_data = fetch_fsl_feeds_data(data_dir)
-        if not _subject_data['func'].endswith('.gz'):
-            _subject_data['func'] += '.gz'
-
-        fmri_img = ni.load(_subject_data['func'],)
-        fmri_data = fmri_img.get_data()
-
-        TR = 3.
-    elif dataset == 'localizer':
-        data_path = os.path.join(
-            os.environ["HOME"],
-            ".nipy/tests/data/s12069_swaloc1_corr.nii.gz")
-        if not os.path.exists(data_path):
-            raise RuntimeError("You don't have nipy test data installed!")
-
-        fmri_img = ni.load(data_path)
-        fmri_data = fmri_img.get_data()
-
-        TR = 2.4
-    elif dataset == 'face-rep-spm5':
-        # XXX nibabel says the affines of the 3Ds are different
-        fmri_data = np.array([ni.load(x).get_data() for x in sorted(glob.glob(
-                        os.path.join(
-                            data_dir,
-                            "RawEPI/sM03953_0005_*.img")))])[:, :, :, 0, :]
-        if len(fmri_data) == 0:
-            raise RuntimeError(
-                "face-rep-SPM5 data not found in %s; install it it set the "
-                "parameter data_dir to the directory containing it")
-
-        TR = 2.
-        slice_order = 'descending'
-        ref_slice = fmri_data.shape[2] / 2  # middle slice
-    else:
-        raise RuntimeError("Unknown dataset: %s" % dataset)
-
-    output_filename = os.path.join(
-        output_dir,
-        "st_corrected_" + dataset.rstrip(" ").replace("-", "_") + ".nii",
-        )
-
-    print("Done.")
-
-    # fit STC
-    stc = STC()
-    stc.fit(raw_data=fmri_data,
-            slice_order=slice_order,
-            interleaved=interleaved,
-            ref_slice=ref_slice,
-            )
-
-    # do full-brain ST correction
-    stc.transform(fmri_data)
-    corrected_fmri_data = stc.get_last_output_data()
-
-    # save output unto disk
-    print "Saving ST corrected image to %s..." % output_filename
-    ni.save(ni.Nifti1Image(corrected_fmri_data, fmri_img.get_affine()),
-            output_filename)
-    print "Done."
-
-    # QA clinic
-    if QA:
-        plot_slicetiming_results(fmri_data,
-                                 corrected_fmri_data,
-                                 TR=TR,
-                                 compare_with=compare_with,
-                                 suptitle_prefix=dataset,
-                                 )
-
-
-def demo_HRF(n_slices=10,
-             n_rows=2,
-             n_columns=3,
-             white_noise_std=1e-4,
-             ):
-    """STC for phase-shifted HRF in the presence of white-noise
-
-    Parameters
-    ----------
-    n_slices: int (optional, default 21)
-        number of slices per 3D volume of the acquisition
-    n_voxels_per_slice: int (optional, default 1)
-        the number of voxels per slice in the simulated brain
-        (setting this to 1 is sufficient for most QA since STC works
-        slice-wise, and not voxel-wise)
-    white_noise_std: float (optional, default 1e-4)
-        STD of white noise to add to phase-shifted sample (spatial corruption)
-
-    """
-
-    print "\r\n\t\t ---demo_HRF---"
-
-    import math
-
-    slice_indices = np.arange(n_slices, dtype=int)
-
-    # create time values scaled at 1%
-    timescale = .01
-    n_timepoints = 24
-    time = np.linspace(0, n_timepoints, num=1 + (n_timepoints - 0) / timescale)
-
-    # create gamma functions
-    n1 = 4
-    lambda1 = 2
-    n2 = 7
-    lambda2 = 2
-    a = .3
-    c1 = 1
-    c2 = .5
-
-    def compute_hrf(t):
-        """Auxiliary function to compute HRF at given times (t)
-
-        """
-
-        hx = (t ** (n1 - 1)) * np.exp(
-            -t / lambda1) / ((lambda1 ** n1) * math.factorial(n1 - 1))
-        hy = (t ** (n2 - 1)) * np.exp(
-            -t / lambda2) / ((lambda2 ** n2) * math.factorial(n2 - 1))
-
-        # create hrf = weighted difference of two gammas
-        hrf = a * (c1 * hx - c2 * hy)
-
-        return hrf
-
-    # compute hrf
-    signal = compute_hrf(time)
-
-    # sample the time and the signal
-    freq = 100
-    TR = 3.
-    acquisition_time = time[::TR * freq]
-    n_scans = len(acquisition_time)
-
-    # corrupt the sampled time by shifting it to the right
-    slice_TR = 1. * TR / n_slices
-    time_shift = slice_indices * slice_TR
-    shifted_acquisition_time = np.array([tau + acquisition_time
-                                     for tau in time_shift])
-
-    # acquire the signal at the corrupt sampled time points
-    acquired_sample = np.array([np.vectorize(compute_hrf)(
-                shifted_acquisition_time[j])
-                                for j in xrange(n_slices)])
-    acquired_sample = np.array([acquired_sample, ] * n_columns)
-    acquired_sample = np.array([acquired_sample, ] * n_rows)
-
-    # add white noise
-    acquired_sample += white_noise_std * np.random.randn(
-        *acquired_sample.shape)
-
-    # fit STC
-    stc = STC()
-    stc.fit(n_scans=n_scans, n_slices=n_slices)
-
-    # apply STC
-    stc.transform(acquired_sample)
-
-    # QA clinic
-    plot_slicetiming_results(acquired_sample,
-                             stc.get_last_output_data(),
-                             TR=TR,
-                             ground_truth_signal=signal,
-                             ground_truth_time=time,
-                             suptitle_prefix="Noisy HRF reconstruction",
-                             )
-
-
-if __name__ == '__main__':
-    # demo on simulated data
-    demo_random_brain()
-    demo_sinusoidal_mixture()
-    demo_HRF()
-
-    # demo on real data
-    demo_real_BOLD(dataset="localizer")
