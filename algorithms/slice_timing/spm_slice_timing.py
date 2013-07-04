@@ -6,8 +6,6 @@
 """
 
 import os
-import sys
-import glob
 import nibabel
 import scipy
 import numpy as np
@@ -83,15 +81,32 @@ class STC(object):
 
     """
 
-    def __init__(self, verbose=1):
+    def __init__(self, slice_order='ascending',
+                 interleaved=False,
+                 ref_slice=0,
+                 verbose=1):
         """Default constructor.
 
         Parameters
         ----------
+        slice_order: string or array of ints or length n_slices
+            slice order of acquisitions in a TR
+            'ascending': slices were acquired from bottommost to topmost
+            'descending': slices were acquired from topmost to bottommost
+        interleaved: bool (optional, default False)
+            if set, then slices were acquired in interleaved order,
+            odd-numbered slices first, and then even-numbered slices
+        ref_slice: int (optional, default 0)
+            the slice number to be taken as the reference slice
         verbose: int (optional, default 1)
             verbosity level, set to 0 for no verbose
 
         """
+
+        # slice acquisition info
+        self._slice_order = slice_order
+        self._interleaved = interleaved
+        self._ref_slice = ref_slice
 
         self._verbose = verbose
 
@@ -161,9 +176,6 @@ class STC(object):
         return raw_data
 
     def fit(self, raw_data=None, n_slices=None, n_scans=None,
-            slice_order='ascending',
-            interleaved=False,
-            ref_slice=0,
             timing=None,
             ):
         """Fits an STC transform that can be later used (using the
@@ -187,15 +199,6 @@ class STC(object):
         n_scans: int (optional, default None)
             number of 3D volumes. If the raw_data parameter
             is specified then this parameter should not be specified
-        slice_order: string or array of ints or length n_slices
-            slice order of acquisitions in a TR
-            'ascending': slices were acquired from bottommost to topmost
-            'descending': slices were acquired from topmost to bottommost
-        interleaved: bool (optional, default False)
-            if set, then slices were acquired in interleaved order,
-            odd-numbered slices first, and then even-numbered slices
-        ref_slice: int (optional, default 0)
-            the slice number to be taken as the reference slice
         timing: list or tuple of length 2 (optional, default None)
             additional information for sequence timing
             timing[0] = time between slices
@@ -235,11 +238,6 @@ class STC(object):
                     " specify a value for n_scans!")
             else:
                 self._n_scans = n_scans
-
-        # slice acquisition info
-        self._slice_order = slice_order
-        self._interleaved = interleaved
-        self._ref_slice = ref_slice
 
         # fix slice indices consistently with slice order
         self._slice_indices = get_slice_indices(self._n_slices,
@@ -333,7 +331,6 @@ class STC(object):
         # sanitize raw_data
         if raw_data is None:
             if hasattr(self, '_raw_data'):
-                self._log('raw_data no specified, using fitted data')
                 raw_data = self._raw_data
             else:
                 raise RuntimeError(

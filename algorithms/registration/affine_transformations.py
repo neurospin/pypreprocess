@@ -1,7 +1,6 @@
 """
 :Module: affine_transformations
-:Synopsis: routine functions for doing affine
-transformation-related business
+:Synopsis: routine functions for doing affine transformation-related business
 :Author: DOHMATOB Elvis Dopgima
 
 """
@@ -211,13 +210,14 @@ def transform_coords(p, M1, M2, coords):
     return np.dot(M, coords)[:-1].reshape(coords_shape)
 
 
-def get_physical_coords(affine, voxel):
-    """Get the scanner coordinates of a voxel (or set of voxels) in the brain.
+def get_physical_coords(M, voxel):
+    """Get the scanner (world) coordinates of a voxel (or set of voxels) in
+    the brain.
 
     Parameters
     ----------
-    affine: 2D array of shape (4, 4)
-        affine of the brain
+    M: 2D array of shape (4, 4)
+        affine transformation describing voxel-to-world mapping
     voxel: array_like of shape (3, n_voxels)
         voxel(s) under consideration
 
@@ -227,8 +227,51 @@ def get_physical_coords(affine, voxel):
 
     """
 
-    # sanitize voxel
+    # sanitize voxel dim
     voxel = np.array(voxel).reshape((3, -1))
 
     # compute and return the coords
-    return transform_coords([0, 0, 0, 0, 0, 0], affine, np.eye(4), voxel)
+    return transform_coords(np.zeros(6), M, np.eye(4), voxel)
+
+
+def get_mask(M, coords, dim, wrp=[1, 1, 0], tiny=5e-2):
+    """
+    Wrapper for get_physical_coords(...) with optional wrapping of dimensions.
+
+    Parameters
+    ----------
+    M: 2D array of shape (4, 4)
+        affine transformation describing voxel-to-world mapping
+    coords: array_like of shape (3, n_voxels)
+        voxel(s) under consideration
+    dim: list of 3 ints
+        dimensions (nx, ny, nz) of the voxel space (for example [64, 56, 21])
+    wrp: list of 3 bools, optional (default [1, 1, 0])
+        each coordinate value indicates whether wrapping should be done in the
+        corresponding dimension or not. Possible values are:
+        [0, 0, 0]: no wrapping; use this value for PET data
+        [1, 1, 0]: wrap all except z (slice-wise) dimension; use this value for
+        fMRI data
+    tiny: float, optional (default 5e-2)
+        threshold for filtering voxels that have fallen out of the FOV
+
+    Returns
+    -------
+    Tuple (fov_mask, physical_coords), where:
+    fov_mask: 1D array_like of len voxel.shape[1]
+        mask for filtering voxels that are still in the FOV. 1 means 'OK',
+        0 means 'fell out of FOV'
+    physical_coords: array of same shape as input coords
+        transformed coords
+
+    """
+
+    physical_coords = get_physical_coords(M, coords)
+    fov_mask = np.ones(physical_coords.shape[-1]).astype('bool')
+
+    for j in xrange(3):
+        if not wrp[j]:
+            fov_mask = fov_mask & (physical_coords[j] >= -tiny
+                                   ) & (physical_coords[j] < dim[j] + tiny)
+
+    return fov_mask, physical_coords
