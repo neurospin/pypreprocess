@@ -1,6 +1,7 @@
 """
 :Module: spm_reslice
-:Synopsis: Routine functions for reslicing volumes post affine registration
+:Synopsis: Routine functions for reslicing volumes after affine registration
+(as in motion correction, coregistration, etc)
 :Author: DOHMATOB Elvis Dopgima
 
 """
@@ -39,6 +40,11 @@ def reslice_vols(vols, interp=3, mask=False, wrp=[1, 1, 0], log=None):
     """
 
     def _log(msg):
+        """
+        Logs given message (msg).
+
+        """
+
         if log:
             log(msg)
         else:
@@ -95,7 +101,7 @@ def reslice_vols(vols, interp=3, mask=False, wrp=[1, 1, 0], log=None):
                 )
         else:
             # don't reslice reference vol
-            rdata = vols[t].get_data()
+            rdata = vols[t].get_data().ravel()
 
         # mask out voxels that have fallen out of the global mask
         rdata[~msk] = 0  # XXX should really be set to NaN
