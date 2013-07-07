@@ -9,11 +9,13 @@ iterative refinement
 import numpy as np
 import scipy.signal
 import scipy.linalg
+import scipy.ndimage
 import matplotlib.pyplot as plt
 import sys
+import PIL
 
 
-def _compute_spatial_gradient_kernel(ndim=1):
+def _compute_spatial_simple_grad_kernel(ndim=1):
     """Computes ndim-dimensional gradient kernel using
     a robust diff technique
 
@@ -55,13 +57,15 @@ def _compute_spatial_gradient(im, grad_kernel=None,):
         kernel w.r.t. gradient will be computed. If grad_kernel is None,
         it will be calculated
 
+    XXX grad_kernel is seperable, exploit this to speed up computations!
+
     """
 
     ndim = len(im.shape)
 
     # sanitize grad kernel
     if grad_kernel == None:
-        grad_kernel = _compute_spatial_gradient_kernel(ndim)
+        grad_kernel = _compute_spatial_simple_grad_kernel(ndim)
 
     # convolve image with kernel, along each axis thus computing the former's
     # spatial gradient
@@ -103,7 +107,7 @@ def LucasKanade(im1, im2, window=9, n_levels=1, alpha=.001, iterations=1):
 
     # gradient kernel
     ndim = len(im1.shape)
-    grad_kernel = _compute_spatial_gradient_kernel(ndim)
+    grad_kernel = _compute_spatial_simple_grad_kernel(ndim)
 
     # temporal filter
     temporal_kernel = np.ones(grad_kernel[0].shape) / 2.
@@ -119,8 +123,6 @@ def LucasKanade(im1, im2, window=9, n_levels=1, alpha=.001, iterations=1):
             raise RuntimeError("Parallel execution not implemented!")
 
         # refinement loop
-        u = np.round(u)
-        v = np.round(v)
         for r in xrange(iterations):
             print "Iteration %i/%i..." % (r + 1, iterations)
 
@@ -132,64 +134,61 @@ def LucasKanade(im1, im2, window=9, n_levels=1, alpha=.001, iterations=1):
                                                                     j - hw,
                                                                     j + hw)
 
+                    # grap a patch from im1
                     patch1 = im1[i - hw:i + hw + 1, j - hw:j + hw + 1]
 
-                    # move patch: resample grid for im2
-                    lr = i - hw + v[i, j] + 1
-                    hr = i + hw + v[i, j] + 1
-                    lc = j - hw + u[i, j] + 1
-                    hc = j + hw + u[i, j] + 1
+                    # grap corresponding patch from im2
+                    patch2 = im2[i - hw:i + hw + 1, j - hw:j + hw + 1]
 
-                    if lr < 1 or hr > im1.shape[0] or lc < 1 or hc >\
-                            im1.shape[1]:
-                        raise Warning("Regularized LS not implemented!")
-                    else:
-                        # resample patch on im2 according current motion
-                        # estimates
-                        patch2 = im2[lr - 1:hr, lc - 1:hc]
+                    # warp patch2 unto im2's space using current
+                    # motion estimates
+                    # XXX do affine_transform instead, and globally!
+                    patch2 = scipy.ndimage.shift(patch2, [u, v])
 
-                        # compute spatial gradient of patch1
-                        Dx_im1, Dy_im1 = _compute_spatial_gradient(patch1,
-                                                                   grad_kernel)
+                    # compute spatial gradient of patch1
+                    Dx_im1, Dy_im1 = _compute_spatial_gradient(patch1,
+                                                               grad_kernel)
 
-                        # compute spatial gradient of patch2
-                        Dx_im2, Dy_im2 = _compute_spatial_gradient(patch2,
-                                                                   grad_kernel)
+                    # compute spatial gradient of patch2
+                    Dx_im2, Dy_im2 = _compute_spatial_gradient(patch2,
+                                                               grad_kernel)
 
-                        # compute spatial gradient of film [patch1, patch2]
-                        # along x axis
-                        Dx = (Dx_im1 + Dx_im2)[1:window - 1,
-                                               1:window - 1].T / 2.
+                    # compute spatial gradient of film [patch1, patch2]
+                    # along x axis
+                    Dx = (Dx_im1 + Dx_im2)[1:window - 1,
+                                           1:window - 1].T / 2.
 
-                        # compute spatial gradient of film [patch1, patch2]
-                        # along y axis
-                        Dy = (Dy_im1 + Dy_im2)[1:window - 1,
-                                               1:window - 1].T / 2.
+                    # compute spatial gradient of film [patch1, patch2]
+                    # along y axis
+                    Dy = (Dy_im1 + Dy_im2)[1:window - 1,
+                                           1:window - 1].T / 2.
 
-                        # compute temporal gradient of film [patch1, patch2]
-                        Dt_1 = scipy.signal.convolve(patch1,
-                                                     temporal_kernel)
-                        Dt_2 = scipy.signal.convolve(patch2,
-                                                      temporal_kernel)
-                        Dt = (Dt_1 - Dt_2)[1:window - 1, 1:window - 1].T / 2.
+                    # compute temporal gradient of film [patch1, patch2]
+                    Dt_1 = scipy.signal.convolve(patch1,
+                                                 temporal_kernel)
+                    Dt_2 = scipy.signal.convolve(patch2,
+                                                  temporal_kernel)
+                    Dt = (Dt_1 - Dt_2)[1:window - 1, 1:window - 1].T / 2.
 
-                        # make coefficient matrix A
-                        A = np.vstack((Dx.ravel(), Dy.ravel())).T
+                    # make coefficient matrix A
+                    A = np.vstack((Dx.ravel(), Dy.ravel())).T
 
-                        # compute G = A'A
-                        G = np.dot(A.T, A)
+                    # compute G = A'A
+                    G = np.dot(A.T, A)
 
-                        # regularize G (to ensure solubility of LS problem)
-                        G[0, 0] += alpha
-                        G[1, 1] += alpha
+                    # regularize G (to ensure solubility of LS problem)
+                    G[0, 0] += alpha
+                    G[1, 1] += alpha
 
-                        # solve WLS problem for velocity V = (Vx_ij, Vy_ij)
-                        # patch1 -> patch2
-                        V = scipy.linalg.lstsq(G, -np.dot(A.T, Dt.ravel()))[0]
+                    # solve WLS problem for velocity V = (Vx_ij, Vy_ij)
+                    # patch1 -> patch2 (by hand!)
+                    V = np.dot(np.dot([[G[1, 1], -G[0, 1]], [-G[1, 0],
+                                                              G[0, 0]]],
+                                      A.T), -Dt.ravel()) / scipy.linalg.det(G)
 
-                        # update velocity field around point p = (i, j)
-                        u[i, j] += V[0]
-                        v[i, j] += V[1]
+                    # update velocity field around point p = (i, j)
+                    u[i, j] += V[0]
+                    v[i, j] += V[1]
 
     # resizing
     u = u[window - 1:u.shape[0] - window + 1,
@@ -209,15 +208,16 @@ if __name__ == '__main__':
         print sys.argv
         im1_filename, im2_filename = sys.argv[1:3]
 
-    im1 = plt.imread(im1_filename)
+    im1 = np.asarray(PIL.Image.open(im1_filename))
+
     if len(im1.shape) == 3:
         im1 = im1[:, :, 0]
-    im2 = plt.imread(im2_filename)
+    im2 = np.asarray(PIL.Image.open(im2_filename))
     if len(im2.shape) == 3:
         im2 = im2[:, :, 0]
 
     # estimate motion
-    u, v = LucasKanade(im1, im2,)
+    u, v = LucasKanade(im1, im2, iterations=5)
 
     # plot velocity field
     plt.quiver(u, v, headwidth=1, scale_units='xy', angles='xy', scale=3,

@@ -44,7 +44,7 @@ same participants.</p>
 """
 
 # use DARTEL for normalization or not ?
-DARTEL = True
+DARTEL = False
 
 # session ids we're interested in
 SESSIONS = [1, 2, 3]
@@ -123,8 +123,9 @@ if __name__ == '__main__':
             output_dir=session_output_dir,
             do_deleteorient=True,
             do_dartel=DARTEL,
-            dataset_id="NYU Test Rest session %i" % session,
+            dataset_id="NYU Test/Retest session %i" % session,
             dataset_description=DATASET_DESCRIPTION,
+            do_export_report=True,
             )
 
-    print "Done (NYU Test Rest preprocessing)"
+    print "\r\nDone (NYU Test/Retest)."

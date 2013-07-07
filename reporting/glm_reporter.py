@@ -394,6 +394,7 @@ Z>%s voxel-level.
 
         # # update colorbar endpoints
         _vmax = max(_vmax, vmax)
+        _vmin = min(_vmin, vmin)
 
         # plot activation proper
         viz.plot_map(pos_data, z_map.get_affine(),
