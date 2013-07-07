@@ -14,6 +14,7 @@ import shutil
 import time
 import matplotlib as mpl
 import pylab as pl
+import numpy as np
 import external.tempita.tempita as tempita
 
 # find package path
@@ -427,6 +428,51 @@ def make_standalone_colorbar(cmap, vmin, vmax, colorbar_outfile=None):
     return cb
 
 
+def get_cut_coords(map3d, n_axials=12, delta_z_axis=3):
+    """
+    Heuristically computes optimal cut_coords for plot_map(...) call.
+
+    Parameters
+    ----------
+    map3d: 3D array
+        the data under consideration
+    n_axials: int, optional (default 12)
+        number of axials in the plot
+    delta_z_axis: int, optional (default 3)
+        z-axis spacing
+
+    Returns
+    -------
+    cut_coords: 1D array of length n_axials
+        the computed cut_coords
+
+    """
+
+    z_axis_max = np.unravel_index(
+        np.abs(map3d).argmax(), map3d.shape)[2]
+    z_axis_min = np.unravel_index(
+        (-np.abs(map3d)).argmin(), map3d.shape)[2]
+    z_axis_min, z_axis_max = (min(z_axis_min, z_axis_max),
+                              max(z_axis_max, z_axis_min))
+    z_axis_min = min(z_axis_min, z_axis_max - delta_z_axis * n_axials)
+
+    cut_coords = np.linspace(z_axis_min, z_axis_max, n_axials)
+
+    return cut_coords
+
+
+def compute_vmin_vmax(map3d):
+    """
+    Computes vmin and vmax params for plot_map.
+
+    """
+
+    vmax = max(map3d.max(), -map3d.min())
+    vmin = -vmax
+
+    return vmin, vmax
+
+
 def get_subject_report_log_html_template():
     """Returns html template (string) for subject log report
 
@@ -470,6 +516,17 @@ def get_subject_report_stats_html_template():
     with open(os.path.join(
             ROOT_DIR, 'template_reports',
             'subject_report_stats_template.tmpl.html')) as fd:
+        _text = fd.read()
+        return tempita.HTMLTemplate(_text)
+
+
+def get_ica_html_template():
+    """Returns html template (string) for subject stats report page
+
+    """
+    with open(os.path.join(
+            ROOT_DIR, 'template_reports',
+            'ica_report_template.tmpl.html')) as fd:
         _text = fd.read()
         return tempita.HTMLTemplate(_text)
 

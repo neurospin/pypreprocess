@@ -369,34 +369,23 @@ Z>%s voxel-level.
         contrast_val = contrasts[contrast_id]
         z_map = z_maps[contrast_id]
 
-        # compute cut_coords for viz.plot_map(..) API
-        # XXX review computation of cut_coords, vmin, and vmax; not clean!!!
+        # load the map
         if isinstance(z_map, basestring):
             z_map = nibabel.load(z_map)
-        pos_data = z_map.get_data() * (np.abs(z_map.get_data()) > 0)
-        n_axials = 12
-        delta_z_axis = 3
-        z_axis_max = np.unravel_index(
-            pos_data.argmax(), z_map.shape)[2]
-        z_axis_min = np.unravel_index(
-            np.argmax(-pos_data), z_map.shape)[2]
-        z_axis_min, z_axis_max = (min(z_axis_min, z_axis_max),
-                                  max(z_axis_max, z_axis_min))
-        z_axis_min = min(z_axis_min, z_axis_max - delta_z_axis * n_axials)
-        cut_coords = np.linspace(z_axis_min, z_axis_max, n_axials)
+
+        # compute cut_coords for viz.plot_map(..) API
+        cut_coords = base_reporter.get_cut_coords(
+            z_map.get_data(), n_axials=12, delta_z_axis=3)
 
         # compute vmin and vmax
-        vmax = pos_data.max()
-        vmin = -vmax
+        vmin, vmax = base_reporter.compute_vmin_vmax(z_map.get_data())
 
-        # vmax = max(- z_map.get_data().min(), z_map.get_data().max())
-        # vmin = - vmax
-
-        # # update colorbar endpoints
+        # update colorbar endpoints
         _vmax = max(_vmax, vmax)
+        _vmin = min(_vmin, vmin)
 
         # plot activation proper
-        viz.plot_map(pos_data, z_map.get_affine(),
+        viz.plot_map(z_map.get_data(), z_map.get_affine(),
                      cmap=cmap,
                      anat=anat,
                      anat_affine=anat_affine,
