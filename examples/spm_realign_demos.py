@@ -1,6 +1,5 @@
 import os
 import sys
-import glob
 from collections import namedtuple
 import matplotlib.pyplot as plt
 
@@ -17,7 +16,7 @@ from external.nisl.datasets import (fetch_nyu_rest, fetch_fsl_feeds_data,
 SubjectData = namedtuple('SubjectData', 'subject_id func output_dir')
 
 
-def _demo(subjects, dataset_id, **spm_realign_kwargs):
+def _demo_runner(subjects, dataset_id, **spm_realign_kwargs):
     """Demo runner.
 
     Parameters
@@ -42,22 +41,22 @@ def _demo(subjects, dataset_id, **spm_realign_kwargs):
                                                    dataset_id))
 
         # instantiate realigner
-        mc = MRIMotionCorrection(**spm_realign_kwargs)
+        mrimc = MRIMotionCorrection(**spm_realign_kwargs)
 
         # fit realigner
-        mc.fit(subject_data.func)
+        mrimc.fit(subject_data.func)
 
         # write realigned files to disk
-        mc.transform(reslice=True, output_dir=subject_data.output_dir)
+        mrimc_output = mrimc.transform(reslice=True,
+                                       output_dir=subject_data.output_dir)
 
         # plot results
-        rp_filename = glob.glob(os.path.join(subject_data.output_dir,
-                                             "rp_*.txt"))[0]
-        plot_spm_motion_parameters(
-            rp_filename,
-            title="Estimated motion for %s of '%s'" % (
-                subject_data.subject_id,
-                dataset_id))
+        for sess, rp_filename in zip(xrange(len(mrimc_output['rp_filenames'])),
+                                     mrimc_output['rp_filenames']):
+            plot_spm_motion_parameters(
+                rp_filename,
+                title="Estimated motion for %s (session %i) of '%s'" % (
+                    subject_data.subject_id, sess, dataset_id))
 
         plt.show()
 
@@ -100,7 +99,7 @@ def demo_nyu_rest(data_dir="/tmp/nyu_data",
                     "session%i" % session, subject_id))
 
     # invoke demon to run de demo
-    _demo(subject_factory(), "NYU Resting State")
+    _demo_runner(subject_factory(), "NYU resting state")
 
 
 def demo_fsl_feeds(data_dir="/tmp/fsl-feeds-data",
@@ -130,7 +129,7 @@ def demo_fsl_feeds(data_dir="/tmp/fsl-feeds-data",
                               output_dir=os.path.join(output_dir, subject_id))
 
     # invoke demon to run de demo
-    _demo(subject_factory(), "FSL FEEDS")
+    _demo_runner(subject_factory(), "FSL FEEDS")
 
 
 def demo_spm_multimodal_fmri(data_dir="/tmp/spm_multimodal_fmri",
@@ -153,16 +152,17 @@ def demo_spm_multimodal_fmri(data_dir="/tmp/spm_multimodal_fmri",
         data_dir)
 
     # subject data factory
-    def subject_factory(session=1):
+    def subject_factory():
             subject_id = "sub001"
 
             yield SubjectData(subject_id=subject_id,
-                              func=spm_multimodal_fmri_data.func1,
+                              func=[spm_multimodal_fmri_data.func1,
+                                    spm_multimodal_fmri_data.func2],
                               output_dir=os.path.join(output_dir, subject_id))
 
     # invoke demon to run de demo
-    _demo(subject_factory(),
-          "SPM Multimodal fMRI faces vs scrambled session 1")
+    _demo_runner(subject_factory(),
+          "SPM Multimodal fMRI faces vs scrambled session 1", n_sessions=2)
 
 # main
 if __name__ == '__main__':

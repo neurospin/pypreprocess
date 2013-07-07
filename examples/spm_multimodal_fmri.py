@@ -10,11 +10,12 @@ import numpy as np
 from nipy.modalities.fmri.experimental_paradigm import EventRelatedParadigm
 from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
-import nibabel as ni
+import nibabel
 import scipy.io
 import time
 import sys
 import os
+from collections import namedtuple
 
 warning = ("%s: THIS SCRIPT MUST BE RUN FROM ITS PARENT "
            "DIRECTORY!") % sys.argv[0]
@@ -28,18 +29,28 @@ PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
 sys.path.append(PYPREPROCESS_DIR)
 
 # import pypreprocess plugins
-import nipype_preproc_spm_utils
+# import nipype_preproc_spm_utils
 import reporting.glm_reporter as glm_reporter
 from external.nisl.datasets import fetch_spm_multimodal_fmri_data
+from algorithms.registration.spm_realign import MRIMotionCorrection
+from algorithms.slice_timing.spm_slice_timing import fMRISTC
+
+# datastructure for subject data
+SubjectData = namedtuple('SubjectData',
+                         'subject_id session_id func anat output_dir')
 
 # set data and output paths (change as you will)
 DATA_DIR = "spm_multimodal_fmri"
-print "\tDATA_DIR: %s" % DATA_DIR
 OUTPUT_DIR = "spm_multimodal_runs"
 if len(sys.argv) > 1:
-    OUTPUT_DIR = sys.argv[1]
+    DATA_DIR = sys.argv[1]
+if len(sys.argv) > 2:
+    OUTPUT_DIR = sys.argv[2]
+
+print "\tDATA_DIR: %s" % DATA_DIR
 print "\tOUTPUT_DIR: %s" % OUTPUT_DIR
 print
+
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
@@ -47,33 +58,61 @@ DO_REPORT = True
 
 # fetch the data
 _subject_data = fetch_spm_multimodal_fmri_data(DATA_DIR)
-subject_data = nipype_preproc_spm_utils.SubjectData()
+subject_id = "sub001"
+subject_data = SubjectData(subject_id=subject_id,
+                           session_id=["Session1", "Session2"],
+                           func=[_subject_data.func1, _subject_data.func2],
+                           anat=_subject_data.anat,
+                           output_dir=os.path.join(OUTPUT_DIR, subject_id)
+                           )
 
-subject_data.subject_id = "sub001"
-subject_data.session_id = ["Session1", "Session2"]
-subject_data.func = [_subject_data.func1, _subject_data.func2]
-subject_data.anat = _subject_data.anat
+# STC
+fmristc = fMRISTC(slice_order='descending', interleaved=False)
+stc_output = []
+for j in xrange(len(subject_data.session_id)):
+    fmristc.fit(raw_data=subject_data.func[j])
+    fmristc.transform()
+    stc_output.append(fmristc.get_last_output_data())
 
-subject_data.output_dir = os.path.join(OUTPUT_DIR,
-                                       subject_data.subject_id)
+# Motion Correction
+mrimc = MRIMotionCorrection(n_sessions=len(subject_data.session_id))
+mrimc.fit([[nibabel.Nifti1Image(stc_output[j][..., t],
+                                nibabel.load(
+                    subject_data.func[j][t]).get_affine())
+            for t in xrange(len(subject_data.func[j]))]
+           for j in xrange(len(subject_data.session_id))]
+          )
+mrimc_output = mrimc.transform(reslice=True, output_dir=os.path.join(
+        subject_data.output_dir, "preproc"),
+                               ext='.nii'  # SPM doesn't support .nii.gz
+                               )
+# x = nipype_preproc_spm_utils.SubjectData()
+# x.func = mrimc_output['realigned_files']
+# x.anat = subject_data.anat
+# x.subject_id = subject_data.subject_id
+# x.session_id = subject_data.session_id
+# x.output_dir = subject_data.output_dir
+# subject_data = x
 
-
-# preprocess the data
-results = nipype_preproc_spm_utils.do_subjects_preproc(
-    [subject_data],
-    output_dir=OUTPUT_DIR,
-    fwhm=[8, 8, 8],
-    # do_slicetiming=True,
-    do_segment=False,
-    do_normalize=False,
-    dataset_id="SPM MULTIMODAL (see @alex)",
-    do_shutdown_reloaders=False,
-    )
+# # smooth
+# results = nipype_preproc_spm_utils.do_subjects_preproc(
+#     [subject_data],
+#     output_dir=OUTPUT_DIR,
+#     # fwhm=[8, 8, 8],
+#     do_realign=False,
+#     do_segment=False,
+#     do_normalize=False,
+#     dataset_id="SPM MULTIMODAL (see @alex)",
+#     do_shutdown_reloaders=False,
+#     )
 
 # collect preprocessed data
-fmri_imgs = [ni.concat_images(session_func)
-             for session_func in results[0]['func']]
-anat_img = ni.load(results[0]['anat'])
+# fmri_imgs = [nibabel.concat_images(session_func)
+#              for session_func in results[0]['func']]
+# anat_img = nibabel.load(results[0]['anat'])
+fmri_imgs = [nibabel.concat_images(session_func)
+             for session_func in mrimc_output['realigned_files']]
+anat_img = nibabel.load(mrimc_output['realigned_files'][0][0])
 
 # experimental paradigm meta-params
 stats_start_time = time.ctime()
@@ -130,7 +169,7 @@ fmri_glm.fit(do_scaling=True, model='ar1')
 # save computed mask
 mask_path = os.path.join(OUTPUT_DIR, "mask.nii.gz")
 print "Saving mask image %s" % mask_path
-ni.save(fmri_glm.mask, mask_path)
+nibabel.save(fmri_glm.mask, mask_path)
 
 print "Computing contrasts .."
 z_maps = {}
@@ -154,7 +193,7 @@ for contrast_id, contrast_val in contrasts.iteritems():
             os.makedirs(map_dir)
         map_path = os.path.join(
             map_dir, '%s.nii.gz' % contrast_id)
-        ni.save(out_map, map_path)
+        nibabel.save(out_map, map_path)
 
         # collect zmaps for contrasts we're interested in
         if dtype == 'z':

@@ -1070,7 +1070,12 @@ def _do_subject_preproc(
         ref_func = os.path.join(
             subject_data.output_dir,
             'meanfunc.nii')
-        compute_mean_image(subject_data.func, output_filename=ref_func)
+
+        if len(subject_data.session_id) > 1:
+            compute_mean_image(subject_data.func[0],
+                               output_filename=ref_func)
+        else:
+            compute_mean_image(subject_data.func, output_filename=ref_func)
 
     ################################################################
     # co-registration of structural (anatomical) against functional
@@ -1368,7 +1373,7 @@ def _do_subject_preproc(
                 % subject_data.subject_id)
 
         output['anat'] = norm_output['normalized_files']
-    elif fwhm:
+    elif np.sum(fwhm) > 0:
         # smooth func
         smooth_output = _do_subject_smooth(
             subject_data.output_dir,

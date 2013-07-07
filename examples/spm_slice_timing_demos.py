@@ -11,7 +11,7 @@ sys.path.append(PYPREPROCESS_DIR)
 
 from algorithms.slice_timing.spm_slice_timing import (
     STC, fMRISTC, plot_slicetiming_results)
-from external.nisl.datasets import (fetch_nyu_rest, fetch_fsl_feeds_data,
+from external.nisl.datasets import (fetch_nyu_rest,
                                     fetch_spm_multimodal_fmri_data)
 
 # datastructure for subject data
@@ -300,6 +300,9 @@ def _fmri_demo_runner(subjects, dataset_id, **spm_slice_timing_kwargs):
 
     # loop over subjects
     for subject_data in subjects:
+        if not os.path.exists(subject_data.output_dir):
+            os.makedirs(subject_data.output_dir)
+
         print("%sSlice-Timing Correction for %s (%s)" % ('\t',
                                                    subject_data.subject_id,
                                                    dataset_id))
@@ -317,7 +320,8 @@ def _fmri_demo_runner(subjects, dataset_id, **spm_slice_timing_kwargs):
         plot_slicetiming_results(stc.get_raw_data(),
                                  stc.get_last_output_data(),
                                  suptitle_prefix="%s of '%s'" % (
-                subject_data.subject_id, dataset_id)
+                subject_data.subject_id, dataset_id),
+                                 output_dir=subject_data.output_dir
                                  )
 
         plt.show()
