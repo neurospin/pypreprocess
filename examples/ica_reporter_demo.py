@@ -2,7 +2,6 @@ import os
 import re
 import nibabel
 import sys
-import glob
 sys.path.append("..")
 import reporting.ica_reporter as ica_reporter
 

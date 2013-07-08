@@ -892,137 +892,140 @@ def _do_subject_preproc(
     # slice-timing
     ###############
     if do_slicetiming:
-        import algorithms.slice_timing.spm_slice_timing as spm_slice_timing
+        raise NotImplementedError(
+            "STC module not yet integrated into this pipeline.")
 
-        # st_cache_dir = os.path.join(subject_data.output_dir,
-        #                                      "cache_dir", "slice_timing")
-        # if not os.path.isdir(st_cache_dir):
-        #     os.makedirs(st_cache_dir)
+        # import algorithms.slice_timing.spm_slice_timing as spm_slice_timing
 
-        # mem = joblib.Memory(cachedir=st_cache_dir, verbose=100)
+        # # st_cache_dir = os.path.join(subject_data.output_dir,
+        # #                                      "cache_dir", "slice_timing")
+        # # if not os.path.isdir(st_cache_dir):
+        # #     os.makedirs(st_cache_dir)
 
-        def _load_fmri_data(fmri_files):
-            """Helper function to load fmri data from filename /
-            ndarray or list of such
+        # # mem = joblib.Memory(cachedir=st_cache_dir, verbose=100)
 
-            """
+        # def _load_fmri_data(fmri_files):
+        #     """Helper function to load fmri data from filename /
+        #     ndarray or list of such
 
-            if isinstance(fmri_files, np.ndarray):
-                return fmri_files
+        #     """
 
-            if isinstance(fmri_files, basestring):
-                return nibabel.load(fmri_files).get_data()
-            else:
-                n_scans = len(fmri_files)
-                _first = _load_fmri_data(fmri_files[0])
-                data = np.ndarray(tuple(list(_first.shape[:3]
-                                             ) + [n_scans]))
-                data[..., 0] = _first
-                for scan in xrange(1, n_scans):
-                    data[..., scan] = _load_fmri_data(fmri_files[scan])
+        #     if isinstance(fmri_files, np.ndarray):
+        #         return fmri_files
 
-                return data
+        #     if isinstance(fmri_files, basestring):
+        #         return nibabel.load(fmri_files).get_data()
+        #     else:
+        #         n_scans = len(fmri_files)
+        #         _first = _load_fmri_data(fmri_files[0])
+        #         data = np.ndarray(tuple(list(_first.shape[:3]
+        #                                      ) + [n_scans]))
+        #         data[..., 0] = _first
+        #         for scan in xrange(1, n_scans):
+        #             data[..., scan] = _load_fmri_data(fmri_files[scan])
 
-        def _save_stc_output(output_data, output_dir,
-                             input_filenames,
-                             prefix='a'):
+        #         return data
 
-            print "Saving STC output to %s..." % output_dir
+        # def _save_stc_output(output_data, output_dir,
+        #                      input_filenames,
+        #                      prefix='a'):
 
-            print output_data.shape
-            n_scans = output_data.shape[-1]
+        #     print "Saving STC output to %s..." % output_dir
 
-            # sanitize output_diir
-            ref_filename = input_filenames if isinstance(
-                input_filenames, basestring) else input_filenames[0]
-            ref_file_basename = os.path.basename(ref_filename)
-            if output_dir is None:
-                output_dir = output_dir
-            if output_dir is None:
-                output_dir = os.path.dirname(ref_filename)
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
+        #     print output_data.shape
+        #     n_scans = output_data.shape[-1]
 
-            # save realigned files to disk
-            if isinstance(input_filenames, basestring):
-                affine = nibabel.load(input_filenames).get_affine()
+        #     # sanitize output_diir
+        #     ref_filename = input_filenames if isinstance(
+        #         input_filenames, basestring) else input_filenames[0]
+        #     ref_file_basename = os.path.basename(ref_filename)
+        #     if output_dir is None:
+        #         output_dir = output_dir
+        #     if output_dir is None:
+        #         output_dir = os.path.dirname(ref_filename)
+        #     if not os.path.exists(output_dir):
+        #         os.makedirs(output_dir)
 
-                for t in xrange(n_scans):
-                    output_filename = os.path.join(output_dir,
-                                                   "%s%i%s" % (
-                            prefix, t, ref_file_basename))
+        #     # save realigned files to disk
+        #     if isinstance(input_filenames, basestring):
+        #         affine = nibabel.load(input_filenames).get_affine()
 
-                    nibabel.save(nibabel.Nifti1Image(output_data[..., t],
-                                                     affine),
-                                 output_filename)
+        #         for t in xrange(n_scans):
+        #             output_filename = os.path.join(output_dir,
+        #                                            "%s%i%s" % (
+        #                     prefix, t, ref_file_basename))
 
-                output_filenames = output_filename
-            else:
-                output_filenames = []
-                for filename, t in zip(input_filenames, xrange(n_scans)):
-                    affine = nibabel.load(filename).get_affine()
-                    output_filename = os.path.join(output_dir,
-                                                   "%s%s" % (
-                            prefix,
-                            os.path.basename(filename)))
+        #             nibabel.save(nibabel.Nifti1Image(output_data[..., t],
+        #                                              affine),
+        #                          output_filename)
 
-                    nibabel.save(nibabel.Nifti1Image(output_data[..., t],
-                                                     affine),
-                                 output_filename)
+        #         output_filenames = output_filename
+        #     else:
+        #         output_filenames = []
+        #         for filename, t in zip(input_filenames, xrange(n_scans)):
+        #             affine = nibabel.load(filename).get_affine()
+        #             output_filename = os.path.join(output_dir,
+        #                                            "%s%s" % (
+        #                     prefix,
+        #                     os.path.basename(filename)))
 
-                    output_filenames.append(output_filename)
+        #             nibabel.save(nibabel.Nifti1Image(output_data[..., t],
+        #                                              affine),
+        #                          output_filename)
 
-            return output_filenames
+        #             output_filenames.append(output_filename)
 
-        stc = spm_slice_timing.STC()
+        #     return output_filenames
 
-        stc_func = []
-        for s, func in zip(subject_data.session_id, subject_data.func):
-            print "\r\nLoading fmri data for session %s..." % s
-            fmri_data = _load_fmri_data(func)
-            stc.fit(raw_data=fmri_data, slice_order=slice_order,
-                    interleaved=interleaved,)
+        # stc = spm_slice_timing.STC()
 
-            stc.transform(fmri_data)
+        # stc_func = []
+        # for s, func in zip(subject_data.session_id, subject_data.func):
+        #     print "\r\nLoading fmri data for session %s..." % s
+        #     fmri_data = _load_fmri_data(func)
+        #     stc.fit(raw_data=fmri_data, slice_order=slice_order,
+        #             interleaved=interleaved,)
 
-            stc_func.append(_save_stc_output(
-                    stc.get_last_output_data(),
-                    os.path.join(subject_data.output_dir,
-                                 "STC_session%s" % s),
-                    func))
+        #     stc.transform(fmri_data)
 
-        subject_data.func = stc_func
+        #     stc_func.append(_save_stc_output(
+        #             stc.get_last_output_data(),
+        #             os.path.join(subject_data.output_dir,
+        #                          "STC_session%s" % s),
+        #             func))
 
-        # # realigner = mem.cache(st.do_slicetiming_and_motion_correction)
+        # subject_data.func = stc_func
 
-        # # run realigment ( = slice timing + motion correction)
-        # realigned_func_files, rp_files = realigner(
-        #     subject_data.func,
-        #     subject_data.output_dir,
-        #     tr=TR, slice_order=slice_order,
-        #     time_interp=True)
+        # # # realigner = mem.cache(st.do_slicetiming_and_motion_correction)
 
-        # # collect outputs (pipeline-like)
-        # subject_data.func = realigned_func_files
-        # output['estimated_motion'] = rp_files
-        # output['realigned_func'] = realigned_func_files
+        # # # run realigment ( = slice timing + motion correction)
+        # # realigned_func_files, rp_files = realigner(
+        # #     subject_data.func,
+        # #     subject_data.output_dir,
+        # #     tr=TR, slice_order=slice_order,
+        # #     time_interp=True)
 
-        # # generate gallery for HTML report
-        # if do_report:
-        #     sessions = subject_data.session_id
-        #     estimated_motion = rp_files
-        #     if isinstance(estimated_motion, basestring):
-        #         estimated_motion = [estimated_motion]
+        # # # collect outputs (pipeline-like)
+        # # subject_data.func = realigned_func_files
+        # # output['estimated_motion'] = rp_files
+        # # output['realigned_func'] = realigned_func_files
 
-        #     assert len(sessions) == len(estimated_motion), estimated_motion
+        # # # generate gallery for HTML report
+        # # if do_report:
+        # #     sessions = subject_data.session_id
+        # #     estimated_motion = rp_files
+        # #     if isinstance(estimated_motion, basestring):
+        # #         estimated_motion = [estimated_motion]
 
-        #     output.update(preproc_reporter.generate_realignment_thumbnails(
-        #             estimated_motion,
-        #             subject_data.output_dir,
-        #             sessions=sessions,
-        #             results_gallery=results_gallery,
-        #             progress_logger=subject_progress_logger,
-        #             ))
+        # #     assert len(sessions) == len(estimated_motion), estimated_motion
+
+        # #     output.update(preproc_reporter.generate_realignment_thumbnails(
+        # #             estimated_motion,
+        # #             subject_data.output_dir,
+        # #             sessions=sessions,
+        # #             results_gallery=results_gallery,
+        # #             progress_logger=subject_progress_logger,
+        # #             ))
     #####################
     #  motion correction
     #####################

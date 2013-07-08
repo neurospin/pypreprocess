@@ -28,8 +28,6 @@ print separator.join(['', banner, warning, banner, ''])
 PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
 sys.path.append(PYPREPROCESS_DIR)
 
-# import pypreprocess plugins
-# import nipype_preproc_spm_utils
 import reporting.glm_reporter as glm_reporter
 from external.nisl.datasets import fetch_spm_multimodal_fmri_data
 from algorithms.registration.spm_realign import MRIMotionCorrection
@@ -86,30 +84,8 @@ mrimc_output = mrimc.transform(reslice=True, output_dir=os.path.join(
         subject_data.output_dir, "preproc"),
                                ext='.nii'  # SPM doesn't support .nii.gz
                                )
-# x = nipype_preproc_spm_utils.SubjectData()
-# x.func = mrimc_output['realigned_files']
-# x.anat = subject_data.anat
-# x.subject_id = subject_data.subject_id
-# x.session_id = subject_data.session_id
-# x.output_dir = subject_data.output_dir
-# subject_data = x
-
-# # smooth
-# results = nipype_preproc_spm_utils.do_subjects_preproc(
-#     [subject_data],
-#     output_dir=OUTPUT_DIR,
-#     # fwhm=[8, 8, 8],
-#     do_realign=False,
-#     do_segment=False,
-#     do_normalize=False,
-#     dataset_id="SPM MULTIMODAL (see @alex)",
-#     do_shutdown_reloaders=False,
-#     )
 
 # collect preprocessed data
-# fmri_imgs = [nibabel.concat_images(session_func)
-#              for session_func in results[0]['func']]
-# anat_img = nibabel.load(results[0]['anat'])
 fmri_imgs = [nibabel.concat_images(session_func)
              for session_func in mrimc_output['realigned_files']]
 anat_img = nibabel.load(mrimc_output['realigned_files'][0][0])
