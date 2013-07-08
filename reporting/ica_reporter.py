@@ -19,7 +19,7 @@ def generate_ica_report(
     stats_report_filename,
     ica_maps,
     mask=None,
-    report_title='ICA',
+    report_title='ICA Report',
     methods='ICA',
     anat=None,
     anat_affine=None,
