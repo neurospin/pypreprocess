@@ -192,7 +192,7 @@ if DO_REPORT:
         anat_affine=anat_img.get_affine(),
         design_matrices=design_matrices,
         subject_id="sub001",
-        cluster_th=50,  # we're only interested in this 'large' clusters
+        cluster_th=15,  # we're only interested in this 'large' clusters
         start_time=stats_start_time,
 
         # additional ``kwargs`` for more informative report
