@@ -268,17 +268,17 @@ def _joint_histogram(g, f, M=None, gshape=None, fshape=None, s=[1, 1, 1]):
 
     """
 
-    # everythx should be 8-bit gray-scale
-    g = np.uint8(g)
-    f = np.uint8(f)
+    # # everythx should be 8-bit gray-scale
+    # g = np.uint8(g)
+    # f = np.uint8(f)
 
-    # sanitize shapes
-    if gshape is None:
-        assert g.ndim == 3
-        gshape = g.shape
-    if fshape is None:
-        assert f.ndim == 3
-        fshape = f.shape
+    # # sanitize shapes
+    # if gshape is None:
+    #     assert g.ndim == 3
+    #     gshape = g.shape
+    # if fshape is None:
+    #     assert f.ndim == 3
+    #     fshape = f.shape
 
     # table of magic numbers
     ran = np.array([0.656619, 0.891183, 0.488144, 0.992646, 0.373326, 0.531378,

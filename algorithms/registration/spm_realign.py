@@ -14,7 +14,9 @@ import kernel_smooth
 import affine_transformations
 import spm_reslice
 
+# useful constants
 INFINITY = np.inf
+GRID_NOISE_AMPLITUDE = 1e-3  # amplitude of white-noise for doping the grid
 
 
 def compute_rate_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
@@ -257,9 +259,9 @@ class MRIMotionCorrection(object):
                               0:dim[2] - .5 - 1:skip[2]].reshape((3, -1))
 
         # dope the grid so we're not perfectly aligned with its vertices
-        x1 += np.random.randn(*x1.shape) * .5
-        x2 += np.random.randn(*x2.shape) * .5
-        x3 += np.random.randn(*x3.shape) * .5
+        # x1 += np.random.randn(*x1.shape) * GRID_NOISE_AMPLITUDE
+        # x2 += np.random.randn(*x2.shape) * GRID_NOISE_AMPLITUDE
+        # x3 += np.random.randn(*x3.shape) * GRID_NOISE_AMPLITUDE
 
         # smooth 0th volume to absorb noise before differentiating
         sref_vol = kernel_smooth.smooth_image(vols[0],
@@ -332,7 +334,7 @@ class MRIMotionCorrection(object):
         # register the volumes to the reference volume
         self._log("Registering volumes to reference...")
         rp = np.ndarray((n_scans, 12))
-        rp[0, ...] = 0.
+        rp[0, ...] = 0.  # don't mov the reference image
         iref_affine = scipy.linalg.inv(vols[0].get_affine())
         for t in xrange(1, n_scans):
             self._log("\tRegistering volume %i/%i..." % (
@@ -446,8 +448,8 @@ class MRIMotionCorrection(object):
 
         Parameters
         ----------
-        vols: list
-            list of filenames of single 4D images or nibabel image objects
+        vols: list of lists
+            list of single 4D images or nibabel image objects
             (one per session), or list of lists of filenames or nibabel image
             objects (one list per session)
 
@@ -472,6 +474,15 @@ class MRIMotionCorrection(object):
         """
 
         output = {}
+
+        # sanitize vols and n_sessions
+        if isinstance(vols, basestring) or isinstance(
+            vols, nibabel.Nifti1Image):
+            vols = [vols]
+        if len(vols) != self._n_sessions:
+            raise RuntimeError(
+                "Number of session volumes (%i) != number of sessions (%i)"
+                % (len(vols), self._n_sessions))
 
         # load vols
         self._log("Loading volumes...")
@@ -553,8 +564,8 @@ class MRIMotionCorrection(object):
         if reslice:
             for sess in xrange(self._n_sessions):
                 sess_vols = self._vols[sess]
-                if sess > 0:
-                    sess_vols = self._vols[0][:1] + sess_vols
+                # if sess > 0:
+                #     sess_vols = self._vols[0][:1] + sess_vols
 
                 self._log('Reslicing volumes for session %i/%i...' % (
                         sess + 1, self._n_sessions))

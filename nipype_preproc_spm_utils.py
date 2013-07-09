@@ -1078,7 +1078,11 @@ def _do_subject_preproc(
             compute_mean_image(subject_data.func[0],
                                output_filename=ref_func)
         else:
-            compute_mean_image(subject_data.func, output_filename=ref_func)
+            if isinstance(subject_data.func[0], basestring):
+                compute_mean_image(subject_data.func[0],
+                                   output_filename=ref_func)
+            else:
+                ref_func = subject_data.func[0][0]
 
     ################################################################
     # co-registration of structural (anatomical) against functional

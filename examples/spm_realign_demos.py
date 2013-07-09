@@ -1,5 +1,6 @@
 import os
 import sys
+import nibabel
 from collections import namedtuple
 import matplotlib.pyplot as plt
 
@@ -8,6 +9,7 @@ PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
 sys.path.append(PYPREPROCESS_DIR)
 
 from algorithms.registration.spm_realign import MRIMotionCorrection
+from algorithms.slice_timing.spm_slice_timing import fMRISTC
 from reporting.check_preprocessing import plot_spm_motion_parameters
 from external.nisl.datasets import (fetch_nyu_rest, fetch_fsl_feeds_data,
                                     fetch_spm_multimodal_fmri_data)
@@ -162,7 +164,7 @@ def demo_spm_multimodal_fmri(data_dir="/tmp/spm_multimodal_fmri",
 
     # invoke demon to run de demo
     _demo_runner(subject_factory(),
-          "SPM Multimodal fMRI faces vs scrambled session 1", n_sessions=2)
+          "SPM Multimodal fMRI faces vs scrambled", n_sessions=2)
 
 # main
 if __name__ == '__main__':

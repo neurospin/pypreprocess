@@ -69,8 +69,7 @@ def reslice_vols(vols, interp=3, mask=False, wrp=[1, 1, 0], log=None):
         M = scipy.linalg.inv(scipy.linalg.lstsq(
                 vols[0].get_affine(), vols[t].get_affine())[0])
 
-        fov_msk, new_grid = affine_transformations.get_mask(M, grid, dim,
-                                                            wrp=wrp)
+        fov_msk, _ = affine_transformations.get_mask(M, grid, dim, wrp=wrp)
 
         msk = msk & fov_msk
 
@@ -87,7 +86,7 @@ def reslice_vols(vols, interp=3, mask=False, wrp=[1, 1, 0], log=None):
             _, new_grid = affine_transformations.get_mask(M, grid, dim,
                                                                 wrp=wrp)
 
-            # resample vol on transformed grid
+            # resample vol on new grid
             rdata = scipy.ndimage.map_coordinates(
                 vols[t].get_data(), new_grid,
                 order=interp,
