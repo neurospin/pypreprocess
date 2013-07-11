@@ -6,7 +6,7 @@ import nibabel as nb
 import numpy as np
 
 from nipy.modalities.fmri.glm import FMRILinearModel
-from external.nisl import resampling
+from external.nilearn import resampling
 
 
 def apply_glm(dataset_id, out_dir, data, params, resample=True, n_jobs=1):

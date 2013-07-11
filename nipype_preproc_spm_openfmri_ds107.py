@@ -14,7 +14,7 @@ import sys
 import nipype_preproc_spm_utils
 
 # misc
-from external.nisl.datasets import unzip_nii_gz
+from external.nilearn.datasets import unzip_nii_gz
 
 DATASET_DESCRIPTION = """\
 <p><a href="https://openfmri.org/data-sets">openfmri.org datasets</a>.</p>

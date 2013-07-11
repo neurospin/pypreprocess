@@ -29,7 +29,7 @@ PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
 sys.path.append(PYPREPROCESS_DIR)
 
 import reporting.glm_reporter as glm_reporter
-from external.nisl.datasets import fetch_spm_multimodal_fmri_data
+from external.nilearn.datasets import fetch_spm_multimodal_fmri_data
 from algorithms.registration.spm_realign import MRIMotionCorrection
 from algorithms.slice_timing.spm_slice_timing import fMRISTC
 

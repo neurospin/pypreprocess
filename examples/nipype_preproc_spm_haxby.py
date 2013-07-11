@@ -14,7 +14,8 @@ sys.path.append(
     os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
 # data-grabbing imports
-from datasets_extras import unzip_nii_gz, fetch_haxby
+from datasets_extras import unzip_nii_gz
+from external.nilearn.datasets import fetch_haxby
 
 # import spm preproc utilities
 import nipype_preproc_spm_utils

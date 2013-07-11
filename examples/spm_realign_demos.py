@@ -11,7 +11,7 @@ sys.path.append(PYPREPROCESS_DIR)
 from algorithms.registration.spm_realign import MRIMotionCorrection
 from algorithms.slice_timing.spm_slice_timing import fMRISTC
 from reporting.check_preprocessing import plot_spm_motion_parameters
-from external.nisl.datasets import (fetch_nyu_rest, fetch_fsl_feeds_data,
+from external.nilearn.datasets import (fetch_nyu_rest, fetch_fsl_feeds_data,
                                     fetch_spm_multimodal_fmri_data)
 
 # datastructure for subject data

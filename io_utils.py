@@ -12,7 +12,7 @@ import tempfile
 
 import numpy as np
 import nibabel
-from external.nisl import resampling
+from external.nilearn import resampling
 
 
 def is_3D(image):

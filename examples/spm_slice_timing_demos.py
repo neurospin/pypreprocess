@@ -11,7 +11,7 @@ sys.path.append(PYPREPROCESS_DIR)
 
 from algorithms.slice_timing.spm_slice_timing import (
     STC, fMRISTC, plot_slicetiming_results)
-from external.nisl.datasets import (fetch_nyu_rest,
+from external.nilearn.datasets import (fetch_nyu_rest,
                                     fetch_spm_multimodal_fmri_data)
 
 # datastructure for subject data

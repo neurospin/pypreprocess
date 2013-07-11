@@ -30,7 +30,7 @@ sys.path.append(PYPREPROCESS_DIR)
 
 import nipype_preproc_spm_utils
 import reporting.glm_reporter as glm_reporter
-from external.nisl.datasets import fetch_spm_auditory_data
+from external.nilearn.datasets import fetch_spm_auditory_data
 from io_utils import compute_mean_3D_image, do_3Dto4D_merge
 from algorithms.registration.spm_realign import MRIMotionCorrection
 from algorithms.slice_timing.spm_slice_timing import fMRISTC

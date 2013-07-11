@@ -23,7 +23,7 @@ sys.path.append(
 import nipype_preproc_spm_utils
 import reporting.glm_reporter as glm_reporter
 import reporting.base_reporter as base_reporter
-from external.nisl.datasets import fetch_fsl_feeds_data
+from external.nilearn.datasets import fetch_fsl_feeds_data
 from datasets_extras import unzip_nii_gz
 from io_utils import compute_mean_3D_image
 

@@ -527,7 +527,7 @@ def compute_sinc_kernel(acquisition_time, user_time,
 
 class STC(object):
     """Slice-Timing Correction: Class implements fit/transform API used in
-    sklearn, nisl, nilearn, etc.
+    sklearn, nilearn, etc.
 
     My formulation of STC using Whittaker-Shannon (aka sinc, see Friston
     et al.'s paper for details) interpolation is linear algebraic, and

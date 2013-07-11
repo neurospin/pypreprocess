@@ -26,7 +26,7 @@ sys.path.append(os.path.dirname(
 import nipype_preproc_spm_utils
 
 # data fetching imports
-from external.nisl.datasets import fetch_nyu_rest
+from external.nilearn.datasets import fetch_nyu_rest
 from datasets_extras import unzip_nii_gz
 
 DATASET_DESCRIPTION = """\

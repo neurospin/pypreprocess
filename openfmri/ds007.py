@@ -10,7 +10,7 @@ sys.path.append('..')
 
 from nipy_glm_utils import apply_glm
 from datasets_extras import fetch_openfmri
-from external.nisl.datasets import _fetch_file
+from external.nilearn.datasets import _fetch_file
 
 FULL_ID = 'ds000007'
 SHORT_ID = 'ds007'
