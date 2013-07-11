@@ -13,7 +13,8 @@ import nibabel
 import affine_transformations
 
 
-def reslice_vols(vols, interp=3, mask=False, wrp=[1, 1, 0], log=None):
+def reslice_vols(vols, interp=3, interp_mode='wrap',
+                 mask=False, wrp=[1, 1, 0], log=None):
     """
     Uses B-spline interpolation to reslice (i.e resample) all other
     volumes to have thesame affine header matrix as the first (0th) volume.
@@ -25,6 +26,8 @@ def reslice_vols(vols, interp=3, mask=False, wrp=[1, 1, 0], log=None):
         so that the end up with the same header affine matrix as vol[0]
     interp: int, optional (default 3)
         degree of B-spline interpolation used for resampling the volumes
+    interp_mode: string, optional (default "wrap")
+        mode param to be passed to `scipy.ndimage.map_coordinates`
     log: function(basestring), optional (default None)
         function for logging messages
 
@@ -95,8 +98,9 @@ def reslice_vols(vols, interp=3, mask=False, wrp=[1, 1, 0], log=None):
                 # artefactual gray values that will cause artefactual motion
                 # across volumes; setting values at the boundaries and to zero
                 # will help avoid this
-                mode="constant",
-                cval=0.
+                # mode="constant",
+                # cval=0.
+                mode='wrap'
                 )
         else:
             # don't reslice reference vol
