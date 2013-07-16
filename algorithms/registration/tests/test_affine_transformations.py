@@ -1,3 +1,8 @@
+"""
+XXX only use nosetests command-line tool to run this test module!
+
+"""
+
 import numpy as np
 from ..affine_transformations import (get_initial_motion_params,
                                       spm_matrix,
@@ -27,8 +32,7 @@ def test_spm_imatrix():
     p = get_initial_motion_params()
 
     # spm_matrix and spm_imatrix should be inverses of one another
-    assert np.all(spm_imatrix(
-            spm_matrix(p)) == p)
+    assert np.all(spm_imatrix(spm_matrix(p)) == p)
 
 
 def test_transform_coords():

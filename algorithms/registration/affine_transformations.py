@@ -3,6 +3,10 @@
 :Synopsis: routine functions for doing affine transformation-related business
 :Author: DOHMATOB Elvis Dopgima
 
+References
+----------
+[1] Rigid Body Registration, by J. Ashburner and K. Friston
+
 """
 
 import numpy as np

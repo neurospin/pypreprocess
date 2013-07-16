@@ -3,6 +3,10 @@
 :Synopsis: MRI within-modality Motion Correction, SPM style
 :Author: DOHMATOB Elvis Dopgima
 
+References
+----------
+[1] Rigid Body Registration, by J. Ashburner and K. Friston
+
 """
 
 import nibabel
@@ -61,8 +65,7 @@ def _load_specific_vol(vols, t):
         vol = _load_vol(vols[t])
     elif isinstance(vols, nibabel.Nifti1Image) or isinstance(
         vols, nibabel.Nifti1Pair) or isinstance(vols, basestring):
-        if isinstance(vols, basestring):
-            _vols = nibabel.load(vols)
+        _vols = nibabel.load(vols) if isinstance(vols, basestring) else vols
         if len(_vols.shape) != 4:
             raise ValueError(
                 "Expecting 4D image, got %iD" % len(_vols.shape))
@@ -76,7 +79,7 @@ def _load_specific_vol(vols, t):
     return vol, n_scans
 
 
-def compute_rate_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
+def compute_rate_of_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
     """Constructs matrix of rate of change of chi2 w.r.t. parameter changes
 
     Parameters
@@ -97,11 +100,11 @@ def compute_rate_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
 
     """
 
-    # ravel gradient
-    gradG = np.reshape(gradG, (3, -1))
+    # # ravel gradient
+    # gradG = np.reshape(gradG, (3, -1))
 
-    # ravel coords
-    coords = np.reshape(coords, (3, -1))
+    # # ravel coords
+    # coords = np.reshape(coords, (3, -1))
 
     # loop over parameters (this loop computes columns of A)
     A = np.ndarray((coords.shape[1], len(lkp)))
@@ -289,8 +292,8 @@ class MRIMotionCorrection(object):
                                  mode='wrap',).reshape(x1.shape)
 
         # compute rate of change of chi2 w.r.t. parameters
-        A0 = compute_rate_change_of_chisq(vol_0.get_affine(),
-                                          [x1, x2, x3], [Gx, Gy, Gz])
+        A0 = compute_rate_of_change_of_chisq(vol_0.get_affine(),
+                                             [x1, x2, x3], [Gx, Gy, Gz])
 
         # compute intercept vector for LSPs
         b = G.ravel()
