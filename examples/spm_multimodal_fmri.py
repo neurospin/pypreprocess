@@ -80,15 +80,16 @@ mrimc.fit([[nibabel.Nifti1Image(stc_output[j][..., t],
             for t in xrange(len(subject_data.func[j]))]
            for j in xrange(len(subject_data.session_id))]
           )
-mrimc_output = mrimc.transform(reslice=True, output_dir=os.path.join(
-        subject_data.output_dir, "preproc"),
-                               ext='.nii'  # SPM doesn't support .nii.gz
+mrimc_output = mrimc.transform(os.path.join(subject_data.output_dir,
+                                            "preproc"),
+                               reslice=True,
+                               concat=True,
                                )
 
 # collect preprocessed data
-fmri_imgs = [nibabel.concat_images(session_func)
-             for session_func in mrimc_output['realigned_files']]
-anat_img = nibabel.load(mrimc_output['realigned_files'][0][0])
+fmri_files = mrimc_output['realigned_files']
+rp_filenames = mrimc_output['rp_filenames']
+anat_img = nibabel.four_to_three(nibabel.load(fmri_files[0]))[0]
 
 # experimental paradigm meta-params
 stats_start_time = time.ctime()
@@ -100,7 +101,7 @@ hfcut = 128.
 # make design matrices
 design_matrices = []
 for x in xrange(2):
-    n_scans = fmri_imgs[x].shape[-1]
+    n_scans = nibabel.load(fmri_files[x]).shape[-1]
 
     timing = scipy.io.loadmat(os.path.join(DATA_DIR,
                                            "fMRI/trials_ses%i.mat" % (x + 1)),
@@ -114,9 +115,13 @@ for x in xrange(2):
         scrambled_onsets)
     paradigm = EventRelatedParadigm(conditions, onsets)
     frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)
-    design_matrix = make_dmtx(frametimes,
-                              paradigm, hrf_model=hrf_model,
-                              drift_model=drift_model, hfcut=hfcut)
+    design_matrix = make_dmtx(
+        frametimes,
+        paradigm, hrf_model=hrf_model,
+        drift_model=drift_model, hfcut=hfcut,
+        add_reg_names=['tx', 'ty', 'tz', 'rx', 'ry', 'rz'],
+        add_regs=np.loadtxt(rp_filenames[x])
+        )
 
     design_matrices.append(design_matrix)
 
@@ -137,7 +142,7 @@ contrasts = dict((contrast_id, [contrast_val] * 2)
 
 # fit GLM
 print('\r\nFitting a GLM (this takes time)...')
-fmri_glm = FMRILinearModel(fmri_imgs,
+fmri_glm = FMRILinearModel(fmri_files,
                            [dmat.matrix for dmat in design_matrices],
                            mask='compute')
 fmri_glm.fit(do_scaling=True, model='ar1')

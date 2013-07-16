@@ -15,6 +15,7 @@ from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
 import nibabel
 import time
+from collections import namedtuple
 
 warning = ("%s: THIS SCRIPT MUST BE RUN FROM ITS PARENT "
            "DIRECTORY!") % sys.argv[0]
@@ -28,10 +29,9 @@ PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
 
 sys.path.append(PYPREPROCESS_DIR)
 
-import nipype_preproc_spm_utils
+# import nipype_preproc_spm_utils
 import reporting.glm_reporter as glm_reporter
 from external.nilearn.datasets import fetch_spm_auditory_data
-from io_utils import compute_mean_3D_image, do_3Dto4D_merge
 from algorithms.registration.spm_realign import MRIMotionCorrection
 from algorithms.slice_timing.spm_slice_timing import fMRISTC
 
@@ -54,6 +54,8 @@ OUTPUT_DIR = os.path.abspath(sys.argv[2])
 if not os.path.isdir(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
+SubjectData = namedtuple("SubjectData", "subject_id func anat output_dir")
+
 """construct experimental paradigm"""
 stats_start_time = time.ctime()
 tr = 7.
@@ -69,34 +71,33 @@ hfcut = 2 * 2 * epoch_duration
 
 """fetch spm auditory data"""
 _subject_data = fetch_spm_auditory_data(DATA_DIR)
-subject_data = nipype_preproc_spm_utils.SubjectData()
-subject_data.func = _subject_data.func
-subject_data.anat = _subject_data.anat
-subject_data.subject_id = 'sub001'
-subject_data.output_dir = os.path.join(OUTPUT_DIR, subject_data.subject_id)
-if not os.path.exists(subject_data.output_dir):
-    os.makedirs(subject_data.output_dir)
+subject_id = "sub001"
+subject_output_dir = os.path.join(OUTPUT_DIR, subject_id)
+if not os.path.exists(subject_output_dir):
+    os.makedirs(subject_output_dir)
 
 """preprocess the data"""
-# # STC
-# fmristc = fMRISTC()
-# fmristc.fit(raw_data=_subject_data.func)
-# fmristc.transform()
+# STC
+fmristc = fMRISTC()
+fmristc.fit(raw_data=_subject_data.func)
+fmristc.transform()
 
 # motion correction
 mrimc = MRIMotionCorrection()
-mrimc.fit(
-    [subject_data.func]
-# [[nibabel.Nifti1Image(fmristc.get_last_output_data()[..., t],
-#                                 nibabel.load(_subject_data.func[t]
-#                                              ).get_affine())
-#             for t in xrange(n_scans)]]
+mrimc.fit([[nibabel.Nifti1Image(fmristc.get_last_output_data()[..., t],
+                                nibabel.load(_subject_data.func[t]
+                                             ).get_affine())
+            for t in xrange(n_scans)]]
 )
-mrimc_output = mrimc.transform(reslice=True,
-                               output_dir=subject_data.output_dir,
+mrimc_output = mrimc.transform(output_dir=subject_output_dir,
+                               reslice=True,
                                ext=".nii")
 
-subject_data.func = mrimc_output['realigned_files'][0]
+subject_data = SubjectData(subject_id=subject_id,
+                           func=mrimc_output['realigned_files'][0],
+                           anat=_subject_data.anat,
+                           output_dir=subject_output_dir)
+
 # results = nipype_preproc_spm_utils.do_subjects_preproc(
 #         [subject_data],
 #         output_dir=OUTPUT_DIR,
@@ -145,7 +146,7 @@ contrasts['active-rest'] = contrasts['active'] - contrasts['rest']
 
 """fit GLM"""
 print('\r\nFitting a GLM (this takes time) ..')
-fmri_glm = FMRILinearModel(nibabel.concat_images(fmri_files),
+fmri_glm = FMRILinearModel('/tmp/4D.nii.gz',
                            design_matrix.matrix,
                            mask='compute')
 fmri_glm.fit(do_scaling=True, model='ar1')
@@ -156,7 +157,7 @@ print "Saving mask image %s" % mask_path
 nibabel.save(fmri_glm.mask, mask_path)
 
 # compute bg unto which activation will be projected
-anat_img = compute_mean_3D_image(fmri_files)
+anat_img = nibabel.load(anat_file)
 anat = anat_img.get_data()
 anat_affine = anat_img.get_affine()
 

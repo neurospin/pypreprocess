@@ -13,7 +13,6 @@ import nibabel
 import affine_transformations
 
 
-
 def _get_mask(M, coords, dim, wrp=[1, 1, 0], tiny=5e-2):
     """
     Wrapper for get_physical_coords(...) with optional wrapping of dimensions.
@@ -57,8 +56,38 @@ def _get_mask(M, coords, dim, wrp=[1, 1, 0], tiny=5e-2):
     return fov_mask, physical_coords
 
 
-def reslice_vols(vols, interp_order=3, interp_mode='wrap',
-                 mask=False, wrp=[1, 1, 0], log=None):
+def _load_vol(x):
+    """
+    Loads a single 3D volume.
+
+    """
+
+    if isinstance(x, basestring):
+        vol = nibabel.load(x)
+    elif isinstance(x, nibabel.Nifti1Image) or isinstance(
+        x, nibabel.Nifti1Pair):
+        vol = x
+    else:
+        raise TypeError(
+            ("Each volume must be string, image object, got:"
+             " %s") % type(x))
+
+    if len(vol.shape) == 4:
+        if vol.shape[-1] == 1:
+            vol = nibabel.Nifti1Image(vol.get_data()[..., 0],
+                                      vol.get_affine())
+        else:
+            raise ValueError(
+                "Each volume must be 3D, got %iD" % len(vol.shape))
+    elif len(vol.shape) != 3:
+            raise ValueError(
+                "Each volume must be 3D, got %iD" % len(vol.shape))
+
+    return vol
+
+
+def reslice_vols(vols, target_affine=None, interp_order=3,
+                 interp_mode='wrap', mask=False, wrp=[1, 1, 0], log=None):
     """
     Uses B-spline interpolation to reslice (i.e resample) all other
     volumes to have thesame affine header matrix as the first (0th) volume.
@@ -68,16 +97,26 @@ def reslice_vols(vols, interp_order=3, interp_mode='wrap',
     vols: list of `nibabel.Nifti1Image` objects
         vols[0] is the reference volume. All other volumes will be resliced
         so that the end up with the same header affine matrix as vol[0]
+    target_affine: 2D array of shape (4, 4), optional (default None)
+        target affine matrix to which the vols will be resliced. If not
+        specified, vols will be resliced to match the first vol's affine
     interp_order: int, optional (default 3)
         degree of B-spline interpolation used for resampling the volumes
     interp_mode: string, optional (default "wrap")
         mode param to be passed to `scipy.ndimage.map_coordinates`
+    mask: boolean, optional (default True)
+        if set, vols will be masked before reslicing. This masking will
+        help eliminate artefactual motion across volumes due to on-off
+        voxels
+    wrp: list_like of 3 booleans, optional (default [1, 1, 0])
+        option passed to _get_mask function. For each axis, it specifies
+        if or not wrapping is to be done along that axis
     log: function(basestring), optional (default None)
         function for logging messages
 
     Returns
     -------
-    vols: list of `nibabel.Nifti1Image` objects
+    vols: generator object on `nibabel.Nifti1Image` objects
         resliced volumes
 
     Raises
@@ -97,58 +136,91 @@ def reslice_vols(vols, interp_order=3, interp_mode='wrap',
         else:
             print(msg)
 
+    # load first vol
+    vol_0 = _load_vol(vols[0])
+
+    # sanitize target_affine
+    reslice_first_vol = True
+    if target_affine is None:
+        reslice_first_vol = False
+        target_affine = vol_0.get_affine()
+
     # build working grid
-    dim = vols[0].shape
+    dim = vol_0.shape
+    n_scans = len(vols)
     grid = np.mgrid[0:dim[0], 0:dim[1], 0:dim[2]].reshape((3, -1))
 
     # compute global mask for all vols, to mask out voxels that show
     # artefactual movement across volumes
     msk = np.ones(grid.shape[1]).astype('bool')
-    for t in xrange(1, len(vols)):
-        # saniiy check on dimensions
-        if vols[t].shape != dim:
-            raise RuntimeError(
-                ("All source volumes must have the same dimensions as the "
-                 "reference. Volume %i has dim %s instead of %s.") % (
-                    t, vols[t].shape, dim))
+    if mask:
+        for t in xrange(len(vols)):
+            # load vol
+            vol = _load_vol(vols[t])
 
-        # affine matrix for passing from vol's space to the ref vol's
-        M = scipy.linalg.inv(scipy.linalg.lstsq(
-                vols[0].get_affine(), vols[t].get_affine())[0])
+            # saniiy check on dimensions
+            if vol.shape != dim:
+                raise RuntimeError(
+                    ("All source volumes must have the same dimensions as the "
+                     "reference. Volume %i has dim %s instead of %s.") % (
+                        t, vol.shape, dim))
 
-        fov_msk, _ = _get_mask(M, grid, dim, wrp=wrp)
-
-        msk = msk & fov_msk
-
-    # loop on all vols --except the ref vol-- reslicing them one-by-one
-    for t in xrange(len(vols)):
-        _log('\tReslicing volume %i/%i...' % (t + 1, len(vols)))
-
-        if t > 0:
             # affine matrix for passing from vol's space to the ref vol's
             M = scipy.linalg.inv(scipy.linalg.lstsq(
-                    vols[0].get_affine(), vols[t].get_affine())[0])
+                    target_affine, vol.get_affine())[0])
+
+            fov_msk, _ = _get_mask(M, grid, dim, wrp=wrp)
+
+            msk = msk & fov_msk
+
+    # loop on all vols, reslicing them one-by-one
+    for t in xrange(n_scans):
+        _log('\tReslicing volume %i/%i...' % (t + 1, len(vols)))
+
+        # load vol
+        vol = _load_vol(vols[t])
+
+        # reslice vol
+        if t > 0 or reslice_first_vol:
+            # affine matrix for passing from vol's space to the ref vol's
+            M = scipy.linalg.inv(scipy.linalg.lstsq(
+                    target_affine,
+                    vol.get_affine())[0])
 
             # transform vol's grid according to M
             _, new_grid = _get_mask(M, grid, dim, wrp=wrp)
 
             # resample vol on new grid
             rdata = scipy.ndimage.map_coordinates(
-                vols[t].get_data(), new_grid,
+                vol.get_data(), new_grid,
                 order=interp_order,
-                mode=interp_mode,
+                mode=interp_mode
                 )
-        else:
-            # don't reslice reference vol
-            rdata = vols[t].get_data().ravel()
+        else:  # don't reslice first vol
+            rdata = vol.get_data().ravel()
 
-        # mask out voxels that have fallen out of the global mask
-        rdata[~msk] = 0  # XXX should really be set to NaN
+        rdata[~msk]  = 0
 
         # replace vols's affine with ref vol's (this has been the ultimate
         # goal all along)
-        vols[t] = nibabel.Nifti1Image(rdata.reshape(dim),
-                                      vols[0].get_affine())
+        rvol = nibabel.Nifti1Image(rdata.reshape(dim), target_affine)
 
-    # returned resliced vols
-    return vols
+    # if mask:
+    #     # create mask against artefactual movement across volumes (due to
+    #     # 'on-off voxels'
+    #     msk = np.transpose([np.all(rdata, axis=-1)] * rdata.shape[-1],
+    #                     axes=np.hstack((np.arange(1, rdata.ndim), [0])))
+
+    #     # mask the realigned data
+    #     rdata *= msk
+
+    # for t in xrange(n_scans):
+    #     # # mask out voxels that have fallen out of the global mask
+    #     # rdata[~msk] = 0  # XXX should really be set to NaN
+
+    #     # # replace vols's affine with ref vol's (this has been the ultimate
+    #     # # goal all along)
+    #     rvol = nibabel.Nifti1Image(rdata[..., t], target_affine)
+
+        # yield reslice vol for time t
+        yield rvol

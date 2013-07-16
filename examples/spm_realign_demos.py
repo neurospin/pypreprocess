@@ -1,6 +1,5 @@
 import os
 import sys
-import nibabel
 from collections import namedtuple
 import matplotlib.pyplot as plt
 
@@ -9,7 +8,6 @@ PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
 sys.path.append(PYPREPROCESS_DIR)
 
 from algorithms.registration.spm_realign import MRIMotionCorrection
-from algorithms.slice_timing.spm_slice_timing import fMRISTC
 from reporting.check_preprocessing import plot_spm_motion_parameters
 from external.nilearn.datasets import (fetch_nyu_rest, fetch_fsl_feeds_data,
                                     fetch_spm_multimodal_fmri_data)
@@ -175,11 +173,11 @@ if __name__ == '__main__':
 
     print separator.join(['', banner, warning, banner, ''])
 
-    # run spm multimodal demo
-    demo_spm_multimodal_fmri()
-
     # run fsl feeds demo
     demo_fsl_feeds()
+
+    # run spm multimodal demo
+    demo_spm_multimodal_fmri()
 
     # run nyu_rest demo()
     demo_nyu_rest()
