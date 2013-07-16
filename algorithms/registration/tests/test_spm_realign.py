@@ -1,11 +1,22 @@
+"""
+XXX only use nosetests command-line tool to run this test module!
+
+"""
+
 import numpy as np
 import nibabel
 import os
+import sys
 import inspect
-from ..spm_realign import (_load_vol,
-                           _load_specific_vol,
-                           compute_rate_of_change_of_chisq,
-                           MRIMotionCorrection)
+import nose.tools
+
+# import the APIs to be tested
+from ..spm_realign import (
+    _load_vol,
+    _load_specific_vol,
+    compute_rate_of_change_of_chisq,
+    MRIMotionCorrection
+    )
 
 # global setup
 OUTPUT_DIR = "/tmp/test_spm_realign_data_dir"
@@ -17,6 +28,10 @@ def create_random_image(shape=None,
                         n_scans=None,
                         affine=np.eye(4),
                         parent_class=nibabel.Nifti1Image):
+    """
+    Creates a random image of prescribed shape
+
+    """
 
     if shape is None:
         shape = np.random.random_integers(20, size=ndim)
@@ -29,12 +44,6 @@ def create_random_image(shape=None,
 
 
 def test_load_vol():
-    """
-    Tests the loading of a 3D vol by filename (.nii, .nii.gz, .img, etc.)
-    or from a nibabel image object (Nifti1Image, Nifti1Pair, etc.)
-
-    """
-
     # setup
     output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
     if not os.path.exists(output_dir):
@@ -45,9 +54,9 @@ def test_load_vol():
 
     # test loading vol from nibabel object
     _vol = _load_vol(vol)
-    assert isinstance(_vol, type(vol))
-    assert _vol.shape == vol.shape
-    assert np.all(_vol.get_data() == vol.get_data())
+    nose.tools.assert_true(isinstance(_vol, type(vol)))
+    nose.tools.assert_equal(_vol.shape, vol.shape)
+    np.testing.assert_array_equal(_vol.get_data(), vol.get_data())
 
     # test loading vol by filename
     for ext in IMAGE_EXTENSIONS:
@@ -60,19 +69,12 @@ def test_load_vol():
 
         # load the vol by filename
         _vol = _load_vol(vol_filename)
-        assert isinstance(_vol, vol_type)
-        assert _vol.shape == vol.shape
-        assert np.all(_vol.get_data() == vol.get_data())
+        nose.tools.assert_true(isinstance(_vol, vol_type))
+        nose.tools.assert_equal(_vol.shape, vol.shape)
+        np.testing.assert_array_equal(_vol.get_data(), vol.get_data())
 
 
 def test_load_specific_vol():
-    """
-    Tests the loading of a single specific 3D vol from a 4D film, by
-    filename(s) (.nii, .nii.gz, .img, etc.) or from a nibabel image object
-    (Nifti1Image, Nifti1Pair, etc.).
-
-    """
-
     # setup
     output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
     if not os.path.exists(output_dir):
@@ -85,10 +87,10 @@ def test_load_specific_vol():
     # test loading vol from nibabel image object
     for t in xrange(n_scans):
         _vol, _n_scans = _load_specific_vol(film, t)
-        assert _n_scans == n_scans
-        assert isinstance(_vol, type(film))
-        assert _vol.shape == film.shape[:-1]
-        assert np.all(_vol.get_data() == film.get_data()[..., t])
+        nose.tools.assert_equal(_n_scans, n_scans)
+        nose.tools.assert_true(isinstance(_vol, type(film)))
+        nose.tools.assert_equal(_vol.shape, film.shape[:-1])
+        np.testing.assert_array_equal(_vol.get_data(), film.get_data()[..., t])
 
     # test loading vol from a single 4D filename
     for ext in IMAGE_EXTENSIONS:
@@ -115,19 +117,14 @@ def test_load_specific_vol():
 
                 # load specific 3D vol from 4D film by filename
                 _vol, _n_scans = _load_specific_vol(film_filename, t)
-                assert _n_scans == n_scans
-                assert isinstance(_vol, vol_type)
-                assert _vol.shape == film.shape[:-1]
-                assert np.all(_vol.get_data() == film.get_data()[..., t])
+                nose.tools.assert_equal(_n_scans, n_scans)
+                nose.tools.assert_true(isinstance(_vol, vol_type))
+                nose.tools.assert_equal(_vol.shape, film.shape[:-1])
+                np.testing.assert_array_equal(_vol.get_data(),
+                                              film.get_data()[..., t])
 
 
 def test_compute_rate_of_change_of_chisq():
-    """
-    Tests compute_rate_of_change_of_chisq function from spm_realign module.
-    The said function computes the coefficient matrix "A", used in the
-    Newton-Gauss iterated LSP used in the the realigment algo.
-
-    """
     # setup
     true_A = np.array(
         [[-0., -0., -0., -0., -0., -0.],
@@ -203,3 +200,14 @@ def test_compute_rate_of_change_of_chisq():
 
     # compare A with true_A (from spm implementation)
     np.testing.assert_array_almost_equal(A, true_A, decimal=decimal_precision)
+
+
+# def test_MRIMotionCorrection():
+#     # create vols
+#     film = create_random_image(ndim=4)
+
+#     # instantiate object
+#     mrimc = MRIMotionCorrection(quality=1.)
+
+#     # fit object
+#     mrimc.fit(film)
