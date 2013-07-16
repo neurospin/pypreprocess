@@ -100,11 +100,9 @@ def compute_rate_of_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
 
     """
 
-    # # ravel gradient
-    # gradG = np.reshape(gradG, (3, -1))
-
-    # # ravel coords
-    # coords = np.reshape(coords, (3, -1))
+    # sanitize input
+    gradG = np.array(gradG)
+    coords = np.array(coords)
 
     # loop over parameters (this loop computes columns of A)
     A = np.ndarray((coords.shape[1], len(lkp)))
