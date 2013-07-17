@@ -79,7 +79,7 @@ def _load_specific_vol(vols, t):
     return vol, n_scans
 
 
-def compute_rate_of_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
+def _compute_rate_of_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
     """Constructs matrix of rate of change of chi2 w.r.t. parameter changes
 
     Parameters
@@ -132,6 +132,39 @@ def compute_rate_of_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
         A[..., i] /= -1e-6
 
     return A
+
+
+def _apply_realignment(vols, rp):
+    """
+    Modifies the affine headers of the given volumes according to
+    the realignment parameters (rp)
+
+    Returns
+    -------
+    list of `nibabel.Nifti1Image` objects
+        the realigned volumes
+
+    """
+
+    _, n_scans = _load_specific_vol(vols, 0)
+
+    rvols = []
+    for t in xrange(n_scans):
+        vol, _ = _load_specific_vol(vols, t)
+
+        # grap realignment params for this vol
+        q = rp[t]
+
+        # convert realigment params to affine transformation
+        M_q = affine_transformations.spm_matrix(q)
+
+        # apply affine transformation
+        rvol = nibabel.Nifti1Image(vol.get_data(), np.dot(
+                M_q, vol.get_affine()))
+
+        rvols.append(rvol)
+
+    return rvols
 
 
 class MRIMotionCorrection(object):
@@ -290,8 +323,9 @@ class MRIMotionCorrection(object):
                                  mode='wrap',).reshape(x1.shape)
 
         # compute rate of change of chi2 w.r.t. parameters
-        A0 = compute_rate_of_change_of_chisq(vol_0.get_affine(),
-                                             [x1, x2, x3], [Gx, Gy, Gz])
+        A0 = _compute_rate_of_change_of_chisq(vol_0.get_affine(),
+                                              [x1, x2, x3], [Gx, Gy, Gz],
+                                              lkp=self._lkp)
 
         # compute intercept vector for LSPs
         b = G.ravel()
@@ -515,24 +549,7 @@ class MRIMotionCorrection(object):
             quality=1.  # only a few vols, we can thus allow this lux
             )
 
-        rfirst_vols = []
-        for sess in xrange(self._n_sessions):
-            vol = first_vols[sess]
-
-            if sess > 0:
-                # grap realignment params for this vol
-                q = self._first_vols_rp[sess]
-
-                # convert realigment params to affine transformation
-                M_q = affine_transformations.spm_matrix(q)
-
-                # apply affine transformation
-                rvol = nibabel.Nifti1Image(vol.get_data(), np.dot(
-                        M_q, vol.get_affine()))
-            else:
-                rvol = vol
-
-            rfirst_vols.append(rvol)
+        rfirst_vols = _apply_realignment(first_vols, self._first_vols_rp)
 
         if self._n_sessions > 1:
             self._log('...done (inter-session registration).\r\n')
@@ -636,21 +653,7 @@ class MRIMotionCorrection(object):
 
             # modify the header of each 3D vols according to the
             # estimated motion (realignment params)
-            sess_rvols = []
-            for t in xrange(self._n_scans_list[sess]):
-                vol, _ = _load_specific_vol(self._vols[sess], t)
-
-                # grap realignment params for this vol
-                q = self._rp[sess][t]
-
-                # convert realigment params to affine transformation
-                M_q = affine_transformations.spm_matrix(q)
-
-                # apply affine transformation
-                vol = nibabel.Nifti1Image(vol.get_data(), np.dot(
-                        M_q, vol.get_affine()))
-
-                sess_rvols.append(vol)
+            sess_rvols = _apply_realignment(self._vols[sess], self._rp[sess])
 
             # reslice vols
             if reslice:
