@@ -137,7 +137,7 @@ def _compute_rate_of_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
 def _apply_realignment(vols, rp):
     """
     Modifies the affine headers of the given volumes according to
-    the realignment parameters (rp)
+    the realignment parameters (rp).
 
     Returns
     -------
@@ -217,9 +217,6 @@ class MRIMotionCorrection(object):
             11 - z shear
         verbose: int, optional (default 1)
             controls verbosity level. 0 means no verbose at all
-        output_dir: string, optional (default None)
-            existing dirname, where all output (i.e realigned files) will be
-            written
         prefix: string, optional (default 'r')
             prefix to be prepended to output file basenames
         n_iterations: int, optional (dafault 64)
@@ -254,7 +251,7 @@ class MRIMotionCorrection(object):
             print(msg)
 
     def _single_session_fit(self, vols, quality=None,
-                            affine_correction=np.eye(4)):
+                            affine_correction=None):
         """Realigns volumes (vols) from a single session.
 
         Parameters
@@ -263,17 +260,23 @@ class MRIMotionCorrection(object):
             the volumes to realign
         quality: float, optional (default None)
             to override instance value
+        affine_correction: 2D array of shape (4, 4), optional (default None)
+            affine transformation to be applied to vols before realignment
+            (this is useful in multi-session realignment)
 
         Returns
         -------
-
-        Notes
-        -----
-        Input vols is modified!
+        2D array of shape (n_scans, len(self._lkp)
+            the estimated realignment parameters
 
         """
+
+        # sanitize input
         if quality is None:
             quality = self._quality
+
+        if affine_correction is None:
+            affine_correction = np.eye(4)
 
         # load first vol
         vol_0, n_scans = _load_specific_vol(vols, 0)
