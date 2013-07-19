@@ -52,7 +52,6 @@ def normalize_name(name):
 # download openfmri data
 # ----------------------------------------------------------------------------
 
-
 def fetch_openfmri(dataset_id, data_dir, redownload=False):
     """ Downloads and extract datasets from www.openfmri.org
 
@@ -547,7 +546,6 @@ def _openfmri_metadata(out_dir, metadata):
 # GLM on openfmri layout
 # ----------------------------------------------------------------------------
 
-
 def first_level_glm(study_dir, subjects_id, model_id,
                      hrf_model='canonical', drift_model='cosine',
                      glm_model='ar1', mask='compute', n_jobs=-1, verbose=1):
@@ -631,123 +629,10 @@ def _first_level_glm(study_dir, subject_id, model_id,
 
     nb.save(glm.mask, os.path.join(model_dir, 'mask.nii.gz'))
 
+
 # ----------------------------------------------------------------------------
-# launcher stuff
+# preprocessing
 # ----------------------------------------------------------------------------
-
-
-def get_dataset_description(dataset_id):
-    full_id = map_id[dataset_id]
-    html = urllib2.urlopen('https://openfmri.org/dataset/%s' % full_id).read()
-    return html.split(('<div class="field-item even" '
-                       'property="content:encoded"><p>')
-           )[1].split(('</p>\n</div></div></div><div class="field '
-                       'field-name-field-mixedformattasksconditions'))[0]
-
-
-def get_options(args):
-    parser = OptionParser()
-    parser.add_option(
-        '-t', '--dataset', dest='dataset_id',
-        help='The openfmri dataset id.\nSee https://openfmri.org/data-sets')
-    parser.add_option('-d', '--dataset-dir', dest='dataset_dir',
-        help='Parent path for the dataset.')
-    parser.add_option('-m', '--model', dest='model_id', default='model001',
-                      help='The model to be used from the GLM.')
-    parser.add_option(
-        '-p', '--preprocessing', dest='preproc_dir',
-        default=tempfile.gettempdir(),
-        help='Parent path for preprocessing.')
-    parser.add_option(
-        '-f', '--force-dowload', dest='force_download',
-        action='store_true', default=False,
-        help='Force redownload the dataset.')
-    parser.add_option(
-        '-v', '--verbose', dest='verbose',
-        type='int', default=1,
-        help='Verbosity level.')
-    parser.add_option(
-        '-a', '--skip-preprocessing', dest='skip_preprocessing',
-        action='store_true', default=False,
-        help='Force preprocessing skipping.')
-
-    parser.add_option(
-        '-u', '--subject_id', dest='subject_id',
-        help='If defined, only this subject is processed.')
-
-    options, args = parser.parse_args(args)
-
-    dataset_dir = options.dataset_dir
-    dataset_id = options.dataset_id
-
-    if dataset_id is None:
-        parser.error("The dataset id is mandatory.")
-    if dataset_dir is None:
-        parser.error("The data directory is mandatory.")
-
-    return options
-
-
-def setup_dataset(options):
-    dataset_id = options.dataset_id
-    dataset_dir = options.dataset_dir
-    preproc_dir = options.preproc_dir
-
-    if not os.path.exists(preproc_dir):
-        os.makedirs(preproc_dir)
-
-    if options.verbose > 0:
-        print 'Fetching data...'
-    dataset_dir = fetch_openfmri(dataset_id, dataset_dir,
-                                 redownload=options.force_download)
-
-    if options.verbose > 0:
-        print 'Copying models...'
-    # update and/or create models
-    model001_dir = os.path.join(dataset_dir, 'models', 'model001')
-    for task_contrasts_path in glob.glob(os.path.join('models', '*')):
-        ds_id, model_id, f = os.path.split(task_contrasts_path)[1].split('__')
-
-        if ds_id == dataset_id:
-            model_dir = os.path.join(dataset_dir, 'models', model_id)
-            if not os.path.exists(model_dir):
-                shutil.copytree(model001_dir, model_dir)
-
-            shutil.copyfile(task_contrasts_path, os.path.join(model_dir, f))
-
-
-def process_dataset(argv):
-    options = get_options(argv)
-
-    dataset_id = options.dataset_id
-    model_id = options.model_id
-    preproc_dir = options.preproc_dir
-    dataset_dir = options.dataset_dir
-
-    ignore_list = dataset_ignore_list[dataset_id]
-    description = get_dataset_description(dataset_id)
-
-    study_dir = os.path.join(dataset_dir, dataset_id)
-
-    if options.subject_id is not None:
-        ignore_list = [os.path.split(p)[1]
-                       for p in glob.glob(os.path.join(study_dir, 'sub*'))
-                       if os.path.split(p)[1] != options.subject_id]
-
-    subjects_id = [os.path.split(p)[1]
-                   for p in glob.glob(os.path.join(study_dir, 'sub*'))
-                   if os.path.split(p)[1] not in ignore_list]
-
-    setup_dataset(options)
-    if options.verbose > 0:
-        print 'Preprocessing data...'
-    if not options.skip_preprocessing:
-        dataset_preprocessing(dataset_id, dataset_dir, preproc_dir,
-                              ignore_list, description)
-
-    first_level_glm(study_dir, subjects_id, model_id, n_jobs=1,
-                    verbose=options.verbose)
-
 
 def dataset_preprocessing(dataset_id, data_dir, output_dir, ignore_list=None,
                           dataset_description=None):
@@ -887,3 +772,120 @@ def dataset_preprocessing(dataset_id, data_dir, output_dir, ignore_list=None,
             nb.save(img, os.path.join(
                 data_dir, subject_id, 'BOLD',
                 session_id, 'normalized_bold.nii.gz'))
+
+
+# ----------------------------------------------------------------------------
+# launcher stuff
+# ----------------------------------------------------------------------------
+
+def get_dataset_description(dataset_id):
+    full_id = map_id[dataset_id]
+    html = urllib2.urlopen('https://openfmri.org/dataset/%s' % full_id).read()
+    return html.split(('<div class="field-item even" '
+                       'property="content:encoded"><p>')
+           )[1].split(('</p>\n</div></div></div><div class="field '
+                       'field-name-field-mixedformattasksconditions'))[0]
+
+
+def get_options(args):
+    parser = OptionParser()
+    parser.add_option(
+        '-t', '--dataset', dest='dataset_id',
+        help='The openfmri dataset id.\nSee https://openfmri.org/data-sets')
+    parser.add_option('-d', '--dataset-dir', dest='dataset_dir',
+        help='Parent path for the dataset.')
+    parser.add_option('-m', '--model', dest='model_id', default='model001',
+                      help='The model to be used from the GLM.')
+    parser.add_option(
+        '-p', '--preprocessing', dest='preproc_dir',
+        default=tempfile.gettempdir(),
+        help='Parent path for preprocessing.')
+    parser.add_option(
+        '-f', '--force-dowload', dest='force_download',
+        action='store_true', default=False,
+        help='Force redownload the dataset.')
+    parser.add_option(
+        '-v', '--verbose', dest='verbose',
+        type='int', default=1,
+        help='Verbosity level.')
+    parser.add_option(
+        '-a', '--skip-preprocessing', dest='skip_preprocessing',
+        action='store_true', default=False,
+        help='Force preprocessing skipping.')
+
+    parser.add_option(
+        '-u', '--subject_id', dest='subject_id',
+        help='If defined, only this subject is processed.')
+
+    options, args = parser.parse_args(args)
+
+    dataset_dir = options.dataset_dir
+    dataset_id = options.dataset_id
+
+    if dataset_id is None:
+        parser.error("The dataset id is mandatory.")
+    if dataset_dir is None:
+        parser.error("The data directory is mandatory.")
+
+    return options
+
+
+def setup_dataset(options):
+    dataset_id = options.dataset_id
+    dataset_dir = options.dataset_dir
+    preproc_dir = options.preproc_dir
+
+    if not os.path.exists(preproc_dir):
+        os.makedirs(preproc_dir)
+
+    if options.verbose > 0:
+        print 'Fetching data...'
+    dataset_dir = fetch_openfmri(dataset_id, dataset_dir,
+                                 redownload=options.force_download)
+
+    if options.verbose > 0:
+        print 'Copying models...'
+    # update and/or create models
+    model001_dir = os.path.join(dataset_dir, 'models', 'model001')
+    for task_contrasts_path in glob.glob(os.path.join('models', '*')):
+        ds_id, model_id, f = os.path.split(task_contrasts_path)[1].split('__')
+
+        if ds_id == dataset_id:
+            model_dir = os.path.join(dataset_dir, 'models', model_id)
+            if not os.path.exists(model_dir):
+                shutil.copytree(model001_dir, model_dir)
+
+            shutil.copyfile(task_contrasts_path, os.path.join(model_dir, f))
+
+
+def process_dataset(argv):
+    options = get_options(argv)
+
+    dataset_id = options.dataset_id
+    model_id = options.model_id
+    preproc_dir = options.preproc_dir
+    dataset_dir = options.dataset_dir
+
+    ignore_list = dataset_ignore_list[dataset_id]
+    description = get_dataset_description(dataset_id)
+
+    study_dir = os.path.join(dataset_dir, dataset_id)
+
+    if options.subject_id is not None:
+        ignore_list = [os.path.split(p)[1]
+                       for p in glob.glob(os.path.join(study_dir, 'sub*'))
+                       if os.path.split(p)[1] != options.subject_id]
+
+    subjects_id = [os.path.split(p)[1]
+                   for p in glob.glob(os.path.join(study_dir, 'sub*'))
+                   if os.path.split(p)[1] not in ignore_list]
+
+    setup_dataset(options)
+    if options.verbose > 0:
+        print 'Preprocessing data...'
+    if not options.skip_preprocessing:
+        dataset_preprocessing(dataset_id, dataset_dir, preproc_dir,
+                              ignore_list, description)
+
+    first_level_glm(study_dir, subjects_id, model_id, n_jobs=1,
+                    verbose=options.verbose)
