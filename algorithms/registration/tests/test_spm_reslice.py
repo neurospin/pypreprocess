@@ -44,7 +44,7 @@ def test_reslice_vols():
         rp[t, ...][:3] += t / n_scans
         rp[t, ...][3:6] += np.pi * t
 
-    film = _apply_realignment(film, rp)
+    film = list(_apply_realignment(film, rp))
 
     # affines are not the same
     nose.tools.assert_false(np.all(

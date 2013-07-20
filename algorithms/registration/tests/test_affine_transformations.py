@@ -24,6 +24,10 @@ def test_get_initial_motion_params():
 def test_spm_matrix():
     p = get_initial_motion_params()
 
+    # identity
+    np.testing.assert_array_equal(spm_matrix(p),
+                                  np.eye(4))
+
     # induce translations
     p[:3] += [.2, .3, .4]
 

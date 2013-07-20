@@ -87,7 +87,7 @@ def _load_vol(x):
 
 
 def reslice_vols(vols, target_affine=None, interp_order=3,
-                 interp_mode='wrap', mask=False, wrp=[1, 1, 0], log=None):
+                 interp_mode='constant', mask=True, wrp=[1, 1, 0], log=None):
     """
     Uses B-spline interpolation to reslice (i.e resample) all other
     volumes to have thesame affine header matrix as the first (0th) volume.
@@ -135,6 +135,8 @@ def reslice_vols(vols, target_affine=None, interp_order=3,
             log(msg)
         else:
             print(msg)
+
+    vols = list(vols)
 
     # load first vol
     vol_0 = _load_vol(vols[0])
@@ -205,22 +207,5 @@ def reslice_vols(vols, target_affine=None, interp_order=3,
         # goal all along)
         rvol = nibabel.Nifti1Image(rdata.reshape(dim), target_affine)
 
-    # if mask:
-    #     # create mask against artefactual movement across volumes (due to
-    #     # 'on-off voxels'
-    #     msk = np.transpose([np.all(rdata, axis=-1)] * rdata.shape[-1],
-    #                     axes=np.hstack((np.arange(1, rdata.ndim), [0])))
-
-    #     # mask the realigned data
-    #     rdata *= msk
-
-    # for t in xrange(n_scans):
-    #     # # mask out voxels that have fallen out of the global mask
-    #     # rdata[~msk] = 0  # XXX should really be set to NaN
-
-    #     # # replace vols's affine with ref vol's (this has been the ultimate
-    #     # # goal all along)
-    #     rvol = nibabel.Nifti1Image(rdata[..., t], target_affine)
-
-        # yield reslice vol for time t
+        # yield resliced vol
         yield rvol

@@ -5,7 +5,6 @@ XXX only use nosetests command-line tool to run this test module!
 
 import numpy as np
 import nibabel
-import scipy.ndimage as sndi
 import os
 import inspect
 import nose
@@ -17,7 +16,8 @@ from ..spm_realign import (
     _load_specific_vol,
     _compute_rate_of_change_of_chisq,
     _apply_realignment,
-    MRIMotionCorrection
+    _extract_realignment_params,
+    # MRIMotionCorrection
     )
 from ..affine_transformations import (
     get_initial_motion_params)
@@ -205,6 +205,43 @@ def test_compute_rate_of_change_of_chisq():
     # compare A with true_A (from spm implementation)
     np.testing.assert_array_almost_equal(A, true_A, decimal=decimal_precision)
 
+
+def test_appy_realigment_and_extract_realignment_params_APIs():
+    # create data
+    n_scans = 10
+    affine  = np.eye(4)
+    affine[:3, -1] = [96, -96, -69]
+    film = create_random_image(shape=[64, 64, 64, n_scans], affine=affine)
+
+    # there should be no motion
+    for t in xrange(n_scans):
+        np.testing.assert_array_equal(_extract_realignment_params(
+                _load_specific_vol(film, t)[0],
+                _load_specific_vol(film, 0)[0]),
+                                      get_initial_motion_params())
+
+    # now introduce motion into other vols relative to the first vol
+    rp = np.ndarray((n_scans, 12))
+    for t in xrange(n_scans):
+        rp[t, ...] = get_initial_motion_params()
+
+        if t > 0:
+            rp[t, :3] += [t, t + 1, t + 2]  # translation
+
+    # apply motion (noise)
+    film = list(_apply_realignment(film, rp, inverse=False))
+
+    # check that motion has been induced
+    for t in xrange(n_scans):
+        _tmp = get_initial_motion_params()
+
+        if t > 0:
+            _tmp[:3] += [-t, -1 * (t + 1), -1 * (t + 2)]  # translation
+
+        np.testing.assert_array_equal(_extract_realignment_params(
+                _load_specific_vol(film, t)[0],
+                _load_specific_vol(film, 0)[0]),
+                                      _tmp)
 
 # def test_MRIMotionCorrection():
 #     # create basic L pattern

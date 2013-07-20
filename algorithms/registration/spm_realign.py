@@ -12,7 +12,7 @@ References
 import nibabel
 import os
 import numpy as np
-import scipy.ndimage as ndi
+import scipy.ndimage as sndi
 import scipy.linalg
 import kernel_smooth
 import affine_transformations
@@ -20,7 +20,6 @@ import spm_reslice
 
 # useful constants
 INFINITY = np.inf
-GRID_NOISE_AMPLITUDE = 1e-3  # amplitude of white-noise for doping the grid
 
 
 def _load_vol(x):
@@ -134,37 +133,94 @@ def _compute_rate_of_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
     return A
 
 
-def _apply_realignment(vols, rp):
+def _apply_realignment_to_vol(vol, q, inverse=True):
     """
-    Modifies the affine headers of the given volumes according to
-    the realignment parameters (rp).
+    Modifies the affine headers of the given volume according to
+    the realignment parameters (q).
+
+    Parameters
+    ----------
+    vol: `nibabel.Nifti1Image`
+        image to be transformed
+    q: 1D array of length <= 12
+        realignment parameters representing the rigid transformation
+    inverse: boolean, optional (default False)
+        indicates the direction in which the transformation is to be performed;
+        if set then, it is assumed q actually represents the inverse of the
+        transformation to be applied
 
     Returns
     -------
-    list of `nibabel.Nifti1Image` objects
+    `nibabel.Nifti1Image` object
+        the realigned volume
+
+    Notes
+    -----
+    Input is not modified.
+
+    """
+
+    # convert realigment params to affine transformation
+    M_q = affine_transformations.spm_matrix(q)
+
+    if inverse:
+        M_q = scipy.linalg.inv(M_q)
+
+    # apply affine transformation
+    rvol = nibabel.Nifti1Image(vol.get_data(), np.dot(
+            M_q, vol.get_affine()))
+
+    return rvol
+
+
+def _apply_realignment(vols, rp, inverse=True):
+    """
+    Modifies  according to
+    the realignment parameters (rp).
+
+    vols: `nibabel.Nifti1Image`
+        volumes to be transformed
+    rp: 2D array of shape (n_vols, k), where k <=12
+        realignment parameters representing the rigid transformations to be
+        applied to the respective volumes
+    inverse: boolean, optional (default False)
+        indicates the direction in which the transformation is to be performed;
+        if set then, it is assumed q actually represents the inverse of the
+        transformation to be applied
+
+    Returns
+    -------
+    generator of `nibabel.Nifti1Image` objects
         the realigned volumes
+
+    Notes
+    -----
+    Input is not modified.
 
     """
 
     _, n_scans = _load_specific_vol(vols, 0)
 
-    rvols = []
     for t in xrange(n_scans):
         vol, _ = _load_specific_vol(vols, t)
 
-        # grap realignment params for this vol
-        q = rp[t]
+        # apply realignment to vol
+        rvol = _apply_realignment_to_vol(vol, rp[t], inverse=inverse)
 
-        # convert realigment params to affine transformation
-        M_q = affine_transformations.spm_matrix(q)
+        # yield realigned vol
+        yield rvol
 
-        # apply affine transformation
-        rvol = nibabel.Nifti1Image(vol.get_data(), np.dot(
-                M_q, vol.get_affine()))
 
-        rvols.append(rvol)
+def _extract_realignment_params(ref_vol, vol):
+    """
+    Extracts realignment param for vol -> ref_vol rigid body registration
 
-    return rvols
+    """
+
+   # store estimated motion for volume t
+    return affine_transformations.spm_imatrix(
+        np.dot(vol.get_affine(), scipy.linalg.inv(ref_vol.get_affine()))
+               )
 
 
 class MRIMotionCorrection(object):
@@ -301,29 +357,24 @@ class MRIMotionCorrection(object):
                               0:dim[1] - .5 - 1:skip[1],
                               0:dim[2] - .5 - 1:skip[2]].reshape((3, -1))
 
-        # dope the grid so we're not perfectly aligned with its vertices
-        # x1 += np.random.randn(*x1.shape) * GRID_NOISE_AMPLITUDE
-        # x2 += np.random.randn(*x2.shape) * GRID_NOISE_AMPLITUDE
-        # x3 += np.random.randn(*x3.shape) * GRID_NOISE_AMPLITUDE
-
         # smooth 0th volume to absorb noise before differentiating
         sref_vol = kernel_smooth.smooth_image(vol_0,
                                               self._fwhm).get_data()
 
         # resample the smoothed reference volume unto doped working grid
-        G = ndi.map_coordinates(sref_vol, [x1, x2, x3], order=self._interp,
-                                mode='wrap',).reshape(x1.shape)
+        G = sndi.map_coordinates(sref_vol, [x1, x2, x3], order=self._interp,
+                                 mode='wrap',).reshape(x1.shape)
 
         # compute gradient of reference volume
         Gx, Gy, Gz = np.gradient(sref_vol)
 
         # resample gradient unto working grid
-        Gx = ndi.map_coordinates(Gx, [x1, x2, x3], order=self._interp,
-                                 mode='wrap',).reshape(x1.shape)
-        Gy = ndi.map_coordinates(Gy, [x1, x2, x3], order=self._interp,
-                                 mode='wrap',).reshape(x1.shape)
-        Gz = ndi.map_coordinates(Gz, [x1, x2, x3], order=self._interp,
-                                 mode='wrap',).reshape(x1.shape)
+        Gx = sndi.map_coordinates(Gx, [x1, x2, x3], order=self._interp,
+                                  mode='wrap',).reshape(x1.shape)
+        Gy = sndi.map_coordinates(Gy, [x1, x2, x3], order=self._interp,
+                                  mode='wrap',).reshape(x1.shape)
+        Gz = sndi.map_coordinates(Gz, [x1, x2, x3], order=self._interp,
+                                  mode='wrap',).reshape(x1.shape)
 
         # compute rate of change of chi2 w.r.t. parameters
         A0 = _compute_rate_of_change_of_chisq(vol_0.get_affine(),
@@ -382,7 +433,6 @@ class MRIMotionCorrection(object):
         rp = np.ndarray((n_scans, 12))
         rp[0, ...] = affine_transformations.get_initial_motion_params(
             )  # don't mov the reference image
-        ref_iaffine = scipy.linalg.inv(vol_0.get_affine())
         for t in xrange(1, n_scans):
             self._log("\tRegistering volume %i/%i..." % (
                     t + 1, n_scans))
@@ -393,9 +443,11 @@ class MRIMotionCorrection(object):
                                       np.dot(affine_correction,
                                              vol.get_affine()))
 
+            # initialize final rp for this vol
+            rp[t, ...] = affine_transformations.get_initial_motion_params()
+
             # smooth volume t
-            V = kernel_smooth.smooth_image(vol,
-                                           self._fwhm).get_data()
+            V = kernel_smooth.smooth_image(vol, self._fwhm).get_data()
 
             # intialize motion params for this vol
             rp[t, ...] = affine_transformations.get_initial_motion_params()
@@ -431,8 +483,8 @@ class MRIMotionCorrection(object):
                                 msk)))
 
                 # warp: resample volume t on this new grid
-                F = ndi.map_coordinates(V, [y1[msk], y2[msk], y3[msk]],
-                                        order=3, mode='wrap')
+                F = sndi.map_coordinates(V, [y1[msk], y2[msk], y3[msk]],
+                                         order=self._interp, mode='wrap')
 
                 # formulate and solve LS problem for updating p
                 A = A0[msk, ...].copy()
@@ -444,14 +496,10 @@ class MRIMotionCorrection(object):
 
                 # update q
                 q[self._lkp] += q_update
-
-                # get affine transformation represented by q
-                M_q = affine_transformations.spm_matrix(q)
+                rp[t, self._lkp] -= q_update
 
                 # update affine matrix for volume t by applying M_q
-                vol = nibabel.Nifti1Image(
-                    vol.get_data(), np.dot(scipy.linalg.inv(M_q),
-                                             vol.get_affine()))
+                vol = _apply_realignment_to_vol(vol, q)
 
                 # compute convergence criterion variables
                 pss = ss
@@ -489,13 +537,6 @@ class MRIMotionCorrection(object):
                 else:
                     comments = "stopped converging" + comments
 
-            # store estimated motion for volume t
-            rp[t, ...] = affine_transformations.spm_imatrix(
-                np.dot(vol.get_affine(), ref_iaffine)
-                # scipy.linalg.lstsq(vol.get_affine(), vol_0.get_affine())[0]
-                )
-            self._log("\t\t...done; %s.\r\n" % comments)
-
         return rp
 
     def fit(self, vols):
@@ -515,6 +556,11 @@ class MRIMotionCorrection(object):
             (one per session), or list of lists of filenames or nibabel image
             objects (one list per session)
 
+        Returns
+        -------
+        `MRIMotionCorrection` instance
+            fitted object
+
         Raises
         ------
         RuntimeError, ValueError
@@ -530,13 +576,13 @@ class MRIMotionCorrection(object):
                 "Number of session volumes (%i) != number of sessions (%i)"
                 % (len(vols), self._n_sessions))
 
-        self._vols = vols
+        self._vols_ = vols
 
         # load first vol of each session
         first_vols = []
         n_scans_list = []
         for sess in xrange(self._n_sessions):
-            vol_0, n_scans = _load_specific_vol(self._vols[sess], 0)
+            vol_0, n_scans = _load_specific_vol(self._vols_[sess], 0)
             first_vols.append(vol_0)
             n_scans_list.append(n_scans)
         self._n_scans_list = n_scans_list
@@ -547,18 +593,20 @@ class MRIMotionCorrection(object):
                 ('\r\nInter-session registration: realigning first volumes'
                  ' of all sessions...'))
 
-        self._first_vols_rp = self._single_session_fit(
+        self._first_vols_rp_ = self._single_session_fit(
             first_vols,
             quality=1.  # only a few vols, we can thus allow this lux
             )
 
-        rfirst_vols = _apply_realignment(first_vols, self._first_vols_rp)
+        rfirst_vols = list(_apply_realignment(first_vols, self._first_vols_rp_,
+                                              inverse=False
+                                              ))
 
         if self._n_sessions > 1:
             self._log('...done (inter-session registration).\r\n')
 
         # realign all vols of each session with first vol of that session
-        self._rp = []
+        self._rp_ = []
         for sess in xrange(self._n_sessions):
             self._log(
                 ("Intra-session registration: Realigning session"
@@ -570,11 +618,13 @@ class MRIMotionCorrection(object):
                     rfirst_vols[0].get_affine()))
 
             sess_rp = self._single_session_fit(
-                self._vols[sess],
+                self._vols_[sess],
                 affine_correction=affine_correction)
 
-            self._rp.append(sess_rp)
+            self._rp_.append(sess_rp)
             self._log('...done; session %i.\r\n' % (sess + 1))
+
+        return self
 
     def transform(self, output_dir, reslice=False, prefix="r",
                   ext=".nii.gz", concat=False):
@@ -613,8 +663,17 @@ class MRIMotionCorrection(object):
 
         """
 
+        # make sure object has been fitted
+        if not hasattr(self, '_rp_'):
+            raise RuntimeError("fit(...) method not yet invoked.")
+
         def _save_session_realigned_vols(sess_realigned_vols,
                                         sess_output_dir):
+            """
+            Helper sub-function for saving results to disk session-wise.
+
+            """
+
             if concat:
                 output_filename = os.path.join(
                     sess_output_dir, "%s_4D%s" % (prefix, ext))
@@ -623,26 +682,25 @@ class MRIMotionCorrection(object):
                 sess_realigned_files = output_filename
             else:
                 sess_realigned_files = []
-                for t in xrange(self._n_scans_list[sess]):
+                for t, rvol in zip(xrange(self._n_scans_list[sess]),
+                                  sess_realigned_vols):
                     # save realigned vol unto disk
                     output_filename = os.path.join(sess_output_dir,
                                                    "%s_vol_%i%s" % (
                             prefix, t, ext))
-                    nibabel.save(sess_realigned_vols[t], output_filename)
+                    nibabel.save(rvol, output_filename)
 
                     # update rvols and realigned_files
                     sess_realigned_files.append(output_filename)
 
             return sess_realigned_files
 
-        output = {'rp': self._rp}
-
         # sanitize ext
         if not ext.startswith('.'):
             ext = "." + ext
 
-        output['realigned_files'] = []
-        output['rp_filenames'] = []
+        self._realigned_files_ = []
+        self._rp_filenames_ = []
         sess_output_dirs = []
 
         for sess in xrange(self._n_sessions):
@@ -654,9 +712,11 @@ class MRIMotionCorrection(object):
             if not os.path.exists(sess_output_dir):
                 os.makedirs(sess_output_dir)
 
-            # modify the header of each 3D vols according to the
+            # modify the header of each 3D vol according to the
             # estimated motion (realignment params)
-            sess_rvols = _apply_realignment(self._vols[sess], self._rp[sess])
+            sess_rvols = _apply_realignment(self._vols_[sess], self._rp_[sess],
+                                            inverse=False
+                                            )
 
             # reslice vols
             if reslice:
@@ -670,14 +730,14 @@ class MRIMotionCorrection(object):
             sess_realigned_files = _save_session_realigned_vols(
                 sess_rvols,
                 sess_output_dir)
-            output['realigned_files'].append(sess_realigned_files)
+            self._realigned_files_.append(sess_realigned_files)
 
             # save realignment params to disk
             sess_rp_filename = os.path.join(sess_output_dir, "rp.txt")
-            np.savetxt(sess_rp_filename, self._rp[sess][..., self._lkp])
-            output['rp_filenames'].append(sess_rp_filename)
+            np.savetxt(sess_rp_filename, self._rp_[sess][..., self._lkp])
+            self._rp_filenames_.append(sess_rp_filename)
 
         self._log('...done; output saved to %s.' % output_dir)
 
-        # return output
-        return output
+        # return
+        return self
