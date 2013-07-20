@@ -47,12 +47,11 @@ def _demo_runner(subjects, dataset_id, **spm_realign_kwargs):
         mrimc.fit(subject_data.func)
 
         # write realigned files to disk
-        mrimc_output = mrimc.transform(reslice=True,
-                                       output_dir=subject_data.output_dir)
+        mrimc.transform(reslice=True, output_dir=subject_data.output_dir)
 
         # plot results
-        for sess, rp_filename in zip(xrange(len(mrimc_output['rp_filenames'])),
-                                     mrimc_output['rp_filenames']):
+        for sess, rp_filename in zip(xrange(len(mrimc._rp_filenames_)),
+                                     mrimc._rp_filenames_):
             plot_spm_motion_parameters(
                 rp_filename,
                 title="Estimated motion for %s (session %i) of '%s'" % (
