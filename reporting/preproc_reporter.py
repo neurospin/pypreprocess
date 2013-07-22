@@ -19,7 +19,7 @@ import numpy as np
 import json
 
 import check_preprocessing
-import io_utils
+import coreutils.io_utils as io_utils
 import base_reporter
 
 # set templates

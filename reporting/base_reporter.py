@@ -20,7 +20,10 @@ import external.tempita.tempita as tempita
 # find package path
 ROOT_DIR = os.path.split(os.path.abspath(__file__))[0]
 
-"""MISC"""
+# find package path
+ROOT_DIR = os.path.split(os.path.abspath(__file__))[0]
+
+# MISC
 NIPY_URL = "http://nipy.sourceforge.net/nipy/stable/index.html"
 SPM8_URL = "http://www.fil.ion.ucl.ac.uk/spm/software/spm8/"
 PYPREPROCESS_URL = "https://github.com/neurospin/pypreprocess"
@@ -584,15 +587,24 @@ def copy_web_conf_files(output_dir):
 
     """
 
-    for js_file in glob.glob(os.path.join(ROOT_DIR,
-                                          "js/*.js")):
-        shutil.copy(js_file, output_dir)
-    for css_file in glob.glob(os.path.join(ROOT_DIR,
-                                          "css/*.css")):
-        shutil.copy(css_file, output_dir)
-    for icon_file in glob.glob(os.path.join(ROOT_DIR,
-                                          "icons/*.gif")):
-        shutil.copy(icon_file, output_dir)
+    def _copy_web_conf_file_ext(src_dir_basename, extentions):
+
+        for ext in extentions:
+            for x in glob.glob(os.path.join(ROOT_DIR, "%s/*%s" % (
+                        src_dir_basename, ext))):
+                shutil.copy(x, output_dir)
+
+    # copy js stuff
+    _copy_web_conf_file_ext("js", ['.js'])
+
+    # copy css stuf
+    _copy_web_conf_file_ext("css", ['.css'])
+
+    # copy icons
+    _copy_web_conf_file_ext("icons", ['.jpg', '.jpeg', '.png', '.gif'])
+
+    # copy images
+    _copy_web_conf_file_ext("images", ['.jpg', '.jpeg', '.png', '.gif'])
 
 
 def copy_report_files(src, dst):

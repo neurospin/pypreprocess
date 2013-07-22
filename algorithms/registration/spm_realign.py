@@ -11,6 +11,7 @@ References
 
 import nibabel
 import os
+import sys
 import numpy as np
 import scipy.ndimage as sndi
 import scipy.linalg
@@ -18,64 +19,16 @@ import kernel_smooth
 import affine_transformations
 import spm_reslice
 
+# pypreprocess dir
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
+
+from coreutils.io_utils import (_load_specific_vol,
+                                _save_vols
+                                )
+
 # useful constants
 INFINITY = np.inf
-
-
-def _load_vol(x):
-    """
-    Loads a single 3D volume.
-
-    """
-
-    if isinstance(x, basestring):
-        vol = nibabel.load(x)
-    elif isinstance(x, nibabel.Nifti1Image) or isinstance(
-        x, nibabel.Nifti1Pair):
-        vol = x
-    else:
-        raise TypeError(
-            ("Each volume must be string, image object, got:"
-             " %s") % type(x))
-
-    if len(vol.shape) == 4:
-        if vol.shape[-1] == 1:
-            vol = nibabel.Nifti1Image(vol.get_data()[..., 0],
-                                      vol.get_affine())
-        else:
-            raise ValueError(
-                "Each volume must be 3D, got %iD" % len(vol.shape))
-    elif len(vol.shape) != 3:
-            raise ValueError(
-                "Each volume must be 3D, got %iD" % len(vol.shape))
-
-    return vol
-
-
-def _load_specific_vol(vols, t):
-    """Utility function for loading specific volume on demand.
-
-    """
-
-    assert t >= 0
-
-    if isinstance(vols, list):
-        n_scans = len(vols)
-        vol = _load_vol(vols[t])
-    elif isinstance(vols, nibabel.Nifti1Image) or isinstance(
-        vols, nibabel.Nifti1Pair) or isinstance(vols, basestring):
-        _vols = nibabel.load(vols) if isinstance(vols, basestring) else vols
-        if len(_vols.shape) != 4:
-            raise ValueError(
-                "Expecting 4D image, got %iD" % len(_vols.shape))
-
-        n_scans = _vols.shape[3]
-        vol = nibabel.four_to_three(_vols)[t]
-    else:  # unhandled type
-        raise TypeError(
-            "imgs arg must be string, image object, or list of such.")
-
-    return vol, n_scans
 
 
 def _compute_rate_of_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
@@ -273,8 +226,6 @@ class MRIMotionCorrection(object):
             11 - z shear
         verbose: int, optional (default 1)
             controls verbosity level. 0 means no verbose at all
-        prefix: string, optional (default 'r')
-            prefix to be prepended to output file basenames
         n_iterations: int, optional (dafault 64)
             max number of Gauss-Newton iterations when solving LSP for
             registering a volume to the reference
@@ -727,9 +678,11 @@ class MRIMotionCorrection(object):
                         sess + 1, self._n_sessions))
 
             # save realigned files to disk
-            sess_realigned_files = _save_session_realigned_vols(
+            sess_realigned_files = _save_vols(
                 sess_rvols,
-                sess_output_dir)
+                sess_output_dir,
+                concat=concat,
+                ext=ext)
             self._realigned_files_.append(sess_realigned_files)
 
             # save realignment params to disk

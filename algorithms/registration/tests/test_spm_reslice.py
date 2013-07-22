@@ -3,19 +3,26 @@ XXX only use nosetests command-line tool to run this test module!
 
 """
 
+import os
+import sys
 import numpy as np
 import nibabel
 import nose
 import nose.tools
 
+# pypreproces path
+PYPREPROCESS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.split(os.path.abspath(__file__))[0])))
+sys.path.append(PYPREPROCESS_DIR)
+
 # import the APIs to be tested
-from ..spm_reslice import (
+from algorithms.registration.spm_reslice import (
     reslice_vols
     )
-from ..spm_realign import (
+from algorithms.registration.spm_realign import (
     _apply_realignment,
     )
-from ..affine_transformations import (
+from algorithms.registration.affine_transformations import (
     get_initial_motion_params
     )
 

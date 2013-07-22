@@ -17,7 +17,8 @@ import nibabel
 from nipy.labs import compute_mask_files
 from nipy.labs import viz
 import joblib
-from io_utils import do_3Dto4D_merge, compute_mean_3D_image
+
+from coreutils.io_utils import do_3Dto4D_merge, compute_mean_3D_image
 
 EPS = np.finfo(float).eps
 

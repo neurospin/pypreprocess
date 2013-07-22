@@ -15,7 +15,6 @@ from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
 import nibabel
 import time
-from collections import namedtuple
 
 warning = ("%s: THIS SCRIPT MUST BE RUN FROM ITS PARENT "
            "DIRECTORY!") % sys.argv[0]
@@ -26,14 +25,13 @@ print separator.join(['', banner, warning, banner, ''])
 
 # pypreproces path
 PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
-
 sys.path.append(PYPREPROCESS_DIR)
 
-# import nipype_preproc_spm_utils
+# import pypreprocess stuff
+import nipype_preproc_spm_utils
 import reporting.glm_reporter as glm_reporter
 from external.nilearn.datasets import fetch_spm_auditory_data
-from algorithms.registration.spm_realign import MRIMotionCorrection
-from algorithms.slice_timing.spm_slice_timing import fMRISTC
+from coreutils.io_utils import do_3Dto4D_merge
 
 DATASET_DESCRIPTION = """\
 <p>MoAEpilot <a href="http://www.fil.ion.ucl.ac.uk/spm/data/auditory/">\
@@ -46,7 +44,7 @@ if len(sys.argv)  < 3:
            " <output_dir>\r\n") % sys.argv[0]
     sys.exit(1)
 
-"""set data dir"""
+# set data dir
 DATA_DIR = os.path.abspath(sys.argv[1])
 
 # set output dir
@@ -54,9 +52,7 @@ OUTPUT_DIR = os.path.abspath(sys.argv[2])
 if not os.path.isdir(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
-SubjectData = namedtuple("SubjectData", "subject_id func anat output_dir")
-
-"""construct experimental paradigm"""
+# construct experimental paradigm
 stats_start_time = time.ctime()
 tr = 7.
 n_scans = 96
@@ -69,58 +65,32 @@ onset = np.linspace(0, (len(conditions) - 1) * epoch_duration,
 paradigm = BlockParadigm(con_id=conditions, onset=onset, duration=duration)
 hfcut = 2 * 2 * epoch_duration
 
-"""fetch spm auditory data"""
+# fetch spm auditory data
 _subject_data = fetch_spm_auditory_data(DATA_DIR)
-subject_id = "sub001"
-subject_output_dir = os.path.join(OUTPUT_DIR, subject_id)
-if not os.path.exists(subject_output_dir):
-    os.makedirs(subject_output_dir)
+subject_data = nipype_preproc_spm_utils.SubjectData()
+subject_data.func = _subject_data.func
+subject_data.anat = _subject_data.anat
+subject_data.subject_id = "sub001"
+subject_data.output_dir = os.path.join(OUTPUT_DIR, subject_data.subject_id)
 
-"""preprocess the data"""
-# STC
-fmristc = fMRISTC()
-fmristc.fit(raw_data=_subject_data.func)
-fmristc.transform()
+# preprocess the data
+results = nipype_preproc_spm_utils.do_subjects_preproc(
+        [subject_data],
+        output_dir=OUTPUT_DIR,
+        fwhm=6.,  # 6mm isotropic Gaussian kernel
+        dataset_id="SPM single-subject auditory",
+        dataset_description=DATASET_DESCRIPTION,
+        do_shutdown_reloaders=False,
+        )
 
-# motion correction
-mrimc = MRIMotionCorrection()
-mrimc.fit([[nibabel.Nifti1Image(fmristc.get_last_output_data()[..., t],
-                                nibabel.load(_subject_data.func[t]
-                                             ).get_affine())
-            for t in xrange(n_scans)]]
-)
-mrimc_output = mrimc.transform(output_dir=subject_output_dir,
-                               reslice=True,
-                               ext=".nii")
+# collect preprocessed data
+fmri_files = results[0]['func']
+fmri_4D_filename = os.path.join(subject_data.output_dir,
+                                "fmri_4D_preproc.nii.gz")
+do_3Dto4D_merge(fmri_files, output_filename=fmri_4D_filename)
+anat_file = results[0]['anat']
 
-subject_data = SubjectData(subject_id=subject_id,
-                           func=mrimc_output['realigned_files'][0],
-                           anat=_subject_data.anat,
-                           output_dir=subject_output_dir)
-
-# results = nipype_preproc_spm_utils.do_subjects_preproc(
-#         [subject_data],
-#         output_dir=OUTPUT_DIR,
-#         do_realign=False,
-#         fwhm=6.,  # 6mm isotropic Gaussian kernel
-#         dataset_id="SPM single-subject auditory",
-#         dataset_description=DATASET_DESCRIPTION,
-#         do_shutdown_reloaders=False,
-#         )
-
-"""collect preprocessed data"""
-fmri_files = subject_data.func  # results[0]['func']
-anat_file = fmri_files[0]  # results[0]['anat']
-
-# if isinstance(fmri_files, basestring):
-#     fmri_img = nibabel.load(fmri_files)
-# else:
-#     output_filename = '/tmp/spm_auditory.nii.gz'
-#     fmri_img = do_3Dto4D_merge(fmri_files,
-#                                output_filename=output_filename)
-#     fmri_files = output_filename
-
-"""construct design matrix"""
+# construct design matrix
 frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)
 drift_model = 'Cosine'
 hrf_model = 'Canonical With Derivative'
@@ -128,30 +98,30 @@ design_matrix = make_dmtx(frametimes,
                           paradigm, hrf_model=hrf_model,
                           drift_model=drift_model, hfcut=hfcut)
 
-"""show design matrix"""
+# plot and save design matrix
 ax = design_matrix.show()
 ax.set_position([.05, .25, .9, .65])
 ax.set_title('Design matrix')
 dmat_outfile = os.path.join(subject_data.output_dir, 'design_matrix.png')
 pl.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
 
-"""specify contrasts"""
+# specify contrasts
 contrasts = {}
 n_columns = len(design_matrix.names)
 for i in xrange(paradigm.n_conditions):
     contrasts['%s' % design_matrix.names[2 * i]] = np.eye(n_columns)[2 * i]
 
-"""more interesting contrasts"""
+# more interesting contrasts"""
 contrasts['active-rest'] = contrasts['active'] - contrasts['rest']
 
-"""fit GLM"""
+# fit GLM
 print('\r\nFitting a GLM (this takes time) ..')
-fmri_glm = FMRILinearModel('/tmp/4D.nii.gz',
+fmri_glm = FMRILinearModel(fmri_4D_filename,
                            design_matrix.matrix,
                            mask='compute')
 fmri_glm.fit(do_scaling=True, model='ar1')
 
-"""save computed mask"""
+# save computed mask
 mask_path = os.path.join(subject_data.output_dir, "mask.nii.gz")
 print "Saving mask image %s" % mask_path
 nibabel.save(fmri_glm.mask, mask_path)
@@ -193,7 +163,7 @@ for contrast_id, contrast_val in contrasts.iteritems():
 
     print
 
-"""do stats report"""
+# do stats report
 stats_report_filename = os.path.join(subject_data.output_dir,
                                      "report_stats.html")
 contrasts = dict((contrast_id, contrasts[contrast_id])

@@ -1,18 +1,20 @@
 import numpy as np
 import os
-import sys
 import nibabel
 from collections import namedtuple
 import matplotlib.pyplot as plt
+import sys
 
-# pypreproces path
-PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
-sys.path.append(PYPREPROCESS_DIR)
+# pypreprocess dir
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
 from algorithms.slice_timing.spm_slice_timing import (
-    STC, fMRISTC, plot_slicetiming_results)
-from external.nilearn.datasets import (fetch_nyu_rest,
-                                    fetch_spm_multimodal_fmri_data)
+    STC, fMRISTC,
+    plot_slicetiming_results)
+from external.nilearn.datasets import (
+    fetch_nyu_rest,
+    fetch_spm_multimodal_fmri_data)
 
 # datastructure for subject data
 SubjectData = namedtuple('SubjectData', 'subject_id func output_dir')
@@ -295,8 +297,8 @@ def _fmri_demo_runner(subjects, dataset_id, **spm_slice_timing_kwargs):
 
             return data
 
-    def _save_output_data(output_data, input_filenames, output_dir):
-        n_scans = output_data.shape[-1]
+    # def _save_output_data(output_data, input_filenames, output_dir):
+    #     n_scans = output_data.shape[-1]
 
     # loop over subjects
     for subject_data in subjects:

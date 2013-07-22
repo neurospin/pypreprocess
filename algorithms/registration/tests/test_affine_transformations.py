@@ -3,11 +3,18 @@ XXX only use nosetests command-line tool to run this test module!
 
 """
 
+import os
+import sys
 import numpy as np
 import nose.tools
 
+# pypreproces path
+PYPREPROCESS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.split(os.path.abspath(__file__))[0])))
+sys.path.append(PYPREPROCESS_DIR)
+
 # import the APIs to be tested
-from ..affine_transformations import (
+from algorithms.registration.affine_transformations import (
     get_initial_motion_params,
     spm_matrix,
     spm_imatrix,
@@ -58,3 +65,9 @@ def test_transform_coords():
     # coords shouldn't change
     nose.tools.assert_equal(new_coords.shape, (3, 1))
     np.testing.assert_array_equal(new_coords.ravel(), coords)
+
+# run all tests
+nose.runmodule(config=nose.config.Config(
+        verbose=2,
+        nocapture=True,
+        ))

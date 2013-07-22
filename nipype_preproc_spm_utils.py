@@ -31,7 +31,7 @@ import pylab as pl
 import numpy as np
 import nibabel
 from nipype.interfaces.base import Bunch
-from io_utils import delete_orientation, is_3D, get_vox_dims,\
+from coreutils.io_utils import delete_orientation, is_3D, get_vox_dims,\
     resample_img, do_3Dto4D_merge, compute_mean_image
 from datasets_extras import unzip_nii_gz
 
@@ -793,22 +793,24 @@ def _do_subject_preproc(
     output['preproc_undergone'] = preproc_undergone
 
     if do_report:
-        # copy css and js stuff to output dir
-        for js_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                          "js/*.js")):
-            shutil.copy(js_file, subject_data.output_dir)
-        for css_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                          "css/*.css")):
-            shutil.copy(css_file, subject_data.output_dir)
-        for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                                "icons/*.gif")):
-            shutil.copy(icon_file, subject_data.output_dir)
-        for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                                "images/*.png")):
-            shutil.copy(icon_file, subject_data.output_dir)
-        for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                                "images/*.jpeg")):
-            shutil.copy(icon_file, subject_data.output_dir)
+        base_reporter.copy_web_conf_files(subject_data.output_dir)
+
+        # # copy css and js stuff to output dir
+        # for js_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+        #                                   "js/*.js")):
+        #     shutil.copy(js_file, subject_data.output_dir)
+        # for css_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+        #                                   "css/*.css")):
+        #     shutil.copy(css_file, subject_data.output_dir)
+        # for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+        #                                         "icons/*.gif")):
+        #     shutil.copy(icon_file, subject_data.output_dir)
+        # for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+        #                                         "images/*.png")):
+        #     shutil.copy(icon_file, subject_data.output_dir)
+        # for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
+        #                                         "images/*.jpeg")):
+        #     shutil.copy(icon_file, subject_data.output_dir)
 
         report_log_filename = os.path.join(
             subject_data.output_dir, 'report_log.html')
@@ -1937,22 +1939,7 @@ def do_subjects_preproc(subjects,
     # generate html report (for QA) as desired
     parent_results_gallery = None
     if do_report:
-        # copy css and js stuff to output dir
-        for js_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                          "js/*.js")):
-            shutil.copy(js_file, output_dir)
-        for css_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                          "css/*.css")):
-            shutil.copy(css_file, output_dir)
-        for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                                "icons/*.gif")):
-            shutil.copy(icon_file, output_dir)
-        for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                                "images/*.png")):
-            shutil.copy(icon_file, output_dir)
-        for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                                "images/*.jpeg")):
-            shutil.copy(icon_file, output_dir)
+        base_reporter.copy_web_conf_files(output_dir)
 
         report_log_filename = os.path.join(
             output_dir, 'report_log.html')
@@ -1968,20 +1955,21 @@ def do_subjects_preproc(subjects,
         preproc_func_name = inspect.getframeinfo(frame)[2]
         preproc_params += ("Function <i>%s(...)</i> was invoked by the script"
                            " <i>%s</i> with the following arguments:"
-                           ) % (preproc_func_name,
-                                user_script_name)
+                           ) % (preproc_func_name, user_script_name)
+        args_dict = dict((arg, values[arg]) for arg in args if not arg in [
+                "dataset_description",
+                "report_filename",
+                "do_report",
+                "do_cv_tc",
+                "do_export_report",
+                "do_shutdown_reloaders",
+                "subjects",
+                # add other args to exclude below
+                ])
+        args_dict['output_dir'] = output_dir
         preproc_params += base_reporter.dict_to_html_ul(
-            dict((arg, values[arg]) for arg in args if not arg in [
-                    "dataset_description",
-                    "report_filename",
-                    "do_report",
-                    "do_cv_tc",
-                    "do_export_report",
-                    "do_shutdown_reloaders",
-                    "subjects",
-                    # add other args to exclude below
-                    ]
-                 ))
+            args_dict
+            )
 
         # initialize results gallery
         loader_filename = os.path.join(
