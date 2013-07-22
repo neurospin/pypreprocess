@@ -48,11 +48,12 @@ DATASET_DESCRIPTION = """\
 def normalize_name(name):
     return re.sub("[^0-9a-zA-Z\-]+", '_', name).lower().strip('_')
 
+
 # ----------------------------------------------------------------------------
 # download openfmri data
 # ----------------------------------------------------------------------------
 
-def fetch_openfmri(dataset_id, data_dir, redownload=False):
+def fetch_openfmri(dataset_id, data_dir, redownload=False, verbose=1):
     """ Downloads and extract datasets from www.openfmri.org
 
         Parameters
@@ -88,11 +89,15 @@ def fetch_openfmri(dataset_id, data_dir, redownload=False):
         ds_path: str
             Path of the dataset.
     """
+
     ds_url = 'https://openfmri.org/system/files/%s.tgz'
     ds_name = normalize_name(dataset_names[dataset_id])
     ds_urls = [ds_url % name for name in dataset_files[dataset_id]]
     dl_path = os.path.join(data_dir, ds_name)
     ds_path = os.path.join(data_dir, dataset_id)
+
+    if verbose > 0:
+        print 'Download dataset to: %s' % (ds_path)
 
     if not os.path.exists(ds_path) or redownload:
         if os.path.exists(ds_path):
@@ -114,13 +119,29 @@ def get_study_tr(study_dir):
         open(os.path.join(study_dir, 'scan_key.txt')).read().split()[1])
 
 
-def get_sessions_task(subject_dir):
+def get_study_conditions(study_dir, model_id='model001'):
+    conditions = {}
+
+    for subject_dir in glob.glob(os.path.join(study_dir, 'sub*')):
+        sessions_id = get_subject_sessions(subject_dir)
+        for session_id in sessions_id:
+            session_dir = os.path.join(subject_dir, 'model',
+                                       model_id, 'onsets', session_id)
+            conditions.setdefault(session_id, set())
+            for c in glob.glob(os.path.join(session_dir, 'cond*.txt')):
+                condition_id = os.path.split(c)[1].split('.txt')[0]
+                conditions[session_id].add(condition_id)
+
+    return conditions
+
+
+def get_subject_task_per_session(subject_dir):
     sessions = os.path.join(subject_dir, 'BOLD', '*')
     return [os.path.split(session)[1].split('_')[0]
             for session in sorted(glob.glob(sessions))]
 
 
-def get_tasks_runs(subject_dir):
+def get_subject_sessions(subject_dir):
     # get runs identifiers, checks that bold runs and onset runs match.
     # also checks that onset folders contain at least one condition file.
     sessions = os.path.join(subject_dir, 'BOLD', '*')
@@ -133,27 +154,21 @@ def get_tasks_runs(subject_dir):
     return sorted(set(bold_sessions).intersection(onset_sessions))
 
 
-def get_task_conditions(subject_dir, task_id):
-    task_dir = glob.glob(os.path.join(subject_dir, 'model', 'model001',
-                            'onsets', '%s_*' % task_id))[0]
-
-    conditions = glob.glob(os.path.join(task_dir, '*.txt'))
-    return sorted([os.path.split(cond)[1] for cond in conditions])
-
-
-def get_motion(subject_dir):
-    sessions = os.path.join(subject_dir, 'BOLD', '*')
+def get_subject_motion_per_session(subject_dir):
+    sessions = get_subject_sessions(subject_dir)
+    # sessions = os.path.join(subject_dir, 'BOLD', '*')
 
     motion = []
-    for session_dir in sorted(glob.glob(sessions)):
+    for session_id in sessions:
+        session_dir = os.path.join(subject_dir, 'BOLD', session_id)
         motion_s = open(os.path.join(session_dir, 'motion.txt')).read()
         motion_s = np.array([l.split() for l in motion_s.split('\n')][:-1])
         motion.append(np.array(motion_s).astype('float'))
     return motion
 
 
-def get_bold_images(subject_dir):
-    sessions = get_tasks_runs(subject_dir)
+def get_subject_bold_images(subject_dir):
+    sessions = get_subject_sessions(subject_dir)
     # sessions = os.path.join(subject_dir, 'BOLD', '*')
 
     images = []
@@ -166,6 +181,38 @@ def get_bold_images(subject_dir):
     n_scans = [img.shape[-1] for img in images]
 
     return images, n_scans
+
+
+def get_subject_events(study_dir, subject_dir):
+    conditions = get_study_conditions(study_dir)
+    sessions = get_subject_sessions(subject_dir)
+    # sessions = os.path.join(subject_dir, 'model', 'model001', 'onsets', '*')
+
+    events = []
+
+    for session_id in sessions:
+        session_dir = os.path.join(subject_dir,
+                                   'model', 'model001', 'onsets', session_id)
+        # conditions = glob.glob(os.path.join(session_dir, 'cond*.txt'))
+        onsets = []
+        cond_id = []
+
+        for condition_id in sorted(conditions[session_id]):
+            # cond_onsets = open(path, 'rb').read().split('\n')
+            # cond_onsets = [l.split() for l in cond_onsets[:-1]]
+            # cond_onsets = np.array(cond_onsets).astype('float')
+            path = os.path.join(session_dir, '%s.txt' % condition_id)
+            if os.path.exists(path):
+                cond_onsets = np.loadtxt(path)
+            else:
+                cond_onsets = np.array([[.0, .0, .0]])
+            onsets.append(cond_onsets)
+            cond_id.append([
+                int(condition_id.split('cond')[1])] * cond_onsets.shape[0])
+
+        events.append((np.vstack(onsets), np.concatenate(cond_id)))
+
+    return events
 
 
 def get_task_contrasts(study_dir, subject_dir, model_id):
@@ -189,48 +236,25 @@ def get_task_contrasts(study_dir, subject_dir, model_id):
         task_contrasts.setdefault(task_id, {}).setdefault(contrast_id, con_val)
 
     if do_all_tasks:
-        tasks = set([
-            run.split('_')[0] for run in get_sessions_task(subject_dir)])
+        tasks = set([run.split('_')[0]
+                     for run in get_subject_task_per_session(subject_dir)])
         for task_id in tasks:
             task_contrasts[task_id] = task_contrasts['task001']
 
     ordered = {}
-    #  do a get cond length with number of con in sub/model/onset/condi.txt
+    tasks_conditions = dict(
+        [(k.split('_')[0], sorted(v))
+         for k, v in get_study_conditions(study_dir).items()])
     for task_id in sorted(task_contrasts.keys()):
         for contrast_id in task_contrasts[task_id]:
-            for session_task_id in get_sessions_task(subject_dir):
+            for session_task_id in get_subject_task_per_session(subject_dir):
                 if session_task_id == task_id:
                     con_val = task_contrasts[task_id][contrast_id]
                 else:
-                    n_conds = len(get_task_conditions(subject_dir, task_id))
+                    n_conds = len(tasks_conditions[task_id])
                     con_val = np.array([0] * n_conds)
                 ordered.setdefault(contrast_id, []).append(con_val)
     return ordered
-
-
-def get_events(subject_dir):
-    sessions = get_tasks_runs(subject_dir)
-    # sessions = os.path.join(subject_dir, 'model', 'model001', 'onsets', '*')
-
-    events = []
-
-    for session_id in sessions:
-        session_dir = os.path.join(subject_dir,
-                                   'model', 'model001', 'onsets', session_id)
-        conditions = glob.glob(os.path.join(session_dir, 'cond*.txt'))
-        onsets = []
-        cond_id = []
-        for i, path in enumerate(sorted(conditions)):
-            # cond_onsets = open(path, 'rb').read().split('\n')
-            # cond_onsets = [l.split() for l in cond_onsets[:-1]]
-            # cond_onsets = np.array(cond_onsets).astype('float')
-            cond_onsets = np.loadtxt(path)
-            onsets.append(cond_onsets)
-            cond_id.append([i] * cond_onsets.shape[0])
-
-        events.append((np.vstack(onsets), np.concatenate(cond_id)))
-
-    return events
 
 
 def make_design_matrices(events, n_scans, tr, hrf_model='canonical',
@@ -585,10 +609,10 @@ def _first_level_glm(study_dir, subject_id, model_id,
         print '%s@%s: first level glm' % (subject_id, study_id)
 
     tr = get_study_tr(study_dir)
-    images, n_scans = get_bold_images(subject_dir)
-    motion = get_motion(subject_dir)
+    images, n_scans = get_subject_bold_images(subject_dir)
+    motion = get_subject_motion_per_session(subject_dir)
     contrasts = get_task_contrasts(study_dir, subject_dir, model_id)
-    events = get_events(subject_dir)
+    events = get_subject_events(study_dir, subject_dir)
 
     design_matrices = make_design_matrices(events, n_scans, tr,
                                            hrf_model, drift_model, motion)
@@ -671,7 +695,7 @@ def dataset_preprocessing(dataset_id, data_dir, output_dir, ignore_list=None,
             if subject_id in ignore_list:
                 continue
 
-            sessions = get_tasks_runs(os.path.join(data_dir, subject_id))
+            sessions = get_subject_sessions(os.path.join(data_dir, subject_id))
             sessions_id[subject_id] = sessions
 
             # construct subject data structure
@@ -887,5 +911,5 @@ def process_dataset(argv):
         dataset_preprocessing(dataset_id, dataset_dir, preproc_dir,
                               ignore_list, description)
 
-    first_level_glm(study_dir, subjects_id, model_id, n_jobs=1,
+    first_level_glm(study_dir, subjects_id, model_id, n_jobs=6,
                     verbose=options.verbose)
