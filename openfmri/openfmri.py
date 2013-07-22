@@ -854,20 +854,18 @@ def get_options(args):
     return options
 
 
-def setup_dataset(options):
-    dataset_id = options.dataset_id
-    dataset_dir = options.dataset_dir
-    preproc_dir = options.preproc_dir
+def setup_dataset(dataset_id, dataset_dir, preproc_dir,
+                  force_download, verbose=1):
 
     if not os.path.exists(preproc_dir):
         os.makedirs(preproc_dir)
 
-    if options.verbose > 0:
+    if verbose > 0:
         print 'Fetching data...'
     dataset_dir = fetch_openfmri(dataset_id, dataset_dir,
-                                 redownload=options.force_download)
+                                 redownload=force_download)
 
-    if options.verbose > 0:
+    if verbose > 0:
         print 'Copying models...'
     # update and/or create models
     model001_dir = os.path.join(dataset_dir, 'models', 'model001')
@@ -882,34 +880,30 @@ def setup_dataset(options):
             shutil.copyfile(task_contrasts_path, os.path.join(model_dir, f))
 
 
-def process_dataset(argv):
-    options = get_options(argv)
-
-    dataset_id = options.dataset_id
-    model_id = options.model_id
-    preproc_dir = options.preproc_dir
-    dataset_dir = options.dataset_dir
+def process_dataset(dataset_id, model_id, dataset_dir, preproc_dir,
+                    force_download, subject_id=None,
+                    skip_preprocessing=False, verbose=1):
 
     ignore_list = dataset_ignore_list[dataset_id]
     description = get_dataset_description(dataset_id)
 
     study_dir = os.path.join(dataset_dir, dataset_id)
 
-    if options.subject_id is not None:
+    if subject_id is not None:
         ignore_list = [os.path.split(p)[1]
                        for p in glob.glob(os.path.join(study_dir, 'sub*'))
-                       if os.path.split(p)[1] != options.subject_id]
+                       if os.path.split(p)[1] != subject_id]
 
     subjects_id = [os.path.split(p)[1]
                    for p in glob.glob(os.path.join(study_dir, 'sub*'))
                    if os.path.split(p)[1] not in ignore_list]
 
-    setup_dataset(options)
-    if options.verbose > 0:
+    setup_dataset(dataset_id, dataset_dir, preproc_dir, force_download)
+    if verbose > 0:
         print 'Preprocessing data...'
-    if not options.skip_preprocessing:
+    if not skip_preprocessing:
         dataset_preprocessing(dataset_id, dataset_dir, preproc_dir,
                               ignore_list, description)
 
     first_level_glm(study_dir, subjects_id, model_id, n_jobs=6,
-                    verbose=options.verbose)
+                    verbose=verbose)
