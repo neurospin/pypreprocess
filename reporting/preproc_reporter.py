@@ -886,22 +886,8 @@ def generate_dataset_preproc_report(
 
     output = {}
 
-    # copy css and js stuff to output dir
-    for js_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                          "js/*.js")):
-        shutil.copy(js_file, output_dir)
-    for css_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                               "css/*.css")):
-        shutil.copy(css_file, output_dir)
-    for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                            "icons/*.gif")):
-        shutil.copy(icon_file, output_dir)
-    for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                            "images/*.png")):
-        shutil.copy(icon_file, output_dir)
-    for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-                                            "images/*.jpeg")):
-        shutil.copy(icon_file, output_dir)
+    # copy web stuff
+    base_reporter.copy_web_conf_files(output_dir)
 
     report_log_filename = os.path.join(
         output_dir, 'report_log.html')
@@ -954,15 +940,18 @@ def generate_dataset_preproc_report(
 
     # factory to generate subjects
     def subject_factory():
-        for s in subject_preproc_data:
+        for j, s in zip(xrange(len(subject_preproc_data)),
+                               subject_preproc_data):
             if isinstance(s, basestring):
                 # read dict from json file
-                s = dict((k, json.load(open(s))[k])
-                         for k in ['func', 'anat',
-                                   'estimated_motion',
-                                   'output_dir',
-                                   'subject_id',
-                                   'preproc_undergone'])
+                json_data = json.load(open(s))
+                s = dict((k, json_data[k])
+                         for k in json_data.keys()
+                         if k in ['func', 'anat',
+                                  'estimated_motion',
+                                  'output_dir',
+                                  'subject_id',
+                                  'preproc_undergone'])
 
                 if replace_in_path:
                     # correct of file/directory paths
@@ -978,6 +967,11 @@ def generate_dataset_preproc_report(
                                             stuff[0], stuff[1])
                                             for x in v]
  
+            if not 'subject_id' in s:
+                s['subject_id'] = 'sub%5i' % j
+            if not 'output_dir' in s:
+                s['output_dir'] = os.path.join(output_dir, s['subject_id'])
+
             yield s
 
     # generate reports
