@@ -21,7 +21,7 @@ import spm_reslice
 
 # pypreprocess dir
 sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coreutils.io_utils import (_load_specific_vol,
                                 _save_vols
