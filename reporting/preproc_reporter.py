@@ -817,12 +817,11 @@ def generate_subject_preproc_report(
             results_gallery=results_gallery,
             )
 
-    # generate epi normalizatipon thumbs
+    # generate epi normalization thumbs
     generate_normalization_thumbnails(
         func,
         output_dir,
         brain="EPI",
-        cmap=pl.cm.spectral,
         results_gallery=results_gallery)
 
     seg_thumbs = generate_segmentation_thumbnails(
@@ -840,7 +839,6 @@ def generate_subject_preproc_report(
             anat,
             output_dir,
             brain="anat",
-            cmap=pl.cm.gray,
             results_gallery=results_gallery)
 
         generate_segmentation_thumbnails(
@@ -970,14 +968,15 @@ def generate_dataset_preproc_report(
                     # correct of file/directory paths
                     for k, v in s.iteritems():
                         for stuff in replace_in_path:
-                            if isinstance(v, basestring):
-                                s[k] = v.replace(
-                                    stuff[0], stuff[1])
-                            else:
-                                # XXX I'm assuming list-like type
-                                s[k] = [x.replace(
+                            if len(stuff) == 2:
+                                if isinstance(v, basestring):
+                                    s[k] = v.replace(
                                         stuff[0], stuff[1])
-                                        for x in v]
+                                else:
+                                    # XXX I'm assuming list-like type
+                                    s[k] = [x.replace(
+                                            stuff[0], stuff[1])
+                                            for x in v]
  
             yield s
 
