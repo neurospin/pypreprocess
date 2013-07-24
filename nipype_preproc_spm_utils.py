@@ -24,15 +24,13 @@ from nipype.caching import Memory
 import reporting.preproc_reporter as preproc_reporter
 import reporting.base_reporter as base_reporter
 
-import reporting.check_preprocessing as check_preprocessing
 import pylab as pl
 
 # imports i/o
 import numpy as np
-import nibabel
 from nipype.interfaces.base import Bunch
 from coreutils.io_utils import delete_orientation, is_3D, get_vox_dims,\
-    resample_img, do_3Dto4D_merge, compute_mean_image
+    compute_mean_image
 from datasets_extras import unzip_nii_gz
 
 # spm and matlab imports
@@ -181,14 +179,11 @@ def _do_subject_realign(output_dir,
     ----------
     output_dir: string
         An existing folder where all output files will be written.
-
     subject_id: string (optional)
         id of the subject being preprocessed
-
     do_report: boolean (optional)
         if true, then QA plots will be generated after executing the realign
         node.
-
     *spm_realign_kwargs: kwargs (paramete-value dict)
         parameters to be passed to the nipype.interfaces.spm.Realign back-end
         node
@@ -746,7 +741,6 @@ def _do_subject_preproc(
         WM, and CSF compartments (useful for both indirect normalization
         (intra-subject) or DARTEL (inter-subject) alike
 
-
     do_cv_tc: bool (optional)
         if set, a summarizing the time-course of the coefficient of variation
         in the preprocessed fMRI time-series will be generated
@@ -1181,7 +1175,6 @@ def _do_subject_preproc(
         segment_result = segment_output['result']
         output['gm'] = segment_result.outputs.normalized_gm_image
         output['wm'] = segment_result.outputs.normalized_wm_image
-
 
         # if failed to segment, return
         if segment_result.outputs is None:
@@ -1814,7 +1807,6 @@ def do_group_DARTEL(output_dir,
 
 def do_subjects_preproc(subjects,
                         output_dir=None,
-                        subject_callback=None,
                         dataset_id="UNNAMED DATASET!",
                         do_deleteorient=False,
                         do_report=True,
