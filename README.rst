@@ -7,17 +7,26 @@ nipype's SPM and FSL interfaces. It also contains utilities for automatic
 QA like registration checks (using nipy.labs), and template-based html report
 generation using (tempita, jquery, and home-grown css).
 
-Check out the [wiki](https://github.com/neurospin/pypreprocess/wiki).
+Check out the wiki at https://github.com/neurospin/pypreprocess/wiki.
 
 
 REQUIREMENTS
 ============
-First of all, you will need to have the following (standard) tools 
-installed on your system:
-	* **git**
-	* **pip**
+First of all, you will need to have the following installed:
+	* Python >= 2.6
+	* Numpy >= 1.3
+	* SciPy >= 0.7
+	* nipype >= 0.8.0
+	* nipy >= 0.3.0
+	* traits >= 4.3.0
+	* joblib >= 0.7.0
+	* nibabel >= 1.3.0
+	* networkx >= 1.7
+	* sympy >= 0.7.1
+	* matplotlib >= 0.99.1
+	
 
-The requirements/dependencies (nipy, nipype, traits, nibabel, nisl, etc.) 
+The requirements/dependencies (nipy, nipype, traits, nibabel, etc.) 
 are documented in the *dependencies.txt files.
 
 To install these dependencies in one go, simply chdir to the directory 
