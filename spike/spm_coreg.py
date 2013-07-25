@@ -1,11 +1,20 @@
 import numpy as np
 import scipy.ndimage
 import scipy.special
+import scipy.optimize
 import scipy.io
 import nibabel
+import sys
+import os
 
-EPS = 0.
+sys.path.append(os.path.dirname(os.path.split(
+            os.path.abspath(__file__))[0]))
+import algorithms.registration.affine_transformations as affine_transformations
+import algorithms.registration.kernel_smooth as kernel_smooth
 
+from external.nilearn.datasets import fetch_spm_auditory_data
+
+EPS = np.finfo(float).eps
 
 # def _paccuracy(V, p):
 #     """Computes the accuracy limit of rounding intensities into uint8 type
@@ -163,7 +172,9 @@ def smoothing_kernel(fwhm, x):
 
 
 def spm_conv_vol(vol, filtx, filty, filtz, xoff, yoff, zoff):
-    pass
+    output = scipy.ndimage.convolve1d(vol, filtx, axis=0)
+
+    return output
 
 
 def smooth_uint8(V, fwhm):
@@ -174,21 +185,21 @@ def smooth_uint8(V, fwhm):
     lim = np.ceil(2 * fwhm)
 
     x  = np.arange(-lim[0], lim[0] + 1)
-    x = smoothing_kernel(fwhm(1), x)
+    x = smoothing_kernel(fwhm[0], x)
     x  = x / np.sum(x)
 
     y  = np.arange(-lim[1], lim[1] + 1)
-    y = smoothing_kernel(fwhm(2), y)
+    y = smoothing_kernel(fwhm[1], y)
     y  = y / np.sum(y)
 
     z  = np.arange(-lim[2], lim[2] + 1)
-    z = smoothing_kernel(fwhm(3), z)
+    z = smoothing_kernel(fwhm[2], z)
     z  = z / np.sum(z)
     i  = (len(x) - 1) / 2
     j  = (len(y) - 1) / 2
     k  = (len(z) - 1) / 2
 
-    spm_conv_vol(V.uint8, x, y, z, -i, -j, -k)
+    return spm_conv_vol(V.astype('float'), x, y, z, -i, -j, -k)
 
 
 def _tpvd_interp(f, fshape, x, y, z):
@@ -204,10 +215,12 @@ def _tpvd_interp(f, fshape, x, y, z):
 
     """
 
+    # # use the map_coordinates(...) call below for faster execution
     # return scipy.ndimage.map_coordinates(f, [x, y, z], order=1,
     #                                      mode='wrap',  # for SPM results
     #                                      )
 
+    f = f.ravel(order='F')
     ix = np.floor(x)
     dx1 = x - ix
     dx2 = 1.0 - dx1
@@ -220,7 +233,6 @@ def _tpvd_interp(f, fshape, x, y, z):
     dz1 = z - iz
     dz2 = 1.0 - dz1
 
-    print "wizardry..."
     offsets = np.array([ix[j] - 1 + fshape[0] * (iy[j] - 1 + fshape[1] * (
                     iz[j] - 1)) for j in xrange(len(x))])
 
@@ -233,7 +245,6 @@ def _tpvd_interp(f, fshape, x, y, z):
     k221, k121, k211, k111 = np.array([
             (f[offset], f[offset + 1], f[offset + fshape[0]],
              f[offset + fshape[0] + 1]) for offset in offsets]).T
-    print "Done (wizardry)."
 
     vf = (((k222 * dx2 + k122 * dx1) * dy2  +\
                (k212 * dx2 + k112 * dx1) * dy1)) * dz2 +\
@@ -272,13 +283,13 @@ def _joint_histogram(g, f, M=None, gshape=None, fshape=None, s=[1, 1, 1]):
     # g = np.uint8(g)
     # f = np.uint8(f)
 
-    # # sanitize shapes
-    # if gshape is None:
-    #     assert g.ndim == 3
-    #     gshape = g.shape
-    # if fshape is None:
-    #     assert f.ndim == 3
-    #     fshape = f.shape
+    # sanitize shapes
+    if gshape is None:
+        assert g.ndim == 3
+        gshape = g.shape
+    if fshape is None:
+        assert f.ndim == 3
+        fshape = f.shape
 
     # table of magic numbers
     ran = np.array([0.656619, 0.891183, 0.488144, 0.992646, 0.373326, 0.531378,
@@ -348,6 +359,8 @@ def _joint_histogram(g, f, M=None, gshape=None, fshape=None, s=[1, 1, 1]):
     yp = yp[fov_msk]
     zp = zp[fov_msk]
 
+    print (fov_msk).sum()
+
     # interpolate f at voxels (rx, ry, rz)
     vf  = _tpvd_interp(f, fshape, xp, yp, zp)
 
@@ -367,33 +380,157 @@ def _joint_histogram(g, f, M=None, gshape=None, fshape=None, s=[1, 1, 1]):
             jh[(ivf[j] + 1 + ivg[j] * 256)] += (vf[j] - ivf[j])
 
     # return joint histogram
-    return jh
+    return jh.reshape((256, 256), order='F')
 
 
-def optfunc(x, VG, VF, s=[1, 1, 1], cf='mi', fwhm=[7, 7]):
-    """The cost function minimized by the coregistration algorithm (Powell)
+def optfun(x, VG, VF, s=[1, 1, 1], cf='mi', fwhm=[7., 7.]):
+    """
+    Returns
+    -------
+    o
 
     """
+
+    x = np.array(x)
 
     # voxel sizes
     vxg = np.sqrt(np.sum(VG.get_affine()[:3, :3] ** 2, axis=0))
     sg = s / vxg
 
     # create the joint histogram
-    pass
+    M = np.dot(scipy.linalg.lstsq(VF.get_affine(),
+                                  affine_transformations.spm_matrix(x))[0],
+                                  VG.get_affine())
+    H = _joint_histogram(VG.get_data(), VF.get_data(), M, s=sg)
+
+    # # Smooth the histogram
+    # lim  = np.ceil(2 * fwhm)
+    # krn1 = smoothing_kernel(fwhm[0], np.linspace(-1 * lim[0], lim[0],
+    #                                               num=2 * lim[0]))
+    # krn1 = krn1 / np.sum(krn1)
+    # H = scipy.ndimage.convolve(H, krn1)
+    # krn2 = smoothing_kernel(fwhm[1], np.linspace(-1 * lim[1], lim[1],
+    #                                               num=2 * lim[1]))
+
+    # krn2 = krn2 / np.sum(krn2)
+    # H = scipy.ndimage.convolve(H, krn2)
+
+    # Compute cost function from histogram
+    # import scipy.io as scio
+    # H = scio.loadmat("/tmp/H.mat",
+    #                      squeeze_me=True, struct_as_record=False)['H']
+
+    # H = scipy.ndimage.gaussian_filter(H, sigma=fwhm2sigma(fwhm[:2]))
+    H = H + EPS
+    sh = np.sum(H)
+    H = H / sh
+    s1 = np.sum(H, axis=0).reshape((-1, H.shape[0]), order='F')
+    s2 = np.sum(H, axis=1).reshape((H.shape[1], -1), order='F')
+    if cf == 'mi':
+        # Mutual Information:
+        H = H * np.log2(H / np.dot(s2, s1))
+        mi = np.sum(H)
+        o = -mi
+    elif cf == 'ecc':
+        # Entropy Correlation Coefficient of:
+        # Maes, Collignon, Vandermeulen, Marchal & Suetens (1997).
+        # "Multimodality image registration by maximisation of mutual
+        # information". IEEE Transactions on Medical Imaging 16(2):187-198
+        H = H * np.log2(H / np.dot(s2, s1))
+        mi = np.sum(H.ravel(order='F'))
+        ecc = -2 * mi / (np.sum(s1 * np.log2(s1)) + np.sum(s2 * np.log2(s2)))
+        o = -ecc
+    elif cf == 'nmi':
+        # Normalised Mutual Information of:
+        # Studholme,  Hill & Hawkes (1998).
+        # "A normalized entropy measure of 3-D medical image alignment".
+        # in Proc. Medical Imaging 1998, vol. 3338, San Diego, CA, pp. 132-143.
+        nmi = (np.sum(s1 * np.log2(s1)) + np.sum(
+                s2 * np.log2(s2))) / np.sum(np.sum(H * np.log2(H)))
+        o = -nmi
+    else:
+        raise NotImplementedError("Unsupported cd: %s" % cf)
+    # elif cf == 'ncc':
+    #     # Normalised Cross Correlation
+    #     i = 1:size(H,1);
+    #     j = 1:size(H,2);
+    #     m1 = np.sum(s2.*i');
+    #         m2    = sum(s1.*j);
+    #         sig1  = sqrt(sum(s2.*(i'-m1).^2));
+    #         sig2  = sqrt(sum(s1.*(j -m2).^2));
+    #         [i,j] = ndgrid(i-m1,j-m2);
+    #         ncc   = sum(sum(H.*i.*j))/(sig1*sig2);
+    #         o     = -ncc;
+    #     otherwise
+    #         error('Invalid cost function specified');
+    # end
+
+    return o
+
+
+def spm_powell(x0, xi, tolsc, *otherargs):
+
+    def of(x):
+        output = optfun(x, *otherargs)
+
+        # update progress bar
+        token = "\t\t" + "   ".join(['%-8.4g' % z
+                                     for z in x])
+        token += " " * (len(x) * 13 - len(token)
+                        ) + "| %.5g" % output
+        print token
+
+        return output
+
+    def _cb(x):
+        print "Current estimates: %s" % x
+
+    return scipy.optimize.fmin_powell(of, x0,
+                                      # args=otherargs,
+                                      direc=xi,
+                                      ftol=1e-2,
+                                      callback=_cb
+                                      )
+
+
+from collections import namedtuple
+Flags = namedtuple('Flags', 'fwhm sep cost_fun tol params')
 
 if __name__ == '__main__':
-    # from collections import namedtuple
-    # Volume = namedtuple('Volume', 'fname dt dim pinfo')
-    # V = Volume(
-    #     fname=("/home/edohmato/CODE/datasets/spm_auditory"
-    #            "/fM00223/fM00223_004.img"),
-    #     dt=[1, 1],
-    #     dim=[64, 64, 64],
-    #     pinfo=np.array([[4, 1]])
-    #     )
-    # # V = scipy.io.loadmat('/tmp/V.mat', squeeze_me=True,
-    # #                      struct_as_record=False)['V']
+    flags = Flags(fwhm=np.array([7., 7., 7.]),
+                  sep=np.array([8, 4]),
+                  cost_fun='nmi',
+                  tol=np.array([.02] * 3 + [.001] * 3),
+                  params=np.zeros(6))
 
-    uV = loaduint8(("/home/edohmato/CODE/datasets/spm_auditory"
-                    "/fM00223/fM00223_004.img"))
+    # get ready for spm_powell
+    sc = flags.tol
+    sc = sc[:len(flags.params)]
+    xi = np.diag(sc * 20)
+    x = flags.params.copy()
+
+    # load data
+    spm_auditory_data = fetch_spm_auditory_data(os.path.join(
+            os.environ['HOME'],
+            "CODE/datasets/spm_auditory"))
+    ref = spm_auditory_data.func[0]
+    src = spm_auditory_data.anat
+    VG = loaduint8(ref)
+    VFk = loaduint8(src)
+
+    vxf = np.sqrt(np.sum(VFk.get_affine()[:3, :3] ** 2, axis=0))
+    fwhmf = np.sqrt(np.maximum(
+            np.ones(3) * flags.sep[-1] ** 2 - vxf ** 2, [0, 0, 0])) / vxf
+    # VFk = nibabel.Nifti1Image(scipy.ndimage.gaussian_filter(
+    #         VFk.get_data(),
+    #         sigma=fwhm2sigma(fwhmf)),
+    #                           VFk.get_affine())
+
+    xk = flags.params.copy()
+    for samp in flags.sep:
+        # voxel sizes
+        vxg = np.sqrt(np.sum(VG.get_affine()[:3, :3] ** 2, axis=0))
+        sg = samp / vxg
+        xk = spm_powell(xk, xi, sc, VG, VFk, samp, flags.cost_fun, flags.fwhm)
+
+    print VFk.get_data().mean()

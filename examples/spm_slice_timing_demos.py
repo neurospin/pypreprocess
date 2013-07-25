@@ -418,10 +418,10 @@ def demo_nyu_rest(data_dir="/tmp/nyu_data",
 
 
 if __name__ == '__main__':
-    # # demo on simulated data
-    # demo_random_brain()
-    # demo_sinusoidal_mixture()
-    # demo_HRF()
+    # demo on simulated data
+    demo_random_brain()
+    demo_sinusoidal_mixture()
+    demo_HRF()
 
     # demo on real data
     demo_localizer()
