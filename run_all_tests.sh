@@ -6,3 +6,4 @@ echo
 nosetests -v \
 coreutils/ \
 algorithms/ \
+spike/ \
