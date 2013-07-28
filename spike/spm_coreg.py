@@ -378,6 +378,7 @@ def _joint_histogram(g, f, M=None, gshape=None, fshape=None, s=[1, 1, 1]):
 
     # camera ready: compute joint histogram
     jh = np.zeros(256 * 256)  # 8-bit grayscale joint-histogram
+
     for j in xrange(len(xp)):
         # update corresponding bin
         jh[(ivf[j] + ivg[j] * 256)] += (1 - (vf[j] - ivf[j]))
@@ -488,7 +489,6 @@ def spm_powell(x0, xi, tolsc, *otherargs):
                                       ftol=np.min(tolsc),
                                       callback=_cb
                                       )
-
 
 from collections import namedtuple
 Flags = namedtuple('Flags', 'fwhm sep cost_fun tol params')

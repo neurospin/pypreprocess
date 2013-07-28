@@ -10,7 +10,6 @@ import sys
 import pylab as pl
 from nipy.labs import viz
 import nibabel
-import numpy as np
 import base_reporter
 import time
 

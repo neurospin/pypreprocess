@@ -1283,7 +1283,7 @@ def fetch_spm_auditory_data(data_dir):
     return _glob_spm_auditory_data(data_dir)
 
 
-def fetch_fsl_feeds_data(data_dir, redownload=False):
+def fetch_fsl_feeds_data(data_dir):
     """Function to fetch FSL FEEDS dataset (single-subject)
 
     Parameters

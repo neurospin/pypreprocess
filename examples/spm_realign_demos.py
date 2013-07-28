@@ -127,7 +127,7 @@ def demo_fsl_feeds(data_dir="/tmp/fsl-feeds-data",
     fsl_feeds_data = fetch_fsl_feeds_data(data_dir=data_dir)
 
     # subject data factory
-    def subject_factory(session=1):
+    def subject_factory():
             subject_id = "sub001"
 
             yield SubjectData(subject_id=subject_id,
@@ -197,7 +197,7 @@ def demo_spm_auditory(data_dir="/tmp/spm_auditory_data",
                               func=[spm_auditory_data.func],
                               output_dir=os.path.join(output_dir, subject_id))
 
-    # invoke demon to run de demo
+    # invoke demon to run demo
     _demo_runner(subject_factory(), "SPM single-subject Auditory")
 
 # main

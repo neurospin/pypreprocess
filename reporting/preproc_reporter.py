@@ -5,7 +5,6 @@
 
 """
 
-import sys
 import os
 import glob
 import re
@@ -14,8 +13,6 @@ import commands
 import time
 import joblib
 import pylab as pl
-import nibabel
-import numpy as np
 import json
 
 import check_preprocessing
