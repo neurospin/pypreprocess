@@ -3,7 +3,7 @@
 echo "                                      ===pypreprocess (testing)==="
 echo
 
-nosetests -v \
+nosetests $@ \
 coreutils/ \
 algorithms/ \
 spike/ \
