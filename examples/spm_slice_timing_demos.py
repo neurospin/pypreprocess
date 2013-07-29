@@ -114,7 +114,7 @@ def demo_sinusoidal_mixture(n_slices=10, n_rows=3, n_columns=2,
     acquired_signal = np.array([
             [[my_sinusoid(shifted_acquisition_time[j])
               for j in xrange(n_slices)]
-             for y in xrange(n_columns)] for x in xrange(n_rows)]
+             for _ in xrange(n_columns)] for _ in xrange(n_rows)]
                                )
 
     # add white noise
@@ -130,7 +130,7 @@ def demo_sinusoidal_mixture(n_slices=10, n_rows=3, n_columns=2,
         introduce_artefact_in_these_volumes = [
             introduce_artefact_in_these_volumes]
     elif introduce_artefact_in_these_volumes == "middle":
-        introduce_artefact_in_these_volumes = [n_scans / 2]
+        introduce_artefact_in_these_volumes = [n_scans // 2]
     else:
         assert hasattr(introduce_artefact_in_these_volumes, '__len__')
     introduce_artefact_in_these_volumes = np.array(
@@ -363,7 +363,7 @@ def demo_spm_multimodal_fmri(data_dir="/tmp/spm_multimodal_fmri",
         data_dir)
 
     # subject data factory
-    def subject_factory(session=1):
+    def subject_factory():
             subject_id = "sub001"
 
             yield SubjectData(subject_id=subject_id,
@@ -425,4 +425,4 @@ if __name__ == '__main__':
 
     # demo on real data
     demo_localizer()
-    # demo_spm_multimodal_fmri()  # XXX incorrect assumed slice order!
+    demo_spm_multimodal_fmri()

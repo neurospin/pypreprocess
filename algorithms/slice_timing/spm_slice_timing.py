@@ -14,8 +14,8 @@ import matplotlib.pyplot as plt
 
 def get_slice_indices(n_slices, slice_order='ascending',
                     interleaved=False,):
-    """Function computes the slice indices, consistent with the
-    specified slice order.
+    """Function computes the (unique permutation on) slice indices, consistent
+    with the specified slice order.
 
     Parameters
     ----------
@@ -53,6 +53,11 @@ def get_slice_indices(n_slices, slice_order='ascending',
         else:
             raise ValueError("Unknown slice order '%s'!" % slice_order)
     else:
+        if interleaved:
+            raise ValueError(
+                ("Since you have specified an explicit slice order, I don't "
+                 "expecting you to set the 'interleaved' flag."))
+
         # here, I'm assuming an explicitly specified slice order as a
         # permutation on n symbols
         slice_order = np.array(slice_order, dtype='int')
@@ -104,18 +109,11 @@ class STC(object):
         """
 
         # slice acquisition info
-        self._slice_order = slice_order
-        self._interleaved = interleaved
-        self._ref_slice = ref_slice
+        self.slice_order = slice_order
+        self.interleaved = interleaved
+        self.ref_slice = ref_slice
 
-        self._verbose = verbose
-
-        # holds phase shifters for the slices, one row per slice
-        self._transform = None
-
-        # this always holds the last output data produced by transform(..)
-        # method
-        self._output_data = None
+        self.verbose = verbose
 
     def _log(self, msg):
         """Prints a message, according to the verbosity level.
@@ -127,7 +125,7 @@ class STC(object):
 
         """
 
-        if self._verbose:
+        if self.verbose:
             print(msg)
 
     def _sanitize_raw_data(self, raw_data, fitting=False):
@@ -137,6 +135,9 @@ class STC(object):
         ----------
         raw_data: array-like
             raw data array being scrutinized
+        fitting: bool, optional (default False)
+            this flag indicates whether this method is being called from the
+            fit(...) method (upon which ome special business will be handled)
 
         Returns
         -------
@@ -160,17 +161,17 @@ class STC(object):
         # sanitize n_slices of raw_data
         if not fitting:
             if hasattr(self, "_n_slices"):
-                if raw_data.shape[2] != self._n_slices:
+                if raw_data.shape[2] != self.n_slices:
                     raise ValueError(
                         "raw_data has wrong number of slices: expecting %i,"
-                        " got %i" % (self._n_slices, raw_data.shape[2]))
+                        " got %i" % (self.n_slices, raw_data.shape[2]))
 
             # sanitize n_scans of raw data
             if hasattr(self, "_n_scans"):
-                if raw_data.shape[3] != self._n_scans:
+                if raw_data.shape[3] != self.n_scans:
                     raise ValueError(
                         ("raw_data has wrong number of volumes: expecting %i, "
-                         "got %i") % (self._n_scans, raw_data.shape[3]))
+                         "got %i") % (self.n_scans, raw_data.shape[3]))
 
         # return sanitized raw_dat
         return raw_data
@@ -206,11 +207,7 @@ class STC(object):
 
         Returns
         -------
-        self._tranform: 2D array of shape (n_slices, least positive integer
-        not less than self._n_scans)
-            fft transform (phase shifts mapped into frequency domain). Each row
-            is the filter by which the signal will be convolved to introduce
-            the phase shift in the corresponding slice.
+        self: fitted STC object
 
         Raises
         ------
@@ -221,61 +218,61 @@ class STC(object):
         # set basic meta params
         if not raw_data is None:
             raw_data = self._sanitize_raw_data(raw_data, fitting=True,)
-            self._n_slices = raw_data.shape[2]
-            self._n_scans = raw_data.shape[-1]
+            self.n_slices = raw_data.shape[2]
+            self.n_scans = raw_data.shape[-1]
 
-            self._raw_data = raw_data
+            self.raw_data = raw_data
         else:
             if n_slices is None:
                 raise ValueError(
                     "raw_data parameter not specified. You need to"
                     " specify a value for n_slices!")
             else:
-                self._n_slices = n_slices
+                self.n_slices = n_slices
             if n_scans is None:
                 raise ValueError(
                     "raw_data parameter not specified. You need to"
                     " specify a value for n_scans!")
             else:
-                self._n_scans = n_scans
+                self.n_scans = n_scans
 
         # fix slice indices consistently with slice order
-        self._slice_indices = get_slice_indices(self._n_slices,
-                                                slice_order=self._slice_order,
-                                                interleaved=self._interleaved,
+        self.slice_indices = get_slice_indices(self.n_slices,
+                                                slice_order=self.slice_order,
+                                                interleaved=self.interleaved,
                                                 )
 
         # fix ref slice index, to be consistent with the slice order
-        self._ref_slice = self._slice_indices[self._ref_slice]
+        self.ref_slice = self.slice_indices[self.ref_slice]
 
         # timing info (slice_TR is the time of acquisition of a single slice,
         # as a fractional multiple of the TR)
         if not timing is None:
-            TR = (self._n_slices - 1) * timing[0] + timing[1]
+            TR = (self.n_slices - 1) * timing[0] + timing[1]
             slice_TR = timing[0] / TR
             assert 0 <= slice_TR < 1
             self._log("Your TR is %s" % TR)
         else:
             # TR normalized to 1 (
-            slice_TR = 1. / self._n_slices
+            slice_TR = 1. / self.n_slices
 
         # least power of 2 not less than n_scans
-        N = 2 ** int(np.floor(np.log2(self._n_scans)) + 1)
+        N = 2 ** int(np.floor(np.log2(self.n_scans)) + 1)
 
         # this will hold phase shifter of each slice k
-        self._transform = np.ndarray(
-            (self._n_slices, N),
+        self.kernel_ = np.ndarray(
+            (self.n_slices, N),
             dtype=np.complex,  # beware, default dtype is float!
             )
 
         # loop over slices (z axis)
-        for z in xrange(self._n_slices):
+        for z in xrange(self.n_slices):
             self._log(("STC: Estimating phase-shift transform for slice "
-                       "%i/%i...") % (z + 1, self._n_slices))
+                       "%i/%i...") % (z + 1, self.n_slices))
 
             # compute time delta for shifting this slice w.r.t. the reference
             shift_amount = (
-                self._slice_indices[z] - self._ref_slice) * slice_TR
+                self.slice_indices[z] - self.ref_slice) * slice_TR
 
             # phi represents a range of phases up to the Nyquist
             # frequency
@@ -293,13 +290,13 @@ class STC(object):
 
             # map phi to frequency domain: phi -> complex
             # point z = exp(i * phi) on unit circle
-            self._transform[z] = scipy.cos(
+            self.kernel_[z] = scipy.cos(
                 phi) + scipy.sqrt(-1) * scipy.sin(phi)
 
         self._log("Done.")
 
-        # return computed transform
-        return self._transform
+        # return fitted object
+        return self
 
     def transform(self, raw_data=None):
         """
@@ -316,7 +313,7 @@ class STC(object):
 
         Returns
         -------
-        self._output_data: array of same shape as raw_data
+        self.output_data_: array of same shape as raw_data
             ST corrected data
 
         Raises
@@ -325,13 +322,13 @@ class STC(object):
 
         """
 
-        if self._transform is None:
+        if self.kernel_ is None:
             raise Exception("fit(...) method not yet invoked!")
 
         # sanitize raw_data
         if raw_data is None:
-            if hasattr(self, '_raw_data'):
-                raw_data = self._raw_data
+            if hasattr(self, 'raw_data'):
+                raw_data = self.raw_data
             else:
                 raise RuntimeError(
                     'You need to specify raw_data that will be transformed.')
@@ -339,36 +336,36 @@ class STC(object):
         raw_data = self._sanitize_raw_data(raw_data)
 
         n_rows, n_columns = raw_data.shape[:2]
-        N = self._transform.shape[-1]
+        N = self.kernel_.shape[-1]
 
         # our workspace; organization is (extended) time x rows
         stack = np.ndarray((N, n_rows))
 
         # empty slate to hold corrected data
-        self._output_data = 0 * raw_data
+        self.output_data_ = 0 * raw_data
 
         # loop over slices (z axis)
-        for z in xrange(self._n_slices):
+        for z in xrange(self.n_slices):
             self._log(
                 "STC: Correcting acquisition delay in slice %i/%i..." % (
-                    z + 1, self._n_slices))
+                    z + 1, self.n_slices))
 
             # prepare phase-shifter for this slice
-            shifter = np.array([self._transform[z], ] * n_rows).T
+            shifter = np.array([self.kernel_[z], ] * n_rows).T
 
             # loop over columns of slice z (y axis)
             for y in xrange(n_columns):
                 # extract column y of slice z of all 3D volumes
-                stack[:self._n_scans, :] = raw_data[:, y, z, :].reshape(
-                    (n_rows, self._n_scans)).T
+                stack[:self.n_scans, :] = raw_data[:, y, z, :].reshape(
+                    (n_rows, self.n_scans)).T
 
                 # fill-in continuous function to avoid edge effects (wrapping,
                 # etc.): simply linspace the displacement between the start
                 # and ending value of each BOLD response time-series
                 for x in xrange(stack.shape[1]):
-                    stack[self._n_scans:, x] = np.linspace(
-                        stack[self._n_scans - 1, x], stack[0, x],
-                        num=N - self._n_scans,).T
+                    stack[self.n_scans:, x] = np.linspace(
+                        stack[self.n_scans - 1, x], stack[0, x],
+                        num=N - self.n_scans,).T
 
                 # apply phase-shift to column y of slice z of all 3D volumes
                 stack = np.real(np.fft.ifft(
@@ -376,14 +373,14 @@ class STC(object):
 
                 # re-insert phase-shifted column y of slice z for all 3D
                 # volumes
-                self._output_data[:, y, z, :] = stack[:self._n_scans,
+                self.output_data_[:, y, z, :] = stack[:self.n_scans,
                                                        :].T.reshape(
-                    (n_rows, self._n_scans))
+                    (n_rows, self.n_scans))
 
         self._log("Done.")
 
         # return output
-        return self._output_data
+        return self.output_data_
 
     def get_last_output_data(self):
         """Returns the output data computed by the last call to the transform
@@ -395,14 +392,61 @@ class STC(object):
 
         """
 
-        if self._output_data is None:
+        if self.output_data_ is None:
             raise Exception("transform(...) method not yet invoked!")
 
-        return self._output_data
+        return self.output_data_
+
+
+def _load_fmri_data(fmri_files, is_3D=False):
+    """
+    Helper function to load fmri data from filename /
+    ndarray or list of such.
+
+    Parameters
+    ----------
+    fmri_files: `np.ndarray` or string of list of strings, or (recursive)
+    of list of such
+        the data to be loaded.
+        if string, it should be the filename of a single 3D vol or 4D
+        fmri film.
+    is_3D: boolean
+        flag specifying whether loaded data is in fact 3D. This is useful
+        for loading volumes with shapes like (25, 34, 56, 1), where the
+        last dimension can be ignored altogether
+
+    Returns
+    -------
+    data: `np.ndarray`
+        the loaded data
+
+    """
+
+    try:
+        data = np.array(fmri_files).astype('float')
+    except ValueError:
+        if isinstance(fmri_files, basestring):
+            data = nibabel.load(fmri_files).get_data()
+        else:
+            # assuming list of (perhaps list of ...) filenames (strings)
+            n_scans = len(fmri_files)
+            _first = _load_fmri_data(fmri_files[0], is_3D=True)
+            data = np.ndarray(tuple(list(_first.shape
+                                         ) + [n_scans]))
+            data[..., 0] = _first
+            for scan in xrange(1, n_scans):
+                data[..., scan] = _load_fmri_data(fmri_files[scan],
+                                                       is_3D=True)
+
+    if is_3D:
+        if data.ndim == 4:
+            data = data[..., 0]
+
+    return data
 
 
 class fMRISTC(STC):
-    def _sanitize_raw_data(self, raw_data, **kwargs):
+    def _sanitize_raw_data(self, raw_data, fitting=False):
         """
         Re-implementation of parent method to sanitize fMRI data.
 
@@ -410,57 +454,12 @@ class fMRISTC(STC):
 
         if isinstance(raw_data, np.ndarray) or isinstance(raw_data, list) \
                 or isinstance(raw_data, basestring):
-            raw_data = self._load_fmri_data(raw_data)
+            raw_data = _load_fmri_data(raw_data)
 
-        return STC._sanitize_raw_data(self, raw_data, **kwargs)
-
-    def _load_fmri_data(self, fmri_files, is_3D=False):
-        """
-        Helper function to load fmri data from filename /
-        ndarray or list of such.
-
-        Parameters
-        ----------
-        fmri_files: `np.ndarray` or string of list of strings, or (recursive)
-        of list of such
-            the data to be loaded.
-            if string, it should be the filename of a single 3D vol or 4D
-            fmri film.
-        is_3D: boolean
-            flag specifying whether loaded data is in fact 3D. This is useful
-            for loading volumes with shapes like (25, 34, 56, 1), where the
-            last dimension can be ignored altogether
-
-        Returns
-        -------
-        data: `np.ndarray`
-            the loaded data
-
-        """
-
-        if isinstance(fmri_files, np.ndarray):
-            data = fmri_files
-        elif isinstance(fmri_files, basestring):
-            data = nibabel.load(fmri_files).get_data()
-        else:
-            # assuming list of (perhaps list of ...) filenames (strings)
-            n_scans = len(fmri_files)
-            _first = self._load_fmri_data(fmri_files[0], is_3D=True)
-            data = np.ndarray(tuple(list(_first.shape
-                                         ) + [n_scans]))
-            data[..., 0] = _first
-            for scan in xrange(1, n_scans):
-                data[..., scan] = self._load_fmri_data(fmri_files[scan],
-                                                       is_3D=True)
-
-        if is_3D:
-            if data.ndim == 4:
-                data = data[..., 0]
-
-        return data
+        return STC._sanitize_raw_data(self, raw_data, fitting=fitting)
 
     def get_raw_data(self):
-        return self._raw_data
+        return self.raw_data
 
     # def _save_stc_output(self, output_dir,
     #                      input_filenames,
@@ -483,7 +482,7 @@ class fMRISTC(STC):
     #     if isinstance(input_filenames, basestring):
     #         affine = nibabel.load(input_filenames).get_affine()
 
-    #         for t in xrange(self._n_scans):
+    #         for t in xrange(self.n_scans):
     #             output_filename = os.path.join(output_dir,
     #                                            "%s%i%s" % (
     #                     prefix, t, ref_file_basename))
@@ -496,7 +495,7 @@ class fMRISTC(STC):
     #         output_filenames = output_filename
     #     else:
     #         output_filenames = []
-    #         for filename, t in zip(input_filenames, xrange(self._n_scans)):
+    #         for filename, t in zip(input_filenames, xrange(self.n_scans)):
     #             affine = nibabel.load(filename).get_affine()
     #             output_filename = os.path.join(output_dir,
     #                                            "%s%s" % (
@@ -571,8 +570,8 @@ def plot_slicetiming_results(acquired_sample,
         assert compare_with.shape == acquired_sample.shape
 
     # centralize x and y if None
-    x = n_rows / 2 if x is None else x
-    y = n_columns / 2 if y is None else y
+    x = n_rows // 2 if x is None else x
+    y = n_columns // 2 if y is None else y
 
     # sanitize x and y
     x = x % n_rows

@@ -1,3 +1,4 @@
+
 import numpy as np
 import scipy.ndimage
 import scipy.special
@@ -215,12 +216,16 @@ def _tpvd_interp(f, fshape, x, y, z):
 
     """
 
+    x = np.array(x)
+    y = np.array(y)
+    z = np.array(z)
+
     # # use the map_coordinates(...) call below for faster execution
-    # return scipy.ndimage.map_coordinates(f, [x, y, z], order=1,
+    # return scipy.ndimage.map_coordinates(f.reshape(fshape, order='F'), [x, y, z], order=1,
     #                                      mode='wrap',  # for SPM results
     #                                      )
 
-    f = f.ravel(order='F')
+    # XXX code below can/should be optimized, else we're dead!
     ix = np.floor(x)
     dx1 = x - ix
     dx2 = 1.0 - dx1
@@ -346,6 +351,10 @@ def _joint_histogram(g, f, M=None, gshape=None, fshape=None, s=[1, 1, 1]):
 
     rx, ry, rz = np.array([rx, ry, rz])
 
+    # rx, ry, rz = np.mgrid[:gshape[0] - s[0]:,
+    #                        :gshape[1] - s[1]:,
+    #                        :gshape[2] - s[2]:].reshape((3, -1))
+
     # map voxels (rx, ry, rz) under the affine transformation
     xp, yp, zp, _ = np.dot(M, [rx, ry, rz, np.ones(len(rx))])
 
@@ -359,8 +368,6 @@ def _joint_histogram(g, f, M=None, gshape=None, fshape=None, s=[1, 1, 1]):
     yp = yp[fov_msk]
     zp = zp[fov_msk]
 
-    print (fov_msk).sum()
-
     # interpolate f at voxels (rx, ry, rz)
     vf  = _tpvd_interp(f, fshape, xp, yp, zp)
 
@@ -371,6 +378,7 @@ def _joint_histogram(g, f, M=None, gshape=None, fshape=None, s=[1, 1, 1]):
 
     # camera ready: compute joint histogram
     jh = np.zeros(256 * 256)  # 8-bit grayscale joint-histogram
+
     for j in xrange(len(xp)):
         # update corresponding bin
         jh[(ivf[j] + ivg[j] * 256)] += (1 - (vf[j] - ivf[j]))
@@ -401,7 +409,12 @@ def optfun(x, VG, VF, s=[1, 1, 1], cf='mi', fwhm=[7., 7.]):
     M = np.dot(scipy.linalg.lstsq(VF.get_affine(),
                                   affine_transformations.spm_matrix(x))[0],
                                   VG.get_affine())
-    H = _joint_histogram(VG.get_data(), VF.get_data(), M, s=sg)
+    H = _joint_histogram(VG.get_data().ravel(order='F'),
+                         VF.get_data().ravel(order='F'),
+                         M=M,
+                         gshape=VG.shape,
+                         fshape=VF.shape,
+                         s=sg)
 
     # # Smooth the histogram
     # lim  = np.ceil(2 * fwhm)
@@ -450,20 +463,6 @@ def optfun(x, VG, VF, s=[1, 1, 1], cf='mi', fwhm=[7., 7.]):
         o = -nmi
     else:
         raise NotImplementedError("Unsupported cd: %s" % cf)
-    # elif cf == 'ncc':
-    #     # Normalised Cross Correlation
-    #     i = 1:size(H,1);
-    #     j = 1:size(H,2);
-    #     m1 = np.sum(s2.*i');
-    #         m2    = sum(s1.*j);
-    #         sig1  = sqrt(sum(s2.*(i'-m1).^2));
-    #         sig2  = sqrt(sum(s1.*(j -m2).^2));
-    #         [i,j] = ndgrid(i-m1,j-m2);
-    #         ncc   = sum(sum(H.*i.*j))/(sig1*sig2);
-    #         o     = -ncc;
-    #     otherwise
-    #         error('Invalid cost function specified');
-    # end
 
     return o
 
@@ -474,7 +473,7 @@ def spm_powell(x0, xi, tolsc, *otherargs):
         output = optfun(x, *otherargs)
 
         # update progress bar
-        token = "\t\t" + "   ".join(['%-8.4g' % z
+        token = "\t" + "   ".join(['%-8.4g' % z
                                      for z in x])
         token += " " * (len(x) * 13 - len(token)
                         ) + "| %.5g" % output
@@ -483,22 +482,20 @@ def spm_powell(x0, xi, tolsc, *otherargs):
         return output
 
     def _cb(x):
-        print "Current estimates: %s" % x
+        print "\r\n\t\tCurrent parameters estimate: %s\r\n" % x
 
     return scipy.optimize.fmin_powell(of, x0,
-                                      # args=otherargs,
                                       direc=xi,
-                                      ftol=1e-2,
+                                      ftol=np.min(tolsc),
                                       callback=_cb
                                       )
-
 
 from collections import namedtuple
 Flags = namedtuple('Flags', 'fwhm sep cost_fun tol params')
 
 if __name__ == '__main__':
     flags = Flags(fwhm=np.array([7., 7., 7.]),
-                  sep=np.array([8, 4]),
+                  sep=np.array([16, 8]),
                   cost_fun='nmi',
                   tol=np.array([.02] * 3 + [.001] * 3),
                   params=np.zeros(6))
@@ -509,22 +506,31 @@ if __name__ == '__main__':
     xi = np.diag(sc * 20)
     x = flags.params.copy()
 
-    # load data
-    spm_auditory_data = fetch_spm_auditory_data(os.path.join(
-            os.environ['HOME'],
-            "CODE/datasets/spm_auditory"))
-    ref = spm_auditory_data.func[0]
-    src = spm_auditory_data.anat
-    VG = loaduint8(ref)
-    VFk = loaduint8(src)
+    # # load data
+    # spm_auditory_data = fetch_spm_auditory_data(os.path.join(
+    #         os.environ['HOME'],
+    #         "CODE/datasets/spm_auditory"))
+    # ref = spm_auditory_data.func[0]
+    # src = spm_auditory_data.anat
+    # VG = loaduint8(ref)
+    # VFk = loaduint8(src)
 
-    vxf = np.sqrt(np.sum(VFk.get_affine()[:3, :3] ** 2, axis=0))
-    fwhmf = np.sqrt(np.maximum(
-            np.ones(3) * flags.sep[-1] ** 2 - vxf ** 2, [0, 0, 0])) / vxf
-    # VFk = nibabel.Nifti1Image(scipy.ndimage.gaussian_filter(
-    #         VFk.get_data(),
-    #         sigma=fwhm2sigma(fwhmf)),
-    #                           VFk.get_affine())
+    # vxf = np.sqrt(np.sum(VFk.get_affine()[:3, :3] ** 2, axis=0))
+    # fwhmf = np.sqrt(np.maximum(
+    #         np.ones(3) * flags.sep[-1] ** 2 - vxf ** 2, [0, 0, 0])) / vxf
+    # # VFk = nibabel.Nifti1Image(scipy.ndimage.gaussian_filter(
+    # #         VFk.get_data(),
+    # #         sigma=fwhm2sigma(fwhmf)),
+    # #                           VFk.get_affine())
+
+    import scipy.io
+    toto = scipy.io.loadmat(os.path.join(
+            os.environ['HOME'],
+            'CODE/datasets/spm_auditory/clean.mat'),
+                            squeeze_me=True, struct_as_record=0)
+    VG, VFk, sc = [toto[k] for k in ['VG', 'VFk', 'sc']]
+    VG = nibabel.Nifti1Image(VG.uint8, VG.mat)
+    VFk = nibabel.Nifti1Image(VFk.uint8, VFk.mat)
 
     xk = flags.params.copy()
     for samp in flags.sep:

@@ -242,8 +242,6 @@ class MRIMotionCorrection(object):
         self._n_iterations = n_iterations
         self._n_sessions = n_sessions
 
-        pass
-
     def _log(self, msg):
         """Logs a message, according to verbose level.
 
@@ -335,6 +333,9 @@ class MRIMotionCorrection(object):
         # compute intercept vector for LSPs
         b = G.ravel()
 
+        # garbage-collect unused local variables
+        del sref_vol, Gx, Gy, Gz
+
         # Remove voxels that contribute very little to the final estimate.
         # It's essentially sufficient to remove voxels that contribute the
         # least to the determinant of the inverse convariance matrix
@@ -368,9 +369,6 @@ class MRIMotionCorrection(object):
                 x1 = np.delete(x1, msk, axis=0)
                 x2 = np.delete(x2, msk, axis=0)
                 x3 = np.delete(x3, msk, axis=0)
-                Gx = np.delete(Gx, msk, axis=0)
-                Gy = np.delete(Gy, msk, axis=0)
-                Gz = np.delete(Gz, msk, axis=0)
 
                 # updates for next iteration
                 alpha = np.vstack((A0.T, b)).T
@@ -618,34 +616,6 @@ class MRIMotionCorrection(object):
         if not hasattr(self, '_rp_'):
             raise RuntimeError("fit(...) method not yet invoked.")
 
-        def _save_session_realigned_vols(sess_realigned_vols,
-                                        sess_output_dir):
-            """
-            Helper sub-function for saving results to disk session-wise.
-
-            """
-
-            if concat:
-                output_filename = os.path.join(
-                    sess_output_dir, "%s_4D%s" % (prefix, ext))
-                nibabel.save(nibabel.concat_images(sess_realigned_vols),
-                             output_filename)
-                sess_realigned_files = output_filename
-            else:
-                sess_realigned_files = []
-                for t, rvol in zip(xrange(self._n_scans_list[sess]),
-                                  sess_realigned_vols):
-                    # save realigned vol unto disk
-                    output_filename = os.path.join(sess_output_dir,
-                                                   "%s_vol_%i%s" % (
-                            prefix, t, ext))
-                    nibabel.save(rvol, output_filename)
-
-                    # update rvols and realigned_files
-                    sess_realigned_files.append(output_filename)
-
-            return sess_realigned_files
-
         # sanitize ext
         if not ext.startswith('.'):
             ext = "." + ext
@@ -682,7 +652,8 @@ class MRIMotionCorrection(object):
                 sess_rvols,
                 sess_output_dir,
                 concat=concat,
-                ext=ext)
+                ext=ext,
+                prefix=prefix)
             self._realigned_files_.append(sess_realigned_files)
 
             # save realignment params to disk

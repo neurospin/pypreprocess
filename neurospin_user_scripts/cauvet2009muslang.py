@@ -1,7 +1,5 @@
 import os
 import sys
-import re
-import csv
 import glob
 import multiprocessing
 

@@ -47,6 +47,10 @@ def _load_vol(x):
 def _load_specific_vol(vols, t):
     """Utility function for loading specific volume on demand.
 
+    Parameters
+    ----------
+    vols: string(s) or nibabel image object(s)
+
     """
 
     assert t >= 0
@@ -65,7 +69,8 @@ def _load_specific_vol(vols, t):
         vol = nibabel.four_to_three(_vols)[t]
     else:  # unhandled type
         raise TypeError(
-            "imgs arg must be string, image object, or list of such.")
+            ("vols must be string, image object, or list of such; "
+             "got %s" % type(vols)))
 
     return vol, n_scans
 
