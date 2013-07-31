@@ -31,7 +31,7 @@ except ImportError:
         )
 
 
-def test_tpvd_interp():
+def test_samppy():
     # create dummy image
     gshape = (64, 64, 64)
     g = np.ndarray(gshape, dtype='uint8')

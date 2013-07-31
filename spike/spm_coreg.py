@@ -9,8 +9,11 @@ import sys
 import os
 import spm_hist2py
 
-sys.path.append(os.path.dirname(os.path.split(
-            os.path.abspath(__file__))[0]))
+# root dir
+PYPREPROCESS_DIR = os.path.dirname(
+    os.path.split(os.path.abspath(__file__))[0])
+sys.path.append(PYPREPROCESS_DIR)
+
 import algorithms.registration.affine_transformations as affine_transformations
 import algorithms.registration.kernel_smooth as kernel_smooth
 
@@ -489,18 +492,49 @@ def spm_powell(x0, xi, tolsc, *otherargs):
 from collections import namedtuple
 Flags = namedtuple('Flags', 'fwhm sep cost_fun tol params')
 
-if __name__ == '__main__':
-    flags = Flags(fwhm=np.array([7., 7., 7.]),
-                  sep=np.array([4, 2]),
-                  cost_fun='nmi',
-                  tol=np.array([.02] * 3 + [.001] * 3),
-                  params=np.zeros(6))
+
+def spm_coreg(ref_vol,
+              src_vol,
+              sep=[4, 2],
+              params=[0, 0, 0, 0, 0, 0],
+              tol=[.02, .02, .02, .001, .001, .001],
+              cost_fun="nmi",
+              fwhm=[7., 7., 7.]
+              ):
+    """
+    Similarity-based rigid-body multi-modal registration.
+
+    Parameters
+    ----------
+    ref_vol: nibabel 3D image object
+        reference (fixed) image
+    src_vol: nibabel 3D image object
+        source (moving) image
+    sep: 1D array of floats, optional (default [4, 2])
+        piramidal optimization seperation (in mm)
+    params: 1D array of length 6, optional (default [0, 0, 0, 0, 0, 0]
+        starting estimates
+    cost_fun: string, optional (default "nmi")
+        similarity function to be optimized. Possible values are:
+        "mi": Mutual Information
+        "nmi": Normalized Mutual Information
+        "ecc": Entropy Correlation Coefficient
+    tol: 1D array of 6 floats, optional (
+    default [.02, .02, .02, .001, .001, .001])
+        tolerances for the accuracy of each parameter
+
+    Returns
+    -------
+    x: 1D array of 6 floats
+        the six parameter defining the rigid-body motion needed to align the
+        moving image `src_vol` with the reference image `ref_vol`
+
+    """
 
     # get ready for spm_powell
-    sc = flags.tol
-    sc = sc[:len(flags.params)]
+    sc = tol
+    sc = sc[:len(params)]
     xi = np.diag(sc * 20)
-    x = flags.params.copy()
 
     # # load data
     # spm_auditory_data = fetch_spm_auditory_data(os.path.join(
@@ -513,24 +547,34 @@ if __name__ == '__main__':
 
     # vxf = np.sqrt(np.sum(VFk.get_affine()[:3, :3] ** 2, axis=0))
     # fwhmf = np.sqrt(np.maximum(
-    #         np.ones(3) * flags.sep[-1] ** 2 - vxf ** 2, [0, 0, 0])) / vxf
+    #         np.ones(3) * sep[-1] ** 2 - vxf ** 2, [0, 0, 0])) / vxf
     # # VFk = nibabel.Nifti1Image(scipy.ndimage.gaussian_filter(
     # #         VFk.get_data(),
     # #         sigma=fwhm2sigma(fwhmf)),
     # #                           VFk.get_affine())
 
+    # piramidal loop
+    xk = list(params)
+    for samp in sep:
+        # powell gradient-less local optimization
+        xk = spm_powell(xk, xi, sc, ref_vol, src_vol, samp, cost_fun, fwhm)
+
+    return xk
+
+
+if __name__ == '__main__':
+    flags = Flags(fwhm=np.array([7., 7., 7.]),
+                  sep=np.array([4, 2]),
+                  cost_fun='nmi',
+                  tol=np.array([.02] * 3 + [.001] * 3),
+                  params=np.zeros(6))
+
     import scipy.io
-    toto = scipy.io.loadmat('/tmp/data.mat',
-                            squeeze_me=True, struct_as_record=0)
+    toto = scipy.io.loadmat(os.path.join(PYPREPROCESS_DIR,
+                                         "test_data/spm_hist2_args_2.mat"),
+                            squeeze_me=True, struct_as_record=False)
     VG, VFk = [toto[k] for k in ['VG', 'VFk']]
     VG = nibabel.Nifti1Image(VG.uint8, VG.mat)
     VFk = nibabel.Nifti1Image(VFk.uint8, VFk.mat)
 
-    xk = flags.params.copy()
-    for samp in flags.sep:
-        # voxel sizes
-        vxg = np.sqrt(np.sum(VG.get_affine()[:3, :3] ** 2, axis=0))
-        sg = samp / vxg
-        xk = spm_powell(xk, xi, sc, VFk, VG, samp, flags.cost_fun, flags.fwhm)
-
-    print xk
+    print spm_coreg(VG, VFk, **flags.__dict__)
