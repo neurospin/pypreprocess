@@ -38,6 +38,7 @@ def create_random_image(shape=None,
     Creates a random image of prescribed shape
 
     """
+    rng = np.random.RandomState(0)
 
     if shape is None:
         shape = np.random.random_integers(20, size=ndim)
@@ -71,6 +72,7 @@ def _make_vol_specific_rotation(rotation, n_scans, t):
 
 
 def test_compute_rate_of_change_of_chisq():
+    # XXX please document strange variables !!!
     # setup
     true_A = np.array(
         [[-0., -0., -0., -0., -0., -0.],
@@ -133,7 +135,7 @@ def test_compute_rate_of_change_of_chisq():
          [-2., 1., -0., 5.000002, -10.000001, -8.999999],
          [1., -0., -0., -0., 5.000001, 4.000001],
          [1., -0., -0., -0., 5.0000015, 4.0000015]])
-    decimal_precision = 8  # precision for array comparison
+    decimal_precision = 8  # precision for array comparison (SPM is ground-truth)
     lkp = [0, 1, 2, 3, 4, 5]  # translations + rotations model
     grid = np.mgrid[1:4:, 1:5:, 1:6:].reshape((3, -1),
                                               # true_A came from matlab
@@ -248,7 +250,8 @@ def test_MRIMotionCorrection_fit():
                                           get_initial_motion_params())
 
 # run all tests
-nose.runmodule(config=nose.config.Config(
-        verbose=2,
-        nocapture=True,
-        ))
+if __name__ == "__main__":
+    nose.runmodule(config=nose.config.Config(
+            verbose=2,
+            nocapture=True,
+            ))

@@ -56,10 +56,10 @@ def test_get_slice_indices_explicit():
 
 @nose.tools.raises(ValueError)
 def test_get_slice_indices_explicit_interleaved():
-        slice_order = [1, 4, 3, 2, 0]
-        numpy.testing.assert_array_equal(
-            get_slice_indices(5, slice_order=slice_order,
-                              interleaved=True), [2, 0, 4, 1, 3])
+    slice_order = [1, 4, 3, 2, 0]
+    numpy.testing.assert_array_equal(
+        get_slice_indices(5, slice_order=slice_order,
+                          interleaved=True), [2, 0, 4, 1, 3])
 
 
 def test_load_fmri_data_from_lists():

@@ -3,8 +3,7 @@
 echo "                                      ===pypreprocess (testing)==="
 echo
 
-nosetests -v $@ \  # always atleast level 1 verbose
-coreutils/ \
-algorithms/ \
+nosetests -v $@ coreutils/ \
 spike/ \
 external/nilearn/tests/test_datasets.py \
+algorithms/ \
