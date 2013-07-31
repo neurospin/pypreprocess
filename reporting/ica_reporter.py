@@ -19,7 +19,7 @@ def generate_ica_report(
     ica_maps,
     mask=None,
     report_title='ICA Report',
-    methods='ICA',
+    methods_text='ICA',
     anat=None,
     anat_affine=None,
     threshold=2.,
@@ -130,7 +130,7 @@ def generate_ica_report(
         source_script_name=user_script_name,
         source_code=user_source_code,
 
-        methods=methods,
+        methods=methods_text,
         cmap=cmap.name)
 
     with open(stats_report_filename, 'w') as fd:
