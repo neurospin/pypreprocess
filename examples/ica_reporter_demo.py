@@ -17,8 +17,8 @@ output_dir = os.path.dirname(MELODIC_NII_GZ)
 mask_filename = os.path.join(output_dir, "mask.nii.gz")
 
 # grab log
-methods = "ICA was done by running the following MELODIC command-line:<br/>"
-methods += "<i>" + re.search(".*melodic \-i .*",
+methods_text = "ICA was done by running the following MELODIC command-line:<br/>"
+methods_text += "<i>" + re.search(".*melodic \-i .*",
                              open(
         os.path.join(output_dir,
                      'log.txt')).read()).group() + "</i>"
@@ -40,7 +40,7 @@ for comp in xrange(n_components):
 ica_reporter.generate_ica_report(ica_report_filename,
                                  ica_maps,
                                  mask=mask_filename,
-                                 methods=methods,
+                                 methods_text=methods_text,
                                  )
 
 print "Reports written to %s" % ica_report_filename

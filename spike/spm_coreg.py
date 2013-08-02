@@ -7,9 +7,13 @@ import scipy.io
 import nibabel
 import sys
 import os
+import spm_hist2py
 
-sys.path.append(os.path.dirname(os.path.split(
-            os.path.abspath(__file__))[0]))
+# root dir
+PYPREPROCESS_DIR = os.path.dirname(
+    os.path.split(os.path.abspath(__file__))[0])
+sys.path.append(PYPREPROCESS_DIR)
+
 import algorithms.registration.affine_transformations as affine_transformations
 import algorithms.registration.kernel_smooth as kernel_smooth
 
@@ -203,192 +207,192 @@ def smooth_uint8(V, fwhm):
     return spm_conv_vol(V.astype('float'), x, y, z, -i, -j, -k)
 
 
-def _tpvd_interp(f, fshape, x, y, z):
-    """Performs "trilinear partial volume distribution" interpolation of a
-    gray-scale 3D image f, at a voxel (x, y, z).
+# def _tpvd_interp(f, fshape, x, y, z):
+#     """Performs "trilinear partial volume distribution" interpolation of a
+#     gray-scale 3D image f, at a voxel (x, y, z).
 
-    Parameters
-    ----------
-    f: array_like of floats
-        gray-scale image to be interpolated
-    x: float or array_like of floats
-        ...
+#     Parameters
+#     ----------
+#     f: array_like of floats
+#         gray-scale image to be interpolated
+#     x: float or array_like of floats
+#         ...
 
-    """
+#     """
 
-    x = np.array(x)
-    y = np.array(y)
-    z = np.array(z)
+#     x = np.array(x)
+#     y = np.array(y)
+#     z = np.array(z)
 
-    # # use the map_coordinates(...) call below for faster execution
-    # return scipy.ndimage.map_coordinates(f.reshape(fshape, order='F'), [x, y, z], order=1,
-    #                                      mode='wrap',  # for SPM results
-    #                                      )
+#     # # use the map_coordinates(...) call below for faster execution
+#     # return scipy.ndimage.map_coordinates(f.reshape(fshape, order='F'), [x, y, z], order=1,
+#     #                                      mode='wrap',  # for SPM results
+#     #                                      )
 
-    # XXX code below can/should be optimized, else we're dead!
-    ix = np.floor(x)
-    dx1 = x - ix
-    dx2 = 1.0 - dx1
+#     # XXX code below can/should be optimized, else we're dead!
+#     ix = np.floor(x)
+#     dx1 = x - ix
+#     dx2 = 1.0 - dx1
 
-    iy = np.floor(y)
-    dy1 = y - iy
-    dy2 = 1.0 - dy1
+#     iy = np.floor(y)
+#     dy1 = y - iy
+#     dy2 = 1.0 - dy1
 
-    iz = np.floor(z)
-    dz1 = z - iz
-    dz2 = 1.0 - dz1
+#     iz = np.floor(z)
+#     dz1 = z - iz
+#     dz2 = 1.0 - dz1
 
-    offsets = np.array([ix[j] - 1 + fshape[0] * (iy[j] - 1 + fshape[1] * (
-                    iz[j] - 1)) for j in xrange(len(x))])
+#     offsets = np.array([ix[j] - 1 + fshape[0] * (iy[j] - 1 + fshape[1] * (
+#                     iz[j] - 1)) for j in xrange(len(x))])
 
-    k222, k122, k212, k112 = np.array([
-            (f[offset], f[offset + 1], f[offset + fshape[0]],
-             f[offset + fshape[0] + 1]) for offset in offsets]).T
+#     k222, k122, k212, k112 = np.array([
+#             (f[offset], f[offset + 1], f[offset + fshape[0]],
+#              f[offset + fshape[0] + 1]) for offset in offsets]).T
 
-    offsets = offsets + fshape[0] * fshape[1]
+#     offsets = offsets + fshape[0] * fshape[1]
 
-    k221, k121, k211, k111 = np.array([
-            (f[offset], f[offset + 1], f[offset + fshape[0]],
-             f[offset + fshape[0] + 1]) for offset in offsets]).T
+#     k221, k121, k211, k111 = np.array([
+#             (f[offset], f[offset + 1], f[offset + fshape[0]],
+#              f[offset + fshape[0] + 1]) for offset in offsets]).T
 
-    vf = (((k222 * dx2 + k122 * dx1) * dy2  +\
-               (k212 * dx2 + k112 * dx1) * dy1)) * dz2 +\
-               (((k221 * dx2 + k121 * dx1) * dy2 +\
-                     (k211 * dx2 + k111 * dx1) * dy1)) * dz1
+#     vf = (((k222 * dx2 + k122 * dx1) * dy2  +\
+#                (k212 * dx2 + k112 * dx1) * dy1)) * dz2 +\
+#                (((k221 * dx2 + k121 * dx1) * dy2 +\
+#                      (k211 * dx2 + k111 * dx1) * dy1)) * dz1
 
-    return vf
+#     return vf
 
 
-def _joint_histogram(g, f, M=None, gshape=None, fshape=None, s=[1, 1, 1]):
-    """
-    Computes the joint histogram of g and f[warp(f, M)],
-    where M is an affine transformation, and g and f are
-    3-dimensional images (scalars defined on the vertices of polytopes)
-    of possible different shapes (i.e different resolutions). The bins are
-    (256, 256) --i.e 8-bit gray-scale, so that the computed histogram is
-    a vector of length 65536.
+# def _joint_histogram(g, f, M=None, gshape=None, fshape=None, s=[1, 1, 1]):
+#     """
+#     Computes the joint histogram of g and f[warp(f, M)],
+#     where M is an affine transformation, and g and f are
+#     3-dimensional images (scalars defined on the vertices of polytopes)
+#     of possible different shapes (i.e different resolutions). The bins are
+#     (256, 256) --i.e 8-bit gray-scale, so that the computed histogram is
+#     a vector of length 65536.
 
-    Parameters
-    ----------
-    f: 3D array_like (or 1D Fortran-order ravelled version of)
-        3-dimensional image
-    g: 3D array_like (or 1D Fortran-order ravelled version of)
-        3-dimensional other image
-    M: array_like of shape (4, 4), optional (default None)
-        affine transformation with which f will be warped before
-        computing the histogram
+#     Parameters
+#     ----------
+#     f: 3D array_like (or 1D Fortran-order ravelled version of)
+#         3-dimensional image
+#     g: 3D array_like (or 1D Fortran-order ravelled version of)
+#         3-dimensional other image
+#     M: array_like of shape (4, 4), optional (default None)
+#         affine transformation with which f will be warped before
+#         computing the histogram
 
-    Returns
-    -------
-    jh: joint histogram
+#     Returns
+#     -------
+#     jh: joint histogram
 
-    """
+#     """
 
-    # # everythx should be 8-bit gray-scale
-    # g = np.uint8(g)
-    # f = np.uint8(f)
+#     # # everythx should be 8-bit gray-scale
+#     # g = np.uint8(g)
+#     # f = np.uint8(f)
 
-    # sanitize shapes
-    if gshape is None:
-        assert g.ndim == 3
-        gshape = g.shape
-    if fshape is None:
-        assert f.ndim == 3
-        fshape = f.shape
+#     # sanitize shapes
+#     if gshape is None:
+#         assert g.ndim == 3
+#         gshape = g.shape
+#     if fshape is None:
+#         assert f.ndim == 3
+#         fshape = f.shape
 
-    # table of magic numbers
-    ran = np.array([0.656619, 0.891183, 0.488144, 0.992646, 0.373326, 0.531378,
-                    0.181316, 0.501944, 0.422195, 0.660427, 0.673653, 0.95733,
-                    0.191866, 0.111216, 0.565054, 0.969166, 0.0237439,
-                    0.870216, 0.0268766, 0.519529, 0.192291, 0.715689,
-                    0.250673, 0.933865, 0.137189, 0.521622, 0.895202,
-                    0.942387, 0.335083, 0.437364, 0.471156, 0.14931, 0.135864,
-                    0.532498, 0.725789, 0.398703, 0.358419, 0.285279, 0.868635,
-                    0.626413, 0.241172, 0.978082, 0.640501, 0.229849, 0.681335,
-                    0.665823, 0.134718, 0.0224933, 0.262199, 0.116515,
-                    0.0693182, 0.85293, 0.180331, 0.0324186, 0.733926,
-                    0.536517, 0.27603, 0.368458, 0.0128863, 0.889206, 0.866021,
-                    0.254247, 0.569481, 0.159265, 0.594364, 0.3311, 0.658613,
-                    0.863634, 0.567623, 0.980481, 0.791832, 0.152594,
-                    0.833027, 0.191863, 0.638987, 0.669, 0.772088, 0.379818,
-                    0.441585, 0.48306, 0.608106, 0.175996, 0.00202556,
-                    0.790224, 0.513609, 0.213229, 0.10345, 0.157337, 0.407515,
-                    0.407757, 0.0526927, 0.941815, 0.149972, 0.384374,
-                    0.311059, 0.168534, 0.896648
-                    ])
+#     # table of magic numbers
+#     ran = np.array([0.656619, 0.891183, 0.488144, 0.992646, 0.373326, 0.531378,
+#                     0.181316, 0.501944, 0.422195, 0.660427, 0.673653, 0.95733,
+#                     0.191866, 0.111216, 0.565054, 0.969166, 0.0237439,
+#                     0.870216, 0.0268766, 0.519529, 0.192291, 0.715689,
+#                     0.250673, 0.933865, 0.137189, 0.521622, 0.895202,
+#                     0.942387, 0.335083, 0.437364, 0.471156, 0.14931, 0.135864,
+#                     0.532498, 0.725789, 0.398703, 0.358419, 0.285279, 0.868635,
+#                     0.626413, 0.241172, 0.978082, 0.640501, 0.229849, 0.681335,
+#                     0.665823, 0.134718, 0.0224933, 0.262199, 0.116515,
+#                     0.0693182, 0.85293, 0.180331, 0.0324186, 0.733926,
+#                     0.536517, 0.27603, 0.368458, 0.0128863, 0.889206, 0.866021,
+#                     0.254247, 0.569481, 0.159265, 0.594364, 0.3311, 0.658613,
+#                     0.863634, 0.567623, 0.980481, 0.791832, 0.152594,
+#                     0.833027, 0.191863, 0.638987, 0.669, 0.772088, 0.379818,
+#                     0.441585, 0.48306, 0.608106, 0.175996, 0.00202556,
+#                     0.790224, 0.513609, 0.213229, 0.10345, 0.157337, 0.407515,
+#                     0.407757, 0.0526927, 0.941815, 0.149972, 0.384374,
+#                     0.311059, 0.168534, 0.896648
+#                     ])
 
-    # construct voxels of interest
-    rx = []
-    ry = []
-    rz = []
-    iran = 0  # index for ran table
-    z = 1.
-    while z < gshape[2] - s[2]:
-        y = 1.
-        while y < gshape[1] - s[1]:
-            x = 1.
-            while x < gshape[0] - s[0]:
-                # print (x, y, z)
-                iran = (iran + 1) % 97
-                _rx  = x + ran[iran] * s[0]
-                iran = (iran + 1) % 97
-                _ry  = y + ran[iran] * s[1]
-                iran = (iran + 1) % 97
-                _rz  = z + ran[iran] * s[2]
+#     # construct voxels of interest
+#     rx = []
+#     ry = []
+#     rz = []
+#     iran = 0  # index for ran table
+#     z = 1.
+#     while z < gshape[2] - s[2]:
+#         y = 1.
+#         while y < gshape[1] - s[1]:
+#             x = 1.
+#             while x < gshape[0] - s[0]:
+#                 # print (x, y, z)
+#                 iran = (iran + 1) % 97
+#                 _rx  = x + ran[iran] * s[0]
+#                 iran = (iran + 1) % 97
+#                 _ry  = y + ran[iran] * s[1]
+#                 iran = (iran + 1) % 97
+#                 _rz  = z + ran[iran] * s[2]
 
-                rx.append(_rx)
-                ry.append(_ry)
-                rz.append(_rz)
+#                 rx.append(_rx)
+#                 ry.append(_ry)
+#                 rz.append(_rz)
 
-                # update x
-                x += s[0]
+#                 # update x
+#                 x += s[0]
 
-            # update y
-            y += s[1]
+#             # update y
+#             y += s[1]
 
-        # update z
-        z += s[2]
+#         # update z
+#         z += s[2]
 
-    rx, ry, rz = np.array([rx, ry, rz])
+#     rx, ry, rz = np.array([rx, ry, rz])
 
-    # rx, ry, rz = np.mgrid[:gshape[0] - s[0]:,
-    #                        :gshape[1] - s[1]:,
-    #                        :gshape[2] - s[2]:].reshape((3, -1))
+#     # rx, ry, rz = np.mgrid[:gshape[0] - s[0]:,
+#     #                        :gshape[1] - s[1]:,
+#     #                        :gshape[2] - s[2]:].reshape((3, -1))
 
-    # map voxels (rx, ry, rz) under the affine transformation
-    xp, yp, zp, _ = np.dot(M, [rx, ry, rz, np.ones(len(rx))])
+#     # map voxels (rx, ry, rz) under the affine transformation
+#     xp, yp, zp, _ = np.dot(M, [rx, ry, rz, np.ones(len(rx))])
 
-    # remove all voxel that have falling out of the FOV
-    fov_msk = ((zp >= 1.) & (zp < fshape[2]) & (yp >= 1.) &
-               (yp < fshape[1]) & (xp >= 1.) & (xp < fshape[0]))
-    rx = rx[fov_msk]
-    ry = ry[fov_msk]
-    rz = rz[fov_msk]
-    xp = xp[fov_msk]
-    yp = yp[fov_msk]
-    zp = zp[fov_msk]
+#     # remove all voxel that have falling out of the FOV
+#     fov_msk = ((zp >= 1.) & (zp < fshape[2]) & (yp >= 1.) &
+#                (yp < fshape[1]) & (xp >= 1.) & (xp < fshape[0]))
+#     rx = rx[fov_msk]
+#     ry = ry[fov_msk]
+#     rz = rz[fov_msk]
+#     xp = xp[fov_msk]
+#     yp = yp[fov_msk]
+#     zp = zp[fov_msk]
 
-    # interpolate f at voxels (rx, ry, rz)
-    vf  = _tpvd_interp(f, fshape, xp, yp, zp)
+#     # interpolate f at voxels (rx, ry, rz)
+#     vf  = _tpvd_interp(f, fshape, xp, yp, zp)
 
-    # interpolate g at voxels (xp, yp, zp)
-    ivg = np.floor(_tpvd_interp(g, gshape, rx, ry, rz) + 0.5
-                   ).astype('int')
-    ivf = np.floor(vf).astype('int')
+#     # interpolate g at voxels (xp, yp, zp)
+#     ivg = np.floor(_tpvd_interp(g, gshape, rx, ry, rz) + 0.5
+#                    ).astype('int')
+#     ivf = np.floor(vf).astype('int')
 
-    # camera ready: compute joint histogram
-    jh = np.zeros(256 * 256)  # 8-bit grayscale joint-histogram
+#     # camera ready: compute joint histogram
+#     jh = np.zeros(256 * 256)  # 8-bit grayscale joint-histogram
 
-    for j in xrange(len(xp)):
-        # update corresponding bin
-        jh[(ivf[j] + ivg[j] * 256)] += (1 - (vf[j] - ivf[j]))
+#     for j in xrange(len(xp)):
+#         # update corresponding bin
+#         jh[(ivf[j] + ivg[j] * 256)] += (1 - (vf[j] - ivf[j]))
 
-        # handle special boundary
-        if ivg[j] < 255:
-            jh[(ivf[j] + 1 + ivg[j] * 256)] += (vf[j] - ivf[j])
+#         # handle special boundary
+#         if ivg[j] < 255:
+#             jh[(ivf[j] + 1 + ivg[j] * 256)] += (vf[j] - ivf[j])
 
-    # return joint histogram
-    return jh.reshape((256, 256), order='F')
+#     # return joint histogram
+#     return jh.reshape((256, 256), order='F')
 
 
 def optfun(x, VG, VF, s=[1, 1, 1], cf='mi', fwhm=[7., 7.]):
@@ -409,12 +413,7 @@ def optfun(x, VG, VF, s=[1, 1, 1], cf='mi', fwhm=[7., 7.]):
     M = np.dot(scipy.linalg.lstsq(VF.get_affine(),
                                   affine_transformations.spm_matrix(x))[0],
                                   VG.get_affine())
-    H = _joint_histogram(VG.get_data().ravel(order='F'),
-                         VF.get_data().ravel(order='F'),
-                         M=M,
-                         gshape=VG.shape,
-                         fshape=VF.shape,
-                         s=sg)
+    H = spm_hist2py.hist2py(M, VG.get_data(), VF.get_data(), sg)
 
     # # Smooth the histogram
     # lim  = np.ceil(2 * fwhm)
@@ -475,7 +474,7 @@ def spm_powell(x0, xi, tolsc, *otherargs):
         # update progress bar
         token = "\t" + "   ".join(['%-8.4g' % z
                                      for z in x])
-        token += " " * (len(x) * 13 - len(token)
+        token += " " * (len(x) * 12 - len(token)
                         ) + "| %.5g" % output
         print token
 
@@ -486,25 +485,56 @@ def spm_powell(x0, xi, tolsc, *otherargs):
 
     return scipy.optimize.fmin_powell(of, x0,
                                       direc=xi,
-                                      ftol=np.min(tolsc),
-                                      callback=_cb
+                                      xtol=np.min(tolsc),
+                                      # callback=_cb
                                       )
 
 from collections import namedtuple
 Flags = namedtuple('Flags', 'fwhm sep cost_fun tol params')
 
-if __name__ == '__main__':
-    flags = Flags(fwhm=np.array([7., 7., 7.]),
-                  sep=np.array([16, 8]),
-                  cost_fun='nmi',
-                  tol=np.array([.02] * 3 + [.001] * 3),
-                  params=np.zeros(6))
+
+def spm_coreg(ref_vol,
+              src_vol,
+              sep=[4, 2],
+              params=[0, 0, 0, 0, 0, 0],
+              tol=[.02, .02, .02, .001, .001, .001],
+              cost_fun="nmi",
+              fwhm=[7., 7., 7.]
+              ):
+    """
+    Similarity-based rigid-body multi-modal registration.
+
+    Parameters
+    ----------
+    ref_vol: nibabel 3D image object
+        reference (fixed) image
+    src_vol: nibabel 3D image object
+        source (moving) image
+    sep: 1D array of floats, optional (default [4, 2])
+        piramidal optimization seperation (in mm)
+    params: 1D array of length 6, optional (default [0, 0, 0, 0, 0, 0]
+        starting estimates
+    cost_fun: string, optional (default "nmi")
+        similarity function to be optimized. Possible values are:
+        "mi": Mutual Information
+        "nmi": Normalized Mutual Information
+        "ecc": Entropy Correlation Coefficient
+    tol: 1D array of 6 floats, optional (
+    default [.02, .02, .02, .001, .001, .001])
+        tolerances for the accuracy of each parameter
+
+    Returns
+    -------
+    x: 1D array of 6 floats
+        the six parameter defining the rigid-body motion needed to align the
+        moving image `src_vol` with the reference image `ref_vol`
+
+    """
 
     # get ready for spm_powell
-    sc = flags.tol
-    sc = sc[:len(flags.params)]
+    sc = tol
+    sc = sc[:len(params)]
     xi = np.diag(sc * 20)
-    x = flags.params.copy()
 
     # # load data
     # spm_auditory_data = fetch_spm_auditory_data(os.path.join(
@@ -517,26 +547,34 @@ if __name__ == '__main__':
 
     # vxf = np.sqrt(np.sum(VFk.get_affine()[:3, :3] ** 2, axis=0))
     # fwhmf = np.sqrt(np.maximum(
-    #         np.ones(3) * flags.sep[-1] ** 2 - vxf ** 2, [0, 0, 0])) / vxf
+    #         np.ones(3) * sep[-1] ** 2 - vxf ** 2, [0, 0, 0])) / vxf
     # # VFk = nibabel.Nifti1Image(scipy.ndimage.gaussian_filter(
     # #         VFk.get_data(),
     # #         sigma=fwhm2sigma(fwhmf)),
     # #                           VFk.get_affine())
 
+    # piramidal loop
+    xk = list(params)
+    for samp in sep:
+        # powell gradient-less local optimization
+        xk = spm_powell(xk, xi, sc, ref_vol, src_vol, samp, cost_fun, fwhm)
+
+    return xk
+
+
+if __name__ == '__main__':
+    flags = Flags(fwhm=np.array([7., 7., 7.]),
+                  sep=np.array([4, 2]),
+                  cost_fun='nmi',
+                  tol=np.array([.02] * 3 + [.001] * 3),
+                  params=np.zeros(6))
+
     import scipy.io
-    toto = scipy.io.loadmat(os.path.join(
-            os.environ['HOME'],
-            'CODE/datasets/spm_auditory/clean.mat'),
-                            squeeze_me=True, struct_as_record=0)
-    VG, VFk, sc = [toto[k] for k in ['VG', 'VFk', 'sc']]
+    toto = scipy.io.loadmat(os.path.join(PYPREPROCESS_DIR,
+                                         "test_data/spm_hist2_args_2.mat"),
+                            squeeze_me=True, struct_as_record=False)
+    VG, VFk = [toto[k] for k in ['VG', 'VFk']]
     VG = nibabel.Nifti1Image(VG.uint8, VG.mat)
     VFk = nibabel.Nifti1Image(VFk.uint8, VFk.mat)
 
-    xk = flags.params.copy()
-    for samp in flags.sep:
-        # voxel sizes
-        vxg = np.sqrt(np.sum(VG.get_affine()[:3, :3] ** 2, axis=0))
-        sg = samp / vxg
-        xk = spm_powell(xk, xi, sc, VG, VFk, samp, flags.cost_fun, flags.fwhm)
-
-    print VFk.get_data().mean()
+    print spm_coreg(VG, VFk, **flags.__dict__)

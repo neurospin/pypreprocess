@@ -664,4 +664,4 @@ class MRIMotionCorrection(object):
         self._log('...done; output saved to %s.' % output_dir)
 
         # return
-        return self
+        return self  # XXX don't return self, return rvols instead (see sklearn) !!!
