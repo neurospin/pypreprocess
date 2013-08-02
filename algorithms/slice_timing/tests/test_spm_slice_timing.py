@@ -123,11 +123,9 @@ def test_fMRISTC_constructor():
     nose.tools.assert_equal(fmristc.interleaved, False)
     nose.tools.assert_true(fmristc.verbose == 1)
 
-def _relative_error(x, y):
-    return (x) * np.abs((x - y) / x) + (x == 0) * np.abs(y)
 
-
-def check_STC(true_signal, corrected_signal, ref_slice=0, max_re=1e-1):
+def check_STC(true_signal, corrected_signal, ref_slice=0,
+              rtol=None, atol=None):
     n_slices = true_signal.shape[2]
 
     numpy.testing.assert_array_almost_equal(
@@ -135,9 +133,17 @@ def check_STC(true_signal, corrected_signal, ref_slice=0, max_re=1e-1):
         true_signal[..., ref_slice, ...])
 
     for z in xrange(1, n_slices):
-        nose.tools.assert_true(np.all(_relative_error(
-                    true_signal[..., 1:-1],
-                    corrected_signal[..., 1:-1]) < max_re))
+        # relative closeness
+        if not rtol is None:
+            numpy.testing.assert_allclose(true_signal[..., 1:-1],
+                                          corrected_signal[..., 1:-1],
+                                          rtol=rtol)
+
+        # relative closeness
+        if not atol is None:
+            numpy.testing.assert_allclose(true_signal[..., 1:-1],
+                                          corrected_signal[..., 1:-1],
+                                          atol=atol)
 
 
 def test_STC_for_sinusoidal_mixture(
@@ -201,7 +207,8 @@ def test_STC_for_sinusoidal_mixture(
                                )
 
     # check
-    check_STC(true_signal, stc.output_data_, max_re=.13)
+    check_STC(true_signal, stc.output_data_, rtol=1.)
+    check_STC(true_signal, stc.output_data_, atol=.13)
 
 
 def test_STC_for_HRF():
@@ -273,7 +280,7 @@ def test_STC_for_HRF():
                                )
 
     # check
-    check_STC(true_signal, stc.output_data_, max_re=.005)
+    check_STC(true_signal, stc.output_data_, atol=.005)
 
 # run all tests
 nose.runmodule(config=nose.config.Config(

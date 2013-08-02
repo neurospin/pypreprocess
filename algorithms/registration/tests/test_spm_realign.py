@@ -197,7 +197,7 @@ def test_MRIMotionCorrection_fit():
     lkp = np.arange(6)
     translation = np.array([1, 3, 2])  # mm
     rotation = np.array([1, 2, .5])  # degrees
-    MAX_RE = .15  # we'll test for this max relative error in estimating motion
+    MAX_RE = .12  # we'll test for this max relative error in estimating motion
 
     # create data
     vol = scipy.io.loadmat(os.path.join(PYPREPROCESS_DIR,
@@ -224,9 +224,6 @@ def test_MRIMotionCorrection_fit():
     # fit: estimate motion
     mrimc.fit([film])
 
-    def _re(x, y):
-        return np.abs((x - y) / x)
-
     # check that we estimated the correct motion params
     # XXX refine the notion of "closeness" below
     for t in xrange(n_scans):
@@ -241,8 +238,8 @@ def test_MRIMotionCorrection_fit():
         _tmp[:3] += _make_vol_specific_translation(translation, n_scans, t)
         _tmp[3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
         if t > 0:
-            nose.tools.assert_true(np.all(_re(mrimc._rp_[0][t][lkp],
-                                              _tmp[lkp]) < MAX_RE))
+            numpy.testing.assert_allclose(mrimc._rp_[0][t][lkp],
+                                          _tmp[lkp], rtol=MAX_RE)
         else:
             numpy.testing.assert_array_equal(mrimc._rp_[0][t],
                                           get_initial_motion_params())
