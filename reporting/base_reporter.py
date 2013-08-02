@@ -248,15 +248,15 @@ def commit_subject_thumnbail_to_parent_gallery(
 
     """
 
-    if not thumbnail.img.src is None:
-        thumbnail.img.height = "250px"
-        thumbnail.img.src = "%s/%s" % (
-            subject_id,
-            os.path.basename(thumbnail.img.src))
-        thumbnail.a.href = "%s/%s" % (
-            subject_id,
-            os.path.basename(thumbnail.a.href))
-        parent_results_gallery.commit_thumbnails(thumbnail)
+    # sanitize thumbnail
+    assert hasattr(thumbnail, 'img')
+    assert not thumbnail.img is None
+
+    # resize thumbnail
+    thumbnail.img.height = "250px"
+
+    # commit thumbnail to parent's gallery
+    parent_results_gallery.commit_thumbnails(thumbnail)
 
 
 class ProgressReport(object):
