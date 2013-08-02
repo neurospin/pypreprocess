@@ -700,6 +700,9 @@ def generate_subject_preproc_report(
     func=None,
     anat=None,
     estimated_motion=None,
+    gm=None,
+    wm=None,
+    csf=None,
     output_dir='/tmp',
     subject_id="UNSPECIFIED!",
     sessions=['UNKNOWN_SESSION'],
@@ -824,6 +827,9 @@ def generate_subject_preproc_report(
     seg_thumbs = generate_segmentation_thumbnails(
         func,
         output_dir,
+        subject_gm_file=gm,
+        subject_wm_file=wm,
+        subject_csf_file=csf,
         cmap=pl.cm.spectral,
         brain="EPI",
         results_gallery=results_gallery,
@@ -841,6 +847,9 @@ def generate_subject_preproc_report(
         generate_segmentation_thumbnails(
             anat,
             output_dir,
+            subject_gm_file=gm,
+            subject_wm_file=wm,
+            subject_csf_file=csf,
             cmap=pl.cm.gray,
             brain="anat",
             results_gallery=results_gallery,
@@ -874,14 +883,32 @@ def generate_dataset_preproc_report(
 
     Parameters
     ----------
-    subject_preproc_data: array-like of strings or dictsSubjectData objects
+    subject_preproc_data: array-like of strings or dicts
         .json filenames containing dicts, or dicts (one per
         subject) keys should be 'subject_id', 'func', 'anat', and
         optionally: 'estimated_motion'
+    output_dir: string
+        directory to where all output will be written
+    dataset_id: string, optional (default None)
+        a short description of the dataset (e.g "ABIDE")
+    replace_in_path: array_like of pairs, optional (default None)
+        things to replace in all paths for example [('/vaprofic',
+        '/mnt'), ('NYU', 'ABIDE')] will replace, in all paths,
+        '/vaporific' with  and 'NYU' with 'ABIDE'. This is useful if the
+        data was copied from one location to another (thus invalidating)
+        all path references in the json files in subject_preproc_data,
+        etc.
+    preproc_undergone: string
+        a string describing the preprocessing steps undergone. This
+        maybe cleartext or basic html (the latter is adviced)
 
     """
 
     output = {}
+
+    # sanitize output_dir
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     # copy web stuff
     base_reporter.copy_web_conf_files(output_dir)
@@ -893,7 +920,7 @@ def generate_dataset_preproc_report(
     report_filename = os.path.join(
         output_dir, 'report.html')
 
-        # initialize results gallery
+    # initialize results gallery
     loader_filename = os.path.join(
         output_dir, "results_loader.php")
     parent_results_gallery = base_reporter.ResultsGallery(
@@ -946,7 +973,7 @@ def generate_dataset_preproc_report(
                          for k in json_data.keys()
                          if k in ['func', 'anat',
                                   'estimated_motion',
-                                  'output_dir',
+                                  'gm', 'wm', 'csf',
                                   'subject_id',
                                   'preproc_undergone'])
 
