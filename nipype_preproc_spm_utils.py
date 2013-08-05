@@ -88,6 +88,27 @@ DARTEL_URL = ("http://www.fil.ion.ucl.ac.uk/spm/software/spm8/"
 NIPYPE_URL = "http://nipy.sourceforge.net/nipype/"
 
 
+def _hard_link(stuff, output_dir):
+    """
+    Auxiliary function for hardlinking files to specified output director.
+
+    """
+
+    if isinstance(stuff, basestring):
+        output_filename = os.path.join(output_dir, os.path.basename(stuff))
+
+        print "\tHardlinking %s -> %s..." % (stuff, output_filename)
+
+        # unlink if link already exists
+        if os.path.exists(output_filename):
+            os.unlink(output_filename)
+
+        os.link(stuff, output_filename)
+        return output_filename
+    else:
+        return [_hard_link(_stuff, output_dir) for _stuff in stuff]
+
+
 class SubjectData(Bunch):
     """
     Encapsulation for subject data, relative to preprocessing.
@@ -2178,6 +2199,14 @@ def do_subjects_preproc(subjects,
 
         results = _results
 
+    # hard-link output files to subject's immediate output dir
+    for x in results:
+        for k, v in x.iteritems():
+            if k in ['anat', 'func', 'estimated_motion', 'gm', 'wm', 'csf']:
+                x[k] = _hard_link(v, os.path.join(output_dir,
+                                                  x['subject_id']))
+
+    # finalize report
     if do_report:
         finalize_report()
 

@@ -579,7 +579,8 @@ if __name__ == '__main__':
     from external.nilearn.datasets import fetch_spm_auditory_data
     from algorithms.registration.spm_realign import _apply_realignment_to_vol
 
-    sd = fetch_spm_auditory_data("/home/elvis/CODE/datasets/spm_auditory")
+    sd = fetch_spm_auditory_data(os.path.join(os.environ['HOME'],
+                                              "CODE/datasets/spm_auditory"))
 
     fig = plt.figure()
 
@@ -605,7 +606,7 @@ if __name__ == '__main__':
     p = np.zeros(6)
     for i, j in np.ndindex(shape):
         p[:3] = np.random.randn(3) * (i + j) * 2
-        p[3:] = np.random.randn(3) * .1
+        p[3:] = np.random.randn(3) * .01
 
         x = _apply_realignment_to_vol(sd.func[0], p)
         q = spm_coreg(sd.func[0], x)
