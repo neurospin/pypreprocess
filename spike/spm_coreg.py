@@ -1,6 +1,6 @@
-
 import numpy as np
 import scipy.ndimage
+import scipy.signal
 import scipy.special
 import scipy.optimize
 import scipy.io
@@ -16,8 +16,6 @@ sys.path.append(PYPREPROCESS_DIR)
 
 import algorithms.registration.affine_transformations as affine_transformations
 import algorithms.registration.kernel_smooth as kernel_smooth
-
-from external.nilearn.datasets import fetch_spm_auditory_data
 
 EPS = np.finfo(float).eps
 
@@ -125,7 +123,7 @@ def loaduint8(filename):
 
         # pth slice
         uint8_dat[..., p] = np.uint8(np.maximum(np.minimum(np.round((
-                            img + r - mn) * (0xFF / (mx - mn))), 0xFF), 0x00))
+                            img + r - mn) * (255. / (mx - mn))), 255.), 0.))
 
     # return the data
     return nibabel.Nifti1Image(uint8_dat, nii_img.get_affine())
@@ -415,24 +413,19 @@ def optfun(x, VG, VF, s=[1, 1, 1], cf='mi', fwhm=[7., 7.]):
                                   VG.get_affine())
     H = spm_hist2py.hist2py(M, VG.get_data(), VF.get_data(), sg)
 
-    # # Smooth the histogram
-    # lim  = np.ceil(2 * fwhm)
-    # krn1 = smoothing_kernel(fwhm[0], np.linspace(-1 * lim[0], lim[0],
-    #                                               num=2 * lim[0]))
-    # krn1 = krn1 / np.sum(krn1)
-    # H = scipy.ndimage.convolve(H, krn1)
-    # krn2 = smoothing_kernel(fwhm[1], np.linspace(-1 * lim[1], lim[1],
-    #                                               num=2 * lim[1]))
+    # Smooth the histogram
+    lim  = np.ceil(fwhm * 2)
+    krn1 = smoothing_kernel(fwhm[0], np.linspace(-1 * lim[0], lim[0],
+                                                  num=2 * lim[0]))
+    krn1 = krn1 / np.sum(krn1)
+    krn2 = smoothing_kernel(fwhm[1], np.linspace(-1 * lim[1], lim[1],
+                                                  num=2 * lim[1]))
+    krn2 = krn2 / np.sum(krn2)
 
-    # krn2 = krn2 / np.sum(krn2)
-    # H = scipy.ndimage.convolve(H, krn2)
+    # H = scipy.signal.sepfir2d(H, krn1, krn2)
+    H = scipy.ndimage.gaussian_filter(H, sigma=fwhm2sigma(fwhm[:2]),
+                                      mode='wrap')
 
-    # Compute cost function from histogram
-    # import scipy.io as scio
-    # H = scio.loadmat("/tmp/H.mat",
-    #                      squeeze_me=True, struct_as_record=False)['H']
-
-    # H = scipy.ndimage.gaussian_filter(H, sigma=fwhm2sigma(fwhm[:2]))
     H = H + EPS
     sh = np.sum(H)
     H = H / sh
@@ -469,13 +462,14 @@ def optfun(x, VG, VF, s=[1, 1, 1], cf='mi', fwhm=[7., 7.]):
 def spm_powell(x0, xi, tolsc, *otherargs):
 
     def of(x):
+
         output = optfun(x, *otherargs)
 
         # update progress bar
         token = "\t" + "   ".join(['%-8.4g' % z
                                      for z in x])
         token += " " * (len(x) * 12 - len(token)
-                        ) + "| %.5g" % output
+                        ) + "| %.9g" % output
         print token
 
         return output
@@ -485,7 +479,7 @@ def spm_powell(x0, xi, tolsc, *otherargs):
 
     return scipy.optimize.fmin_powell(of, x0,
                                       direc=xi,
-                                      xtol=np.min(tolsc),
+                                      xtol=min(np.min(tolsc), 1e-3),
                                       # callback=_cb
                                       )
 
@@ -499,7 +493,8 @@ def spm_coreg(ref_vol,
               params=[0, 0, 0, 0, 0, 0],
               tol=[.02, .02, .02, .001, .001, .001],
               cost_fun="nmi",
-              fwhm=[7., 7., 7.]
+              fwhm=[7., 7., 7.],
+              smooth_vols=True,
               ):
     """
     Similarity-based rigid-body multi-modal registration.
@@ -531,27 +526,44 @@ def spm_coreg(ref_vol,
 
     """
 
+    params = np.array(params)
+    tol = np.array(tol)
+    fwhm = np.array(fwhm)
+
     # get ready for spm_powell
     sc = tol
     sc = sc[:len(params)]
     xi = np.diag(sc * 20)
 
-    # # load data
-    # spm_auditory_data = fetch_spm_auditory_data(os.path.join(
-    #         os.environ['HOME'],
-    #         "CODE/datasets/spm_auditory"))
-    # ref = spm_auditory_data.func[0]
-    # src = spm_auditory_data.anat
-    # VG = loaduint8(ref)
-    # VFk = loaduint8(src)
+    # load ref_vol
+    ref_vol = nibabel.load(ref_vol) if isinstance(
+        ref_vol, basestring) else ref_vol
+    if not ref_vol.get_data().dtype == np.uint8:
+        ref_vol = loaduint8(ref_vol)
 
-    # vxf = np.sqrt(np.sum(VFk.get_affine()[:3, :3] ** 2, axis=0))
-    # fwhmf = np.sqrt(np.maximum(
-    #         np.ones(3) * sep[-1] ** 2 - vxf ** 2, [0, 0, 0])) / vxf
-    # # VFk = nibabel.Nifti1Image(scipy.ndimage.gaussian_filter(
-    # #         VFk.get_data(),
-    # #         sigma=fwhm2sigma(fwhmf)),
-    # #                           VFk.get_affine())
+    # load src_vol
+    src_vol = nibabel.load(src_vol) if isinstance(
+        src_vol, basestring) else src_vol
+    if not src_vol.get_data().dtype == np.uint8:
+        src_vol = loaduint8(src_vol)
+
+    # smooth vols
+    if smooth_vols:
+        vxg = np.sqrt(np.sum(ref_vol.get_affine()[:3, :3] ** 2, axis=0))
+        fwhmg = np.sqrt(np.maximum(
+                np.ones(3) * sep[-1] ** 2 - vxg ** 2, [0, 0, 0])) / vxg
+        ref_vol = nibabel.Nifti1Image(
+            scipy.ndimage.gaussian_filter(ref_vol.get_data(),
+                                          fwhm2sigma(fwhmg)),
+            ref_vol.get_affine())
+
+        vxf = np.sqrt(np.sum(src_vol.get_affine()[:3, :3] ** 2, axis=0))
+        fwhmf = np.sqrt(np.maximum(
+                np.ones(3) * sep[-1] ** 2 - vxf ** 2, [0, 0, 0])) / vxf
+        src_vol = nibabel.Nifti1Image(
+            scipy.ndimage.gaussian_filter(src_vol.get_data(),
+                                          fwhm2sigma(fwhmf)),
+            src_vol.get_affine())
 
     # piramidal loop
     xk = list(params)
@@ -563,6 +575,14 @@ def spm_coreg(ref_vol,
 
 
 if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+    from external.nilearn.datasets import fetch_spm_auditory_data
+    from algorithms.registration.spm_realign import _apply_realignment_to_vol
+
+    sd = fetch_spm_auditory_data("/home/elvis/CODE/datasets/spm_auditory")
+
+    fig = plt.figure()
+
     flags = Flags(fwhm=np.array([7., 7., 7.]),
                   sep=np.array([4, 2]),
                   cost_fun='nmi',
@@ -571,10 +591,26 @@ if __name__ == '__main__':
 
     import scipy.io
     toto = scipy.io.loadmat(os.path.join(PYPREPROCESS_DIR,
-                                         "test_data/spm_hist2_args_2.mat"),
+                                         "test_data/spm_hist2_args_1.mat"),
                             squeeze_me=True, struct_as_record=False)
     VG, VFk = [toto[k] for k in ['VG', 'VFk']]
     VG = nibabel.Nifti1Image(VG.uint8, VG.mat)
     VFk = nibabel.Nifti1Image(VFk.uint8, VFk.mat)
 
-    print spm_coreg(VG, VFk, **flags.__dict__)
+    # q0 = spm_coreg(VG, VFk, smooth_vols=False, **flags.__dict__)
+    # VFk = _apply_realignment_to_vol(VFk, q0)
+    # print q0
+
+    shape = (6, 2)
+    p = np.zeros(6)
+    for i, j in np.ndindex(shape):
+        p[:3] = np.random.randn(3) * (i + j) * 2
+        p[3:] = np.random.randn(3) * .1
+
+        x = _apply_realignment_to_vol(sd.func[0], p)
+        q = spm_coreg(sd.func[0], x)
+
+        ax = plt.subplot2grid(shape, (i, j))
+        ax.plot(np.transpose([p, -q]), 's-')
+
+    plt.show()
