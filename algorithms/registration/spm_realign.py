@@ -24,6 +24,7 @@ sys.path.append(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coreutils.io_utils import (_load_specific_vol,
+                                _load_vol,
                                 _save_vols
                                 )
 
@@ -112,6 +113,8 @@ def _apply_realignment_to_vol(vol, q, inverse=True):
     Input is not modified.
 
     """
+
+    vol = _load_vol(vol)
 
     # convert realigment params to affine transformation
     M_q = affine_transformations.spm_matrix(q)
