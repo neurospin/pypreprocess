@@ -392,18 +392,25 @@ def hard_link(filenames, output_dir):
     """
 
     if isinstance(filenames, basestring):
-        hardlinked_filename = os.path.join(
-            output_dir, os.path.basename(filenames))
+        filenames = [filenames]
+        if filenames[0].endswith(".img"):
+            filenames.append(filenames[0].replace(".img", ".hdr"))
+        if filenames[0].endswith(".hdr"):
+            filenames.append(filenames[0].replace(".hdr", ".img"))
 
-        print "\tHardlinking %s -> %s..." % (filenames, hardlinked_filename)
+        hardlinked_filenames = [os.path.join(
+            output_dir, os.path.basename(x)) for x in filenames]
 
-        # unlink if link already exists
-        if os.path.exists(hardlinked_filename):
-            os.unlink(hardlinked_filename)
+        for x, y in zip(filenames, hardlinked_filenames):
+            print "\tHardlinking %s -> %s..." % (x, y)
 
-        # hard-link the file proper
-        os.link(filenames, hardlinked_filename)
+            # unlink if link already exists
+            if os.path.exists(y):
+                os.unlink(y)
 
-        return hardlinked_filename
+            # hard-link the file proper
+            os.link(x, y)
+
+        return hardlinked_filenames[0]
     else:
         return [hard_link(_filenames, output_dir) for _filenames in filenames]
