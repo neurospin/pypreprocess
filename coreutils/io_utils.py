@@ -370,3 +370,40 @@ def compute_mean_3D_image(images, output_filename=None):
 
     return compute_mean_image(images, output_filename=output_filename,
                               threeD=True)
+
+
+def hard_link(filenames, output_dir):
+    """
+    Auxiliary function for hardlinking files to specified output director.
+
+    Parameters
+    ----------
+    filenames: string, list of strings, or list of such, or list of such,
+    or list of such, and so on.
+        files to hard-link
+    output_dir: string
+        output directory to which the files will be hard-linked
+
+    Returns
+    -------
+    hardlinked_filenames: same structure as the input filenames
+        the hard-linked filenames
+
+    """
+
+    if isinstance(filenames, basestring):
+        hardlinked_filename = os.path.join(
+            output_dir, os.path.basename(filenames))
+
+        print "\tHardlinking %s -> %s..." % (filenames, hardlinked_filename)
+
+        # unlink if link already exists
+        if os.path.exists(hardlinked_filename):
+            os.unlink(hardlinked_filename)
+
+        # hard-link the file proper
+        os.link(filenames, hardlinked_filename)
+
+        return hardlinked_filename
+    else:
+        return [hard_link(_filenames, output_dir) for _filenames in filenames]

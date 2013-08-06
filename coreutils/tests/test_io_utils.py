@@ -2,6 +2,7 @@ import sys
 import numpy as np
 import nibabel
 import os
+import tempfile
 import inspect
 import nose
 import nose.tools
@@ -16,7 +17,9 @@ from coreutils.io_utils import (
     _load_vol,
     _load_specific_vol,
     do_3Dto4D_merge,
-    _save_vols)
+    _save_vols,
+    hard_link
+    )
 
 # global setup
 this_file = os.path.basename(os.path.abspath(__file__)).split('.')[0]
@@ -157,6 +160,47 @@ def test_do_3Dto4D_merge():
     nose.tools.assert_equal(_film.shape, film.shape)
 
     _save_vols(threeD_vols, output_dir, ext='.nii.gz')
+
+
+def test_hardlink():
+    # setup
+    output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    def _make_filenames(n=100):
+        """
+        Helper function to make a filename or list of filenames,
+        or list of lists of such, or ...
+
+        """
+
+        if n < 2 or np.random.rand() < .5:
+            filename = tempfile.mktemp()
+            with open(filename, 'a') as fd:
+                fd.close()
+            return filename
+        else:
+            l = np.random.randint(1, n)
+            return [_make_filenames(n - l) for _ in xrange(l)]
+
+    filenames = _make_filenames()
+    hl_filenames = hard_link(filenames, output_dir)
+
+    def _check_ok(x, y):
+        if isinstance(x, basestring):
+            # check that hardlink was actually made
+            nose.tools.assert_true(os.path.exists(x))
+
+            # cleanup
+            os.unlink(x)
+            os.remove(y)
+        else:
+            # assuming list_like; recursely do this check
+            for _x, _y in zip(x, y):
+                _check_ok(_x, _y)
+
+    _check_ok(hl_filenames, filenames)
 
 
 # run all tests

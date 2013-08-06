@@ -30,7 +30,7 @@ import pylab as pl
 import numpy as np
 from nipype.interfaces.base import Bunch
 from coreutils.io_utils import delete_orientation, is_3D, get_vox_dims,\
-    compute_mean_image
+    compute_mean_image, hard_link
 from datasets_extras import unzip_nii_gz
 
 # spm and matlab imports
@@ -86,27 +86,6 @@ PYPREPROCESS_URL = "https://github.com/neurospin/pypreprocess"
 DARTEL_URL = ("http://www.fil.ion.ucl.ac.uk/spm/software/spm8/"
               "SPM8_Release_Notes.pdf")
 NIPYPE_URL = "http://nipy.sourceforge.net/nipype/"
-
-
-def _hard_link(stuff, output_dir):
-    """
-    Auxiliary function for hardlinking files to specified output director.
-
-    """
-
-    if isinstance(stuff, basestring):
-        output_filename = os.path.join(output_dir, os.path.basename(stuff))
-
-        print "\tHardlinking %s -> %s..." % (stuff, output_filename)
-
-        # unlink if link already exists
-        if os.path.exists(output_filename):
-            os.unlink(output_filename)
-
-        os.link(stuff, output_filename)
-        return output_filename
-    else:
-        return [_hard_link(_stuff, output_dir) for _stuff in stuff]
 
 
 class SubjectData(Bunch):
@@ -809,23 +788,6 @@ def _do_subject_preproc(
 
     if do_report:
         base_reporter.copy_web_conf_files(subject_data.output_dir)
-
-        # # copy css and js stuff to output dir
-        # for js_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-        #                                   "js/*.js")):
-        #     shutil.copy(js_file, subject_data.output_dir)
-        # for css_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-        #                                   "css/*.css")):
-        #     shutil.copy(css_file, subject_data.output_dir)
-        # for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-        #                                         "icons/*.gif")):
-        #     shutil.copy(icon_file, subject_data.output_dir)
-        # for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-        #                                         "images/*.png")):
-        #     shutil.copy(icon_file, subject_data.output_dir)
-        # for icon_file in glob.glob(os.path.join(base_reporter.ROOT_DIR,
-        #                                         "images/*.jpeg")):
-        #     shutil.copy(icon_file, subject_data.output_dir)
 
         report_log_filename = os.path.join(
             subject_data.output_dir, 'report_log.html')
@@ -2203,8 +2165,7 @@ def do_subjects_preproc(subjects,
     for x in results:
         for k, v in x.iteritems():
             if k in ['anat', 'func', 'estimated_motion', 'gm', 'wm', 'csf']:
-                x[k] = _hard_link(v, os.path.join(output_dir,
-                                                  x['subject_id']))
+                x[k] = hard_link(v, os.path.join(output_dir, x['subject_id']))
 
     # finalize report
     if do_report:
