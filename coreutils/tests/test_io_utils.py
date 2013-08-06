@@ -168,7 +168,11 @@ def test_hardlink():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    def _make_filenames(n=100):
+    def _touch(filename):
+        with open(filename, 'a') as fd:
+            fd.close()
+
+    def _make_filenames(n=1):
         """
         Helper function to make a filename or list of filenames,
         or list of lists of such, or ...
@@ -177,9 +181,17 @@ def test_hardlink():
 
         if n < 2 or np.random.rand() < .5:
             filename = tempfile.mktemp()
-            with open(filename, 'a') as fd:
-                fd.close()
-            return filename
+
+            # file extension
+            extensions = [".nii.gz"] if np.random.rand() < .5 else [
+                ".img", ".hdr"]
+
+            files = [filename + ext for ext in extensions]
+
+            for x in files:
+                _touch(x)
+
+            return files[0]
         else:
             l = np.random.randint(1, n)
             return [_make_filenames(n - l) for _ in xrange(l)]
@@ -191,12 +203,20 @@ def test_hardlink():
         if isinstance(x, basestring):
             # check that hardlink was actually made
             nose.tools.assert_true(os.path.exists(x))
+            if x.endswith('.img'):
+                nose.tools.assert_true(os.path.exists(x.replace(".img", ".hdr")))
 
             # cleanup
             os.unlink(x)
             os.remove(y)
+            if x.endswith('.img'):
+                os.unlink(x.replace(".img", ".hdr"))
+                os.unlink(y.replace(".img", ".hdr"))
         else:
             # assuming list_like; recursely do this check
+            nose.tools.assert_true(isinstance(x, list))
+            nose.tools.assert_true(isinstance(y, list))
+
             for _x, _y in zip(x, y):
                 _check_ok(_x, _y)
 

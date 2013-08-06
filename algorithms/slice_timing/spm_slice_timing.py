@@ -593,13 +593,16 @@ def plot_slicetiming_results(acquired_sample,
            " (close figure to see the next one)..." % (n_slices, x, y))
 
     acquisition_time = np.linspace(0, (n_scans - 1) * TR, n_scans)
-    for z in xrange(n_slices):
+    n_rows = 4
+    n_cols = 3 if (
+        not ground_truth_signal is None and not ground_truth_time is None
+        ) else 2
+    slices_for_QA = np.arange(0, n_slices, n_slices / (n_rows * n_cols))
+    plt.figure()
+    for z in xrange(len(slices_for_QA)):
         # setup for plotting
-        plt.figure()
-        plt.suptitle('%s: QA for voxel %s' % (suptitle_prefix, str((x, y, z))))
-
-        ax1 = plt.subplot2grid((n_rows_plot, 1),
-                               (0, 0))
+        loc = np.unravel_index(z, (n_rows, n_cols))
+        ax1 = plt.subplot2grid((n_rows, n_cols), loc)
 
         # plot acquired sample
         ax1.plot(acquisition_time, acquired_sample[x][y][z],
@@ -616,7 +619,7 @@ def plot_slicetiming_results(acquired_sample,
             ax1.plot(ground_truth_time, ground_truth_signal)
             plt.hold('on')
 
-            ax3 = plt.subplot2grid((n_rows_plot, 1),
+            ax1 = plt.subplot2grid((n_rows_plot, 1),
                                    (2, 0))
 
             # compute absolute error and plot an error
