@@ -14,16 +14,40 @@ import nibabel
 from external.nilearn import resampling
 
 
+def is_niimg(img):
+    """
+    Checks whether given img is nibabel image object.
+
+    """
+
+    if isinstance(img, (nibabel.Nifti1Image,
+                        nibabel.Nifti1Pair
+                        # add other supported image types below (e.g
+                        # AnalyseImage, etc.)
+                        )):
+        return type(img)
+    else:
+        return False
+
+
 def _load_vol(x):
     """
     Loads a single 3D volume.
+
+    Parameters
+    ----------
+    x: string (existent filename) or nibabel image object
+        image to be loaded
+
+    Returns
+    -------
+    vol: nibabel image object
 
     """
 
     if isinstance(x, basestring):
         vol = nibabel.load(x)
-    elif isinstance(x, nibabel.Nifti1Image) or isinstance(
-        x, nibabel.Nifti1Pair):
+    elif is_niimg(x):
         vol = x
     else:
         raise TypeError(
@@ -58,8 +82,7 @@ def _load_specific_vol(vols, t):
     if isinstance(vols, list):
         n_scans = len(vols)
         vol = _load_vol(vols[t])
-    elif isinstance(vols, nibabel.Nifti1Image) or isinstance(
-        vols, nibabel.Nifti1Pair) or isinstance(vols, basestring):
+    elif is_niimg(vols) or isinstance(vols, basestring):
         _vols = nibabel.load(vols) if isinstance(vols, basestring) else vols
         if len(_vols.shape) != 4:
             raise ValueError(
@@ -75,7 +98,8 @@ def _load_specific_vol(vols, t):
     return vol, n_scans
 
 
-def _save_vols(vols, output_dir, concat=False, prefix='', ext='.nii'):
+def _save_vols(vols, output_dir, affine=None,
+               concat=False, prefix='', ext='.nii'):
     """
     Saves a single 4D image or a couple of 3D vols unto disk.
 
@@ -88,10 +112,28 @@ def _save_vols(vols, output_dir, concat=False, prefix='', ext='.nii'):
 
     """
 
-    if isinstance(vols, nibabel.Nifti1Image) or isinstance(
-        vols, nibabel.Nifti1Pair) or concat:
+    def _nifti_or_ndarray_to_nifti(x):
+        if is_niimg(x):
+            if not affine is None:
+                raise ValueError(
+                    ("vol is of type %s; not expecting `affine` parameter."
+                     ) % type(x))
+            else:
+                return x
+
+        if affine is None:
+            raise ValueError(
+                "vol is of type ndarray; you need to specifiy `affine`")
+        else:
+            return nibabel.Nifti1Image(x, affine)
+
+    if is_niimg(vols) or isinstance(vols, np.ndarray) or concat:
+        if isinstance(vols, np.ndarray):
+            vols = _nifti_or_ndarray_to_nifti(vols)
         if concat:
-            vols = nibabel.concat_images(vols)
+            if isinstance(vols, list):
+                vols = nibabel.concat_images([_nifti_or_ndarray_to_nifti(vol)
+                                              for vol in vols])
 
         filenames = os.path.join(output_dir, "%s%s" % (prefix, ext))
         nibabel.save(vols, filenames)
@@ -103,6 +145,14 @@ def _save_vols(vols, output_dir, concat=False, prefix='', ext='.nii'):
         if prefix:
             prefix = prefix + "_"
         for t, vol in zip(xrange(n_vols), vols):
+            if isinstance(vol, np.ndarray):
+                if affine is None:
+                    raise ValueError(
+                        ("vols is of type ndarray; you need to specifiy"
+                         " `affine`"))
+                else:
+                    vol = nibabel.Nifti1Image(vol, affine)
+
             # save realigned vol unto disk
             output_filename = os.path.join(output_dir,
             "%svol_%i%s" % (

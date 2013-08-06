@@ -146,7 +146,7 @@ def generate_ica_report(
     base_reporter.make_standalone_colorbar(
         cmap, threshold, 8., colorbar_outfile)
 
-    # create activation thumbs
+    # generate thumbs for the gallery
     _vmax = 0
     _vmin = threshold
     for ica_map_id, ica_map in ica_maps.iteritems():

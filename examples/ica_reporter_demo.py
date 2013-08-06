@@ -9,6 +9,8 @@ import reporting.ica_reporter as ica_reporter
 MELODIC_NII_GZ = "melodic_IC.nii.gz"
 if len(sys.argv) > 1:
     MELODIC_NII_GZ = sys.argv[1]
+else:
+    assert os.path.exists(MELODIC_NII_GZ)
 
 ###########
 # Reports
@@ -22,6 +24,7 @@ methods_text += "<i>" + re.search(".*melodic \-i .*",
                              open(
         os.path.join(output_dir,
                      'log.txt')).read()).group() + "</i>"
+
 ica_report_filename = os.path.join(output_dir, "report_stats.html")
 
 # split ICA 4D film into separate 3D vols (one per component)
