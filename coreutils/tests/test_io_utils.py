@@ -156,34 +156,6 @@ def test_save_vols():
                 nose.tools.assert_true(isinstance(saved_vols_filenames, basestring))
 
 
-# def test_save_vols():
-#     # setup
-#     n_scans = 10
-#     output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
-#     if not os.path.exists(output_dir):
-#         os.makedirs(output_dir)
-
-#     # create 4D film
-#     film = create_random_image(ndim=4, n_scans=n_scans)
-#     threeD_vols = nibabel.four_to_three(film)
-
-#     # check saving seperate 3D vols
-#     for stuff in [film, threeD_vols]:
-#         for concat in [False, True]:
-#             saved_vols_filenames = _save_vols(stuff,
-#                                               output_dir,
-#                                               ext='.nii.gz',
-#                                               concat=concat
-#                                               )
-#             if not concat and isinstance(stuff, list):
-#                     nose.tools.assert_true(isinstance(
-#                             saved_vols_filenames, list))
-#                     nose.tools.assert_equal(len(saved_vols_filenames),
-#                                             n_scans)
-#             else:
-#                 nose.tools.assert_true(isinstance(saved_vols_filenames, basestring))
-
-
 def test_save_vols_from_ndarray_with_affine():
     # setup
     n_scans = 10

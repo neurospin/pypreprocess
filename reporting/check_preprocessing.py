@@ -18,7 +18,7 @@ from nipy.labs import compute_mask_files
 from nipy.labs import viz
 import joblib
 
-from coreutils.io_utils import do_3Dto4D_merge, compute_mean_3D_image
+from coreutils.io_utils import do_3Dto4D_merge, compute_mean_3D_image, _load_vol
 
 EPS = np.finfo(float).eps
 
@@ -31,12 +31,12 @@ def plot_spm_motion_parameters(parameter_file, title=None,
     ----------
     parameter_file: string
         path of file containing the motion parameters
-
     subject_id: string (optional)
         subject id
-
     titile: string (optional)
         title to attribute to plotted figure
+    output_filename: string
+        output filename for storing the plotted figure
 
     """
 
@@ -251,6 +251,10 @@ def plot_registration(reference_img, coregistered_img,
     # overlap the reference image
     if hasattr(reference_img, '__len__'):
         reference_img = compute_mean_3D_image(reference_img)
+
+    coregistered_img = _load_vol(coregistered_img)
+    reference_img = _load_vol(reference_img)
+
     # XXX else i'm assuming a nifi object ;)
     reference_data = reference_img.get_data()
     reference_affine = reference_img.get_affine()

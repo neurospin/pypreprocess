@@ -14,8 +14,20 @@ sys.path.append(PYPREPROCESS_DIR)
 
 # import APIS to test
 from spike.spm_coreg import(
-    optfun
+    optfun,
+    loaduint8
     )
+
+
+def test_loaduint8():
+    from external.nilearn.datasets import fetch_spm_auditory_data
+
+    sd = fetch_spm_auditory_data(os.path.join(os.environ['HOME'],
+                                              "CODE/datasets/spm_auditory"))
+
+    v = loaduint8(sd.func[0]).get_data()
+    assert 0, v[v > 100].sum()
+
 
 def test_optfun():
     # setup
@@ -29,7 +41,7 @@ def test_optfun():
 
     # load real-data
     tmp = scipy.io.loadmat(os.path.join(PYPREPROCESS_DIR,
-                                        "test_data/spm_hist2_args_2.mat"),
+                                        "test_data/spm_hist2_args.mat"),
                            squeeze_me=True, struct_as_record=False)
 
     VG, VFk = [tmp[k] for k in ["VG", "VFk"]]
@@ -55,3 +67,10 @@ def test_optfun():
                                           s=[4, 4, 4], cf='mi'),
                                    -.316839496034499,
                                    places=decimal_precision)    
+
+
+# run all tests
+nose.runmodule(config=nose.config.Config(
+        verbose=2,
+        nocapture=True,
+        ))
