@@ -353,12 +353,22 @@ def smooth_image(img, fwhm, **kwargs):
 
     """
 
-    smoothing_kernel = LinearFilter(
-        img.get_affine(),
-        img.shape,
-        fwhm=fwhm,
-        **kwargs)
+    if isinstance(img, basestring):
+        img = ni.load(img)
 
-    return ni.Nifti1Image(smoothing_kernel.smooth(img.get_data(),
-                                                  clean=True),
-                          img.get_affine())
+    if len(img.shape) == 4:
+        return ni.concat_images(
+            [smooth_image(vol, fwhm, **kwargs)
+             for vol in ni.four_to_three(img)])
+    else:
+        assert len(img.shape) == 3
+
+        smoothing_kernel = LinearFilter(
+            img.get_affine(),
+            img.shape,
+            fwhm=fwhm,
+            **kwargs)
+
+        return ni.Nifti1Image(smoothing_kernel.smooth(img.get_data(),
+                                                      clean=True),
+                              img.get_affine())

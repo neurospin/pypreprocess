@@ -5,11 +5,23 @@
 
 """
 
+import sys
 import os
+import copy
 import nibabel
 import scipy
 import numpy as np
 import matplotlib.pyplot as plt
+
+# pypreprocess dir
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from coreutils.io_utils import (_load_specific_vol,
+                                _load_vol,
+                                is_niimg,
+                                _save_vols
+                                )
 
 
 def get_slice_indices(n_slices, slice_order='ascending',
@@ -452,14 +464,44 @@ class fMRISTC(STC):
 
         """
 
-        if isinstance(raw_data, np.ndarray) or isinstance(raw_data, list) \
-                or isinstance(raw_data, basestring):
+        if isinstance(raw_data, basestring):
+            if isinstance(raw_data, basestring):
+                self.basenames_ = os.path.basename(raw_data)
+
+            img = nibabel.load(raw_data).get_affine()
+            raw_data, self.affine_ = img.get_data(), img.get_affine()
+        elif is_niimg(raw_data):
+            raw_data, self.affine_ = raw_data.get_data(), raw_data.get_affine()
+        elif isinstance(raw_data, list):
+            if isinstance(raw_data[0], basestring):
+                self.basenames_ = [os.path.basename(x) for x in raw_data]
+
+            self.affine_ = [_load_vol(x).get_affine() for x in raw_data]
+
             raw_data = _load_fmri_data(raw_data)
 
         return STC._sanitize_raw_data(self, raw_data, fitting=fitting)
 
     def get_raw_data(self):
         return self.raw_data
+
+    def transform(self, raw_data=None, output_dir=None):
+        data = STC.transform(self, raw_data=raw_data)
+
+        if output_dir is None:
+            return data
+
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        if isinstance(self.affine_, list):
+            self.output_ = _save_vols([nibabel.Nifti1Image(data[..., t],
+                                                           self.affine_[t])
+                                       for t in xrange(data.shape[-1])],
+                                      output_dir, prefix='a',
+                                      basenames=self.basenames_)
+
+        return self.output_
 
     # def _save_stc_output(self, output_dir,
     #                      input_filenames,

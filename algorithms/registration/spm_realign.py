@@ -638,9 +638,10 @@ class MRIMotionCorrection(object):
 
             # modify the header of each 3D vol according to the
             # estimated motion (realignment params)
-            sess_rvols = _apply_realignment(self._vols_[sess], self._rp_[sess],
-                                            inverse=False
-                                            )
+            sess_rvols = list(_apply_realignment(self._vols_[sess],
+                                                 self._rp_[sess],
+                                                 inverse=False
+                                                 ))
 
             # reslice vols
             if reslice:
@@ -651,12 +652,22 @@ class MRIMotionCorrection(object):
                         sess + 1, self._n_sessions))
 
             # save realigned files to disk
+            basenames = None
+            if isinstance(self._vols_[sess], basestring):
+                basenames = self._vols_[sess]
+            elif isinstance(self._vols_[sess], list):
+                if isinstance(self._vols_[sess][0], basestring):
+                    basenames = [os.path.basename(x)
+                                 for x in self._vols_[sess]]
+
             sess_realigned_files = _save_vols(
                 sess_rvols,
                 sess_output_dir,
+                basenames=basenames,
                 concat=concat,
                 ext=ext,
                 prefix=prefix)
+
             self._realigned_files_.append(sess_realigned_files)
 
             # save realignment params to disk
@@ -667,4 +678,6 @@ class MRIMotionCorrection(object):
         self._log('...done; output saved to %s.' % output_dir)
 
         # return
-        return self  # XXX don't return self, return rvols instead (see sklearn) !!!
+        return {'realignment_parameters': self._rp_filenames_,
+                'realigned_files': self._realigned_files_
+                }

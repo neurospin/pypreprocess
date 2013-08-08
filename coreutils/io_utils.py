@@ -98,8 +98,34 @@ def _load_specific_vol(vols, t):
     return vol, n_scans
 
 
-def _save_vols(vols, output_dir, affine=None,
-               concat=False, prefix='', ext='.nii'):
+def three_to_four(images):
+    if is_niimg(images):
+        return images
+
+    if isinstance(images, basestring):
+        return nibabel.load(images)
+
+    vol_0 = _load_vol(images[0])
+
+    data = np.ndarray(list(vol_0.shape) + [len(images)],
+                      dtype=vol_0.get_data().dtype)
+    data[..., 0] = vol_0.get_data()
+
+    for t in xrange(1, len(images)):
+        vol_t = _load_vol(images[t])
+        assert vol_t.shape == vol_0.shape
+
+        data[..., t] = vol_t.get_data()
+
+    if data.ndim == 5:
+        assert data.shape[-1] == 1
+        data = data[..., 0]
+
+    return nibabel.Nifti1Image(data, vol_0.get_affine())
+
+
+def _save_vols(vols, output_dir, basenames=None, affine=None,
+               concat=False, prefix='', ext='.nii.gz'):
     """
     Saves a single 4D image or a couple of 3D vols unto disk.
 
@@ -107,8 +133,20 @@ def _save_vols(vols, output_dir, affine=None,
         volumes to be saved
     output_dir: string
         existing filename, destination directory
+    basenames: string or list of string, optional (default None)
+        basename(s) for output image(s)
+    concat: bool, optional (default False)
+        concatenate all vols into a single film
     prefix: string, optional (default '')
        prefix to be prepended to output file basenames
+    ext: string, optional (default ".nii.gz")
+        file extension for output images
+
+    Returns
+    -------
+    string of list of strings, dependending on whether vols is list or
+    not, and on whether concat is set or not
+        the output image filename(s)
 
     """
 
@@ -127,23 +165,36 @@ def _save_vols(vols, output_dir, affine=None,
         else:
             return nibabel.Nifti1Image(x, affine)
 
-    if is_niimg(vols) or isinstance(vols, np.ndarray) or concat:
-        if isinstance(vols, np.ndarray):
-            vols = _nifti_or_ndarray_to_nifti(vols)
-        if concat:
-            if isinstance(vols, list):
-                vols = nibabel.concat_images([_nifti_or_ndarray_to_nifti(vol)
-                                              for vol in vols])
+    if isinstance(vols, np.ndarray):
+        vols = _nifti_or_ndarray_to_nifti(vols)
 
-        filenames = os.path.join(output_dir, "%s%s" % (prefix, ext))
+    if concat:
+        if isinstance(vols, list):
+            vols = nibabel.concat_images([_nifti_or_ndarray_to_nifti(vol)
+                                          for vol in vols])
+            if not basenames is None:
+                basenames = basenames[0]
+
+    if not isinstance(vols, list):
+        if basenames is None:
+            basenames = "vols"
+
+        filenames = os.path.join(output_dir, "%s%s%s" % (
+                prefix, basenames.split(".")[0], ext))
         nibabel.save(vols, filenames)
 
         return filenames
     else:
         n_vols = len(vols)
         filenames = []
-        if prefix:
-            prefix = prefix + "_"
+
+        if basenames is None:
+            if prefix:
+                prefix = prefix + "_"
+        else:
+            assert not isinstance(basenames, basestring)
+            assert len(basenames) == len(vols)
+
         for t, vol in zip(xrange(n_vols), vols):
             if isinstance(vol, np.ndarray):
                 if affine is None:
@@ -154,9 +205,14 @@ def _save_vols(vols, output_dir, affine=None,
                     vol = nibabel.Nifti1Image(vol, affine)
 
             # save realigned vol unto disk
-            output_filename = os.path.join(output_dir,
-            "%svol_%i%s" % (
-                prefix, t, ext))
+            if basenames is None:
+                output_filename = os.path.join(output_dir,
+                                               "%svol_%i%s" % (
+                        prefix, t, ext))
+            else:
+                output_filename = os.path.join(output_dir, "%s%s%s" % (
+                        prefix, basenames[t].split(".")[0], ext))
+
             nibabel.save(vol, output_filename)
 
             # update rvols and filenames

@@ -139,21 +139,33 @@ def test_save_vols():
     film = create_random_image(ndim=4, n_scans=n_scans)
     threeD_vols = nibabel.four_to_three(film)
 
+    # save vols manually
+    film_filename = os.path.join(output_dir, 'film.nii.gz')
+    threeD_vols_filenames = [os.path.join(output_dir, 'vol_%i' % i)
+                             for i in xrange(len(threeD_vols))]
+
     # check saving seperate 3D vols
     for stuff in [film, threeD_vols]:
+        if isinstance(stuff, list):
+            basenames = [os.path.basename(x)
+                         for x in threeD_vols_filenames]
+        else:
+            basenames = os.path.basename(film_filename)
         for concat in [False, True]:
-            saved_vols_filenames = _save_vols(stuff,
-                                              output_dir,
-                                              ext='.nii.gz',
-                                              concat=concat
-                                              )
-            if not concat and isinstance(stuff, list):
-                    nose.tools.assert_true(isinstance(
-                            saved_vols_filenames, list))
-                    nose.tools.assert_equal(len(saved_vols_filenames),
-                                            n_scans)
-            else:
-                nose.tools.assert_true(isinstance(saved_vols_filenames, basestring))
+            for bn in [None, basenames]:
+                saved_vols_filenames = _save_vols(stuff,
+                                                  output_dir,
+                                                  ext='.nii.gz',
+                                                  concat=concat,
+                                                  basenames=basenames
+                                                  )
+                if not concat and isinstance(stuff, list):
+                        nose.tools.assert_true(isinstance(
+                                saved_vols_filenames, list))
+                        nose.tools.assert_equal(len(saved_vols_filenames),
+                                                n_scans)
+                else:
+                    nose.tools.assert_true(isinstance(saved_vols_filenames, basestring))
 
 
 # def test_save_vols():

@@ -578,6 +578,8 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from external.nilearn.datasets import fetch_spm_auditory_data
     from algorithms.registration.spm_realign import _apply_realignment_to_vol
+    from algorithms.registration.affine_transformations import spm_matrix
+    from reporting.check_preprocessing import plot_registration
 
     sd = fetch_spm_auditory_data(os.path.join(os.environ['HOME'],
                                               "CODE/datasets/spm_auditory"))
@@ -598,20 +600,28 @@ if __name__ == '__main__':
     VG = nibabel.Nifti1Image(VG.uint8, VG.mat)
     VFk = nibabel.Nifti1Image(VFk.uint8, VFk.mat)
 
-    # q0 = spm_coreg(VG, VFk, smooth_vols=False, **flags.__dict__)
-    # VFk = _apply_realignment_to_vol(VFk, q0)
-    # print q0
+    q0 = spm_coreg(sd.func[0], sd.anat, **flags.__dict__)
+    M = spm_matrix(q0)
 
-    shape = (6, 2)
-    p = np.zeros(6)
-    for i, j in np.ndindex(shape):
-        p[:3] = np.random.randn(3) * (i + j) * 2
-        p[3:] = np.random.randn(3) * .1
-
-        x = _apply_realignment_to_vol(sd.func[0], p)
-        q = spm_coreg(sd.func[0], x)
-
-        ax = plt.subplot2grid(shape, (i, j))
-        ax.plot(np.transpose([p, -q]), 's-')
-
+    VFk = nibabel.Nifti1Image(nibabel.load(sd.anat).get_data(),
+                              scipy.linalg.lstsq(
+            M, nibabel.load(sd.anat).get_affine())[0])
+    plot_registration(VFk, sd.func[0])
     plt.show()
+
+    # # VFk = _apply_realignment_to_vol(VFk, q0)
+    # # print q0
+
+    # shape = (6, 2)
+    # p = np.zeros(6)
+    # for i, j in np.ndindex(shape):
+    #     p[:3] = np.random.randn(3) * (i + j) * 2
+    #     p[3:] = np.random.randn(3) * .1
+
+    #     x = _apply_realignment_to_vol(sd.func[0], p)
+    #     q = spm_coreg(sd.func[0], x)
+
+    #     ax = plt.subplot2grid(shape, (i, j))
+    #     ax.plot(np.transpose([p, -q]), 's-')
+
+    # plt.show()
