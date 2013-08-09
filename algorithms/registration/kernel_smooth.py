@@ -62,8 +62,11 @@ def sigma2fwhm(sigma):
     >>> fwhms = sigma2fwhm([3, 4, 5])
     >>> fwhm == fwhms[0]
     True
+
     """
+
     sigma = np.asarray(sigma)
+
     return sigma * np.sqrt(8 * np.log(2))
 
 

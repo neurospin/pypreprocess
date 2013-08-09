@@ -88,12 +88,16 @@ def _load_specific_vol(vols, t):
             raise ValueError(
                 "Expecting 4D image, got %iD" % len(_vols.shape))
 
-        n_scans = _vols.shape[3]
+        n_scans = _vols.shape[-1]
         vol = nibabel.four_to_three(_vols)[t]
     else:  # unhandled type
         raise TypeError(
             ("vols must be string, image object, or list of such; "
              "got %s" % type(vols)))
+
+    if len(vol.shape) == 4:
+        vol = nibabel.Nifti1Image(vol.get_data()[..., ..., ..., 0],
+                                  vol.get_afffine())
 
     return vol, n_scans
 

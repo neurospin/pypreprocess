@@ -434,21 +434,22 @@ def _load_fmri_data(fmri_files, is_3D=False):
 
     """
 
-    try:
-        data = np.array(fmri_files).astype('float')
-    except ValueError:
-        if isinstance(fmri_files, basestring):
-            data = nibabel.load(fmri_files).get_data()
-        else:
-            # assuming list of (perhaps list of ...) filenames (strings)
-            n_scans = len(fmri_files)
-            _first = _load_fmri_data(fmri_files[0], is_3D=True)
-            data = np.ndarray(tuple(list(_first.shape
-                                         ) + [n_scans]))
-            data[..., 0] = _first
-            for scan in xrange(1, n_scans):
-                data[..., scan] = _load_fmri_data(fmri_files[scan],
-                                                       is_3D=True)
+    # try:
+    #     data = np.array(fmri_files).astype('float')
+    # except ValueError:
+    if isinstance(fmri_files, basestring):
+        data = nibabel.load(fmri_files).get_data()
+    else:
+        # assuming list of (perhaps list of ...) filenames (strings)
+        n_scans = fmri_files.shape[-1] if is_niimg(fmri_files) or isinstance(
+            fmri_files, np.ndarray) else  len(fmri_files)
+        _first = _load_specific_vol(fmri_files, 0)[0].get_data()
+        data = np.ndarray(tuple(list(_first.shape
+                                     ) + [n_scans]))
+        data[..., 0] = _first
+        for scan in xrange(1, n_scans):
+            data[..., scan] = _load_fmri_data(fmri_files[scan],
+                                                   is_3D=True)
 
     if is_3D:
         if data.ndim == 4:
@@ -464,11 +465,13 @@ class fMRISTC(STC):
 
         """
 
+        self.basenames_ = None
+
         if isinstance(raw_data, basestring):
             if isinstance(raw_data, basestring):
                 self.basenames_ = os.path.basename(raw_data)
 
-            img = nibabel.load(raw_data).get_affine()
+            img = nibabel.load(raw_data)
             raw_data, self.affine_ = img.get_data(), img.get_affine()
         elif is_niimg(raw_data):
             raw_data, self.affine_ = raw_data.get_data(), raw_data.get_affine()
@@ -486,22 +489,29 @@ class fMRISTC(STC):
         return self.raw_data
 
     def transform(self, raw_data=None, output_dir=None):
-        data = STC.transform(self, raw_data=raw_data)
+        self.output_data_ = STC.transform(self, raw_data=raw_data)
 
         if output_dir is None:
-            return data
+            return self.output_data_
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        if isinstance(self.affine_, list):
-            self.output_ = _save_vols([nibabel.Nifti1Image(data[..., t],
-                                                           self.affine_[t])
-                                       for t in xrange(data.shape[-1])],
-                                      output_dir, prefix='a',
-                                      basenames=self.basenames_)
+        if hasattr(self, 'affine_'):
+            if isinstance(self.affine_, list):
+                self.output_data_  = _save_vols([nibabel.Nifti1Image(
+                            self.output_data_[..., t], self.affine_[t])
+                                                 for t in xrange(
+                            self.output_data_.shape[-1])],
+                                                output_dir, prefix='a',
+                                                basenames=self.basenames_)
+            else:
+                self.output_data = _save_vols(nibabel.Nifti1Image(
+                        self.output_data_, self.affine_),
+                                              output_dir, prefix='a',
+                                              basenames=self.basenames_)
 
-        return self.output_
+        return self.output_data_
 
     # def _save_stc_output(self, output_dir,
     #                      input_filenames,
