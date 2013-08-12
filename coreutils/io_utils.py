@@ -524,3 +524,13 @@ def hard_link(filenames, output_dir):
         return hardlinked_filenames[0]
     else:
         return [hard_link(_filenames, output_dir) for _filenames in filenames]
+
+
+def get_basenames(x):
+    if isinstance(x, list):
+        return [os.path.basename(y) for y in x]
+    elif isinstance(x, basestring):
+        return os.path.basename(x)
+    else:
+        raise TypeError(
+            "Input must be string or list of strings; got %s" % type(x))

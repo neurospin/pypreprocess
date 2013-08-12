@@ -283,6 +283,10 @@ class LinearFilter(object):
 
         """
 
+        # nothing to do ?
+        if not np.sum(self._fwhm) > 0:
+            return in_data
+
         # get dimensionality of input data
         in_data = np.array(in_data)
         ndim = in_data.ndim
@@ -358,6 +362,9 @@ def smooth_image(img, fwhm, **kwargs):
 
     if isinstance(img, basestring):
         img = ni.load(img)
+
+    if isinstance(img, list):
+        return [smooth_image(x, fwhm, **kwargs) for x in img]
 
     if len(img.shape) == 4:
         return ni.concat_images(
