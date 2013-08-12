@@ -20,6 +20,8 @@ sys.path.append(PYPREPROCESS_DIR)
 # import the APIs to be tested
 from coreutils.io_utils import _load_specific_vol
 from algorithms.registration.kernel_smooth import (
+    fwhm2sigma,
+    sigma2fwhm,
     smooth_image
     )
 
@@ -45,6 +47,43 @@ def create_random_image(shape=None,
         shape[-1] = n_scans
 
     return parent_class(np.random.randn(*shape), affine)
+
+
+def test_fwhm2sigma():
+    fwhm = [1, 2, 3]
+
+    for _fwhm in fwhm:
+        numpy.testing.assert_array_equal(fwhm2sigma(_fwhm),
+                                         np.array(
+                _fwhm) / np.sqrt(8. * np.log(2)))
+
+    for j in xrange(3):
+        _fwhm = fwhm[j:]
+        numpy.testing.assert_array_equal(fwhm2sigma(_fwhm),
+                                         np.array(
+                _fwhm) / np.sqrt(8. * np.log(2)))
+
+
+def test_sigma2sigma():
+    sigma = [7, 2, 3]
+
+    for _sigma in sigma:
+        numpy.testing.assert_array_equal(sigma2fwhm(_sigma),
+                                         np.array(
+                _sigma) * np.sqrt(8. * np.log(2)))
+
+    for j in xrange(3):
+        _sigma = sigma[j:]
+        numpy.testing.assert_array_equal(sigma2fwhm(_sigma),
+                                         np.array(
+                _sigma) * np.sqrt(8. * np.log(2)))
+
+
+def test_fwhm2sigma_and_sigma2fwhm_are_inverses():
+    toto = [5, 7, 11.]
+
+    numpy.testing.assert_array_equal(toto, sigma2fwhm(fwhm2sigma(toto)))
+    numpy.testing.assert_array_almost_equal(toto, fwhm2sigma(sigma2fwhm(toto)))
 
 
 def test_smooth_image_for_3D_vol():

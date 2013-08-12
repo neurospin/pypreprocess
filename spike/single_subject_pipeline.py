@@ -18,7 +18,7 @@ sys.path.append(PYPREPROCESS_DIR)
 import reporting.glm_reporter as glm_reporter
 
 # import tools for preproc
-from coreutils.io_utils import three_to_four
+from coreutils.io_utils import three_to_four, get_basenames, _save_vols
 from algorithms.slice_timing.spm_slice_timing import fMRISTC
 from algorithms.registration.spm_realign import MRIMotionCorrection
 from algorithms.registration.kernel_smooth import smooth_image
@@ -82,17 +82,21 @@ def do_subject_preproc(subject_data, n_sessions=1, do_stc=True,
         mrimc_output = mem.cache(mrimc.transform)(
             subject_data['output_dir'],
             reslice=True,
-            concat=True,
             )
 
         output['func'] = mrimc_output['realigned_files']
 
     # smoothing
-    fmri = three_to_four(output['func'][0])
     if not fwhm is None:
         print ("\r\nNODE> Smoothing with %smm x %smm x %smm Gaussian"
                " kernel") % tuple(fwhm)
-        fmri = mem.cache(smooth_image)(fmri, fwhm)
+        sfunc = []
+        for func in output['func']:
+            sfunc.append(_save_vols(mem.cache(smooth_image)(func, fwhm),
+                                    subject_data['output_dir'],
+                                    basenames=get_basenames(output['func'][0]),
+                                    prefix='s'))
+        output['func'] = sfunc
 
     # GLM
     tr = 7.
@@ -133,7 +137,7 @@ def do_subject_preproc(subject_data, n_sessions=1, do_stc=True,
 
     # fit GLM
     print('\r\nFitting a GLM (this takes time)...')
-    fmri_glm = FMRILinearModel(fmri,
+    fmri_glm = FMRILinearModel(three_to_four(output['func'][0]),
                                design_matrix.matrix,
                                mask='compute')
 
@@ -225,18 +229,33 @@ if __name__ == '__main__':
     subject_data = {'subject_id': 'sub001', 'func': [sd.func], 'anat': sd.anat}
 
     # run pipeline
-    for do_stc in [False, True]:
-        pipeline_remark = "_with_stc" if do_stc else ""
-        for do_mc in [False, True]:
-            pipeline_remark += "_with_mc" if do_mc else ""
-            subject_data['output_dir'] = os.path.join(
-                '/tmp',
-                subject_data['subject_id'],
-                pipeline_remark)
+    output_dir = "/tmp"
 
-            print "\t\t\tpipeline: %s" % pipeline_remark
-            do_subject_preproc(subject_data,
-                               do_stc=do_stc,
-                               do_mc=do_mc,
-                               fwhm=[4, 4, 4]
-                               )
+    def pipeline_factory():
+        """
+        Generate different pipelines for comparison.
+
+        """
+
+        for do_stc in [False, True]:
+            for do_mc in [False, True]:
+                for fwhm in [None, [5., 5., 5.]]:
+                    pipeline_remark = ""
+                    pipeline_remark = "_with_stc" if do_stc else "_without_stc"
+                    pipeline_remark += "_with_mc" if do_mc else "_without_mc"
+                    pipeline_remark += "_with_smoothing" if not fwhm is None \
+                        else "_without_smoothing"
+                    print "\t\t\tpipeline: %s" % pipeline_remark
+
+                    subject_data['output_dir'] = os.path.join(
+                        output_dir,
+                        subject_data['subject_id'],
+                        pipeline_remark)
+
+                    yield subject_data, do_stc, do_mc, fwhm
+
+joblib.Parallel(n_jobs=1, verbose=100)(joblib.delayed(do_subject_preproc)(
+        subject_data,
+        do_stc=do_stc,
+        do_mc=do_mc,
+        fwhm=fwhm) for subject_data, do_stc, do_mc, fwhm in pipeline_factory())
