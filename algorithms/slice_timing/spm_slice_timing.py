@@ -506,10 +506,10 @@ class fMRISTC(STC):
                                                 output_dir, prefix='a',
                                                 basenames=self.basenames_)
             else:
-                self.output_data = _save_vols(nibabel.Nifti1Image(
+                self.output_data_ = _save_vols(nibabel.Nifti1Image(
                         self.output_data_, self.affine_),
-                                              output_dir, prefix='a',
-                                              basenames=self.basenames_)
+                                               output_dir, prefix='a',
+                                               basenames=self.basenames_)
 
         return self.output_data_
 

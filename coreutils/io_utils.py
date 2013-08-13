@@ -225,6 +225,14 @@ def _save_vols(vols, output_dir, basenames=None, affine=None,
     return filenames
 
 
+def _save_vol(vol, output_dir, basenames=None, concat=False, **kwargs):
+    if not basenames is None:
+        basenames = [basenames]
+
+    return _save_vols([vol], output_dir, basenames=basenames,
+                      concat=False, **kwargs)[0]
+
+
 def is_3D(image):
     """Check whether image is 3D"""
 

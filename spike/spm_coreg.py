@@ -576,13 +576,18 @@ def spm_coreg(ref_vol,
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    from external.nilearn.datasets import fetch_spm_auditory_data
+    from external.nilearn.datasets import fetch_spm_auditory_data, fetch_nyu_rest
     from algorithms.registration.spm_realign import _apply_realignment_to_vol
     from algorithms.registration.affine_transformations import spm_matrix
     from reporting.check_preprocessing import plot_registration
 
-    sd = fetch_spm_auditory_data(os.path.join(os.environ['HOME'],
-                                              "CODE/datasets/spm_auditory"))
+    # sd = fetch_spm_auditory_data(os.path.join(os.environ['HOME'],
+    #                                           "CODE/datasets/spm_auditory"))
+
+    sd = fetch_nyu_rest(data_dir=os.path.join(os.environ['HOME'],
+                                              "CODE/datasets/nyu_rest"),
+                        sessions=[1],
+                        n_subjects=8)
 
     fig = plt.figure()
 
@@ -592,21 +597,26 @@ if __name__ == '__main__':
                   tol=np.array([.02] * 3 + [.001] * 3),
                   params=np.zeros(6))
 
-    import scipy.io
-    toto = scipy.io.loadmat(os.path.join(PYPREPROCESS_DIR,
-                                         "test_data/spm_hist2_args_1.mat"),
-                            squeeze_me=True, struct_as_record=False)
-    VG, VFk = [toto[k] for k in ['VG', 'VFk']]
-    VG = nibabel.Nifti1Image(VG.uint8, VG.mat)
-    VFk = nibabel.Nifti1Image(VFk.uint8, VFk.mat)
+    # import scipy.io
+    # toto = scipy.io.loadmat(os.path.join(PYPREPROCESS_DIR,
+    #                                      "test_data/spm_hist2_args_1.mat"),
+    #                         squeeze_me=True, struct_as_record=False)
+    # VG, VFk = [toto[k] for k in ['VG', 'VFk']]
+    # VG = nibabel.Nifti1Image(VG.uint8, VG.mat)
+    # VFk = nibabel.Nifti1Image(VFk.uint8, VFk.mat)
 
-    q0 = spm_coreg(sd.func[0], sd.anat, **flags.__dict__)
+    # estimate realignment params for coreg
+    q0 = spm_coreg(sd.func[7], sd.anat_skull[7], **flags.__dict__)
+
+    # apply coreg
     M = spm_matrix(q0)
-
-    VFk = nibabel.Nifti1Image(nibabel.load(sd.anat).get_data(),
+    VFk = nibabel.Nifti1Image(nibabel.load(sd.anat_skull[7]).get_data(),
                               scipy.linalg.lstsq(
-            M, nibabel.load(sd.anat).get_affine())[0])
-    plot_registration(VFk, sd.func[0])
+            M, nibabel.load(sd.anat_skull[7]).get_affine())[0])
+
+    # QA
+    plot_registration(sd.anat_skull[7], sd.func[7], title="before coreg")
+    plot_registration(VFk, sd.func[7], title="after coreg")
     plt.show()
 
     # # VFk = _apply_realignment_to_vol(VFk, q0)
