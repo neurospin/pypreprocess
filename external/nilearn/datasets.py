@@ -1398,7 +1398,7 @@ def fetch_spm_multimodal_fmri_data(data_dir):
             if not os.path.isfile(sess_trials):
                 return None
             else:
-                _subject_data['trails_ses%i' % (s + 1)] = sess_trials
+                _subject_data['trials_ses%i' % (s + 1)] = sess_trials
 
         # glob for anat data
         anat = os.path.join(subject_dir, "sMRI/smri.img")
