@@ -30,7 +30,7 @@ def is_niimg(img):
         return False
 
 
-def _load_vol(x):
+def load_vol(x):
     """
     Loads a single 3D volume.
 
@@ -51,7 +51,7 @@ def _load_vol(x):
         vol = x
     else:
         raise TypeError(
-            ("Each volume must be string, image object, got:"
+            ("Each volume must be string or image object; got:"
              " %s") % type(x))
 
     if len(vol.shape) == 4:
@@ -60,15 +60,15 @@ def _load_vol(x):
                                       vol.get_affine())
         else:
             raise ValueError(
-                "Each volume must be 3D, got %iD" % len(vol.shape))
+                "Each volume must be 3D; got %iD" % len(vol.shape))
     elif len(vol.shape) != 3:
             raise ValueError(
-                "Each volume must be 3D, got %iD" % len(vol.shape))
+                "Each volume must be 3D; got %iD" % len(vol.shape))
 
     return vol
 
 
-def _load_specific_vol(vols, t):
+def load_specific_vol(vols, t):
     """Utility function for loading specific volume on demand.
 
     Parameters
@@ -79,9 +79,14 @@ def _load_specific_vol(vols, t):
 
     assert t >= 0
 
-    if isinstance(vols, list):
+    if isinstance(vols, np.ndarray):
+        n_scans = vols.shape[-1]
+        vol = vols[..., t]
+    elif isinstance(vols, list):
+        if isinstance(vols[0], (list, np.ndarray)):
+            return load_specific_vol(np.array(vols), t)
         n_scans = len(vols)
-        vol = _load_vol(vols[t])
+        vol = load_vol(vols[t])
     elif is_niimg(vols) or isinstance(vols, basestring):
         _vols = nibabel.load(vols) if isinstance(vols, basestring) else vols
         if len(_vols.shape) != 4:
@@ -109,14 +114,14 @@ def three_to_four(images):
     if isinstance(images, basestring):
         return nibabel.load(images)
 
-    vol_0 = _load_vol(images[0])
+    vol_0 = load_vol(images[0])
 
     data = np.ndarray(list(vol_0.shape) + [len(images)],
                       dtype=vol_0.get_data().dtype)
     data[..., 0] = vol_0.get_data()
 
     for t in xrange(1, len(images)):
-        vol_t = _load_vol(images[t])
+        vol_t = load_vol(images[t])
         assert vol_t.shape == vol_0.shape
 
         data[..., t] = vol_t.get_data()
@@ -128,7 +133,7 @@ def three_to_four(images):
     return nibabel.Nifti1Image(data, vol_0.get_affine())
 
 
-def _save_vols(vols, output_dir, basenames=None, affine=None,
+def save_vols(vols, output_dir, basenames=None, affine=None,
                concat=False, prefix='', ext='.nii.gz'):
     """
     Saves a single 4D image or a couple of 3D vols unto disk.
@@ -169,9 +174,15 @@ def _save_vols(vols, output_dir, basenames=None, affine=None,
         else:
             return nibabel.Nifti1Image(x, affine)
 
+    # sanitize output_dir
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # vols are ndarray ?
     if isinstance(vols, np.ndarray):
         vols = _nifti_or_ndarray_to_nifti(vols)
 
+    # concat vols to single 4D film ?
     if concat:
         if isinstance(vols, list):
             vols = nibabel.concat_images([_nifti_or_ndarray_to_nifti(vol)
@@ -225,11 +236,30 @@ def _save_vols(vols, output_dir, basenames=None, affine=None,
     return filenames
 
 
-def _save_vol(vol, output_dir, basenames=None, concat=False, **kwargs):
-    if not basenames is None:
-        basenames = [basenames]
+def save_vol(vol, output_filename=None, output_dir=None, basename=None,
+             concat=False, **kwargs):
+    """
+    Saves a single volume to disk.
 
-    return _save_vols([vol], output_dir, basenames=basenames,
+    """
+
+    if not output_filename is None:
+        nibabel.save(vol, output_filename)
+
+        return output_filename
+    else:
+        if output_dir is None:
+            raise ValueError(
+                'One of output_filename and ouput_dir must be provided')
+
+    if not basename is None:
+        if isinstance(basename, list):
+            basename = basename[:1]
+        else:
+            basename = [basename]
+
+    # delegate to legacy save_vols
+    return save_vols([vol], output_dir, basenames=basename,
                       concat=False, **kwargs)[0]
 
 
@@ -536,9 +566,9 @@ def hard_link(filenames, output_dir):
 
 def get_basenames(x):
     if isinstance(x, list):
-        return [os.path.basename(y) for y in x]
+        return [os.path.basename(y).split(".")[0] for y in x]
     elif isinstance(x, basestring):
-        return os.path.basename(x)
+        return os.path.basename(x).split(".")[0]
     else:
         raise TypeError(
             "Input must be string or list of strings; got %s" % type(x))

@@ -23,7 +23,7 @@ from external.nilearn.datasets import (
     fetch_spm_auditory_data
     )
 from coreutils.io_utils import (
-    _save_vols
+    save_vols
     )
 
 # global setup
@@ -300,19 +300,39 @@ def test_transform():
                                np.eye(4))
     threeD_vols = nibabel.four_to_three(film)
 
-    # # save vols manually
-    # film_filename = os.path.join(output_dir, 'film.nii.gz')
-    # threeD_vols_filenames = [os.path.join(output_dir, 'vol_%i' % i)
-    #                          for i in xrange(len(threeD_vols))]
+    # filenames
+    film_filename = os.path.join(output_dir, 'film.nii.gz')
+    threeD_vols_filenames = [os.path.join(output_dir, 'fMETHODS-%06i' % i)
+                             for i in xrange(len(threeD_vols))]
 
     for stuff in [film, threeD_vols]:
         for as_files in [False, True]:
             if as_files:
-                stuff = _save_vols(stuff, output_dir)
+                if isinstance(stuff, list):
+                    basenames = [os.path.basename(x)
+                                 for x in threeD_vols_filenames]
+                else:
+                    basenames = os.path.basename(film_filename)
+                stuff = save_vols(stuff, output_dir, basenames=basenames)
 
             fmristc = fMRISTC().fit(raw_data=stuff)
 
-            fmristc.transform(output_dir=output_dir)
+            output = fmristc.transform(output_dir=output_dir)
+
+            # test output type, shape, etc.
+            if isinstance(stuff, list):
+                nose.tools.assert_true(isinstance(
+                        output, list))
+                nose.tools.assert_equal(len(output),
+                                        film.shape[-1])
+
+                if as_files:
+                    nose.tools.assert_equal(os.path.basename(output[7]),
+                                            'afMETHODS-000007.nii.gz')
+            else:
+                if as_files:
+                    nose.tools.assert_equal(os.path.basename(output),
+                                            'afilm.nii.gz')                    
 
 
 # run all tests

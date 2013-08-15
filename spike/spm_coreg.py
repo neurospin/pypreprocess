@@ -465,11 +465,9 @@ def spm_powell(x0, xi, tolsc, *otherargs):
 
         output = optfun(x, *otherargs)
 
-        # update progress bar
-        token = "\t" + "   ".join(['%-8.4g' % z
-                                     for z in x])
-        token += " " * (len(x) * 12 - len(token)
-                        ) + "| %.9g" % output
+        # verbose
+        token = "\t" + "".join(['%-12.4g ' % z for z in x])
+        token += '|  %.5g' % output
         print token
 
         return output

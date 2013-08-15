@@ -18,7 +18,7 @@ PYPREPROCESS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
 sys.path.append(PYPREPROCESS_DIR)
 
 # import the APIs to be tested
-from coreutils.io_utils import _load_specific_vol
+from coreutils.io_utils import load_specific_vol
 from algorithms.registration.kernel_smooth import (
     fwhm2sigma,
     sigma2fwhm,

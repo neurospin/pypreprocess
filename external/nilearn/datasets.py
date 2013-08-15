@@ -1378,7 +1378,8 @@ def fetch_spm_multimodal_fmri_data(data_dir):
 
         """
 
-        _subject_data = {}
+        _subject_data = {'slice_order': 'descending'}
+
         for s in xrange(2):
             # glob func data for session s + 1
             session_func = sorted(glob.glob(

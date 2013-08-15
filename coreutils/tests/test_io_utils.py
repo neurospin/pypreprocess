@@ -14,11 +14,13 @@ sys.path.append(PYPREPROCESS_DIR)
 
 # import the APIIS to be tested
 from coreutils.io_utils import (
-    _load_vol,
-    _load_specific_vol,
+    load_vol,
+    load_specific_vol,
     do_3Dto4D_merge,
-    _save_vols,
-    hard_link
+    save_vols,
+    save_vol,
+    hard_link,
+    get_basenames
     )
 
 # global setup
@@ -57,7 +59,7 @@ def test_load_vol():
     vol = create_random_image()
 
     # test loading vol from nibabel object
-    _vol = _load_vol(vol)
+    _vol = load_vol(vol)
     nose.tools.assert_true(isinstance(_vol, type(vol)))
     nose.tools.assert_equal(_vol.shape, vol.shape)
     np.testing.assert_array_equal(_vol.get_data(), vol.get_data())
@@ -72,7 +74,7 @@ def test_load_vol():
         vol_type = nibabel.Nifti1Pair if ext == '.img' else nibabel.Nifti1Image
 
         # load the vol by filename
-        _vol = _load_vol(vol_filename)
+        _vol = load_vol(vol_filename)
         nose.tools.assert_true(isinstance(_vol, vol_type))
         nose.tools.assert_equal(_vol.shape, vol.shape)
         np.testing.assert_array_equal(_vol.get_data(), vol.get_data())
@@ -90,7 +92,7 @@ def test_load_specific_vol():
 
     # test loading vol from nibabel image object
     for t in xrange(n_scans):
-        _vol, _n_scans = _load_specific_vol(film, t)
+        _vol, _n_scans = load_specific_vol(film, t)
         nose.tools.assert_equal(_n_scans, n_scans)
         nose.tools.assert_true(isinstance(_vol, type(film)))
         nose.tools.assert_equal(_vol.shape, film.shape[:-1])
@@ -120,12 +122,29 @@ def test_load_specific_vol():
                     nibabel.Nifti1Image
 
                 # load specific 3D vol from 4D film by filename
-                _vol, _n_scans = _load_specific_vol(film_filename, t)
+                _vol, _n_scans = load_specific_vol(film_filename, t)
                 nose.tools.assert_equal(_n_scans, n_scans)
                 nose.tools.assert_true(isinstance(_vol, vol_type))
                 nose.tools.assert_equal(_vol.shape, film.shape[:-1])
                 np.testing.assert_array_equal(_vol.get_data(),
                                               film.get_data()[..., t])
+
+
+def test_save_vol():
+    output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    vol = create_random_image(ndim=3)
+
+    output_filename = save_vol(vol, output_dir=output_dir, basename='123')
+    nose.tools.assert_equal(os.path.basename(output_filename),
+                            '123.nii.gz')
+
+    output_filename = save_vol(vol, output_dir=output_dir, basename='123',
+                                prefix='s')
+    nose.tools.assert_equal(os.path.basename(output_filename),
+                            's123.nii.gz')
 
 
 def test_save_vols():
@@ -141,7 +160,7 @@ def test_save_vols():
 
     # save vols manually
     film_filename = os.path.join(output_dir, 'film.nii.gz')
-    threeD_vols_filenames = [os.path.join(output_dir, 'vol_%i' % i)
+    threeD_vols_filenames = [os.path.join(output_dir, 'fMETHODS-%06i' % i)
                              for i in xrange(len(threeD_vols))]
 
     # check saving seperate 3D vols
@@ -153,7 +172,7 @@ def test_save_vols():
             basenames = os.path.basename(film_filename)
         for concat in [False, True]:
             for bn in [None, basenames]:
-                saved_vols_filenames = _save_vols(stuff,
+                saved_vols_filenames = save_vols(stuff,
                                                   output_dir,
                                                   ext='.nii.gz',
                                                   concat=concat,
@@ -164,9 +183,11 @@ def test_save_vols():
                                 saved_vols_filenames, list))
                         nose.tools.assert_equal(len(saved_vols_filenames),
                                                 n_scans)
+
+                        nose.tools.assert_equal(os.path.basename(saved_vols_filenames[7]),
+                                                'fMETHODS-000007.nii.gz')
                 else:
                     nose.tools.assert_true(isinstance(saved_vols_filenames, basestring))
-
 
 # def test_save_vols():
 #     # setup
@@ -211,7 +232,7 @@ def test_save_vols_from_ndarray_with_affine():
     for stuff in [film, threeD_vols]:
         for concat in [False, True]:
             for affine in [None, np.eye(4)]:
-                saved_vols_filenames = _save_vols(stuff,
+                saved_vols_filenames = save_vols(stuff,
                                                   output_dir,
                                                   ext='.nii.gz',
                                                   affine=np.eye(4),
@@ -241,7 +262,7 @@ def test_do_3Dto4D_merge():
 
     nose.tools.assert_equal(_film.shape, film.shape)
 
-    _save_vols(threeD_vols, output_dir, ext='.nii.gz')
+    save_vols(threeD_vols, output_dir, ext='.nii.gz')
 
 
 def test_hardlink():
@@ -304,6 +325,14 @@ def test_hardlink():
 
     _check_ok(hl_filenames, filenames)
 
+
+def test_get_basenames():
+    nose.tools.assert_equal(get_basenames("/path/to/file/file.nii.gz"),
+                            "file")
+
+    nose.tools.assert_equal(get_basenames(["/path/to/file/file-%04i.nii.gz" % i
+                                           for i in xrange(10)])[3],
+                            "file-0003")
 
 # run all tests
 nose.runmodule(config=nose.config.Config(
