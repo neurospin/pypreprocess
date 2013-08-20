@@ -23,9 +23,11 @@ import spm_reslice
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coreutils.io_utils import (_load_specific_vol,
-                                _load_vol,
-                                _save_vols
+from coreutils.io_utils import (load_specific_vol,
+                                load_vol,
+                                save_vols,
+                                save_vol,
+                                get_basenames
                                 )
 
 # useful constants
@@ -114,7 +116,7 @@ def _apply_realignment_to_vol(vol, q, inverse=True):
 
     """
 
-    vol = _load_vol(vol)
+    vol = load_vol(vol)
 
     # convert realigment params to affine transformation
     M_q = affine_transformations.spm_matrix(q)
@@ -155,10 +157,10 @@ def _apply_realignment(vols, rp, inverse=True):
 
     """
 
-    _, n_scans = _load_specific_vol(vols, 0)
+    _, n_scans = load_specific_vol(vols, 0)
 
     for t in xrange(n_scans):
-        vol, _ = _load_specific_vol(vols, t)
+        vol, _ = load_specific_vol(vols, t)
 
         # apply realignment to vol
         rvol = _apply_realignment_to_vol(vol, rp[t], inverse=inverse)
@@ -235,15 +237,15 @@ class MRIMotionCorrection(object):
 
         """
 
-        self._sep = sep
-        self._interp = interp
-        self._fwhm = fwhm
-        self._quality = quality
-        self._tol = tol
-        self._lkp = lkp
-        self._verbose = verbose
-        self._n_iterations = n_iterations
-        self._n_sessions = n_sessions
+        self.sep = sep
+        self.interp = interp
+        self.fwhm = fwhm
+        self.quality = quality
+        self.tol = tol
+        self.lkp = lkp
+        self.verbose = verbose
+        self.n_iterations = n_iterations
+        self.n_sessions = n_sessions
 
     def _log(self, msg):
         """Logs a message, according to verbose level.
@@ -255,7 +257,7 @@ class MRIMotionCorrection(object):
 
         """
 
-        if self._verbose:
+        if self.verbose:
             print(msg)
 
     def _single_session_fit(self, vols, quality=None,
@@ -274,20 +276,20 @@ class MRIMotionCorrection(object):
 
         Returns
         -------
-        2D array of shape (n_scans, len(self._lkp)
+        2D array of shape (n_scans, len(self.lkp)
             the estimated realignment parameters
 
         """
 
         # sanitize input
         if quality is None:
-            quality = self._quality
+            quality = self.quality
 
         if affine_correction is None:
             affine_correction = np.eye(4)
 
         # load first vol
-        vol_0, n_scans = _load_specific_vol(vols, 0)
+        vol_0, n_scans = load_specific_vol(vols, 0)
 
         # single vol ?
         if n_scans < 2:
@@ -301,7 +303,7 @@ class MRIMotionCorrection(object):
 
         # voxel dimensions on the working grid
         skip = np.sqrt(np.sum(vol_0.get_affine()[:3, :3] ** 2, axis=0)
-                       ) ** (-1) * self._sep
+                       ) ** (-1) * self.sep
 
         # build working grid
         dim = vol_0.shape
@@ -311,27 +313,27 @@ class MRIMotionCorrection(object):
 
         # smooth 0th volume to absorb noise before differentiating
         sref_vol = kernel_smooth.smooth_image(vol_0,
-                                              self._fwhm).get_data()
+                                              self.fwhm).get_data()
 
         # resample the smoothed reference volume unto doped working grid
-        G = sndi.map_coordinates(sref_vol, [x1, x2, x3], order=self._interp,
+        G = sndi.map_coordinates(sref_vol, [x1, x2, x3], order=self.interp,
                                  mode='wrap',).reshape(x1.shape)
 
         # compute gradient of reference volume
         Gx, Gy, Gz = np.gradient(sref_vol)
 
         # resample gradient unto working grid
-        Gx = sndi.map_coordinates(Gx, [x1, x2, x3], order=self._interp,
+        Gx = sndi.map_coordinates(Gx, [x1, x2, x3], order=self.interp,
                                   mode='wrap',).reshape(x1.shape)
-        Gy = sndi.map_coordinates(Gy, [x1, x2, x3], order=self._interp,
+        Gy = sndi.map_coordinates(Gy, [x1, x2, x3], order=self.interp,
                                   mode='wrap',).reshape(x1.shape)
-        Gz = sndi.map_coordinates(Gz, [x1, x2, x3], order=self._interp,
+        Gz = sndi.map_coordinates(Gz, [x1, x2, x3], order=self.interp,
                                   mode='wrap',).reshape(x1.shape)
 
         # compute rate of change of chi2 w.r.t. parameters
         A0 = _compute_rate_of_change_of_chisq(vol_0.get_affine(),
                                               [x1, x2, x3], [Gx, Gy, Gz],
-                                              lkp=self._lkp)
+                                              lkp=self.lkp)
 
         # compute intercept vector for LSPs
         b = G.ravel()
@@ -390,7 +392,7 @@ class MRIMotionCorrection(object):
                     t + 1, n_scans))
 
             # load volume t
-            vol, _ = _load_specific_vol(vols, t)
+            vol, _ = load_specific_vol(vols, t)
             vol = nibabel.Nifti1Image(vol.get_data(),
                                       np.dot(affine_correction,
                                              vol.get_affine()))
@@ -399,7 +401,7 @@ class MRIMotionCorrection(object):
             rp[t, ...] = affine_transformations.get_initial_motion_params()
 
             # smooth volume t
-            V = kernel_smooth.smooth_image(vol, self._fwhm).get_data()
+            V = kernel_smooth.smooth_image(vol, self.fwhm).get_data()
 
             # intialize motion params for this vol
             rp[t, ...] = affine_transformations.get_initial_motion_params()
@@ -411,7 +413,7 @@ class MRIMotionCorrection(object):
             dim = dim[:3]
             ss = INFINITY
             countdown = -1
-            for iteration in xrange(self._n_iterations):
+            for iteration in xrange(self.n_iterations):
                 # starting point
                 q = affine_transformations.get_initial_motion_params()
 
@@ -436,7 +438,7 @@ class MRIMotionCorrection(object):
 
                 # warp: resample volume t on this new grid
                 F = sndi.map_coordinates(V, [y1[msk], y2[msk], y3[msk]],
-                                         order=self._interp, mode='wrap')
+                                         order=self.interp, mode='wrap')
 
                 # formulate and solve LS problem for updating p
                 A = A0[msk, ...].copy()
@@ -447,8 +449,8 @@ class MRIMotionCorrection(object):
                                               np.dot(A.T, b1))[0]
 
                 # update q
-                q[self._lkp] += q_update
-                rp[t, self._lkp] -= q_update
+                q[self.lkp] += q_update
+                rp[t, self.lkp] -= q_update
 
                 # update affine matrix for volume t by applying M_q
                 vol = _apply_realignment_to_vol(vol, q)
@@ -461,15 +463,13 @@ class MRIMotionCorrection(object):
                 relative_gain = np.abs((pss - ss) / pss
                                        ) if np.isfinite(pss) else INFINITY
 
-                # update progress bar
-                token = "\t\t" + "   ".join(['%-8.4g' % x
-                                            for x in q[self._lkp]])
-                token += " " * (len(self._lkp) * 13 - len(token)
-                                ) + "| %.5g" % relative_gain
+                # verbose
+                token = "\t" + "".join(['%-12.4g ' % z for z in q[self.lkp]])
+                token += '|  %.5g' % relative_gain
                 self._log(token)
 
                 # check whether we've stopped converging altogether
-                if relative_gain < self._tol and countdown == -1:
+                if relative_gain < self.tol and countdown == -1:
                     countdown = 2
 
                 # countdown
@@ -481,13 +481,15 @@ class MRIMotionCorrection(object):
 
             # what happened ?
             comments = " after %i iterations" % (iteration + 1)
-            if iteration + 1 == self._n_iterations:
+            if iteration + 1 == self.n_iterations:
                 comments = "did not coverge" + comments
             else:
-                if relative_gain < self._tol:
+                if relative_gain < self.tol:
                     comments = "converged" + comments
                 else:
                     comments = "stopped converging" + comments
+
+            self._log("")
 
         return rp
 
@@ -523,46 +525,46 @@ class MRIMotionCorrection(object):
         if isinstance(vols, basestring) or isinstance(
             vols, nibabel.Nifti1Image):
             vols = [vols]
-        if len(vols) != self._n_sessions:
+        if len(vols) != self.n_sessions:
             raise RuntimeError(
                 "Number of session volumes (%i) != number of sessions (%i)"
-                % (len(vols), self._n_sessions))
+                % (len(vols), self.n_sessions))
 
-        self._vols_ = vols
+        self.vols_ = vols
 
         # load first vol of each session
         first_vols = []
         n_scans_list = []
-        for sess in xrange(self._n_sessions):
-            vol_0, n_scans = _load_specific_vol(self._vols_[sess], 0)
+        for sess in xrange(self.n_sessions):
+            vol_0, n_scans = load_specific_vol(self.vols_[sess], 0)
             first_vols.append(vol_0)
             n_scans_list.append(n_scans)
-        self._n_scans_list = n_scans_list
+        self.n_scans_list = n_scans_list
 
         # realign first vol of each session with first vol of first session
-        if self._n_sessions > 1:
+        if self.n_sessions > 1:
             self._log(
                 ('\r\nInter-session registration: realigning first volumes'
                  ' of all sessions...'))
 
-        self._first_vols_rp_ = self._single_session_fit(
+        self.first_vols_rp_ = self._single_session_fit(
             first_vols,
             quality=1.  # only a few vols, we can thus allow this lux
             )
 
-        rfirst_vols = list(_apply_realignment(first_vols, self._first_vols_rp_,
+        rfirst_vols = list(_apply_realignment(first_vols, self.first_vols_rp_,
                                               inverse=False
                                               ))
 
-        if self._n_sessions > 1:
+        if self.n_sessions > 1:
             self._log('...done (inter-session registration).\r\n')
 
         # realign all vols of each session with first vol of that session
-        self._rp_ = []
-        for sess in xrange(self._n_sessions):
+        self.rp_ = []
+        for sess in xrange(self.n_sessions):
             self._log(
                 ("Intra-session registration: Realigning session"
-                 " %i/%i...") % (sess + 1, self._n_sessions))
+                 " %i/%i...") % (sess + 1, self.n_sessions))
 
             # affine correction, for inter-session realignment
             affine_correction = np.dot(rfirst_vols[sess].get_affine(),
@@ -570,10 +572,10 @@ class MRIMotionCorrection(object):
                     rfirst_vols[0].get_affine()))
 
             sess_rp = self._single_session_fit(
-                self._vols_[sess],
+                self.vols_[sess],
                 affine_correction=affine_correction)
 
-            self._rp_.append(sess_rp)
+            self.rp_.append(sess_rp)
             self._log('...done; session %i.\r\n' % (sess + 1))
 
         return self
@@ -616,55 +618,90 @@ class MRIMotionCorrection(object):
         """
 
         # make sure object has been fitted
-        if not hasattr(self, '_rp_'):
+        if not hasattr(self, 'rp_'):
             raise RuntimeError("fit(...) method not yet invoked.")
 
         # sanitize ext
         if not ext.startswith('.'):
             ext = "." + ext
 
-        self._realigned_files_ = []
-        self._rp_filenames_ = []
-        sess_output_dirs = []
+        self.realigned_files_ = []
+        self.rp_filenames_ = []
 
-        for sess in xrange(self._n_sessions):
+        for sess in xrange(self.n_sessions):
+            n_scans = len(self.rp_[sess])
             sess_realigned_files = []
-            sess_output_dir = os.path.join(output_dir, "%i" % sess)
-            sess_output_dirs.append(sess_output_dir)
-
-            # make session output dir
-            if not os.path.exists(sess_output_dir):
-                os.makedirs(sess_output_dir)
 
             # modify the header of each 3D vol according to the
             # estimated motion (realignment params)
-            sess_rvols = _apply_realignment(self._vols_[sess], self._rp_[sess],
-                                            inverse=False
-                                            )
+            sess_rvols = list(_apply_realignment(self.vols_[sess],
+                                                 self.rp_[sess],
+                                                 inverse=False
+                                                 ))
 
             # reslice vols
             if reslice:
                 self._log('Reslicing volumes for session %i/%i...' % (
-                        sess + 1, self._n_sessions))
+                        sess + 1, self.n_sessions))
                 sess_rvols = list(spm_reslice.reslice_vols(sess_rvols))
                 self._log('...done; session %i/%i.' % (
-                        sess + 1, self._n_sessions))
+                        sess + 1, self.n_sessions))
+
+            # make basenames for output files
+            basenames = None
+            if isinstance(self.vols_[sess], basestring):
+                basenames = get_basenames(self.vols_[sess])
+            elif isinstance(self.vols_[sess], list):
+                if isinstance(self.vols_[sess][0], basestring):
+                    basenames = get_basenames(self.vols_[sess])
+
+            if basenames is None:
+                if not isinstance(self.vols_, list) or concat:
+                    basenames = "vols"
+            else:
+                basenames = ["sess_%i_vol_%i" % (sess, i)
+                             for i in xrange(len(self.vols_[sess]))]
 
             # save realigned files to disk
-            sess_realigned_files = _save_vols(
-                sess_rvols,
-                sess_output_dir,
-                concat=concat,
-                ext=ext,
-                prefix=prefix)
-            self._realigned_files_.append(sess_realigned_files)
+            if concat:
+                sess_realigned_files = save_vols(
+                    list(sess_rvols),
+                    output_dir,
+                    basenames=basenames,
+                    concat=concat,
+                    ext=ext,
+                    prefix=prefix)
+            else:
+                sess_realigned_files = [save_vol(
+                        sess_rvols[t],
+                        output_dir=output_dir,
+                        basename=basenames[t] if isinstance(
+                            basenames,
+                            list) else basenames,
+                        ext=ext,
+                        prefix=prefix) for t in xrange(n_scans)]
+
+            self.realigned_files_.append(sess_realigned_files)
 
             # save realignment params to disk
-            sess_rp_filename = os.path.join(sess_output_dir, "rp.txt")
-            np.savetxt(sess_rp_filename, self._rp_[sess][..., self._lkp])
-            self._rp_filenames_.append(sess_rp_filename)
+            if basenames is None:
+                sess_rp_filename = os.path.join(output_dir, "rp.txt")
+            else:
+                if isinstance(basenames, basestring):
+                    sess_rp_filename = os.path.join(
+                        output_dir,
+                        "rp_" + basenames + ".txt")
+                else:
+                    sess_rp_filename = os.path.join(
+                        output_dir,
+                        "rp_" + basenames[0] + ".txt")
+
+            np.savetxt(sess_rp_filename, self.rp_[sess][..., self.lkp])
+            self.rp_filenames_.append(sess_rp_filename)
 
         self._log('...done; output saved to %s.' % output_dir)
 
         # return
-        return self  # XXX don't return self, return rvols instead (see sklearn) !!!
+        return {'realignment_parameters': self.rp_filenames_,
+                'realigned_files': self.realigned_files_
+                }

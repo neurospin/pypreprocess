@@ -5,11 +5,23 @@
 
 """
 
+import sys
 import os
+import copy
 import nibabel
 import scipy
 import numpy as np
 import matplotlib.pyplot as plt
+
+# pypreprocess dir
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from coreutils.io_utils import (load_specific_vol,
+                                load_vol,
+                                is_niimg,
+                                save_vols
+                                )
 
 
 def get_slice_indices(n_slices, slice_order='ascending',
@@ -405,11 +417,10 @@ def _load_fmri_data(fmri_files, is_3D=False):
 
     Parameters
     ----------
-    fmri_files: `np.ndarray` or string of list of strings, or (recursive)
-    of list of such
-        the data to be loaded.
-        if string, it should be the filename of a single 3D vol or 4D
-        fmri film.
+    fmri_files: `np.ndarray` or string of list of strings, or list of
+    such, etc.
+        the data to be loaded. if string, it should be the filename of a
+        single 3D vol or 4D fmri film.
     is_3D: boolean
         flag specifying whether loaded data is in fact 3D. This is useful
         for loading volumes with shapes like (25, 34, 56, 1), where the
@@ -422,15 +433,20 @@ def _load_fmri_data(fmri_files, is_3D=False):
 
     """
 
-    try:
-        data = np.array(fmri_files).astype('float')
-    except ValueError:
+    try:  # try to load as numeric ndarray
+        np.sum(fmri_files)
+        data = np.array(fmri_files)
+    except TypeError:  # ok, go the hard way
         if isinstance(fmri_files, basestring):
             data = nibabel.load(fmri_files).get_data()
         else:
             # assuming list of (perhaps list of ...) filenames (strings)
-            n_scans = len(fmri_files)
-            _first = _load_fmri_data(fmri_files[0], is_3D=True)
+            n_scans = fmri_files.shape[-1] if is_niimg(
+                fmri_files) or isinstance(fmri_files, np.ndarray
+                                          ) else  len(fmri_files)
+            _first = load_specific_vol(fmri_files, 0)[0]
+            if is_niimg(_first):
+                _first = _first.get_data()
             data = np.ndarray(tuple(list(_first.shape
                                          ) + [n_scans]))
             data[..., 0] = _first
@@ -452,64 +468,67 @@ class fMRISTC(STC):
 
         """
 
-        if isinstance(raw_data, np.ndarray) or isinstance(raw_data, list) \
-                or isinstance(raw_data, basestring):
-            raw_data = _load_fmri_data(raw_data)
+        if not hasattr(self, 'basenames_'):
+            self.basenames_ = None
 
+        if isinstance(raw_data, basestring):
+            # basestring
+            if isinstance(raw_data, basestring):
+                self.basenames_ = os.path.basename(raw_data)
+            img = nibabel.load(raw_data)
+            raw_data, self.affine_ = img.get_data(), img.get_affine()
+        elif is_niimg(raw_data):
+            # niimg
+            raw_data, self.affine_ = raw_data.get_data(), raw_data.get_affine()
+        elif isinstance(raw_data, list) and (isinstance(
+                raw_data[0], basestring) or is_niimg(raw_data[0])):
+            # list of strings or niimgs
+            if isinstance(raw_data[0], basestring):
+                self.basenames_ = [os.path.basename(x) for x in raw_data]
+            n_scans = len(raw_data)
+            _first = load_vol(raw_data[0])
+            _raw_data = np.ndarray(list(_first.shape) + [n_scans])
+            _raw_data[..., 0] = _first.get_data()
+            self.affine_ = [_first.get_affine()]
+
+            for t in xrange(1, n_scans):
+                vol = load_vol(raw_data[t])
+                _raw_data[..., t] = vol.get_data()
+                self.affine_.append(vol.get_affine())
+            raw_data = _raw_data
+        else:
+            raw_data = np.array(raw_data)
+
+        # our business is over: deligate to super method
         return STC._sanitize_raw_data(self, raw_data, fitting=fitting)
 
     def get_raw_data(self):
         return self.raw_data
 
-    # def _save_stc_output(self, output_dir,
-    #                      input_filenames,
-    #                      prefix='a'):
+    def transform(self, raw_data=None, output_dir=None):
+        self.output_data_ = STC.transform(self, raw_data=raw_data)
 
-    #     self._log("Saving STC output to %s..." % output_dir)
+        if output_dir is None:
+            return self.output_data_
 
-    #     # sanitize output_diir
-    #     ref_filename = input_filenames if isinstance(
-    #         input_filenames, basestring) else input_filenames[0]
-    #     ref_file_basename = os.path.basename(ref_filename)
-    #     if output_dir is None:
-    #         output_dir = output_dir
-    #     if output_dir is None:
-    #         output_dir = os.path.dirname(ref_filename)
-    #     if not os.path.exists(output_dir):
-    #         os.makedirs(output_dir)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
 
-    #     # save corrected image files to disk
-    #     if isinstance(input_filenames, basestring):
-    #         affine = nibabel.load(input_filenames).get_affine()
+        if hasattr(self, 'affine_'):
+            if isinstance(self.affine_, list):
+                self.output_data_  = save_vols([nibabel.Nifti1Image(
+                            self.output_data_[..., t], self.affine_[t])
+                                                 for t in xrange(
+                            self.output_data_.shape[-1])],
+                                                output_dir, prefix='a',
+                                                basenames=self.basenames_)
+            else:
+                self.output_data_ = save_vols(nibabel.Nifti1Image(
+                        self.output_data_, self.affine_),
+                                               output_dir, prefix='a',
+                                               basenames=self.basenames_)
 
-    #         for t in xrange(self.n_scans):
-    #             output_filename = os.path.join(output_dir,
-    #                                            "%s%i%s" % (
-    #                     prefix, t, ref_file_basename))
-
-    #             nibabel.save(nibabel.Nifti1Image(
-    #                     self.get_last_output_data[..., t],
-    #                     affine),
-    #                          output_filename)
-
-    #         output_filenames = output_filename
-    #     else:
-    #         output_filenames = []
-    #         for filename, t in zip(input_filenames, xrange(self.n_scans)):
-    #             affine = nibabel.load(filename).get_affine()
-    #             output_filename = os.path.join(output_dir,
-    #                                            "%s%s" % (
-    #                     prefix,
-    #                     os.path.basename(filename)))
-
-    #             nibabel.save(nibabel.Nifti1Image(
-    #                     self.get_last_output_data[..., t],
-    #                     affine),
-    #                          output_filename)
-
-    #             output_filenames.append(output_filename)
-
-    #     return output_filenames
+        return self.output_data_
 
 
 def plot_slicetiming_results(acquired_sample,

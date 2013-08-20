@@ -1,9 +1,11 @@
 import os
 import sys
 import numpy as np
+import nibabel
 import numpy.testing
 import nose
 import nose.tools
+import inspect
 
 # pypreproces path
 PYPREPROCESS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
@@ -20,8 +22,13 @@ from algorithms.slice_timing.spm_slice_timing import (
 from external.nilearn.datasets import (
     fetch_spm_auditory_data
     )
+from coreutils.io_utils import (
+    save_vols
+    )
 
-EPS = np.finfo(float).eps
+# global setup
+this_file = os.path.basename(os.path.abspath(__file__)).split('.')[0]
+OUTPUT_DIR = "/tmp/%s" % this_file
 
 
 def test_get_slice_indices_ascending():
@@ -281,6 +288,52 @@ def test_STC_for_HRF():
 
     # check
     check_STC(true_signal, stc.output_data_, atol=.005)
+
+
+def test_transform():
+    # setup
+    output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    film = nibabel.Nifti1Image(np.random.rand(11, 13, 17, 19),
+                               np.eye(4))
+    threeD_vols = nibabel.four_to_three(film)
+
+    # filenames
+    film_filename = os.path.join(output_dir, 'film.nii.gz')
+    threeD_vols_filenames = [os.path.join(output_dir, 'fMETHODS-%06i' % i)
+                             for i in xrange(len(threeD_vols))]
+
+    for stuff in [film, threeD_vols]:
+        for as_files in [False, True]:
+            if as_files:
+                if isinstance(stuff, list):
+                    basenames = [os.path.basename(x)
+                                 for x in threeD_vols_filenames]
+                else:
+                    basenames = os.path.basename(film_filename)
+                stuff = save_vols(stuff, output_dir, basenames=basenames)
+
+            fmristc = fMRISTC().fit(raw_data=stuff)
+
+            output = fmristc.transform(output_dir=output_dir)
+
+            # test output type, shape, etc.
+            if isinstance(stuff, list):
+                nose.tools.assert_true(isinstance(
+                        output, list))
+                nose.tools.assert_equal(len(output),
+                                        film.shape[-1])
+
+                if as_files:
+                    nose.tools.assert_equal(os.path.basename(output[7]),
+                                            'afMETHODS-000007.nii.gz')
+            else:
+                if as_files:
+                    nose.tools.assert_equal(os.path.basename(output),
+                                            'afilm.nii.gz')                    
+
 
 # run all tests
 nose.runmodule(config=nose.config.Config(

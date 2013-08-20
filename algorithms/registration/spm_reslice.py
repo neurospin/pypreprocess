@@ -56,7 +56,7 @@ def _get_mask(M, coords, dim, wrp=[1, 1, 0], tiny=5e-2):
     return fov_mask, physical_coords
 
 
-def _load_vol(x):
+def load_vol(x):
     """
     Loads a single 3D volume.
 
@@ -139,7 +139,7 @@ def reslice_vols(vols, target_affine=None, interp_order=3,
     vols = list(vols)
 
     # load first vol
-    vol_0 = _load_vol(vols[0])
+    vol_0 = load_vol(vols[0])
 
     # sanitize target_affine
     reslice_first_vol = True
@@ -158,7 +158,7 @@ def reslice_vols(vols, target_affine=None, interp_order=3,
     if mask:
         for t in xrange(len(vols)):
             # load vol
-            vol = _load_vol(vols[t])
+            vol = load_vol(vols[t])
 
             # saniiy check on dimensions
             if vol.shape != dim:
@@ -180,7 +180,7 @@ def reslice_vols(vols, target_affine=None, interp_order=3,
         _log('\tReslicing volume %i/%i...' % (t + 1, len(vols)))
 
         # load vol
-        vol = _load_vol(vols[t])
+        vol = load_vol(vols[t])
 
         # reslice vol
         if t > 0 or reslice_first_vol:

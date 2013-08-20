@@ -18,7 +18,7 @@ from nipy.labs import compute_mask_files
 from nipy.labs import viz
 import joblib
 
-from coreutils.io_utils import do_3Dto4D_merge, compute_mean_3D_image, _load_vol
+from coreutils.io_utils import do_3Dto4D_merge, compute_mean_3D_image, load_vol
 
 EPS = np.finfo(float).eps
 
@@ -252,8 +252,8 @@ def plot_registration(reference_img, coregistered_img,
     if hasattr(reference_img, '__len__'):
         reference_img = compute_mean_3D_image(reference_img)
 
-    coregistered_img = _load_vol(coregistered_img)
-    reference_img = _load_vol(reference_img)
+    coregistered_img = load_vol(coregistered_img)
+    reference_img = load_vol(reference_img)
 
     # XXX else i'm assuming a nifi object ;)
     reference_data = reference_img.get_data()
