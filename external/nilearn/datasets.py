@@ -1223,10 +1223,18 @@ def fetch_spm_auditory_data(data_dir):
         path of the data directory. Used to force data storage in a specified
         location. If the data is already present there, then will simply
         glob it.
+
+    Returns
+    -------
     data: sklearn.datasets.base.Bunch
         Dictionary-like object, the interest attributes are:
         - 'func': string list. Paths to functional images
         - 'anat': string list. Path to anat image
+
+    References
+    ----------
+    :download:
+        http://www.fil.ion.ucl.ac.uk/spm/data/auditory/
 
     """
 
@@ -1292,6 +1300,9 @@ def fetch_fsl_feeds_data(data_dir):
         path of the data directory. Used to force data storage in a specified
         location. If the data is already present there, then will simply
         glob it.
+
+    Returns
+    -------
     data: sklearn.datasets.base.Bunch
         Dictionary-like object, the interest attributes are:
         - 'func': string list. Paths to functional images
@@ -1363,6 +1374,9 @@ def fetch_spm_multimodal_fmri_data(data_dir):
         path of the data directory. Used to force data storage in a specified
         location. If the data is already present there, then will simply
         glob it.
+
+    Returns
+    -------
     data: sklearn.datasets.base.Bunch
         Dictionary-like object, the interest attributes are:
         - 'func1': string list. Paths to functional images for session 1
@@ -1370,6 +1384,11 @@ def fetch_spm_multimodal_fmri_data(data_dir):
         - 'trials_ses1': string list. Path to onsets file for session 1
         - 'trials_ses2': string list. Path to onsets file for session 2
         - 'anat': string. Path to anat file
+
+    References
+    ----------
+    :download:
+        http://www.fil.ion.ucl.ac.uk/spm/data/mmfaces/
 
     """
 
@@ -1388,6 +1407,8 @@ def fetch_spm_multimodal_fmri_data(data_dir):
                         ("fMRI/Session%i/fMETHODS-000%i-*-01.img" % (
                                 s + 1, s + 5)))))
             if len(session_func) < 390:
+                print "Missing %i functional scans for session %i." % (
+                    390 - len(session_func), s)
                 return None
             else:
                 _subject_data['func%i' % (s + 1)] = session_func
@@ -1397,6 +1418,7 @@ def fetch_spm_multimodal_fmri_data(data_dir):
                 subject_dir,
                 "fMRI/trials_ses%i.mat" % (s + 1))
             if not os.path.isfile(sess_trials):
+                print "Missing session file: %s" % sess_trials
                 return None
             else:
                 _subject_data['trials_ses%i' % (s + 1)] = sess_trials
@@ -1404,6 +1426,7 @@ def fetch_spm_multimodal_fmri_data(data_dir):
         # glob for anat data
         anat = os.path.join(subject_dir, "sMRI/smri.img")
         if not os.path.isfile(anat):
+            print "Missing structural image."
             return None
         else:
             _subject_data["anat"] = anat
