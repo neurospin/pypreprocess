@@ -43,6 +43,7 @@ def create_random_image(shape=None,
     Creates a random image of prescribed shape
 
     """
+
     rng = np.random.RandomState(0)
 
     if shape is None:
@@ -140,7 +141,7 @@ def test_compute_rate_of_change_of_chisq():
          [-2., 1., -0., 5.000002, -10.000001, -8.999999],
          [1., -0., -0., -0., 5.000001, 4.000001],
          [1., -0., -0., -0., 5.0000015, 4.0000015]])
-    decimal_precision = 8  # precision for array comparison (SPM is ground-truth)
+    decimal_precision = 8  # precision for array comparison (SPM is grnd-truth)
     lkp = [0, 1, 2, 3, 4, 5]  # translations + rotations model
     grid = np.mgrid[1:4:, 1:5:, 1:6:].reshape((3, -1),
                                               # true_A came from matlab
