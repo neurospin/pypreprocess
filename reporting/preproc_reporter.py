@@ -23,9 +23,9 @@ import base_reporter
 SPM_DIR = '/i2bm/local/spm8'
 if 'SPM_DIR' in os.environ:
     SPM_DIR = os.environ['SPM_DIR']
-assert os.path.exists(SPM_DIR), \
-    "nipype_preproc_smp_utils: SPM_DIR: %s,\
- doesn't exist; you need to export SPM_DIR" % SPM_DIR
+# assert os.path.exists(SPM_DIR), \
+#     "nipype_preproc_smp_utils: SPM_DIR: %s,\
+#  doesn't exist; you need to export SPM_DIR" % SPM_DIR
 EPI_TEMPLATE = os.path.join(SPM_DIR, 'templates/EPI.nii')
 T1_TEMPLATE = "/usr/share/data/fsl-mni152-templates/avg152T1.nii"
 if not os.path.isfile(T1_TEMPLATE):
@@ -278,6 +278,28 @@ def generate_registration_thumbnails(
     execution_log_html_filename=None,
     results_gallery=None,
     ):
+    """
+    Generates QA thumbnails post-registration.
+
+    Parameters
+    ----------
+    target: tuple of length 2
+        target[0]: string
+            path to reference image used in the registration
+        target[1]: string
+            short name (e.g 'anat', 'epi', 'MNI', etc.) for the
+            reference image
+    source: tuple of length 2
+        source[0]: string
+            path to source image
+        source[1]: string
+            short name (e.g 'anat', 'epi', 'MNI', etc.) for the
+            source image
+    procedure_name: string
+        name of, or short comments on, the registration procedure used
+        (e.g 'anat -> func', etc.)
+
+    """
 
     output = {}
 
@@ -412,6 +434,25 @@ def generate_coregistration_thumbnails(target,
                                        results_gallery=None,
                                        progress_logger=None,
                                        ):
+    """
+    Generates QA thumbnails post-coregistration.
+
+    Parameters
+    ----------
+    target: tuple of length 2
+        target[0]: string
+            path to reference image used in theco registration
+        target[1]: string
+            short name (e.g 'anat', 'epi', 'MNI', etc.) for the
+            reference image
+    source: tuple of length 2
+        source[0]: string
+            path to source image
+        source[1]: string
+            short name (e.g 'anat', 'epi', 'MNI', etc.) for the
+            source image
+
+    """
 
     return generate_registration_thumbnails(
         target,
