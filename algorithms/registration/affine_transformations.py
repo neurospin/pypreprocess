@@ -236,3 +236,31 @@ def get_physical_coords(M, voxel):
 
     # compute and return the coords
     return transform_coords(np.zeros(6), M, np.eye(4), voxel)
+
+
+def nibabel2spm_affine(affine):
+    """
+    SPM uses MATLAB indexing convention, so affine zero in 3D is [1, 1, 1, 1].
+    Nibabel uses python indexing convention and so [0, 0, 0, 1] is affine zero.
+    Thus to work in SPM algebra, we need to cast
+
+        [0, 0, 0, 1] -> [-1, -1, -1, 1],
+
+    that is, we need to dope the (nibabel) affine matrix accordingly. This
+    function does just that.
+
+    Notes
+    -----
+    This function should be used to prepare nifti affine matrices prior
+    to python out python implementations of the SPM registration algorithms.
+    This is done back-end, and the front-end user shouldn't see this.
+    In fact, this function is low-level, and should be shealded from the user.
+
+    """
+
+    assert affine.shape == (4, 4)
+
+    zero = [-1, -1, -1, 1]  # weird, huh ?
+    affine[..., -1] = np.dot(affine, zero)
+
+    return affine

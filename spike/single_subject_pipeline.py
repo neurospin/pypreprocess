@@ -29,14 +29,18 @@ from algorithms.slice_timing.spm_slice_timing import fMRISTC
 from algorithms.registration.spm_realign import MRIMotionCorrection
 from algorithms.registration.affine_transformations import spm_matrix
 from algorithms.registration.kernel_smooth import smooth_image
-from spike.spm_coreg import spm_coreg
-from reporting.base_reporter import ProgressReport
+from algorithms.registration.spm_coreg import SPMCoreg
+from reporting.base_reporter import (ProgressReport,
+                                     PYPREPROCESS_URL
+                                     )
+from reporting.preproc_reporter import generate_subject_preproc_report
 from external.nilearn.datasets import (fetch_spm_auditory_data,
                                        fetch_spm_multimodal_fmri_data
                                        )
 
 
-def execute_spm_auditory_glm(data):
+def execute_spm_auditory_glm(data, reg_motion=False):
+    reg_motion = reg_motion and 'realignment_parameters' in data
 
     tr = 7.
     n_scans = 96
@@ -56,7 +60,7 @@ def execute_spm_auditory_glm(data):
 
     add_reg_names = None
     add_regs = None
-    if 'realignment_parameters' in data:
+    if reg_motion:
         add_reg_names = ['tx', 'ty', 'tz', 'rx', 'ry', 'rz']
         add_regs = np.loadtxt(data['realignment_parameters'][0])
 
@@ -172,7 +176,9 @@ def execute_spm_auditory_glm(data):
     print "\r\nStatistic report written to %s\r\n" % stats_report_filename
 
 
-def execute_spm_multimodal_fmri_glm(data):
+def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
+    reg_motion = reg_motion and 'realignment_parameters' in data
+
     # experimental paradigm meta-params
     stats_start_time = time.ctime()
     tr = 2.
@@ -199,7 +205,7 @@ def execute_spm_multimodal_fmri_glm(data):
 
         add_reg_names = None
         add_regs = None
-        if 'realignment_parameters' in data:
+        if reg_motion:
             add_reg_names = ['tx', 'ty', 'tz', 'rx', 'ry', 'rz']
             add_regs = np.loadtxt(data['realignment_parameters'][x])
         design_matrix = make_dmtx(
@@ -294,7 +300,7 @@ def execute_spm_multimodal_fmri_glm(data):
         anat=anat,
         anat_affine=anat_affine,
         design_matrices=design_matrices,
-        subject_id="sub001",
+        subject_id=data['subject_id'],
         cluster_th=15,  # we're only interested in this 'large' clusters
         start_time=stats_start_time,
 
@@ -344,6 +350,13 @@ def do_subject_preproc(subject_data, execute_glm, n_sessions=1, do_stc=True,
 
     output = subject_data.copy()
 
+    stats_output_dir = os.path.join(subject_data['output_dir'],
+                                    stats_output_dir_basename)
+    if not os.path.exists(stats_output_dir):
+        os.makedirs(stats_output_dir)
+
+    output['stats_output_dir'] = stats_output_dir
+
     slice_order = subject_data['slice_order'] if 'slice_order' in \
         subject_data else slice_order
     interleaved = subject_data['interleaved'] if 'interleaved' in \
@@ -379,21 +392,15 @@ def do_subject_preproc(subject_data, execute_glm, n_sessions=1, do_stc=True,
     # coreg: anat -> func
     ########################
     # estimated realignment (affine) params for coreg
-    q0 = mem.cache(spm_coreg)(load_specific_vol(output['func'][0], 0)[0],
-                              output['anat'])
+    spmcoreg = mem.cache(SPMCoreg().fit)(load_specific_vol(
+            output['func'][0], 0)[0], output['anat'])
 
     # apply coreg
-    M = spm_matrix(q0)
-    _anat = nibabel.load(output['anat'])
-    output['anat'] = save_vol(nibabel.Nifti1Image(
-            _anat.get_data(), scipy.linalg.lstsq(M,
-                                                 _anat.get_affine())[0]),
-                               output_dir=subject_data['output_dir'],
-                               basename=os.path.basename(output['anat']),
-                               )
-
-    # garbage collection
-    del _anat, q0, M
+    output['anat'] = save_vol(mem.cache(spmcoreg.transform)(
+            output['anat'])['coregistered_source'],
+                              output_dir=subject_data['output_dir'],
+                              basename=os.path.basename(output['anat']),
+                              )
 
     #######
     # MC
@@ -410,8 +417,7 @@ def do_subject_preproc(subject_data, execute_glm, n_sessions=1, do_stc=True,
 
         output['func'] = mrimc_output['realigned_files']
 
-        if reg_motion:
-            output['realignment_parameters'] = mrimc_output[
+        output['realignment_parameters'] = mrimc_output[
             'realignment_parameters']
 
         # garbage collection
@@ -431,17 +437,26 @@ def do_subject_preproc(subject_data, execute_glm, n_sessions=1, do_stc=True,
                                     prefix='s'))
         output['func'] = sfunc
 
+    # generate preproc report
+    generate_subject_preproc_report(
+        func=output['func'],
+        anat=output["anat"],
+        estimated_motion=output['realignment_parameters'] if do_mc else None,
+        output_dir=output['stats_output_dir'],
+        did_realign=do_mc,
+        did_slicetiming=do_stc,
+        did_coreg=True,
+        did_normalize=False,
+        did_segment=False,
+        fwhm=fwhm,
+        subject_id=output["subject_id"],
+        sessions=xrange(n_sessions)
+        )
+
     ########
     # GLM
     ########
-    stats_output_dir = os.path.join(subject_data['output_dir'],
-                                    stats_output_dir_basename)
-    if not os.path.exists(stats_output_dir):
-        os.makedirs(stats_output_dir)
-
-    output['stats_output_dir'] = stats_output_dir
-
-    return execute_glm(output)
+    return execute_glm(output, reg_motion=reg_motion)
 
 if __name__ == '__main__':
     sd1 = fetch_spm_auditory_data(os.path.join(os.environ['HOME'],
@@ -472,7 +487,7 @@ if __name__ == '__main__':
         for do_stc in [False, True]:
             for do_mc in [False, True]:
                 for reg_motion in [False, True]:
-                    if not do_mc:
+                    if reg_motion and not do_mc:
                         continue
                     for fwhm in [None, [5., 5., 5.]]:
                         pipeline_remark = ""

@@ -21,7 +21,8 @@ import spm_reslice
 
 # pypreprocess dir
 sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__)))))
 
 from coreutils.io_utils import (load_specific_vol,
                                 load_vol,
@@ -262,7 +263,8 @@ class MRIMotionCorrection(object):
 
     def _single_session_fit(self, vols, quality=None,
                             affine_correction=None):
-        """Realigns volumes (vols) from a single session.
+        """
+        Realigns volumes (vols) from a single session.
 
         Parameters
         ----------
@@ -582,7 +584,8 @@ class MRIMotionCorrection(object):
 
     def transform(self, output_dir, reslice=False, prefix="r",
                   ext=".nii.gz", concat=False):
-        """Saves realigned volumes and the realigment parameters to disk.
+        """
+        Saves realigned volumes and the realigment parameters to disk.
         Realigment parameters are stored in output_dir/rp.txt and Volumes
         are saved in output_dir/prefix_vol.ext where and t is the scan
         number of the corresponding (3D) volume.

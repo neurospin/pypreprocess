@@ -186,7 +186,9 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
     if concat:
         if isinstance(vols, list):
             vols = nibabel.concat_images([_nifti_or_ndarray_to_nifti(vol)
-                                          for vol in vols])
+                                  for vol in vols],
+                                         check_affines=False
+                                         )
             if not basenames is None:
                 basenames = basenames[0]
 
@@ -269,7 +271,9 @@ def is_3D(image):
     if isinstance(image, basestring):
         image = nibabel.load(image)
     elif isinstance(image, list):
-        image = nibabel.concat_images(image)
+        image = nibabel.concat_images(image,
+                                      check_affines=False
+                                      )
 
     if len(image.shape) == 3:
         return True
@@ -307,7 +311,8 @@ def get_vox_dims(volume):
         nii = nibabel.load(volume)
     except:
         # XXX quick and dirty
-        nii = nibabel.concat_images(volume)
+        nii = nibabel.concat_images(volume,
+                                    check_affines=False)
 
     hdr = nii.get_header()
     voxdims = hdr.get_zooms()
@@ -389,7 +394,9 @@ def do_3Dto4D_merge(
     merge_mem = joblib.Memory(cachedir=merge_cache_dir, verbose=5)
 
     # merging proper
-    fourD_img = merge_mem.cache(nibabel.concat_images)(threeD_img_filenames)
+    fourD_img = merge_mem.cache(nibabel.concat_images)(threeD_img_filenames,
+                                                       check_affines=False
+                                                       )
 
     # sanity
     if len(fourD_img.shape) == 5:
@@ -475,8 +482,9 @@ def compute_mean_image(images, output_filename=None, threeD=False):
         if isinstance(image, basestring):
             image = nibabel.load(image)
         else:
-            image = nibabel.concat_images(image)
-            # raise IOError(type(image))
+            image = nibabel.concat_images(image,
+                                          check_affines=False
+                                          )
         data = image.get_data()
 
         if threeD:

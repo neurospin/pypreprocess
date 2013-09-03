@@ -144,9 +144,19 @@ def get_gallery_html_markup():
     Function to generate markup for the contents of a <div id="results">
     type html element.
 
+    Examples
+    --------
+    >>> thumb = Thumbnail(description='sub001', a=a(href='https://github.com'),
+    ... img=img(src='/tmp/logo.gif'))
+    >>> gallery = get_gallery_html_markup().substitute(thumbnails=[thumb])
+    >>> gallery
+    <div class="img">\n  <a href="https://github.com">\n    <img \
+    src="/tmp/logo.gif"/>\n  </a>\n  <div class="desc">sub001</div>\n</div>\n
+
     """
 
-    return tempita.HTMLTemplate("""\
+    return tempita.HTMLTemplate(
+        """
 {{for thumbnail in thumbnails}}
 <div class="img">
   <a {{attr(**thumbnail.a)}}>
@@ -154,34 +164,120 @@ def get_gallery_html_markup():
   </a>
   <div class="desc">{{thumbnail.description | html}}</div>
 </div>
-{{endfor}}""")
+{{endfor}}
+""")
 
 
-class a(tempita.bunch):
+class _HTMLElement(tempita.bunch):
+    """
+    Parameters
+    ----------
+    All parameters must be specified in 'param=value' style. These can be any
+    HTML anchor parameter. Below we document only the compulsary paremters.
+
+    Parameters
+    ----------
+    **kwargs: dict-like
+        param-value dict of attributes for this HTML elemnt.
+
+    """
+
+    _compulsary_params = []
+
+    def __init__(self, **kwargs):
+
+        tempita.bunch.__init__(self, **kwargs)
+
+        for param in self._compulsary_params:
+            if not param in kwargs:
+                raise ValueError(
+                    "Need to specify '%s' parameter for HTML %s" % (
+                        param, self.__class__.__name__))
+
+
+class a(_HTMLElement):
     """
     HTML anchor element.
 
+    Parameters
+    ----------
+    **kwargs: dict-like
+        param-value dict of attributes for this HTML anchor element.
+
+    Examples
+    --------
+    >>> a = a(href='http://gihub.com/neurospin/pypreprocess')
+    >>> a
+    <a href='http://gihub.com/neurospin/pypreprocess'>
+
     """
 
-    pass
+    # _compulsary_params = ['href']
+
+    def __init__(self, **kwargs):
+        _HTMLElement.__init__(self, **kwargs)
 
 
-class img(tempita.bunch):
+class img(_HTMLElement):
     """
     HTML image element.
 
+    Parameters
+    ----------
+    **kwargs: dict-like
+        param-value dict of attributes for this HTML image element. Compulsary
+        parameter-values are:
+
+        src: string
+            src the image
+        href: string
+            href of the image
+
+    Examples
+    --------
+    >>> img = img(src='logo.png')
+    >>> img
+    <img src='logo.png'>
+
     """
 
-    pass
+    # _compulsary_params = ['src']
+
+    def __init__(self, **kwargs):
+        _HTMLElement.__init__(self, **kwargs)
 
 
-class Thumbnail(tempita.bunch):
+class Thumbnail(_HTMLElement):
     """
-    Thumbnnail (HTML img + effects).
+    HTML thumbnail.
+
+    Parameters
+    ----------
+    **kwargs: dict-like
+        param-value dict of attributes for this HTML image element. Comulsary
+        parameter-values are:
+
+        description: string
+            description of the thumbnail
+        a: a `object`
+            HTML anchor `a` object for the thumbnail
+        img: img `object`
+            HTML image `img` object for the thumbnail
+
+    Examples
+    --------
+    >>> thumb = Thumbnail(description='sub001', a=a(href='https://github.com'),
+    ... img=img(src='/tmp/logo.gif'))
+    >>> thumb
+    <Thumbnail a=<a href='https://github.com'> description='sub001' \
+    img=<img src='/tmp/logo.gif'>>
 
     """
 
-    pass
+    # _compulsary_params = ['description', 'a', 'img']
+
+    def __init__(self, **kwargs):
+        _HTMLElement.__init__(self, **kwargs)
 
 
 class ResultsGallery(object):
@@ -237,13 +333,13 @@ def commit_subject_thumnbail_to_parent_gallery(
 
     Parameters
     ----------
-    thumbnail: base_reporter.Thumbnail instance
+    thumbnail: Thumbnail instance
         thumbnail to be committed
 
     subject_id: string
         subject_id for subject under inspection
 
-    result_gallery: base_reporter.ResultsGallery instance (optional)
+    result_gallery: ResultsGallery instance (optional)
         gallery to which thumbnail will be committed
 
     """
