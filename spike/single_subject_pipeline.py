@@ -24,7 +24,9 @@ from coreutils.io_utils import (three_to_four,
                                 get_basenames,
                                 save_vols,
                                 save_vol,
-                                load_specific_vol)
+                                load_specific_vol,
+                                is_niimg
+                                )
 from algorithms.slice_timing.spm_slice_timing import fMRISTC
 from algorithms.registration.spm_realign import MRIMotionCorrection
 from algorithms.registration.affine_transformations import spm_matrix
@@ -37,6 +39,17 @@ from reporting.preproc_reporter import generate_subject_preproc_report
 from external.nilearn.datasets import (fetch_spm_auditory_data,
                                        fetch_spm_multimodal_fmri_data
                                        )
+
+
+def _extract_bold(imgs):
+    if isinstance(imgs, np.ndarray):
+        return np.ndarray(imgs)
+    elif isinstance(imgs, list):
+        return nibabel.concat_images(imgs).get_data()
+    elif is_niimg(imgs):
+        return imgs.get_data()
+    elif isinstance(imgs, basestring):
+        return nibabel.load(imgs).get_data()
 
 
 def execute_spm_auditory_glm(data, reg_motion=False):
@@ -376,13 +389,16 @@ def do_subject_preproc(subject_data, execute_glm, n_sessions=1, do_stc=True,
     if do_stc:
         print "\r\nNODE> Slice-Timing Correction"
         stc_output = []
+        original_bold = []
         for func in output['func']:
             fmristc = mem.cache(fMRISTC(slice_order=slice_order,
                                         interleaved=interleaved,
                                         ).fit)(raw_data=func)
 
-            stc_output.append(mem.cache(fmristc.transform)(
-                    output_dir=subject_data['output_dir']))
+            output = mem.cache(fmristc.transform)(
+                output_dir=subject_data['output_dir'])
+
+            original_bold.append(fmristc.raw_data)
 
         output['func'] = stc_output
 
@@ -449,6 +465,9 @@ def do_subject_preproc(subject_data, execute_glm, n_sessions=1, do_stc=True,
         did_normalize=False,
         did_segment=False,
         fwhm=fwhm,
+        original_bold=None if not do_stc else original_bold,
+        st_corrected_bold=None if not do_stc else [
+            _extract_bold(o) for o in stc_output],
         subject_id=output["subject_id"],
         sessions=xrange(n_sessions)
         )
@@ -484,7 +503,7 @@ if __name__ == '__main__':
 
         """
 
-        for do_stc in [False, True]:
+        for do_stc in [True, False]:
             for do_mc in [False, True]:
                 for reg_motion in [False, True]:
                     if reg_motion and not do_mc:

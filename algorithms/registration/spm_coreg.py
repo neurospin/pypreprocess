@@ -469,6 +469,7 @@ class SPMCoreg(object):
         return output
 
 if __name__ == '__main__':
+    import glob
     import matplotlib.pyplot as plt
     from external.nilearn.datasets import (fetch_spm_auditory_data,
                                            fetch_nyu_rest,
@@ -499,12 +500,17 @@ if __name__ == '__main__':
 
         return sd.func[0], sd.anat
 
-    def _abide_factory():
-        return (os.path.join(os.environ['HOME'],
-                             "CODE/datasets/ABIDE/KKI_50772/rest.nii"),
-                os.path.join(os.environ['HOME'],
-                             "CODE/datasets/ABIDE/KKI_50772/mprage.nii")
-                )
+    def _abide_factory(institute="KKI"):
+        for scans in sorted(glob.glob(
+                "/mnt/3t/edohmato/ABIDE/%s_*/%s_*/scans" % (
+                    institute, institute))):
+            subject_id = os.path.basename(os.path.dirname(
+                    os.path.dirname(scans)))
+            func = os.path.join(scans, "rest/resources/NIfTI/files/rest.nii")
+            anat = os.path.join(scans,
+                                "anat/resources/NIfTI/files/mprage.nii")
+
+            yield subject_id, func, anat
 
     def _run_demo(func, anat):
         # fit SPMCoreg object
@@ -518,15 +524,13 @@ if __name__ == '__main__':
         plot_registration(VFk, func, title="after coreg")
         plt.show()
 
+    # ABIDE demo
+    for subject_id, func, anat in _abide_factory():
+        print "%s +++%s+++\r\n" % ("\t" * 5, subject_id)
+        _run_demo(func, anat)
+
     # spm auditory demo
     _run_demo(*_spm_auditory_factory())
-
-    # ABIDE demo
-    _run_demo(*_abide_factory())
-
-    # NYU Rest demo
-    for func, anat in _nyu_rest_factory():
-        _run_demo(func, anat)
 
     # VFk = _apply_realignment_to_vol(VFk, q0)
     # print q0

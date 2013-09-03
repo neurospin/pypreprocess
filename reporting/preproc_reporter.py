@@ -9,6 +9,7 @@ import os
 import glob
 import re
 import shutil
+import numpy as np
 import commands
 import time
 import joblib
@@ -745,9 +746,78 @@ def generate_realignment_thumbnails(
     return output
 
 
+def generate_stc_thumbnails(
+    original_bold,
+    st_corrected_bold,
+    output_dir,
+    voxel=None,
+    sessions=[1],
+    execution_log_html_filename=None,
+    results_gallery=None,
+    progress_logger=None):
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    original_bold = np.array(original_bold)
+    if original_bold.ndim == 4:
+        original_bold = np.array([original_bold])
+
+    st_corrected_bold = np.array(st_corrected_bold)
+    if st_corrected_bold.ndim == 4:
+        st_corrected_bold = np.array([st_corrected_bold])
+
+    assert st_corrected_bold.shape == original_bold.shape
+
+    if voxel is None:
+        voxel = np.array(original_bold.shape[1:-1]) // 2
+
+    output = {}
+
+    for session_id, o_bold, stc_bold in zip(sessions, original_bold,
+                                            st_corrected_bold):
+
+        output_filename = os.path.join(output_dir,
+                                       'stc_plot_%s.png' % session_id)
+
+        pl.figure()
+        pl.plot(o_bold[voxel[0], voxel[1], voxel[2], ...], 'o-')
+        pl.hold('on')
+        pl.plot(stc_bold[voxel[0], voxel[1], voxel[2], ...], 's-')
+        pl.legend(('original BOLD', 'ST corrected BOLD'))
+        pl.title("session %s: STC QA for voxel (%s, %s, %s)" % (
+                session_id, voxel[0], voxel[1], voxel[2]))
+        pl.xlabel('time (TR)')
+
+        pl.savefig(output_filename, bbox_inches="tight", dpi=200)
+
+        # create thumbnail
+        if results_gallery:
+            thumbnail = base_reporter.Thumbnail()
+            thumbnail.a = base_reporter.a(href=os.path.basename(
+                    output_filename))
+            thumbnail.img = base_reporter.img(src=os.path.basename(
+                    output_filename),
+                                              height="250px",
+                                              width="600px")
+            thumbnail.description = "Slice-Timing Correction"
+            if not execution_log_html_filename is None:
+                thumbnail.description += (" (<a href=%s>see execution "
+                "log</a>)") % os.path.basename(
+                    execution_log_html_filename)
+
+            results_gallery.commit_thumbnails(thumbnail)
+
+        output['stc_plot'] = output_filename
+
+    return output
+
+
 def generate_subject_preproc_report(
     func=None,
     anat=None,
+    original_bold=None,
+    st_corrected_bold=None,
     estimated_motion=None,
     gm=None,
     wm=None,
@@ -877,6 +947,16 @@ def generate_subject_preproc_report(
         fd.write(str(main_html))
         fd.close()
 
+    # generate stc thumbs
+    if did_slicetiming and not original_bold is None and not \
+            st_corrected_bold is None:
+        generate_stc_thumbnails(original_bold,
+                                st_corrected_bold,
+                                output_dir,
+                                sessions=sessions,
+                                results_gallery=results_gallery
+                                )
+
     # generate realignment thumbs
     if did_realign and not estimated_motion is None:
         generate_realignment_thumbnails(
@@ -886,6 +966,7 @@ def generate_subject_preproc_report(
             results_gallery=results_gallery,
             )
 
+    # generate coreg thumbs
     if did_coreg:
         target, ref_brain = func, "func"
         source, source_brain = anat, "anat"
