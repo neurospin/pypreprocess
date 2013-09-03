@@ -33,10 +33,16 @@ Flags = namedtuple('Flags', 'fwhm sep cost_fun tol params')
 EPS = np.finfo(float).eps
 
 
-def loaduint8(filename):
+def loaduint8(filename, log=None):
     """Load data from file indicated by V into array of unsigned bytes.
 
     """
+
+    def _progress_bar(msg):
+        if not log is None:
+            log(msg)
+        else:
+            print(msg)
 
     if isinstance(filename, basestring):
         nii_img = nibabel.load(filename)
@@ -51,6 +57,8 @@ def loaduint8(filename):
 
     if vol.ndim == 4:
         vol = vol[..., 0]
+
+    _progress_bar("Loading %s..." % filename)
 
     def _spm_slice_vol(p):
         """Gets data fir pth slice (place) of volume vol
@@ -74,9 +82,6 @@ def loaduint8(filename):
 
         return ac
 
-    def _progress_bar(msg):
-        print(msg)
-
     # if len(V.pinfo.shape) == 1:
     #     V.pinfo = V.pinfo.reshape((-1, 1))
 
@@ -86,7 +91,7 @@ def loaduint8(filename):
     # else:
     mx = -np.inf
     mn = np.inf
-    _progress_bar("Computing min/max of %s..." % filename)
+    _progress_bar("\tComputing min/max of %s..." % filename)
     for p in xrange(vol.shape[2]):
         img = _spm_slice_vol(p)
         # mx = max(img.max() + _paccuracy(V, p), mx)
@@ -96,7 +101,7 @@ def loaduint8(filename):
     # another pass to find a maximum that allows a few hot-spots in the data
     nh = 2048
     h = np.zeros(nh)
-    _progress_bar("2nd pass max/min of %s..." % filename)
+    _progress_bar("\t2nd pass max/min of %s..." % filename)
     for p in xrange(vol.shape[2]):
         img = _spm_slice_vol(p)
         img = img[np.isfinite(img)]
@@ -109,7 +114,6 @@ def loaduint8(filename):
 
     # load data from file indicated by V into an array of unsigned bytes
     uint8_dat = np.ndarray(vol.shape, dtype='uint8')
-    print "Loading %s..." % filename
     for p in xrange(vol.shape[2]):
         img = _spm_slice_vol(p)
 
@@ -121,6 +125,8 @@ def loaduint8(filename):
         # pth slice
         uint8_dat[..., p] = np.uint8(np.maximum(np.minimum(np.round((
                             img + r - mn) * (255. / (mx - mn))), 255.), 0.))
+
+    _progress_bar("...done.")
 
     # return the data
     return nibabel.Nifti1Image(uint8_dat, nii_img.get_affine())
@@ -254,7 +260,7 @@ def spm_powell(x0, xi, tolsc, *otherargs):
         output = optfun(x, *otherargs)
 
         # verbose
-        token = "\t" + "".join(['%-12.4g ' % z for z in x])
+        token = "".join(['%-12.4g ' % z for z in x])
         token += '|  %.5g' % output
         print token
 
@@ -279,101 +285,6 @@ def apply_coreg(src_vol, params):
     return nibabel.Nifti1Image(src_vol.get_data(), scipy.linalg.lstsq(
             spm_matrix(params),
             src_vol.get_affine())[0])
-
-
-def spm_coreg(ref_vol,
-              src_vol,
-              sep=[4, 2],
-              params=[0, 0, 0, 0, 0, 0],
-              tol=[.02, .02, .02, .001, .001, .001],
-              cost_fun="nmi",
-              fwhm=[7., 7., 7.],
-              smooth_vols=True,
-              ):
-    """
-    Similarity-based rigid-body multi-modal registration.
-
-    Parameters
-    ----------
-    ref_vol: nibabel 3D image object
-        reference (fixed) image
-    src_vol: nibabel 3D image object
-        source (moving) image
-    sep: 1D array of floats, optional (default [4, 2])
-        piramidal optimization seperation (in mm)
-    params: 1D array of length 6, optional (default [0, 0, 0, 0, 0, 0]
-        starting estimates
-    cost_fun: string, optional (default "nmi")
-        similarity function to be optimized. Possible values are:
-        "mi": Mutual Information
-        "nmi": Normalized Mutual Information
-        "ecc": Entropy Correlation Coefficient
-    tol: 1D array of 6 floats, optional (
-    default [.02, .02, .02, .001, .001, .001])
-        tolerances for the accuracy of each parameter
-
-    Returns
-    -------
-    x: 1D array of 6 floats
-        the six parameter defining the rigid-body motion needed to align the
-        moving image `src_vol` with the reference image `ref_vol`
-
-    """
-
-    params = np.array(params)
-    tol = np.array(tol)
-    fwhm = np.array(fwhm)
-
-    # get ready for spm_powell
-    sc = tol
-    sc = sc[:len(params)]
-    xi = np.diag(sc * 20)
-
-    # load ref_vol
-    ref_vol = nibabel.load(ref_vol) if isinstance(
-        ref_vol, basestring) else ref_vol
-
-    ref_vol = nibabel.Nifti1Image(
-        ref_vol.get_data(), nibabel2spm_affine(
-            ref_vol.get_affine()))
-
-    if not ref_vol.get_data().dtype == np.uint8:
-        ref_vol = loaduint8(ref_vol)
-
-    # load src_vol
-    src_vol = nibabel.load(src_vol) if isinstance(
-        src_vol, basestring) else src_vol
-
-    src_vol = nibabel.Nifti1Image(
-        src_vol.get_data(), nibabel2spm_affine(
-            src_vol.get_affine()))
-
-    if not src_vol.get_data().dtype == np.uint8:
-        src_vol = loaduint8(src_vol)
-
-    # smooth vols
-    if smooth_vols:
-        vxg = np.sqrt(np.sum(ref_vol.get_affine()[:3, :3] ** 2, axis=0))
-        fwhmg = np.sqrt(np.maximum(
-                np.ones(3) * sep[-1] ** 2 - vxg ** 2, [0, 0, 0])) / vxg
-        ref_vol = nibabel.Nifti1Image(
-            scipy.ndimage.gaussian_filter(ref_vol.get_data(),
-                                          fwhm2sigma(fwhmg)),
-            ref_vol.get_affine())
-
-        vxf = np.sqrt(np.sum(src_vol.get_affine()[:3, :3] ** 2, axis=0))
-        fwhmf = np.sqrt(np.maximum(
-                np.ones(3) * sep[-1] ** 2 - vxf ** 2, [0, 0, 0])) / vxf
-        src_vol = nibabel.Nifti1Image(scipy.ndimage.gaussian_filter(
-                src_vol.get_data(), fwhm2sigma(fwhmf)), src_vol.get_affine())
-
-    # piramidal loop
-    xk = list(params)
-    for samp in sep:
-        # powell gradient-less local optimization
-        xk = spm_powell(xk, xi, sc, ref_vol, src_vol, samp, cost_fun, fwhm)
-
-    return xk
 
 
 class SPMCoreg(object):
@@ -408,7 +319,8 @@ class SPMCoreg(object):
                  tol=[.02, .02, .02, .001, .001, .001],
                  cost_fun="nmi",
                  fwhm=[7., 7., 7.],
-                 smooth_vols=True
+                 smooth_vols=True,
+                 verbose=1
                  ):
 
         self.sep = np.array(sep)
@@ -417,11 +329,25 @@ class SPMCoreg(object):
         self.cost_fun = cost_fun
         self.fwhm = np.array(fwhm)
         self.smooth_vols = smooth_vols
+        self.verbose = verbose
 
         # get ready for spm_powell
         self.sc = np.array(tol)
         self.sc = self.sc[:len(params)]
         self.xi = np.diag(self.sc * 20)
+
+    def _log(self, msg):
+        """Logs a message, according to verbose level.
+
+        Parameters
+        ----------
+        msg: string
+            message to log
+
+        """
+
+        if self.verbose:
+            print(msg)
 
     def fit(self, ref_vol, src_vol):
         """
@@ -450,12 +376,12 @@ class SPMCoreg(object):
         """
 
         # load ref_vol
-        ref_vol = loaduint8(ref_vol)
+        ref_vol = loaduint8(ref_vol, log=self._log)
         ref_vol = nibabel.Nifti1Image(ref_vol.get_data(),
                                       nibabel2spm_affine(ref_vol.get_affine()))
 
         # load src_vol
-        src_vol = loaduint8(src_vol)
+        src_vol = loaduint8(src_vol, log=self._log)
         src_vol = nibabel.Nifti1Image(src_vol.get_data(),
                                       nibabel2spm_affine(src_vol.get_affine()))
 
@@ -482,8 +408,12 @@ class SPMCoreg(object):
         self.params_ = self.initial_params
         for samp in self.sep:
             # powell gradient-less local optimization
+            self._log(
+                ("Running powell gradient-less local optimization "
+                 "(sampling=%smm)...") % samp)
             self.params_ = spm_powell(self.params_, self.xi, self.sc, ref_vol,
                                       src_vol, samp, self.cost_fun, self.fwhm)
+            self._log("...done.\r\n")
 
         return self
 
@@ -540,10 +470,28 @@ class SPMCoreg(object):
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    from external.nilearn.datasets import fetch_spm_auditory_data, fetch_nyu_rest
+    from external.nilearn.datasets import (fetch_spm_auditory_data,
+                                           fetch_nyu_rest,
+                                           fetch_spm_multimodal_fmri_data
+                                           )
     from algorithms.registration.spm_realign import _apply_realignment_to_vol
     from algorithms.registration.affine_transformations import spm_matrix
     from reporting.check_preprocessing import plot_registration
+    from coreutils.io_utils import delete_orientation
+
+    def _nyu_rest_factory():
+        sd = fetch_nyu_rest(os.path.join(
+                os.environ['HOME'], "CODE/datasets/nyu_rest"))
+
+        for j in xrange(len(sd.func)):
+            output_dir = os.path.join("/tmp", os.path.basename(
+                    os.path.dirname(os.path.dirname(sd.func[j]))))
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+            yield delete_orientation(sd.func[j], output_dir
+                                     ), delete_orientation(sd.anat_skull[j],
+                                                           output_dir)
 
     def _spm_auditory_factory():
         sd = fetch_spm_auditory_data(os.path.join(
@@ -575,6 +523,10 @@ if __name__ == '__main__':
 
     # ABIDE demo
     _run_demo(*_abide_factory())
+
+    # NYU Rest demo
+    for func, anat in _nyu_rest_factory():
+        _run_demo(func, anat)
 
     # VFk = _apply_realignment_to_vol(VFk, q0)
     # print q0

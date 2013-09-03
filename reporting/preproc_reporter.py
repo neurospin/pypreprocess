@@ -59,6 +59,7 @@ def get_nipype_report_filename(
 
 
 def generate_preproc_undergone_docstring(
+    tools_used=None,
     do_deleteorient=False,
     fwhm=None,
     do_bet=False,
@@ -69,11 +70,18 @@ def generate_preproc_undergone_docstring(
     do_segment=True,
     do_normalize=True,
     additional_preproc_undergone=""):
-    preproc_undergone = """\
-    <p>All preprocessing has been done using <a href="%s">pypreprocess</a>,
-    which is powered by <a href="%s">nipype</a>, and <a href="%s">SPM8</a>.
-    </p>""" % (base_reporter.PYPREPROCESS_URL,
-               base_reporter.NIPYPE_URL, base_reporter.SPM8_URL)
+    """
+    Generates a brief description of the pipeline used in the preprocessing.
+
+    """
+
+    if tools_used is None:
+        tools_used = (
+            'All preprocessing was done using <a href="%s">pypreprocess</a>,'
+            ' a collection of python tools (scripts, modules, etc.) for '
+            'preprocessing fMRI data.') % base_reporter.PYPREPROCESS_URL,
+
+    preproc_undergone = "<p>%s</p>" % tools_used
 
     preproc_undergone += "<ul>"
     if do_deleteorient:
@@ -747,12 +755,24 @@ def generate_subject_preproc_report(
     output_dir='/tmp',
     subject_id="UNSPECIFIED!",
     sessions=['UNKNOWN_SESSION'],
+    tools_used=None,
+    fwhm=None,
+    did_bet=False,
+    did_slicetiming=False,
+    slice_order='ascending',
+    interleaved=False,
+    did_deleteorient=False,
+    did_realign=True,
+    did_coreg=True,
+    func_to_anat=False,
+    did_segment=True,
+    did_normalize=True,
     do_cv_tc=True,
-    preproc_undergone=None,
-    conf_path='.',
-    last_stage=True,
+    additional_preproc_undergone=None,
     parent_results_gallery=None,
     subject_progress_logger=None,
+    conf_path='.',
+    last_stage=True,
     ):
 
     output = {}
@@ -774,12 +794,20 @@ def generate_subject_preproc_report(
             subject_progress_logger.finish(report_preproc_filename)
             subject_progress_logger.finish_all()
 
-    if not preproc_undergone:
-        preproc_undergone = """\
-<p>All preprocessing has been done using <a href="%s">pypreprocess</a>,
- which is powered by <a href="%s">nipype</a>, and <a href="%s">SPM8</a>.
-</p>""" % (base_reporter.PYPREPROCESS_URL,
-           base_reporter.NIPYPE_URL, base_reporter.SPM8_URL)
+    # generate explanation of preproc steps undergone by subject
+    preproc_undergone = generate_preproc_undergone_docstring(
+        tools_used=tools_used,
+        do_deleteorient=did_deleteorient,
+        fwhm=fwhm,
+        do_bet=did_bet,
+        do_slicetiming=did_slicetiming,
+        do_realign=did_realign,
+        do_coreg=did_coreg,
+        coreg_func_to_anat=func_to_anat,
+        do_segment=did_segment,
+        do_normalize=did_normalize,
+        additional_preproc_undergone=additional_preproc_undergone,
+        )
 
     report_log_filename = os.path.join(
         output_dir, 'report_log.html')
@@ -850,7 +878,7 @@ def generate_subject_preproc_report(
         fd.close()
 
     # generate realignment thumbs
-    if estimated_motion:
+    if did_realign and not estimated_motion is None:
         generate_realignment_thumbnails(
             estimated_motion,
             output_dir,
@@ -858,43 +886,54 @@ def generate_subject_preproc_report(
             results_gallery=results_gallery,
             )
 
-    # generate epi normalization thumbs
-    generate_normalization_thumbnails(
-        func,
-        output_dir,
-        brain="EPI",
-        results_gallery=results_gallery)
-
-    seg_thumbs = generate_segmentation_thumbnails(
-        func,
-        output_dir,
-        subject_gm_file=gm,
-        subject_wm_file=wm,
-        subject_csf_file=csf,
-        cmap=pl.cm.spectral,
-        brain="EPI",
-        results_gallery=results_gallery,
-        )
-    final_thumbnail.img.src = seg_thumbs['axial']
-
-    # generate anat normalization thumbs
-    if anat:
-        generate_normalization_thumbnails(
-            anat,
+    if did_coreg:
+        target, ref_brain = func, "func"
+        source, source_brain = anat, "anat"
+        generate_coregistration_thumbnails(
+            (target, ref_brain),
+            (source, source_brain),
             output_dir,
-            brain="anat",
+            results_gallery=results_gallery,
+            )
+
+    # generate epi normalization thumbs
+    if did_normalize:
+        generate_normalization_thumbnails(
+            func,
+            output_dir,
+            brain="EPI",
             results_gallery=results_gallery)
 
-        generate_segmentation_thumbnails(
-            anat,
+        seg_thumbs = generate_segmentation_thumbnails(
+            func,
             output_dir,
             subject_gm_file=gm,
             subject_wm_file=wm,
             subject_csf_file=csf,
-            cmap=pl.cm.gray,
-            brain="anat",
+            cmap=pl.cm.spectral,
+            brain="EPI",
             results_gallery=results_gallery,
             )
+        final_thumbnail.img.src = seg_thumbs['axial']
+
+        # generate anat normalization thumbs
+        if anat:
+            generate_normalization_thumbnails(
+                anat,
+                output_dir,
+                brain="anat",
+                results_gallery=results_gallery)
+
+            generate_segmentation_thumbnails(
+                anat,
+                output_dir,
+                subject_gm_file=gm,
+                subject_wm_file=wm,
+                subject_csf_file=csf,
+                cmap=pl.cm.gray,
+                brain="anat",
+                results_gallery=results_gallery,
+                )
 
     # generate cv tc plots
     if do_cv_tc:
