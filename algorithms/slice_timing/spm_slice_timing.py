@@ -478,7 +478,6 @@ class fMRISTC(STC):
             img = nibabel.load(raw_data)
             raw_data, self.affine_ = img.get_data(), img.get_affine()
         elif is_niimg(raw_data):
-            # niimg
             raw_data, self.affine_ = raw_data.get_data(), raw_data.get_affine()
         elif isinstance(raw_data, list) and (isinstance(
                 raw_data[0], basestring) or is_niimg(raw_data[0])):
@@ -499,34 +498,44 @@ class fMRISTC(STC):
         else:
             raw_data = np.array(raw_data)
 
+        if raw_data.ndim == 5:
+            assert raw_data.shape[-2] == 1, raw_data.shape
+            raw_data = raw_data[..., 0, ...]
+
         # our business is over: deligate to super method
         return STC._sanitize_raw_data(self, raw_data, fitting=fitting)
 
     def get_raw_data(self):
         return self.raw_data
 
-    def transform(self, raw_data=None, output_dir=None):
+    def transform(self, raw_data=None, output_dir=None, affine=None):
         self.output_data_ = STC.transform(self, raw_data=raw_data)
 
-        if output_dir is None:
-            return self.output_data_
+        if not affine is None:
+            self.affine_ = affine
 
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        if not output_dir is None:
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
 
         if hasattr(self, 'affine_'):
             if isinstance(self.affine_, list):
-                self.output_data_  = save_vols([nibabel.Nifti1Image(
+                self.output_data_  = [nibabel.Nifti1Image(
                             self.output_data_[..., t], self.affine_[t])
                                                  for t in xrange(
-                            self.output_data_.shape[-1])],
-                                                output_dir, prefix='a',
-                                                basenames=self.basenames_)
+                            self.output_data_.shape[-1])]
+                if output_dir is None:
+                    self.output_data_ = nibabel.concat_images(
+                        self.output_data_, check_affines=False)
             else:
-                self.output_data_ = save_vols(nibabel.Nifti1Image(
-                        self.output_data_, self.affine_),
-                                               output_dir, prefix='a',
-                                               basenames=self.basenames_)
+                self.output_data_ = nibabel.Nifti1Image(self.output_data_,
+                                                        self.affine_)
+
+            if not output_dir is None:
+                self.output_data_ = save_vols(self.output_data_,
+                                              output_dir, prefix='a',
+                                              basenames=self.basenames_
+                                              )
 
         return self.output_data_
 

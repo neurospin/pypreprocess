@@ -18,7 +18,11 @@ from nipy.labs import compute_mask_files
 from nipy.labs import viz
 import joblib
 
-from coreutils.io_utils import do_3Dto4D_merge, compute_mean_3D_image, load_vol
+from coreutils.io_utils import (do_3Dto4D_merge,
+                                compute_mean_3D_image,
+                                load_vol,
+                                load_4D_img
+                                )
 
 EPS = np.finfo(float).eps
 
@@ -41,7 +45,9 @@ def plot_spm_motion_parameters(parameter_file, title=None,
     """
 
     # load parameters
-    motion = np.loadtxt(parameter_file)
+    motion = np.loadtxt(parameter_file) if isinstance(
+        parameter_file, basestring) else parameter_file[..., :6]
+
     motion[:, 3:] *= (180. / np.pi)
 
     # do plotting
@@ -128,11 +134,13 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
     if isinstance(mask, basestring):
         mask_array = nibabel.load(mask).get_data() > 0
     elif mask == True:
+        print epi_data
         mask_array = compute_mask_files(epi_data[0])
     else:
         mask_array = None
     for (session_id, fmri_file) in zip(session_ids, epi_data):
-        nim = do_3Dto4D_merge(fmri_file, output_dir=_output_dir)
+        nim = load_4D_img(fmri_file)
+
         affine = nim.get_affine()
         if len(nim.shape) == 4:
             # get the data

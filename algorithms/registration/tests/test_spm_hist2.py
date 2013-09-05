@@ -8,8 +8,8 @@ import scipy.io
 import commands
 
 # pypreproces path
-PYPREPROCESS_DIR = os.path.dirname(os.path.dirname(
-        os.path.split(os.path.abspath(__file__))[0]))
+PYPREPROCESS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.split(os.path.abspath(__file__))[0])))
 sys.path.append(PYPREPROCESS_DIR)
 
 # import APIS to test

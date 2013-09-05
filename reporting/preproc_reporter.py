@@ -6,6 +6,7 @@
 """
 
 import os
+import sys
 import glob
 import re
 import shutil
@@ -15,10 +16,17 @@ import time
 import joblib
 import pylab as pl
 import json
-
+import nibabel
 import check_preprocessing
 import coreutils.io_utils as io_utils
 import base_reporter
+
+# pypreprocess root dir
+PYPREPROCESS_DIR = os.path.dirname(
+    os.path.split(os.path.abspath(__file__))[0])
+sys.path.append(PYPREPROCESS_DIR)
+
+from coreutils.io_utils import is_niimg
 
 # set templates
 SPM_DIR = '/i2bm/local/spm8'
@@ -65,11 +73,11 @@ def generate_preproc_undergone_docstring(
     fwhm=None,
     do_bet=False,
     do_slicetiming=False,
-    do_realign=True,
-    do_coreg=True,
+    do_realign=False,
+    do_coreg=False,
     coreg_func_to_anat=False,
-    do_segment=True,
-    do_normalize=True,
+    do_segment=False,
+    do_normalize=False,
     additional_preproc_undergone=""):
     """
     Generates a brief description of the pipeline used in the preprocessing.
@@ -664,7 +672,7 @@ def generate_cv_tc_thumbnail(
         os.makedirs(qa_cache_dir)
     qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
 
-    if isinstance(image_files, basestring):
+    if isinstance(image_files, basestring) or is_niimg(image_files):
         image_files = [image_files]
     else:
         if io_utils.is_3D(image_files[0]):
@@ -759,13 +767,20 @@ def generate_stc_thumbnails(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    original_bold = np.array(original_bold)
-    if original_bold.ndim == 4:
-        original_bold = np.array([original_bold])
+    def _sanitize_data(data):
+        if isinstance(data, list):
+            return np.array([_sanitize_data(x) for x in data])
 
-    st_corrected_bold = np.array(st_corrected_bold)
-    if st_corrected_bold.ndim == 4:
-        st_corrected_bold = np.array([st_corrected_bold])
+        if is_niimg(data):
+            data = data.get_data()
+        elif isinstance(data, basestring):
+            data = nibabel.load(data).get_data()
+        data = np.array(data)
+
+        return data
+
+    original_bold = _sanitize_data(original_bold)
+    st_corrected_bold = _sanitize_data(st_corrected_bold)
 
     assert st_corrected_bold.shape == original_bold.shape
 

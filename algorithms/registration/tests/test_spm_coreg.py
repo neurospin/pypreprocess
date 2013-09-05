@@ -8,8 +8,8 @@ import scipy.io
 import nibabel
 
 # pypreproces path
-PYPREPROCESS_DIR = os.path.dirname(os.path.dirname(
-        os.path.split(os.path.abspath(__file__))[0]))
+PYPREPROCESS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.split(os.path.abspath(__file__))[0])))
 sys.path.append(PYPREPROCESS_DIR)
 
 # import APIS to test
@@ -26,22 +26,15 @@ def test_loaduint8():
                                               "CODE/datasets/spm_auditory"))
 
     v = loaduint8(sd.func[0]).get_data()
-    assert 0, v[v > 100].sum()
 
 
 def test_optfun():
     # setup
     decimal_precision = 6
 
-    # affine matrix
-    M = np.array([[3., 0., 0., 32.],
-                  [0., 3., 0., 72.],
-                  [0., 0., 1., 2.],
-                  [0., 0., 0., 1.]])
-
     # load real-data
     tmp = scipy.io.loadmat(os.path.join(PYPREPROCESS_DIR,
-                                        "test_data/spm_hist2_args.mat"),
+                                        "test_data/spm_hist2_args_1.mat"),
                            squeeze_me=True, struct_as_record=False)
 
     VG, VFk = [tmp[k] for k in ["VG", "VFk"]]

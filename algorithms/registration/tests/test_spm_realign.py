@@ -233,15 +233,13 @@ def test_MRIMotionCorrection_fit():
     # instantiate object
     mrimc = MRIMotionCorrection(quality=1., lkp=lkp).fit([film])
 
+    # check shape of realignment params
+    numpy.testing.assert_array_equal(mrimc.rp_.shape, [1] + [n_scans, 6])
+
     # check that we estimated the correct motion params
     # XXX refine the notion of "closeness" below
     for t in xrange(n_scans):
-        _tmp = get_initial_motion_params()
-
-        # check that nothx has been estimated outside the lkp
-        fancy = _tmp == _tmp
-        fancy[lkp] = False
-        numpy.testing.assert_array_equal(_tmp[fancy], mrimc.rp_[0][t][fancy])
+        _tmp = get_initial_motion_params()[:6]
 
         # check the estimated motion is well within our MAX_RE limit
         _tmp[:3] += _make_vol_specific_translation(translation, n_scans, t)
@@ -251,7 +249,7 @@ def test_MRIMotionCorrection_fit():
                                           _tmp[lkp], rtol=MAX_RE)
         else:
             numpy.testing.assert_array_equal(mrimc.rp_[0][t],
-                                          get_initial_motion_params())
+                                             get_initial_motion_params()[:6])
 
     ####################
     # check transform

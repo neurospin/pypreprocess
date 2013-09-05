@@ -580,9 +580,11 @@ class MRIMotionCorrection(object):
             self.rp_.append(sess_rp)
             self._log('...done; session %i.\r\n' % (sess + 1))
 
+        self.rp_ = np.array(self.rp_)[..., :6]
+
         return self
 
-    def transform(self, output_dir, reslice=False, prefix="r",
+    def transform(self, output_dir=None, reslice=False, prefix="r",
                   ext=".nii.gz", concat=False):
         """
         Saves realigned volumes and the realigment parameters to disk.
@@ -624,12 +626,15 @@ class MRIMotionCorrection(object):
         if not hasattr(self, 'rp_'):
             raise RuntimeError("fit(...) method not yet invoked.")
 
-        # sanitize ext
+        # sanitize ext param
         if not ext.startswith('.'):
             ext = "." + ext
 
-        self.realigned_files_ = []
-        self.rp_filenames_ = []
+        # sanitize reslice param
+        reslice = reslice or concat
+
+        output = {'realignment_parameters': self.rp_,
+                  'realigned_images': []}
 
         for sess in xrange(self.n_sessions):
             n_scans = len(self.rp_[sess])
@@ -650,61 +655,68 @@ class MRIMotionCorrection(object):
                 self._log('...done; session %i/%i.' % (
                         sess + 1, self.n_sessions))
 
-            # make basenames for output files
-            basenames = None
-            if isinstance(self.vols_[sess], basestring):
-                basenames = get_basenames(self.vols_[sess])
-            elif isinstance(self.vols_[sess], list):
-                if isinstance(self.vols_[sess][0], basestring):
-                    basenames = get_basenames(self.vols_[sess])
-
-            if basenames is None:
-                if not isinstance(self.vols_, list) or concat:
-                    basenames = "vols"
-            else:
-                basenames = ["sess_%i_vol_%i" % (sess, i)
-                             for i in xrange(len(self.vols_[sess]))]
-
-            # save realigned files to disk
             if concat:
-                sess_realigned_files = save_vols(
-                    list(sess_rvols),
-                    output_dir,
-                    basenames=basenames,
-                    concat=concat,
-                    ext=ext,
-                    prefix=prefix)
-            else:
-                sess_realigned_files = [save_vol(
-                        sess_rvols[t],
-                        output_dir=output_dir,
-                        basename=basenames[t] if isinstance(
-                            basenames,
-                            list) else basenames,
-                        ext=ext,
-                        prefix=prefix) for t in xrange(n_scans)]
+                sess_rvols = nibabel.concat_images(sess_rvols)
 
-            self.realigned_files_.append(sess_realigned_files)
+            output['realigned_images'].append(sess_rvols)
 
-            # save realignment params to disk
-            if basenames is None:
-                sess_rp_filename = os.path.join(output_dir, "rp.txt")
-            else:
-                if isinstance(basenames, basestring):
-                    sess_rp_filename = os.path.join(
-                        output_dir,
-                        "rp_" + basenames + ".txt")
+            # save output unto disk
+            if not output_dir is None:
+                output['realigned_files'] = []
+                output['realignment_parameters'] = []
+
+                # make basenames for output files
+                basenames = None
+                if isinstance(self.vols_[sess], basestring):
+                    basenames = get_basenames(self.vols_[sess])
+                elif isinstance(self.vols_[sess], list):
+                    if isinstance(self.vols_[sess][0], basestring):
+                        basenames = get_basenames(self.vols_[sess])
+
+                if basenames is None:
+                    if not isinstance(self.vols_, list) or concat:
+                        basenames = "vols"
                 else:
-                    sess_rp_filename = os.path.join(
+                    basenames = ["sess_%i_vol_%i" % (sess, i)
+                                 for i in xrange(len(self.vols_[sess]))]
+
+                # save realigned files to disk
+                if concat:
+                    sess_realigned_files = save_vol(sess_rvols,
                         output_dir,
-                        "rp_" + basenames[0] + ".txt")
+                        basenames=basenames,
+                        concat=concat,
+                        ext=ext,
+                        prefix=prefix)
+                else:
+                    sess_realigned_files = [save_vol(
+                            sess_rvols[t],
+                            output_dir=output_dir,
+                            basename=basenames[t] if isinstance(
+                                basenames,
+                                list) else basenames,
+                            ext=ext,
+                            prefix=prefix) for t in xrange(n_scans)]
 
-            np.savetxt(sess_rp_filename, self.rp_[sess][..., self.lkp])
-            self.rp_filenames_.append(sess_rp_filename)
+                output['realigned_files'].append(sess_realigned_files)
 
-        self._log('...done; output saved to %s.' % output_dir)
+                # save realignment params to disk
+                if basenames is None:
+                    sess_rp_filename = os.path.join(output_dir, "rp.txt")
+                else:
+                    if isinstance(basenames, basestring):
+                        sess_rp_filename = os.path.join(
+                            output_dir,
+                            "rp_" + basenames + ".txt")
+                    else:
+                        sess_rp_filename = os.path.join(
+                            output_dir,
+                            "rp_" + basenames[0] + ".txt")
+
+                np.savetxt(sess_rp_filename, self.rp_[sess][..., self.lkp])
+                output['realignment_parameters'].append(sess_rp_filename)
+
+                self._log('...done; output saved to %s.' % output_dir)
 
         # return
-        return {'realignment_parameters': self.rp_filenames_,
-                'realigned_files': self.realigned_files_
-                }
+        return output

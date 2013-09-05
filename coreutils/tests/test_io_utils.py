@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+import numpy.testing
 import nibabel
 import os
 import tempfile
@@ -20,7 +21,11 @@ from coreutils.io_utils import (
     save_vols,
     save_vol,
     hard_link,
-    get_basenames
+    get_basenames,
+    load_4D_img,
+    is_niimg,
+    get_vox_dims,
+    hard_link
     )
 
 # global setup
@@ -38,6 +43,9 @@ def create_random_image(shape=None,
     Creates a random image of prescribed shape
 
     """
+
+    if not n_scans is None:
+        ndim = 4
 
     if shape is None:
         shape = np.random.random_integers(20, size=ndim)
@@ -62,7 +70,7 @@ def test_load_vol():
     _vol = load_vol(vol)
     nose.tools.assert_true(isinstance(_vol, type(vol)))
     nose.tools.assert_equal(_vol.shape, vol.shape)
-    np.testing.assert_array_equal(_vol.get_data(), vol.get_data())
+    numpy.testing.assert_array_equal(_vol.get_data(), vol.get_data())
 
     # test loading vol by filename
     for ext in IMAGE_EXTENSIONS:
@@ -77,7 +85,7 @@ def test_load_vol():
         _vol = load_vol(vol_filename)
         nose.tools.assert_true(isinstance(_vol, vol_type))
         nose.tools.assert_equal(_vol.shape, vol.shape)
-        np.testing.assert_array_equal(_vol.get_data(), vol.get_data())
+        numpy.testing.assert_array_equal(_vol.get_data(), vol.get_data())
 
 
 def test_load_specific_vol():
@@ -96,7 +104,7 @@ def test_load_specific_vol():
         nose.tools.assert_equal(_n_scans, n_scans)
         nose.tools.assert_true(isinstance(_vol, type(film)))
         nose.tools.assert_equal(_vol.shape, film.shape[:-1])
-        np.testing.assert_array_equal(_vol.get_data(), film.get_data()[..., t])
+        numpy.testing.assert_array_equal(_vol.get_data(), film.get_data()[..., t])
 
     # test loading vol from a single 4D filename
     for ext in IMAGE_EXTENSIONS:
@@ -126,7 +134,7 @@ def test_load_specific_vol():
                 nose.tools.assert_equal(_n_scans, n_scans)
                 nose.tools.assert_true(isinstance(_vol, vol_type))
                 nose.tools.assert_equal(_vol.shape, film.shape[:-1])
-                np.testing.assert_array_equal(_vol.get_data(),
+                numpy.testing.assert_array_equal(_vol.get_data(),
                                               film.get_data()[..., t])
 
 
@@ -173,11 +181,11 @@ def test_save_vols():
         for concat in [False, True]:
             for bn in [None, basenames]:
                 saved_vols_filenames = save_vols(stuff,
-                                                  output_dir,
-                                                  ext='.nii.gz',
-                                                  concat=concat,
-                                                  basenames=basenames
-                                                  )
+                                                 output_dir,
+                                                 ext='.nii.gz',
+                                                 concat=concat,
+                                                 basenames=basenames
+                                                 )
                 if not concat and isinstance(stuff, list):
                         nose.tools.assert_true(isinstance(
                                 saved_vols_filenames, list))
@@ -305,6 +313,91 @@ def test_get_basenames():
     nose.tools.assert_equal(get_basenames(["/path/to/file/file-%04i.nii.gz" % i
                                            for i in xrange(10)])[3],
                             "file-0003")
+
+
+def test_load_4D_img():
+    # setup
+    output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # try loading from 4D niimg
+    film = create_random_image(n_scans=10)
+    loaded_4D_img = load_4D_img(film)
+    nose.tools.assert_true(is_niimg(loaded_4D_img))
+    nose.tools.assert_equal(loaded_4D_img.shape, film.shape)
+
+    # try loading from 4D image file
+    film = create_random_image(n_scans=10)
+    saved_img_filename = os.path.join(output_dir, "4D.nii.gz")
+    nibabel.save(film, saved_img_filename)
+    loaded_4D_img = load_4D_img(saved_img_filename)
+    nose.tools.assert_true(is_niimg(loaded_4D_img))
+    nose.tools.assert_equal(loaded_4D_img.shape, film.shape)
+
+    # try loading from list of 3D niimgs
+    film = create_random_image(n_scans=10)
+    loaded_4D_img = load_4D_img(nibabel.four_to_three(film))
+    nose.tools.assert_true(is_niimg(loaded_4D_img))
+    nose.tools.assert_equal(loaded_4D_img.shape, film.shape)
+
+    # try loading from list of 3D image files
+    film = create_random_image(n_scans=10)
+    saved_vols_filenames = save_vols(film,
+                                     output_dir,
+                                     ext='.nii.gz',
+                                     )
+    loaded_4D_img = load_4D_img(saved_vols_filenames)
+    nose.tools.assert_true(is_niimg(loaded_4D_img))
+    nose.tools.assert_equal(loaded_4D_img.shape, film.shape)
+
+
+def test_get_vox_dims():
+    # setup
+    affine = np.eye(4)
+    np.fill_diagonal(affine, [-3, 3, 3])
+
+    output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # 3D vol
+    vol = create_random_image(affine=affine)
+    numpy.testing.assert_array_equal(get_vox_dims(vol), [3, 3, 3])
+
+    # 3D image file
+    saved_img_filename = os.path.join(output_dir, "vol.nii.gz")
+    nibabel.save(vol, saved_img_filename)
+    numpy.testing.assert_array_equal(get_vox_dims(vol), [3, 3, 3])
+
+    # 4D niimg
+    film = create_random_image(n_scans=10, affine=affine)
+    numpy.testing.assert_array_equal(get_vox_dims(film), [3, 3, 3])
+
+    # 4D image file
+    film = create_random_image(n_scans=10, affine=affine)
+    saved_img_filename = os.path.join(output_dir, "4D.nii.gz")
+    nibabel.save(film, saved_img_filename)
+    numpy.testing.assert_array_equal(get_vox_dims(film), [3, 3, 3])
+
+
+def test_is_niimg():
+    # setup
+    output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # 4D niimg
+    film = create_random_image(n_scans=10)
+    nose.tools.assert_true(is_niimg(film))
+
+    # 3D niimg
+    vol = create_random_image()
+    nose.tools.assert_true(is_niimg(vol))
+
+    # filename is not niimg
+    nose.tools.assert_false(is_niimg("/path/to/some/nii.gz"))
+
 
 # run all tests
 nose.runmodule(config=nose.config.Config(

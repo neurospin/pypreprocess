@@ -21,7 +21,9 @@ def is_niimg(img):
     """
 
     if isinstance(img, (nibabel.Nifti1Image,
-                        nibabel.Nifti1Pair
+                        nibabel.Nifti1Pair,
+                        nibabel.Spm2AnalyzeImage,
+                        nibabel.Spm99AnalyzeImage
                         # add other supported image types below (e.g
                         # AnalyseImage, etc.)
                         )):
@@ -49,6 +51,8 @@ def load_vol(x):
         vol = nibabel.load(x)
     elif is_niimg(x):
         vol = x
+    elif isinstance(x, tuple):
+        vol = nibabel.Nifti1Image(*x)
     else:
         raise TypeError(
             ("Each volume must be string or image object; got:"
@@ -87,7 +91,11 @@ def load_specific_vol(vols, t):
             return load_specific_vol(np.array(vols), t)
         n_scans = len(vols)
         vol = load_vol(vols[t])
-    elif is_niimg(vols) or isinstance(vols, basestring):
+    elif is_niimg(vols) or isinstance(vols, basestring) or isinstance(
+        vols, tuple):
+        if isinstance(vols, tuple):
+            vols = nibabel.Nifti1Image(*vols)
+
         _vols = nibabel.load(vols) if isinstance(vols, basestring) else vols
         if len(_vols.shape) != 4:
             raise ValueError(
@@ -196,9 +204,18 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
         if basenames is None:
             basenames = "vols"
 
-        filenames = os.path.join(output_dir, "%s%s%s" % (
-                prefix, basenames.split(".")[0], ext))
-        nibabel.save(vols, filenames)
+        if not isinstance(basenames, basestring):
+            vols = nibabel.four_to_three(vols)
+            filenames = []
+            for vol, basename in zip(vols, basenames):
+                filename = os.path.join(output_dir, "%s%s%s" % (
+                        prefix, basename.split(".")[0], ext))
+                nibabel.save(vol, filename)
+                filenames.append(filename)
+        else:
+            filenames = os.path.join(output_dir, "%s%s%s" % (
+                    prefix, basenames.split(".")[0], ext))
+            nibabel.save(vols, filenames)
 
         return filenames
     else:
@@ -300,24 +317,25 @@ def get_vox_dims(volume):
 
     Parameters
     ----------
-    volume: string
-        image whose voxel dimensions we seek
+    volume: string or nibabel image object
+        input image whose voxel dimensions are to be computed
+
+    Returns
+    -------
+    list of three floats
 
     """
 
-    if not isinstance(volume, basestring):
-        volume = volume[0]
-    try:
-        nii = nibabel.load(volume)
-    except:
-        # XXX quick and dirty
-        nii = nibabel.concat_images(volume,
-                                    check_affines=False)
+    if isinstance(volume, basestring) or is_niimg(volume):
+        niimg = nibabel.load(volume) if isinstance(
+            volume, basestring) else volume
 
-    hdr = nii.get_header()
-    voxdims = hdr.get_zooms()
-
-    return [float(voxdims[0]), float(voxdims[1]), float(voxdims[2])]
+        return list(niimg.get_header().get_zooms())[:3]
+    elif isinstance(volume, list):
+        return get_vox_dims(volume[0])
+    else:
+        raise TypeError(
+            "Input must be string or niimg object, got %s" % type(volume))
 
 
 def delete_orientation(imgs, output_dir, output_tag=''):
@@ -580,3 +598,44 @@ def get_basenames(x):
     else:
         raise TypeError(
             "Input must be string or list of strings; got %s" % type(x))
+
+
+def load_4D_img(img):
+    """
+    Loads a single 4D image or list of 3D images into a single 4D niimg.
+
+    Parameters
+    ----------
+    img: string, list of strings, nibabel image object, or list of
+    nibabel image objects.
+        image(s) to load
+
+    Returns
+    -------
+    4D nibabel image object
+
+    """
+
+    if isinstance(img, basestring):
+        img = nibabel.load(img)
+    elif isinstance(img, list):
+        img = nibabel.concat_images(img, check_affines=False)
+    elif isinstance(img, tuple):
+        assert len(img) == 2
+        img = nibabel.Nifti1Image(*img)
+    else:
+        assert is_niimg(img)
+
+    assert len(img.shape) > 3
+
+    if len(img.shape) > 4:
+        assert len(img.shape) == 5
+        if img.shape[-1] == 1:
+            img = nibabel.Nifti1Image(img.get_data()[..., 0],
+                                      img.get_affine())
+        else:
+            assert img.shape[3] == 1
+            img = nibabel.Nifti1Image(img.get_data()[..., 0, ...],
+                                      img.get_affine())
+
+    return img

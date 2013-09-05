@@ -1,5 +1,6 @@
 import sys
 import os
+import inspect
 import time
 import numpy as np
 import scipy.linalg
@@ -20,11 +21,14 @@ PYPREPROCESS_DIR = os.path.dirname(
 sys.path.append(PYPREPROCESS_DIR)
 
 import reporting.glm_reporter as glm_reporter
-from coreutils.io_utils import (three_to_four,
-                                get_basenames,
+import reporting.base_reporter as base_reporter
+import reporting.preproc_reporter as preproc_reporter
+from coreutils.io_utils import (get_basenames,
                                 save_vols,
                                 save_vol,
                                 load_specific_vol,
+                                load_vol,
+                                load_4D_img,
                                 is_niimg
                                 )
 from algorithms.slice_timing.spm_slice_timing import fMRISTC
@@ -35,21 +39,9 @@ from algorithms.registration.spm_coreg import SPMCoreg
 from reporting.base_reporter import (ProgressReport,
                                      PYPREPROCESS_URL
                                      )
-from reporting.preproc_reporter import generate_subject_preproc_report
 from external.nilearn.datasets import (fetch_spm_auditory_data,
                                        fetch_spm_multimodal_fmri_data
                                        )
-
-
-def _extract_bold(imgs):
-    if isinstance(imgs, np.ndarray):
-        return np.ndarray(imgs)
-    elif isinstance(imgs, list):
-        return nibabel.concat_images(imgs).get_data()
-    elif is_niimg(imgs):
-        return imgs.get_data()
-    elif isinstance(imgs, basestring):
-        return nibabel.load(imgs).get_data()
 
 
 def execute_spm_auditory_glm(data, reg_motion=False):
@@ -75,7 +67,9 @@ def execute_spm_auditory_glm(data, reg_motion=False):
     add_regs = None
     if reg_motion:
         add_reg_names = ['tx', 'ty', 'tz', 'rx', 'ry', 'rz']
-        add_regs = np.loadtxt(data['realignment_parameters'][0])
+        add_regs = data['realignment_parameters'][0]
+        if isinstance(add_regs, basestring):
+            add_regs = np.loadtxt(add_regs)
 
     design_matrix = make_dmtx(frametimes,
                               paradigm, hrf_model=hrf_model,
@@ -102,7 +96,7 @@ def execute_spm_auditory_glm(data, reg_motion=False):
 
     # fit GLM
     print('\r\nFitting a GLM (this takes time)...')
-    fmri_glm = FMRILinearModel(three_to_four(data['func'][0]),
+    fmri_glm = FMRILinearModel(load_4D_img(data['func'][0]),
                                design_matrix.matrix,
                                mask='compute')
 
@@ -114,12 +108,7 @@ def execute_spm_auditory_glm(data, reg_motion=False):
     nibabel.save(fmri_glm.mask, mask_path)
 
     # compute bg unto which activation will be projected
-    anat_img = nibabel.load(data['anat'])
-
-    # if isinstance(data['func'][0], list):
-    #     anat_img = nibabel.load(data['func'][0][0])
-    # else:
-    #     anat_img = nibabel.load(data['func'][0])
+    anat_img = load_vol(data['anat'])
 
     anat = anat_img.get_data()
 
@@ -202,7 +191,7 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
     # make design matrices
     design_matrices = []
     for x in xrange(2):
-        n_scans = len(data['func'][x])
+        n_scans = data['func'][x].shape[-1]
 
         timing = scipy.io.loadmat(data['trials_ses%i' % (x + 1)],
                                   squeeze_me=True, struct_as_record=False)
@@ -221,6 +210,8 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
         if reg_motion:
             add_reg_names = ['tx', 'ty', 'tz', 'rx', 'ry', 'rz']
             add_regs = np.loadtxt(data['realignment_parameters'][x])
+            if isinstance(add_regs):
+                add_regs = np.loadtxt(add_regs)
         design_matrix = make_dmtx(
             frametimes,
             paradigm, hrf_model=hrf_model,
@@ -249,7 +240,7 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
 
     # fit GLM
     print('\r\nFitting a GLM (this takes time)...')
-    fmri_glm = FMRILinearModel([three_to_four(sess_func)
+    fmri_glm = FMRILinearModel([load_4D_img(sess_func)
                                 for sess_func in data['func']],
                                [dmat.matrix for dmat in design_matrices],
                                mask='compute')
@@ -261,7 +252,7 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
     nibabel.save(fmri_glm.mask, mask_path)
 
     # compute bg unto which activation will be projected
-    anat_img = nibabel.load(data['anat'])
+    anat_img = load_vol(data['anat'])
 
     anat = anat_img.get_data()
 
@@ -335,11 +326,22 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
     return data
 
 
-def do_subject_preproc(subject_data, execute_glm, n_sessions=1, do_stc=True,
-                       interleaved=False, slice_order='ascending',
-                       do_mc=True, reg_motion=True,
-                       do_coreg=True, fwhm=None,
-                       stats_output_dir_basename=""):
+def do_subject_preproc(subject_data,
+                       execute_glm,
+                       verbose=True,
+                       do_caching=True,
+                       do_deleteorient=False,
+                       do_stc=True,
+                       interleaved=False,
+                       slice_order='ascending',
+                       do_realign=True,
+                       reg_motion=True,
+                       do_coreg=True,
+                       fwhm=None,
+                       write_preproc_images=False,
+                       parent_results_gallery=None,
+                       stats_output_dir_basename=""
+                       ):
     """
     API for preprocessing data from single subject (perhaps mutliple sessions)
 
@@ -361,83 +363,233 @@ def do_subject_preproc(subject_data, execute_glm, n_sessions=1, do_stc=True,
 
     """
 
+    # sanitize input args
+    assert 'n_sessions' in subject_data
+    assert len(subject_data['func']) == subject_data['n_sessions']
+    n_sessions = subject_data['n_sessions']
+
+    # print input args
+    frame = inspect.currentframe()
+    args, _, _, values = inspect.getargvalues(frame)
+    print "\r\n"
+    for i in args:
+        print "\t %s=%s" % (i, values[i])
+    print "\r\n"
+
+    # dict of outputs
     output = subject_data.copy()
 
-    stats_output_dir = os.path.join(subject_data['output_dir'],
-                                    stats_output_dir_basename)
-    if not os.path.exists(stats_output_dir):
-        os.makedirs(stats_output_dir)
+    # compute basenames of input images
+    func_basenames = [get_basenames(func) for func in subject_data['func']]
+    anat_basename = get_basenames(subject_data['anat'])
 
-    output['stats_output_dir'] = stats_output_dir
+    # create output dir if inexistent
+    if not os.path.exists(subject_data['output_dir']):
+        os.makedirs(subject_data['output_dir'])
 
-    slice_order = subject_data['slice_order'] if 'slice_order' in \
-        subject_data else slice_order
-    interleaved = subject_data['interleaved'] if 'interleaved' in \
-        subject_data else interleaved
-    n_sessions = subject_data['n_sessions'] if 'n_sessions' in subject_data\
-        else n_sessions
+    # pipeline-dependent output dir
+    output['stats_output_dir'] = os.path.join(subject_data['output_dir'],
+                                              stats_output_dir_basename)
+    if not os.path.exists(output['stats_output_dir']):
+        os.makedirs(output['stats_output_dir'])
 
     # prepare for smart caching
-    mem = joblib.Memory(cachedir=os.path.join(subject_data['output_dir'],
-                                               'cache_dir'),
-                        verbose=100
-                        )
+    if do_caching:
+        mem = joblib.Memory(cachedir=os.path.join(
+                subject_data['output_dir'], 'cache_dir'),
+                            verbose=100
+                            )
+
+    def cached(f):
+        """
+        If caching is enabled, then this wrapper caches calls to a function f.
+        Otherwise the behaviour of f is unchanged.
+
+        """
+
+        return mem.cache(f) if do_caching else f
+
+    # prefix for final output images
+    func_prefix = ""
+    anat_prefix = ""
+
+    # cast all images to niimg
+    output['func'] = [mem.cache(load_4D_img)(x) for x in output['func']]
+
+    if 'anat' in output:
+        output['anat'] = mem.cache(load_vol)(output['anat'])
+
+    # final_thumbnail = None
+
+    # def finalize_report():
+    #     output['final_thumbnail'] = final_thumbnail
+
+    #     if parent_results_gallery:
+    #         base_reporter.commit_subject_thumnbail_to_parent_gallery(
+    #             final_thumbnail,
+    #             output['subject_id'],
+    #             parent_results_gallery)
+
+    # generate explanation of preproc steps undergone by subject
+    preproc_undergone = preproc_reporter.generate_preproc_undergone_docstring(
+        do_deleteorient=do_deleteorient,
+        fwhm=fwhm,
+        do_slicetiming=do_stc,
+        do_realign=do_realign,
+        do_coreg=do_coreg,
+        )
+
+    # report filenames
+    report_log_filename = os.path.join(output['stats_output_dir'],
+                                       'report_log.html')
+    report_preproc_filename = os.path.join(output['stats_output_dir'],
+                                           'report_preproc.html')
+    report_filename = os.path.join(output['stats_output_dir'],
+                                   'report.html')
+
+    # initialize results gallery
+    loader_filename = os.path.join(
+        output['stats_output_dir'], "results_loader.php")
+    results_gallery = base_reporter.ResultsGallery(
+        loader_filename=loader_filename,
+        title="Report for subject %s" % output['subject_id'])
+    final_thumbnail = base_reporter.Thumbnail()
+    final_thumbnail.a = base_reporter.a(href=report_preproc_filename)
+    final_thumbnail.img = base_reporter.img()
+    final_thumbnail.description = output['subject_id']
+
+    output['results_gallery'] = results_gallery
+
+    # copy web stuff to subject output dir
+    base_reporter.copy_web_conf_files(output['stats_output_dir'])
+
+    slice_order = output['slice_order'] if 'slice_order' in \
+        output else slice_order
+    interleaved = output['interleaved'] if 'interleaved' in \
+        output else interleaved
+
+    # initialize progress bar
+    subject_progress_logger = base_reporter.ProgressReport(
+        report_log_filename,
+        other_watched_files=[report_filename,
+                             report_preproc_filename])
+    output['progress_logger'] = subject_progress_logger
+
+    # html markup
+    preproc = base_reporter.get_subject_report_preproc_html_template(
+        ).substitute(
+        results=results_gallery,
+        start_time=time.ctime(),
+        preproc_undergone=preproc_undergone,
+        subject_id=output['subject_id'],
+        )
+    main_html = base_reporter.get_subject_report_html_template(
+        ).substitute(
+        start_time=time.ctime(),
+        subject_id=output['subject_id']
+        )
+
+    with open(report_preproc_filename, 'w') as fd:
+        fd.write(str(preproc))
+        fd.close()
+    with open(report_filename, 'w') as fd:
+        fd.write(str(main_html))
+        fd.close()
 
     ########
     # STC
     ########
     if do_stc:
         print "\r\nNODE> Slice-Timing Correction"
+        func_prefix = "a" + func_prefix
+
         stc_output = []
-        original_bold = []
+        original_bold = list(output['func'])
         for func in output['func']:
-            fmristc = mem.cache(fMRISTC(slice_order=slice_order,
-                                        interleaved=interleaved,
-                                        ).fit)(raw_data=func)
+            fmristc = cached(fMRISTC(slice_order=slice_order,
+                                     interleaved=interleaved,
+                                     verbose=verbose
+                                     ).fit)(raw_data=func.get_data())
 
-            output = mem.cache(fmristc.transform)(
-                output_dir=subject_data['output_dir'])
-
-            original_bold.append(fmristc.raw_data)
+            stc_output.append(nibabel.Nifti1Image(cached(fmristc.transform)(
+                        func.get_data()), func.get_affine()))
 
         output['func'] = stc_output
 
-        del fmristc
+        # generate STC QA thumbs
+        preproc_reporter.generate_stc_thumbnails(
+            original_bold,
+            stc_output,
+            output['stats_output_dir'],
+            sessions=xrange(n_sessions),
+            results_gallery=results_gallery
+            )
 
-    ########################
-    # coreg: anat -> func
-    ########################
-    # estimated realignment (affine) params for coreg
-    spmcoreg = mem.cache(SPMCoreg().fit)(load_specific_vol(
-            output['func'][0], 0)[0], output['anat'])
-
-    # apply coreg
-    output['anat'] = save_vol(mem.cache(spmcoreg.transform)(
-            output['anat'])['coregistered_source'],
-                              output_dir=subject_data['output_dir'],
-                              basename=os.path.basename(output['anat']),
-                              )
+        # garbage collection
+        del fmristc, original_bold
 
     #######
     # MC
     #######
-    if do_mc:
-        print "\r\nNODE> tMotion Correction"
-        mrimc = mem.cache(MRIMotionCorrection(n_sessions=n_sessions).fit)(
-            output['func'])
+    if do_realign:
+        print "\r\nNODE> Motion Correction"
+        func_prefix = "r" + func_prefix
 
-        mrimc_output = mem.cache(mrimc.transform)(
-            subject_data['output_dir'],
-            reslice=True,
-            )
+        mrimc = cached(MRIMotionCorrection(
+                n_sessions=n_sessions, verbose=verbose).fit)(
+            [(session_func.get_data(), session_func.get_affine())
+             for session_func in output['func']])
 
-        output['func'] = mrimc_output['realigned_files']
+        mrimc_output = cached(mrimc.transform)(reslice=True, concat=True
+                                               )
 
+        output['func'] = mrimc_output['realigned_images']
         output['realignment_parameters'] = mrimc_output[
             'realignment_parameters']
 
+        # generate realignment thumbs
+        preproc_reporter.generate_realignment_thumbnails(
+            output['realignment_parameters'],
+            output['stats_output_dir'],
+            sessions=xrange(n_sessions),
+            results_gallery=results_gallery
+            )
+
         # garbage collection
         del mrimc
+
+    ########################
+    # coreg: anat -> func
+    ########################
+    if do_coreg and 'anat' in output:
+        print "\r\nNODE> Coregistration anat -> dunc"
+        anat_prefix = "c" + anat_prefix
+
+        ref_brain = 'func'
+        src_brain = 'anat'
+        ref = load_specific_vol(output['func'][0], 0)[0]
+        src = output['anat']
+
+        # estimated realignment (affine) params for coreg
+        spmcoreg = cached(SPMCoreg(verbose=verbose).fit)(
+            (ref.get_data(), ref.get_affine()),
+            (src.get_data(), src.get_affine()))
+
+        # apply coreg
+        output['anat'] = cached(spmcoreg.transform)(
+            src)['coregistered_source']
+        src = output['anat']
+
+        # generate coreg QA thumbs
+        preproc_reporter.generate_coregistration_thumbnails(
+            (ref, ref_brain),
+            (src, src_brain),
+            output['stats_output_dir'],
+            results_gallery=results_gallery,
+            )
+
+        # garbage collection
+        del spmcoreg
 
     ##############
     # smoothing
@@ -445,32 +597,39 @@ def do_subject_preproc(subject_data, execute_glm, n_sessions=1, do_stc=True,
     if not fwhm is None:
         print ("\r\nNODE> Smoothing with %smm x %smm x %smm Gaussian"
                " kernel") % tuple(fwhm)
+        func_prefix = "s" + func_prefix
+
         sfunc = []
         for sess_func in output['func']:
-            sfunc.append(save_vols(mem.cache(smooth_image)(sess_func, fwhm),
-                                    subject_data['output_dir'],
-                                    basenames=get_basenames(output['func'][0]),
-                                    prefix='s'))
+            sfunc.append(cached(smooth_image)(sess_func, fwhm))
+
         output['func'] = sfunc
 
-    # generate preproc report
-    generate_subject_preproc_report(
-        func=output['func'],
-        anat=output["anat"],
-        estimated_motion=output['realignment_parameters'] if do_mc else None,
-        output_dir=output['stats_output_dir'],
-        did_realign=do_mc,
-        did_slicetiming=do_stc,
-        did_coreg=True,
-        did_normalize=False,
-        did_segment=False,
-        fwhm=fwhm,
-        original_bold=None if not do_stc else original_bold,
-        st_corrected_bold=None if not do_stc else [
-            _extract_bold(o) for o in stc_output],
-        subject_id=output["subject_id"],
-        sessions=xrange(n_sessions)
-        )
+    # generate CV thumbs
+    preproc_reporter.generate_cv_tc_thumbnail(
+        output['func'],
+        xrange(n_sessions),
+        output['subject_id'],
+        output['stats_output_dir'],
+        results_gallery=results_gallery)
+
+    # write final output images
+    if write_preproc_images:
+        # save final func
+        for sess in xrange(n_sessions):
+            sess_func = output['func'][sess]
+            save_vols((sess_func.get_data(), sess_func.get_affine()),
+                      output_dir=output['output_dir'],
+                      basenames=func_basenames[sess],
+                      prefix=func_prefix
+                      )
+
+        # save final anat
+        save_vol(output['anat'],
+                 output_dir=output['output_dir'],
+                 basename=anat_basename,
+                 prefix=anat_prefix
+                 )
 
     ########
     # GLM
@@ -481,7 +640,8 @@ if __name__ == '__main__':
     sd1 = fetch_spm_auditory_data(os.path.join(os.environ['HOME'],
                                               "CODE/datasets/spm_auditory"))
     spm_auditory_subject_data = {'subject_id': 'sub001', 'func': [sd1.func],
-                                 'anat': sd1.anat}
+                                 'anat': sd1.anat,
+                                 'n_sessions': 1}
 
     sd2 = fetch_spm_multimodal_fmri_data(os.path.join(
             os.environ['HOME'],
@@ -504,9 +664,9 @@ if __name__ == '__main__':
         """
 
         for do_stc in [True, False]:
-            for do_mc in [False, True]:
+            for do_realign in [True, False]:
                 for reg_motion in [False, True]:
-                    if reg_motion and not do_mc:
+                    if reg_motion and not do_realign:
                         continue
                     for fwhm in [None, [5., 5., 5.]]:
                         pipeline_remark = ""
@@ -515,7 +675,7 @@ if __name__ == '__main__':
                         pipeline_remark += (
                             ("_with_mc" + ("_with_reg_motion" if reg_motion \
                                                else "_without_reg_motion"))
-                            ) if do_mc else "_without_mc"
+                            ) if do_realign else "_without_mc"
                         pipeline_remark += "_without_smoothing" if fwhm is \
                             None else "_with_smoothing"
 
@@ -528,7 +688,10 @@ if __name__ == '__main__':
                         print "\t\t\tpipeline: %s (output_dir = %s)" % (
                             pipeline_remark, subject_data['output_dir'])
 
-                        yield (subject_data, do_stc, do_mc, reg_motion, fwhm,
+                        yield (subject_data, do_stc, do_realign,
+
+
+                               reg_motion, fwhm,
                                pipeline_remark)
 
     def _pipeline_runner(subject_data, output_dir, execute_glm):
@@ -537,14 +700,14 @@ if __name__ == '__main__':
 
         """
 
-        for (subject_data, do_stc, do_mc, reg_motion, fwhm,
+        for (subject_data, do_stc, do_realign, reg_motion, fwhm,
              stats_output_dir_basename) in pipeline_factory(subject_data,
                                                             output_dir):
             do_subject_preproc(
                 subject_data,
                 execute_glm,
                 do_stc=do_stc,
-                do_mc=do_mc,
+                do_realign=do_realign,
                 reg_motion=reg_motion,
                 fwhm=fwhm,
                 stats_output_dir_basename=stats_output_dir_basename

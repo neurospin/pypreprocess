@@ -33,7 +33,7 @@ Flags = namedtuple('Flags', 'fwhm sep cost_fun tol params')
 EPS = np.finfo(float).eps
 
 
-def loaduint8(filename, log=None):
+def loaduint8(img, log=None):
     """Load data from file indicated by V into array of unsigned bytes.
 
     """
@@ -44,21 +44,20 @@ def loaduint8(filename, log=None):
         else:
             print(msg)
 
-    if isinstance(filename, basestring):
-        nii_img = nibabel.load(filename)
-    elif is_niimg(filename):
-        nii_img = filename
-        filename = filename.get_filename()
-        filename = filename if not filename is None else "UNNAMED NIFTI"
+    if isinstance(img, np.ndarray) or isinstance(img, list):
+        vol = np.array(img)
+    elif isinstance(img, basestring):
+        img = nibabel.load(img).get_data()
+        vol = img.get_data()
+    elif is_niimg(img):
+        vol = img.get_data()
     else:
-        raise TypeError("Unsupported input type: %s" % type(filename))
-
-    vol = nii_img.get_data()
+        raise TypeError("Unsupported input type: %s" % type(img))
 
     if vol.ndim == 4:
         vol = vol[..., 0]
 
-    _progress_bar("Loading %s..." % filename)
+    _progress_bar("Loading %s..." % img)
 
     def _spm_slice_vol(p):
         """Gets data fir pth slice (place) of volume vol
@@ -82,32 +81,24 @@ def loaduint8(filename, log=None):
 
         return ac
 
-    # if len(V.pinfo.shape) == 1:
-    #     V.pinfo = V.pinfo.reshape((-1, 1))
-
-    # if V.pinfo.shape[1] == 1 and V.pinfo[0] == 2:
-    #     mx = 0xFF * V.pinfo[0] + V.pinfo[1]
-    #     mn = V.pinfo[1]
-    # else:
     mx = -np.inf
     mn = np.inf
-    _progress_bar("\tComputing min/max of %s..." % filename)
+    _progress_bar("\tComputing min/max...")
     for p in xrange(vol.shape[2]):
-        img = _spm_slice_vol(p)
-        # mx = max(img.max() + _paccuracy(V, p), mx)
-        mx = max(img.max(), mx)
-        mn = min(img.min(), mn)
+        _img = _spm_slice_vol(p)
+        mx = max(_img.max(), mx)
+        mn = min(_img.min(), mn)
 
     # another pass to find a maximum that allows a few hot-spots in the data
     nh = 2048
     h = np.zeros(nh)
-    _progress_bar("\t2nd pass max/min of %s..." % filename)
+    _progress_bar("\t2nd pass max/min...")
     for p in xrange(vol.shape[2]):
-        img = _spm_slice_vol(p)
-        img = img[np.isfinite(img)]
-        img = np.round((img + ((mx - mn) / (nh - 1) - mn)
+        _img = _spm_slice_vol(p)
+        _img = _img[np.isfinite(_img)]
+        _img = np.round((_img + ((mx - mn) / (nh - 1) - mn)
                         ) * ((nh - 1) / (mx - mn)))
-        h = h + _accumarray(img - 1, nh)
+        h = h + _accumarray(_img - 1, nh)
 
     tmp = np.hstack((np.nonzero(np.cumsum(h) / np.sum(h) > .9999)[0], nh))
     mx = (mn * nh - mx + tmp[0] * (mx - mn)) / (nh - 1)
@@ -115,21 +106,22 @@ def loaduint8(filename, log=None):
     # load data from file indicated by V into an array of unsigned bytes
     uint8_dat = np.ndarray(vol.shape, dtype='uint8')
     for p in xrange(vol.shape[2]):
-        img = _spm_slice_vol(p)
+        _img = _spm_slice_vol(p)
 
-        # add white-noise before rounding to reduce aliasing artefact
-        # acc = _paccuracy(V, p)
         acc = 0
-        r = 0 if acc == 0 else np.random.randn(*img.shape) * acc
+        r = 0 if acc == 0 else np.random.randn(*_img.shape) * acc
 
         # pth slice
         uint8_dat[..., p] = np.uint8(np.maximum(np.minimum(np.round((
-                            img + r - mn) * (255. / (mx - mn))), 255.), 0.))
+                            _img + r - mn) * (255. / (mx - mn))), 255.), 0.))
 
     _progress_bar("...done.")
 
     # return the data
-    return nibabel.Nifti1Image(uint8_dat, nii_img.get_affine())
+    if isinstance(img, basestring) or is_niimg(img):
+        return nibabel.Nifti1Image(uint8_dat, img.get_affine())
+    else:
+        return uint8_dat
 
 
 def smoothing_kernel(fwhm, x):
@@ -376,11 +368,17 @@ class SPMCoreg(object):
         """
 
         # load ref_vol
+        if isinstance(ref_vol, tuple):
+            ref_vol = nibabel.Nifti1Image(ref_vol[0], ref_vol[1])
+
         ref_vol = loaduint8(ref_vol, log=self._log)
         ref_vol = nibabel.Nifti1Image(ref_vol.get_data(),
                                       nibabel2spm_affine(ref_vol.get_affine()))
 
         # load src_vol
+        if isinstance(src_vol, tuple):
+            src_vol = nibabel.Nifti1Image(src_vol[0], src_vol[1])
+
         src_vol = loaduint8(src_vol, log=self._log)
         src_vol = nibabel.Nifti1Image(src_vol.get_data(),
                                       nibabel2spm_affine(src_vol.get_affine()))

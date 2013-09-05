@@ -8,12 +8,22 @@ to nipy dev.
 
 """
 
+import os
+import sys
 import numpy as np
 import numpy.fft as npfft
 import nibabel as ni
 import scipy.linalg
 import gc
 import affine_transformations
+
+# pypreprocess dir
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__)))))
+
+from coreutils.io_utils import (is_niimg
+                                )
 
 
 def fwhm2sigma(fwhm):
@@ -362,9 +372,12 @@ def smooth_image(img, fwhm, **kwargs):
 
     if isinstance(img, basestring):
         img = ni.load(img)
-
-    if isinstance(img, list):
+    elif isinstance(img, tuple):
+        return ni.Nifti1Image(img.get_data(), img.get_affine())
+    elif isinstance(img, list):
         return [smooth_image(x, fwhm, **kwargs) for x in img]
+    else:
+        assert is_niimg(img)
 
     if len(img.shape) == 4:
         return ni.concat_images(
