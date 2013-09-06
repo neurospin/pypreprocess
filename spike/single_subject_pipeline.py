@@ -318,7 +318,7 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
         hrf_model=hrf_model,
         )
 
-    ProgressReport().finish_dir(data['stats_output_dir'])
+    ProgressReport().finish_dir(data['stats_output_dir']) 
 
     print "\r\nStatistic report written to %s\r\n" % data[
         'stats_report_filename']
@@ -327,20 +327,19 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
 
 
 def do_subject_preproc(subject_data,
-                       execute_glm,
                        verbose=True,
                        do_caching=True,
-                       do_deleteorient=False,
                        do_stc=True,
                        interleaved=False,
                        slice_order='ascending',
                        do_realign=True,
-                       reg_motion=True,
                        do_coreg=True,
                        fwhm=None,
                        write_preproc_images=False,
+                       stats_output_dir_basename="",
+                       do_report=True,
                        parent_results_gallery=None,
-                       stats_output_dir_basename=""
+                       shutdown_reloaders=True
                        ):
     """
     API for preprocessing data from single subject (perhaps mutliple sessions)
@@ -349,22 +348,44 @@ def do_subject_preproc(subject_data,
     ----------
     subject_data: `SubjectData` instance
         data from single subject to be preprocessed
-    **kwargs: value-option dict of optional parameters
-        Possible keys and values are:
-        XXX
+
+    do_caching: bool, optional (default True)
+       if set, then `joblib.Memory` will be used to cache costly intermediate
+       function calls
+    do_stc: bool, optional (default True)
+       if set, then Slice-Timing Correction (STC) will be done
+    interleaved: bool, optional (default False)
+       if set, the it is assumed that the BOLD was acquired in interleaved
+       slices
+    slice_order: string, optional (default "ascending")
+       the acquisition order of the BOLD. This parameter is passed to fMRISTC
+       constructor
+    do_realign: bool, optional (default True)
+        if set, then motion correction will be done
+    do_coreg: bool, optional (default True)
+        if set, coregistration will be done (to put the BOLD and the structural
+        images in register)
+    fwhm: list of 3 floats, optional (default None)
+        FWHM for smoothing kernel
+    write_preproc_images: bool, optional (default False)
+        if set, then the preprocessed images will be written unto disk
+        at the end of the pipeline
 
     Returns
     -------
-    XXX
-
-    Notes
-    -----
-    XXX
+    dict of preproc output
 
     """
 
     # sanitize input args
-    assert 'n_sessions' in subject_data
+    for key in ["subject_id",
+                "anat",
+                "func",
+                "n_sessions",
+                "output_dir"
+                ]:
+        assert key in subject_data, "subject_data must have '%s' key" % key
+
     assert len(subject_data['func']) == subject_data['n_sessions']
     n_sessions = subject_data['n_sessions']
 
@@ -430,71 +451,72 @@ def do_subject_preproc(subject_data,
     #             output['subject_id'],
     #             parent_results_gallery)
 
-    # generate explanation of preproc steps undergone by subject
-    preproc_undergone = preproc_reporter.generate_preproc_undergone_docstring(
-        do_deleteorient=do_deleteorient,
-        fwhm=fwhm,
-        do_slicetiming=do_stc,
-        do_realign=do_realign,
-        do_coreg=do_coreg,
-        )
+    if do_report:
+        # generate explanation of preproc steps undergone by subject
+        preproc_undergone = preproc_reporter.\
+            generate_preproc_undergone_docstring(
+            fwhm=fwhm,
+            do_slicetiming=do_stc,
+            do_realign=do_realign,
+            do_coreg=do_coreg,
+            )
 
-    # report filenames
-    report_log_filename = os.path.join(output['stats_output_dir'],
-                                       'report_log.html')
-    report_preproc_filename = os.path.join(output['stats_output_dir'],
-                                           'report_preproc.html')
-    report_filename = os.path.join(output['stats_output_dir'],
-                                   'report.html')
+        # report filenames
+        report_log_filename = os.path.join(output['stats_output_dir'],
+                                           'report_log.html')
+        report_preproc_filename = os.path.join(output['stats_output_dir'],
+                                               'report_preproc.html')
+        report_filename = os.path.join(output['stats_output_dir'],
+                                       'report.html')
 
-    # initialize results gallery
-    loader_filename = os.path.join(
-        output['stats_output_dir'], "results_loader.php")
-    results_gallery = base_reporter.ResultsGallery(
-        loader_filename=loader_filename,
-        title="Report for subject %s" % output['subject_id'])
-    final_thumbnail = base_reporter.Thumbnail()
-    final_thumbnail.a = base_reporter.a(href=report_preproc_filename)
-    final_thumbnail.img = base_reporter.img()
-    final_thumbnail.description = output['subject_id']
+        # initialize results gallery
+        loader_filename = os.path.join(
+            output['stats_output_dir'], "results_loader.php")
+        results_gallery = base_reporter.ResultsGallery(
+            loader_filename=loader_filename,
+            title="Report for subject %s" % output['subject_id'])
+        final_thumbnail = base_reporter.Thumbnail()
+        final_thumbnail.a = base_reporter.a(href=report_preproc_filename)
+        final_thumbnail.img = base_reporter.img()
+        final_thumbnail.description = output['subject_id']
 
-    output['results_gallery'] = results_gallery
+        output['results_gallery'] = results_gallery
 
-    # copy web stuff to subject output dir
-    base_reporter.copy_web_conf_files(output['stats_output_dir'])
+        # copy web stuff to subject output dir
+        base_reporter.copy_web_conf_files(output['stats_output_dir'])
 
-    slice_order = output['slice_order'] if 'slice_order' in \
-        output else slice_order
-    interleaved = output['interleaved'] if 'interleaved' in \
-        output else interleaved
+        slice_order = output['slice_order'] if 'slice_order' in \
+            output else slice_order
+        interleaved = output['interleaved'] if 'interleaved' in \
+            output else interleaved
 
-    # initialize progress bar
-    subject_progress_logger = base_reporter.ProgressReport(
-        report_log_filename,
-        other_watched_files=[report_filename,
-                             report_preproc_filename])
-    output['progress_logger'] = subject_progress_logger
+        # initialize progress bar
+        subject_progress_logger = base_reporter.ProgressReport(
+            report_log_filename,
+            other_watched_files=[report_filename,
+                                 report_preproc_filename])
+        output['progress_logger'] = subject_progress_logger
 
-    # html markup
-    preproc = base_reporter.get_subject_report_preproc_html_template(
-        ).substitute(
-        results=results_gallery,
-        start_time=time.ctime(),
-        preproc_undergone=preproc_undergone,
-        subject_id=output['subject_id'],
-        )
-    main_html = base_reporter.get_subject_report_html_template(
-        ).substitute(
-        start_time=time.ctime(),
-        subject_id=output['subject_id']
-        )
+        # html markup
+        preproc = base_reporter.get_subject_report_preproc_html_template(
+            ).substitute(
+            results=results_gallery,
+            start_time=time.ctime(),
+            preproc_undergone=preproc_undergone,
+            subject_id=output['subject_id'],
+            )
+        main_html = base_reporter.get_subject_report_html_template(
+            ).substitute(
+            start_time=time.ctime(),
+            subject_id=output['subject_id']
+            )
 
-    with open(report_preproc_filename, 'w') as fd:
-        fd.write(str(preproc))
-        fd.close()
-    with open(report_filename, 'w') as fd:
-        fd.write(str(main_html))
-        fd.close()
+        with open(report_preproc_filename, 'w') as fd:
+            fd.write(str(preproc))
+            fd.close()
+        with open(report_filename, 'w') as fd:
+            fd.write(str(main_html))
+            fd.close()
 
     ########
     # STC
@@ -516,14 +538,15 @@ def do_subject_preproc(subject_data,
 
         output['func'] = stc_output
 
-        # generate STC QA thumbs
-        preproc_reporter.generate_stc_thumbnails(
-            original_bold,
-            stc_output,
-            output['stats_output_dir'],
-            sessions=xrange(n_sessions),
-            results_gallery=results_gallery
-            )
+        if do_report:
+            # generate STC QA thumbs
+            preproc_reporter.generate_stc_thumbnails(
+                original_bold,
+                stc_output,
+                output['stats_output_dir'],
+                sessions=xrange(n_sessions),
+                results_gallery=results_gallery
+                )
 
         # garbage collection
         del fmristc, original_bold
@@ -547,13 +570,14 @@ def do_subject_preproc(subject_data,
         output['realignment_parameters'] = mrimc_output[
             'realignment_parameters']
 
-        # generate realignment thumbs
-        preproc_reporter.generate_realignment_thumbnails(
-            output['realignment_parameters'],
-            output['stats_output_dir'],
-            sessions=xrange(n_sessions),
-            results_gallery=results_gallery
-            )
+        if do_report:
+            # generate realignment thumbs
+            preproc_reporter.generate_realignment_thumbnails(
+                output['realignment_parameters'],
+                output['stats_output_dir'],
+                sessions=xrange(n_sessions),
+                results_gallery=results_gallery
+                )
 
         # garbage collection
         del mrimc
@@ -580,13 +604,14 @@ def do_subject_preproc(subject_data,
             src)['coregistered_source']
         src = output['anat']
 
-        # generate coreg QA thumbs
-        preproc_reporter.generate_coregistration_thumbnails(
-            (ref, ref_brain),
-            (src, src_brain),
-            output['stats_output_dir'],
-            results_gallery=results_gallery,
-            )
+        if do_report:
+            # generate coreg QA thumbs
+            preproc_reporter.generate_coregistration_thumbnails(
+                (ref, ref_brain),
+                (src, src_brain),
+                output['stats_output_dir'],
+                results_gallery=results_gallery,
+                )
 
         # garbage collection
         del spmcoreg
@@ -605,13 +630,14 @@ def do_subject_preproc(subject_data,
 
         output['func'] = sfunc
 
-    # generate CV thumbs
-    preproc_reporter.generate_cv_tc_thumbnail(
-        output['func'],
-        xrange(n_sessions),
-        output['subject_id'],
-        output['stats_output_dir'],
-        results_gallery=results_gallery)
+    if do_report:
+        # generate CV thumbs
+        preproc_reporter.generate_cv_tc_thumbnail(
+            output['func'],
+            xrange(n_sessions),
+            output['subject_id'],
+            output['stats_output_dir'],
+            results_gallery=results_gallery)
 
     # write final output images
     if write_preproc_images:
@@ -631,10 +657,14 @@ def do_subject_preproc(subject_data,
                  prefix=anat_prefix
                  )
 
-    ########
-    # GLM
-    ########
-    return execute_glm(output, reg_motion=reg_motion)
+    # finish reporting
+    if do_report:
+        if shutdown_reloaders:
+            base_reporter.ProgressReport().finish_dir(output['output_dir'])
+
+        print "\r\nHTML report written to %s\r\n" % report_preproc_filename
+
+    return output
 
 if __name__ == '__main__':
     sd1 = fetch_spm_auditory_data(os.path.join(os.environ['HOME'],
@@ -703,15 +733,18 @@ if __name__ == '__main__':
         for (subject_data, do_stc, do_realign, reg_motion, fwhm,
              stats_output_dir_basename) in pipeline_factory(subject_data,
                                                             output_dir):
-            do_subject_preproc(
+            preproc_output = do_subject_preproc(
                 subject_data,
-                execute_glm,
                 do_stc=do_stc,
                 do_realign=do_realign,
-                reg_motion=reg_motion,
                 fwhm=fwhm,
                 stats_output_dir_basename=stats_output_dir_basename
                 )
+
+            ########
+            # GLM
+            ########
+            return execute_glm(preproc_output, reg_motion=reg_motion)
 
     # run pipelines
     n_jobs = int(os.environ['N_JOBS']) if 'N_JOBS' in os.environ else -1
