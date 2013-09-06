@@ -318,7 +318,7 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
         hrf_model=hrf_model,
         )
 
-    ProgressReport().finish_dir(data['stats_output_dir']) 
+    ProgressReport().finish(stats_report_filename) 
 
     print "\r\nStatistic report written to %s\r\n" % data[
         'stats_report_filename']
@@ -335,7 +335,7 @@ def do_subject_preproc(subject_data,
                        do_realign=True,
                        do_coreg=True,
                        fwhm=None,
-                       write_preproc_images=False,
+                       write_preproc_output_images=False,
                        stats_output_dir_basename="",
                        do_report=True,
                        parent_results_gallery=None,
@@ -367,7 +367,11 @@ def do_subject_preproc(subject_data,
         images in register)
     fwhm: list of 3 floats, optional (default None)
         FWHM for smoothing kernel
+<<<<<<< HEAD
     write_preproc_images: bool, optional (default False)
+=======
+    write_preproc_output_images: bool, optional (default False)
+>>>>>>> 2739ef9dda419cdad697eaeb6f6944592f54ef3a
         if set, then the preprocessed images will be written unto disk
         at the end of the pipeline
 
@@ -640,14 +644,16 @@ def do_subject_preproc(subject_data,
             results_gallery=results_gallery)
 
     # write final output images
-    if write_preproc_images:
+    if write_preproc_output_images:
+        print "Saving preprocessed images unto disk..."
+
         # save final func
         for sess in xrange(n_sessions):
             sess_func = output['func'][sess]
-            save_vols((sess_func.get_data(), sess_func.get_affine()),
+            save_vols(sess_func,
                       output_dir=output['output_dir'],
                       basenames=func_basenames[sess],
-                      prefix=func_prefix
+                      prefix=func_prefix,
                       )
 
         # save final anat
@@ -660,7 +666,7 @@ def do_subject_preproc(subject_data,
     # finish reporting
     if do_report:
         if shutdown_reloaders:
-            base_reporter.ProgressReport().finish_dir(output['output_dir'])
+            base_reporter.ProgressReport().finish(report_preproc_filename)
 
         print "\r\nHTML report written to %s\r\n" % report_preproc_filename
 
