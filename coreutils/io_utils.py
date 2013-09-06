@@ -199,6 +199,10 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
                                          )
             if not basenames is None:
                 basenames = basenames[0]
+        else:
+            raise RuntimeError(
+                ("concat=True specified but vols is of type %s instead "
+                 "of list") % type(vols))
 
     if not isinstance(vols, list):
         if basenames is None:
