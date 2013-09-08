@@ -21,6 +21,7 @@ subject_data = {'n_sessions': 1,  # number of sessions
 
 # run preproc pipeline
 preproc_output  = ssp.do_subject_preproc(subject_data,
+                                         fwhm=[8, 8, 8],  # 8mm isotropic kernel
                                          write_preproc_output_images=True
                                          )
 

@@ -334,6 +334,7 @@ def do_subject_preproc(subject_data,
                        slice_order='ascending',
                        do_realign=True,
                        do_coreg=True,
+                       coreg_func_to_anat=True,
                        fwhm=None,
                        write_preproc_output_images=False,
                        stats_output_dir_basename="",
@@ -523,7 +524,7 @@ def do_subject_preproc(subject_data,
     ########
     if do_stc:
         print "\r\nNODE> Slice-Timing Correction"
-        func_prefix = "a" + func_prefix
+        func_prefix = "A" + func_prefix
 
         stc_output = []
         original_bold = list(output['func'])
@@ -551,12 +552,12 @@ def do_subject_preproc(subject_data,
         # garbage collection
         del fmristc, original_bold
 
-    #######
-    # MC
-    #######
+    ######################
+    # motion correction
+    ######################
     if do_realign:
         print "\r\nNODE> Motion Correction"
-        func_prefix = "r" + func_prefix
+        func_prefix = "R" + func_prefix
 
         mrimc = cached(MRIMotionCorrection(
                 n_sessions=n_sessions, verbose=verbose).fit)(
@@ -582,27 +583,41 @@ def do_subject_preproc(subject_data,
         # garbage collection
         del mrimc
 
-    ########################
-    # coreg: anat -> func
-    ########################
+    ###################
+    # coregistration
+    ###################
     if do_coreg and 'anat' in output:
-        print "\r\nNODE> Coregistration anat -> dunc"
+        which = "func -> anat" if coreg_func_to_anat else "anat -> func"
+        print "\r\nNODE> Coregistration %s" % which
         anat_prefix = "c" + anat_prefix
 
         ref_brain = 'func'
         src_brain = 'anat'
         ref = load_specific_vol(output['func'][0], 0)[0]
         src = output['anat']
+        if coreg_func_to_anat:
+            ref_brain, src_brain = src_brain, ref_brain
+            ref, src = src, ref
 
-        # estimated realignment (affine) params for coreg
+        # estimate realignment (affine) params for coreg
         spmcoreg = cached(SPMCoreg(verbose=verbose).fit)(
             (ref.get_data(), ref.get_affine()),
             (src.get_data(), src.get_affine()))
 
         # apply coreg
-        output['anat'] = cached(spmcoreg.transform)(
-            src)['coregistered_source']
-        src = output['anat']
+        if coreg_func_to_anat:
+            func_prefix = "Coreg" + func_prefix
+            coreg_func = []
+            for sess_func in output['func']:
+                coreg_func.append(cached(spmcoreg.transform)(
+                sess_func)['coregistered_source'])
+            output['func'] = coreg_func
+            src = load_specific_vol(output['func'][0], 0)[0]
+        else:
+            anat_prefix = "Coreg" + anat_prefix
+            output['anat'] = cached(spmcoreg.transform)(
+                output['anat'])['coregistered_source']
+            src = output['anat']
 
         if do_report:
             # generate coreg QA thumbs
@@ -622,7 +637,7 @@ def do_subject_preproc(subject_data,
     if not fwhm is None:
         print ("\r\nNODE> Smoothing with %smm x %smm x %smm Gaussian"
                " kernel") % tuple(fwhm)
-        func_prefix = "s" + func_prefix
+        func_prefix = "S" + func_prefix
 
         sfunc = []
         for sess_func in output['func']:

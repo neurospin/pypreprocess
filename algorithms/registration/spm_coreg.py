@@ -29,25 +29,46 @@ from affine_transformations import (spm_matrix,
                                     )
 from kernel_smooth import fwhm2sigma
 
+# flags for fitting coregistration model
 Flags = namedtuple('Flags', 'fwhm sep cost_fun tol params')
+
+# 'texture' of floats in machine presicion
 EPS = np.finfo(float).eps
 
 
 def loaduint8(img, log=None):
     """Load data from file indicated by V into array of unsigned bytes.
 
+    Parameters
+    ----------
+    img: string, `np.ndarray`, or niimg
+        image to be loaded
+
+    Returns
+    -------
+    uint8_data: `np.ndarray`, if input was ndarray; `nibabel.NiftiImage1' else
+        the loaded image (dtype='uint8')
+
     """
 
     def _progress_bar(msg):
+        """
+        Progress bar.
+
+        """
+
         if not log is None:
             log(msg)
         else:
             print(msg)
 
+    _progress_bar("Loading %s..." % img)
+
+    # load volume into memory
     if isinstance(img, np.ndarray) or isinstance(img, list):
         vol = np.array(img)
     elif isinstance(img, basestring):
-        img = nibabel.load(img).get_data()
+        img = nibabel.load(img)
         vol = img.get_data()
     elif is_niimg(img):
         vol = img.get_data()
@@ -57,30 +78,17 @@ def loaduint8(img, log=None):
     if vol.ndim == 4:
         vol = vol[..., 0]
 
-    _progress_bar("Loading %s..." % img)
+    assert vol.ndim == 3
 
     def _spm_slice_vol(p):
-        """Gets data fir pth slice (place) of volume vol
+        """
+        Gets data pth slice of vol.
 
         """
 
         return vol[..., p].copy()
 
-    def _accumarray(subs, N):
-        """Computes the frequency of each index in subs, extended as
-        and array of length N
-
-        """
-
-        subs = np.array(subs)
-
-        ac = np.zeros(N)
-
-        for j in set(subs):
-            ac[j] = len(np.nonzero(subs == j)[0])
-
-        return ac
-
+    # min/max
     mx = -np.inf
     mn = np.inf
     _progress_bar("\tComputing min/max...")
@@ -89,31 +97,14 @@ def loaduint8(img, log=None):
         mx = max(_img.max(), mx)
         mn = min(_img.min(), mn)
 
-    # another pass to find a maximum that allows a few hot-spots in the data
-    nh = 2048
-    h = np.zeros(nh)
-    _progress_bar("\t2nd pass max/min...")
-    for p in xrange(vol.shape[2]):
-        _img = _spm_slice_vol(p)
-        _img = _img[np.isfinite(_img)]
-        _img = np.round((_img + ((mx - mn) / (nh - 1) - mn)
-                        ) * ((nh - 1) / (mx - mn)))
-        h = h + _accumarray(_img - 1, nh)
-
-    tmp = np.hstack((np.nonzero(np.cumsum(h) / np.sum(h) > .9999)[0], nh))
-    mx = (mn * nh - mx + tmp[0] * (mx - mn)) / (nh - 1)
-
     # load data from file indicated by V into an array of unsigned bytes
     uint8_dat = np.ndarray(vol.shape, dtype='uint8')
     for p in xrange(vol.shape[2]):
         _img = _spm_slice_vol(p)
 
-        acc = 0
-        r = 0 if acc == 0 else np.random.randn(*_img.shape) * acc
-
         # pth slice
         uint8_dat[..., p] = np.uint8(np.maximum(np.minimum(np.round((
-                            _img + r - mn) * (255. / (mx - mn))), 255.), 0.))
+                            _img - mn) * (255. / (mx - mn))), 255.), 0.))
 
     _progress_bar("...done.")
 
@@ -142,38 +133,7 @@ def smoothing_kernel(fwhm, x):
     return krn
 
 
-def spm_conv_vol(vol, filtx, filty, filtz, xoff, yoff, zoff):
-    output = scipy.ndimage.convolve1d(vol, filtx, axis=0)
-
-    return output
-
-
-def smooth_uint8(V, fwhm):
-    """Convolves the volume V in memory (fwhm in voxels).
-
-    """
-
-    lim = np.ceil(2 * fwhm)
-
-    x  = np.arange(-lim[0], lim[0] + 1)
-    x = smoothing_kernel(fwhm[0], x)
-    x  = x / np.sum(x)
-
-    y  = np.arange(-lim[1], lim[1] + 1)
-    y = smoothing_kernel(fwhm[1], y)
-    y  = y / np.sum(y)
-
-    z  = np.arange(-lim[2], lim[2] + 1)
-    z = smoothing_kernel(fwhm[2], z)
-    z  = z / np.sum(z)
-    i  = (len(x) - 1) / 2
-    j  = (len(y) - 1) / 2
-    k  = (len(z) - 1) / 2
-
-    return spm_conv_vol(V.astype('float'), x, y, z, -i, -j, -k)
-
-
-def optfun(x, VG, VF, s=[1, 1, 1], cf='mi', fwhm=[7., 7.]):
+def optfun(x, ref_vol, src_vol, s=[1, 1, 1], cf='mi', fwhm=[7., 7.]):
     """
     Returns
     -------
@@ -184,14 +144,14 @@ def optfun(x, VG, VF, s=[1, 1, 1], cf='mi', fwhm=[7., 7.]):
     x = np.array(x)
 
     # voxel sizes
-    vxg = np.sqrt(np.sum(VG.get_affine()[:3, :3] ** 2, axis=0))
+    vxg = np.sqrt(np.sum(ref_vol.get_affine()[:3, :3] ** 2, axis=0))
     sg = s / vxg
 
     # create the joint histogram
-    M = np.dot(scipy.linalg.lstsq(VF.get_affine(),
+    M = np.dot(scipy.linalg.lstsq(src_vol.get_affine(),
                                   spm_matrix(x))[0],
-                                  VG.get_affine())
-    H = spm_hist2py.hist2py(M, VG.get_data(), VF.get_data(), sg)
+                                  ref_vol.get_affine())
+    H = spm_hist2py.hist2py(M, ref_vol.get_data(), src_vol.get_data(), sg)
 
     # Smooth the histogram
     lim  = np.ceil(fwhm * 2)
@@ -208,11 +168,14 @@ def optfun(x, VG, VF, s=[1, 1, 1], cf='mi', fwhm=[7., 7.]):
                                       mode='wrap'
                                       )
 
+    # compute marginal histograms
     H = H + EPS
     sh = np.sum(H)
     H = H / sh
     s1 = np.sum(H, axis=0).reshape((-1, H.shape[0]), order='F')
     s2 = np.sum(H, axis=1).reshape((H.shape[1], -1), order='F')
+
+    # compute cost function proper
     if cf == 'mi':
         # Mutual Information:
         H = H * np.log2(H / np.dot(s2, s1))
@@ -370,7 +333,6 @@ class SPMCoreg(object):
         # load ref_vol
         if isinstance(ref_vol, tuple):
             ref_vol = nibabel.Nifti1Image(ref_vol[0], ref_vol[1])
-
         ref_vol = loaduint8(ref_vol, log=self._log)
         ref_vol = nibabel.Nifti1Image(ref_vol.get_data(),
                                       nibabel2spm_affine(ref_vol.get_affine()))
