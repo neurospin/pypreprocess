@@ -5,11 +5,13 @@
 """
 
 # import goodies
+import os
 from external.nilearn.datasets import fetch_spm_auditory_data
 import spike.single_subject_pipeline as ssp
 
 # fetch data
-sd = fetch_spm_auditory_data("/home/elvis/CODE/datasets/spm_auditory")
+sd = fetch_spm_auditory_data(os.path.join(os.environ["HOME"],
+                                          "CODE/datasets/spm_auditory"))
 
 # pack data into dict, the format understood by the pipeleine
 subject_data = {'n_sessions': 1,  # number of sessions
@@ -21,7 +23,8 @@ subject_data = {'n_sessions': 1,  # number of sessions
 
 # run preproc pipeline
 preproc_output  = ssp.do_subject_preproc(subject_data,
-                                         write_preproc_output_images=True
+                                         write_preproc_output_images=True,
+                                         fwhm=[8, 8, 8],  # 8mm isotropic kernel
                                          )
 
 # run GLM on preprocesses data
