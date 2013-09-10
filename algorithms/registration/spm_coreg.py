@@ -22,7 +22,8 @@ sys.path.append(
 
 from coreutils.io_utils import (is_niimg,
                                 save_vol,
-                                get_basenames
+                                get_basenames,
+                                load_specific_vol
                                 )
 from affine_transformations import (spm_matrix,
                                     nibabel2spm_affine
@@ -199,7 +200,7 @@ def optfun(x, ref_vol, src_vol, s=[1, 1, 1], cf='mi', fwhm=[7., 7.]):
                 s2 * np.log2(s2))) / np.sum(np.sum(H * np.log2(H)))
         o = -nmi
     else:
-        raise NotImplementedError("Unsupported cd: %s" % cf)
+        raise NotImplementedError("Unsupported cf (cost function): %s" % cf)
 
     return o
 
@@ -377,8 +378,13 @@ class SPMCoreg(object):
 
         return self
 
-    def transform(self, src_vol, output_dir=None, prefix="c", ext=".nii.gz",
-                  concat=False):
+    def transform(self,
+                  src_vol,
+                  output_dir=None,
+                  prefix="Coreg",
+                  ext=".nii.gz",
+                  concat=False
+                  ):
         """
         Applies estimated co-registration parameter to the input volume
         (src_vol).
@@ -390,7 +396,7 @@ class SPMCoreg(object):
             reference image)
         output_dir: string, optional (dafault None)
             existing dirname where output will be written
-        prefix: string, optional (default 'r')
+        prefix: string, optional (default 'Coreg')
             prefix for output filenames.
         ext: string, optional (default ".nii.gz")
             file extension for ouput images
@@ -441,8 +447,9 @@ if __name__ == '__main__':
     from coreutils.io_utils import delete_orientation
 
     def _nyu_rest_factory():
-        sd = fetch_nyu_rest(os.path.join(
-                os.environ['HOME'], "CODE/datasets/nyu_rest"))
+        sd = fetch_nyu_rest(data_dir=os.path.join(
+                os.environ['HOME'], "CODE/datasets/nyu_rest"), sessions=[1],
+                            n_subjects=7)
 
         for j in xrange(len(sd.func)):
             output_dir = os.path.join("/tmp", os.path.basename(
@@ -462,7 +469,7 @@ if __name__ == '__main__':
 
     def _abide_factory(institute="KKI"):
         for scans in sorted(glob.glob(
-                "/mnt/3t/edohmato/ABIDE/%s_*/%s_*/scans" % (
+                "/home/elvis/CODE/datasets/ABIDE/%s_*/%s_*/scans" % (
                     institute, institute))):
             subject_id = os.path.basename(os.path.dirname(
                     os.path.dirname(scans)))
@@ -474,14 +481,15 @@ if __name__ == '__main__':
 
     def _run_demo(func, anat):
         # fit SPMCoreg object
-        spmcoreg = SPMCoreg().fit(func, anat)
+        spmcoreg = SPMCoreg().fit(anat, func)
 
         # apply coreg
-        VFk = spmcoreg.transform(anat)['coregistered_source']
+        VFk = load_specific_vol(spmcoreg.transform(
+                func)['coregistered_source'], 0)[0]
 
         # QA
-        plot_registration(anat, func, title="before coreg")
-        plot_registration(VFk, func, title="after coreg")
+        plot_registration(anat, VFk, title="before coreg")
+        plot_registration(VFk, anat, title="after coreg")
         plt.show()
 
     # ABIDE demo
@@ -489,8 +497,12 @@ if __name__ == '__main__':
         print "%s +++%s+++\r\n" % ("\t" * 5, subject_id)
         _run_demo(func, anat)
 
-    # spm auditory demo
-    _run_demo(*_spm_auditory_factory())
+    # # spm auditory demo
+    # _run_demo(*_spm_auditory_factory())
+
+    # abide rest demo
+    for func, anat in _abide_factory():
+        _run_demo(func, anat)
 
     # VFk = _apply_realignment_to_vol(VFk, q0)
     # print q0

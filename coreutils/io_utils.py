@@ -73,11 +73,15 @@ def load_vol(x):
 
 
 def load_specific_vol(vols, t):
-    """Utility function for loading specific volume on demand.
+    """
+    Utility function for loading specific volume on demand.
 
     Parameters
     ----------
     vols: string(s) or nibabel image object(s)
+        input volumes or single 4D film
+    t: int
+        index of requested volume in the film
 
     """
 
@@ -108,6 +112,7 @@ def load_specific_vol(vols, t):
             ("vols must be string, image object, or list of such; "
              "got %s" % type(vols)))
 
+    # delete trivial dimension
     if len(vol.shape) == 4:
         vol = nibabel.Nifti1Image(vol.get_data()[..., ..., ..., 0],
                                   vol.get_afffine())
@@ -116,6 +121,11 @@ def load_specific_vol(vols, t):
 
 
 def three_to_four(images):
+    """
+    XXX It is this function actually used somewhere ?
+
+    """
+
     if is_niimg(images):
         return images
 
@@ -147,15 +157,24 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
     Saves a single 4D image or a couple of 3D vols unto disk.
 
     vols: single 4D nibabel image object, or list of 3D nibabel image objects
+        volumes, of ndarray
         volumes to be saved
+
     output_dir: string
         existing filename, destination directory
+
     basenames: string or list of string, optional (default None)
         basename(s) for output image(s)
+
+    affine: 2D array of shape (4, 4)
+        affine matrix for the output images
+
     concat: bool, optional (default False)
         concatenate all vols into a single film
+
     prefix: string, optional (default '')
        prefix to be prepended to output file basenames
+
     ext: string, optional (default ".nii.gz")
         file extension for output images
 
@@ -200,9 +219,11 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
             if not basenames is None:
                 basenames = basenames[0]
         else:
-            raise RuntimeError(
-                ("concat=True specified but vols is of type %s instead "
-                 "of list") % type(vols))
+            if not basenames is None:
+                if not isinstance(basenames, basestring):
+                    raise RuntimeError(
+                        ("concat=True specified but basenames is of type %s "
+                         "instead of string") % type(basenames))
 
     if not isinstance(vols, list):
         if basenames is None:
@@ -643,3 +664,32 @@ def load_4D_img(img):
                                       img.get_affine())
 
     return img
+
+
+def niimg2ndarrays(niimg):
+    """
+    Splits a niimg into it's data and affine parts, both memmapped unto disk.
+
+    Returns
+    -------
+    pair (data, affine)
+
+    """
+
+    # memmap_dir = tempfile.mkdtemp()
+
+    # # data
+    # memmapped_data_filename = os.path.join(memmap_dir, 'data.txt')
+    # memmapped_data = np.memmap(memmapped_data_filename, mode='w+',
+    #                            shape=niimg.shape)
+    # memmapped_data[:] = niimg.get_data()[:]
+
+    # # affine
+    # memmapped_affine_filename = os.path.join(memmap_dir, 'affine.txt')
+    # memmapped_affine = np.memmap(memmapped_affine_filename, mode='w+',
+    #                   shape=(4, 4))
+    # memmapped_affine[:] = niimg.get_affine()[:]
+
+    # return memmapped_data, memmapped_affine
+
+    return niimg.get_data(), niimg.get_affine()
