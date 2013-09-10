@@ -19,8 +19,9 @@ output_dir = os.path.dirname(MELODIC_NII_GZ)
 mask_filename = os.path.join(output_dir, "mask.nii.gz")
 
 # grab log
-methods_text = "ICA was done by running the following MELODIC command-line:<br/>"
-methods_text += "<i>" + re.search(".*melodic \-i .*",
+methods_text = ("ICA was done by running the following MELODIC "
+                "command-line:<br/>")
+methods_text += "<i>" + re.search(".*melodic .*",
                              open(
         os.path.join(output_dir,
                      'log.txt')).read()).group() + "</i>"

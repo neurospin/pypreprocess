@@ -296,12 +296,13 @@ def _do_subject_coreg(output_dir,
 
         ref_brain = "EPI"
         source_brain = "anat"
-        if coreg_func_to_anat:
-            ref_brain, source_brain = source_brain, ref_brain
 
         if not coreg_result.outputs is None:
             target = spm_coregister_kwargs['target']
             source = coreg_result.outputs.coregistered_source
+
+            if coreg_func_to_anat:
+                target, source = source, target
 
             execution_log = preproc_reporter.get_nipype_report(
                 preproc_reporter.get_nipype_report_filename(source))
@@ -769,6 +770,16 @@ def _do_subject_preproc(
     if not os.path.exists(subject_data.output_dir):
         os.makedirs(subject_data.output_dir)
 
+    # prepare for smart caching
+    cache_dir = os.path.join(subject_data.output_dir, "cache_dir")
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+
+    mem = joblib.Memory(cachedir=cache_dir, verbose=100)
+
+    def _cached(f):
+        return mem.cache(f)
+
     # generate explanation of preproc steps undergone by subject
     preproc_undergone = preproc_reporter.\
         generate_preproc_undergone_docstring(
@@ -1054,12 +1065,12 @@ def _do_subject_preproc(
             'meanfunc.nii')
 
         if len(subject_data.session_id) > 1:
-            compute_mean_image(subject_data.func[0],
-                               output_filename=ref_func)
+            _cached(compute_mean_image)(subject_data.func[0],
+                                        output_filename=ref_func)
         else:
             if isinstance(subject_data.func[0], basestring):
-                compute_mean_image(subject_data.func[0],
-                                   output_filename=ref_func)
+                _cached(compute_mean_image)(subject_data.func[0],
+                                            output_filename=ref_func)
             else:
                 ref_func = subject_data.func[0][0]
 
@@ -1067,6 +1078,8 @@ def _do_subject_preproc(
     # co-registration of structural (anatomical) against functional
     ################################################################
     if do_coreg:
+        coreg_jobtype = 'estimate'
+
         # specify input files for coregistration
         comments = "anat -> epi"
         if func_to_anat:
@@ -1075,21 +1088,10 @@ def _do_subject_preproc(
             coreg_source = ref_func
         else:
             coreg_target = ref_func
-            coreg_jobtype = 'estimate'
             if subject_data.anat is None:
                 if not subject_data.hires is None:
                     coreg_source = subject_data.hires
-                else:
-                    # XXX skip coregistration altogether!!!
-                    subject_data.anat = os.path.join(
-                        subject_data.output_dir,
-                        os.path.basename(EPI_TEMPLATE).replace('.gz', ''))
-                    if not os.path.exists(subject_data.anat):
-                        shutil.copy(
-                            EPI_TEMPLATE, subject_data.output_dir)
-                        unzip_nii_gz(subject_data.output_dir)
-                    coreg_source = subject_data.anat
-                do_segment = False
+                do_segment = False  # can't segment without anat
             else:
                 coreg_source = subject_data.anat
 
@@ -1404,7 +1406,7 @@ def _do_subject_preproc(
 
     if do_report:
         # generate cv plots
-        if do_cv_tc and do_normalize:
+        if do_cv_tc:
             corrected_FMRI = output['func']
 
             thumbnail = preproc_reporter.generate_cv_tc_thumbnail(
@@ -1802,6 +1804,7 @@ def do_subjects_preproc(subjects,
                         do_slicetiming=False,
                         do_realign=True,
                         do_coreg=True,
+                        func_to_anat=False,
                         do_segment=True,
                         do_normalize=True,
                         do_dartel=False,
@@ -1846,6 +1849,7 @@ def do_subjects_preproc(subjects,
               'do_report': do_report,
               'do_slicetiming': do_slicetiming,
               'do_realign': do_realign, 'do_coreg': do_coreg,
+              'func_to_anat': func_to_anat,
               'do_segment': do_segment, 'do_normalize': do_normalize,
               'do_cv_tc': do_cv_tc,
               'fwhm': fwhm,

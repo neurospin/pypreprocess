@@ -88,7 +88,7 @@ def generate_preproc_undergone_docstring(
         tools_used = (
             'All preprocessing was done using <a href="%s">pypreprocess</a>,'
             ' a collection of python tools (scripts, modules, etc.) for '
-            'preprocessing fMRI data.') % base_reporter.PYPREPROCESS_URL,
+            'preprocessing functional data.') % base_reporter.PYPREPROCESS_URL,
 
     preproc_undergone = "<p>%s</p>" % tools_used
 
@@ -111,18 +111,18 @@ def generate_preproc_undergone_docstring(
     if do_slicetiming:
         preproc_undergone += (
             "<li>"
-            "Slice-timing has been done to interpolate the BOLD signal in "
-            "time,"
-            " so that we can safely pretend all 3D volumes within a TR were "
-            "acquired simultaneously, an assumption crusial to the GLM "
-            " and inference stages."
+            "Slice-Timing Correction (STC) has been done to interpolate the "
+            "BOLD signal in time, so that in the sequel we can safely pretend"
+            " all 3D volumes within a TR (Repetition Time) were "
+            "acquired simultaneously, an crucial assumption for any further "
+            "analysis of the data (GLM, ICA, etc.). "
             "</li>"
             )
     if do_realign:
         preproc_undergone += (
             "<li>"
-            "Motion correction has been done so as to correct for "
-            "subject's head motion during the acquisition."
+            "Motion correction has been done so as to estimate, and then "
+            "correct for, subject's head motion during the acquisition."
             "</li>"
             )
     if do_coreg:
@@ -130,17 +130,21 @@ def generate_preproc_undergone_docstring(
         if not coreg_func_to_anat:
             preproc_undergone += (
                 "The subject's anatomical image has been coregistered "
-                "against their fMRI images (precisely, to the mean thereof). "
+                "against their functional images."
                 )
         else:
             preproc_undergone += (
             "The subject's anatomical image has been coregistered "
-            "against their fMRI images (precisely, to the mean thereof). "
+            "against their functional images (precisely, to the mean thereof)."
                 )
         preproc_undergone += (
-            "Coregistration is important as it allows deformations of the "
-            "anatomy to be directly applicable to the fMRI, or for ROIs "
-            "to be defined on the anatomy."
+            " Coregistration is important as it allows: (1) segmentation of "
+            "the functional via segmentation of the anatomical brain; "
+            "(2) inter-subject registration via inter-anatomical registration,"
+            " a trick referred to as 'Indirect Normalization'; "
+            "(3) ROIs to be defined on the anatomy, making it "
+            "possible for activation maps to be projected and appreciated"
+            " thereupon."
             "</li>")
     if do_segment:
         preproc_undergone += (
@@ -155,27 +159,27 @@ def generate_preproc_undergone_docstring(
                 "The segmented anatomical image has been warped "
                 "into the MNI template space by applying the deformations "
                 "learnt during segmentation. The same deformations have been"
-                " applied to the fMRI images.</li>")
+                " applied to the functional images.</li>")
         else:
             if do_coreg:
                 preproc_undergone += (
                     "<li>"
                     "Deformations from native to standard space have been "
                     "learnt on the anatomically brain. These deformations "
-                    "have been used to warp the fMRI into standard space."
-                    "</li>")
+                    "have been used to warp the functional into standard "
+                    "space.</li>")
             else:
                 preproc_undergone += (
                 "<li>"
-                "The fMRI images have been warped from native to standard "
-                "space via classical normalization.</li>")
+                "The functional images have been warped from native to "
+                "standard space via classical normalization.</li>")
     if additional_preproc_undergone:
         preproc_undergone += additional_preproc_undergone
     if fwhm:
         if max(list(fwhm)) > 0:
             preproc_undergone += (
                 "<li>"
-                "These images have been "
+                "The resulting functional images have been "
                 "smoothed with a %smm x %smm x %smm "
                 "Gaussian kernel.</li>") % tuple(fwhm)
 
