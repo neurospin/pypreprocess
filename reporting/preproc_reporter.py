@@ -68,6 +68,7 @@ def get_nipype_report_filename(
 
 
 def generate_preproc_undergone_docstring(
+    prepreproc_undergone="",
     tools_used=None,
     do_deleteorient=False,
     fwhm=None,
@@ -93,6 +94,10 @@ def generate_preproc_undergone_docstring(
     preproc_undergone = "<p>%s</p>" % tools_used
 
     preproc_undergone += "<ul>"
+
+    if prepreproc_undergone:
+        preproc_undergone += "<li>%s</li>" % prepreproc_undergone
+
     if do_deleteorient:
         preproc_undergone += (
             "<li>"

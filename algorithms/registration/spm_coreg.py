@@ -209,6 +209,8 @@ def spm_powell(x0, xi, tolsc, *otherargs):
     """
     Run Powell optimization.
 
+    XXX YAGNI: Limit number of wrapper functions, etc.
+
     """
 
     def of(x):

@@ -208,6 +208,16 @@ if __name__ == '__main__':
             n_jobs=n_jobs,
             output_dir=output_dir,
             dataset_id='CONNECTOME-DB',
+            prepreproc_undergone=(
+                "Data was collected with reversed phase-encode "
+                "blips (LR/RL), resulting in pairs of images with "
+                "distortions going in opposite directions. From "
+                "these pairs the susceptibility-induced "
+                "off-resonance field was estimated using a "
+                "method similar to that described in [Andersson"
+                " 2003] as implemented in FSL topup tool [Smith 2004] "
+                "and the two images were combined into a single "
+                "corrected one."),
             func_to_anat=True,
 
             # no normalization, etc.

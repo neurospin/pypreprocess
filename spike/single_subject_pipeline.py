@@ -157,7 +157,6 @@ def do_subject_preproc(subject_data,
     if do_caching:
         mem = joblib.Memory(cachedir=os.path.join(
                 subject_data['output_dir'], 'cache_dir'),
-                            mmap_mode='r+',
                             verbose=100
                             )
 

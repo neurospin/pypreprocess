@@ -788,6 +788,15 @@ def _do_subject_preproc(
     # generate explanation of preproc steps undergone by subject
     preproc_undergone = preproc_reporter.\
         generate_preproc_undergone_docstring(
+        prepreproc_undergone=("Data was collected with reversed phase-encode "
+                              "blips, resulting in pairs of images with "
+                              "distortions going in opposite directions. From "
+                              "these pairs the susceptibility-induced "
+                              "off-resonance field was estimated using a "
+                              "method similar to that described in [Andersson"
+                              " 2003] as implemented in FSL [Smith 2004] and"
+                              " the two images were combined into a single "
+                              "corrected one."),
         do_deleteorient=do_deleteorient or subject_data.bad_orientation,
         fwhm=fwhm,
         do_bet=do_bet,
@@ -1091,7 +1100,7 @@ def _do_subject_preproc(
             # coreg_jobtype = 'estwrite'
             comments = 'epi -> anat'
             coreg_target = subject_data.anat
-            
+
             ref_func = _cached(load_specific_vol)(subject_data.func[0], 0)[0]
             coreg_source = os.path.join(subject_data.output_dir,
                                     "ref_func_vol.nii")
@@ -1811,6 +1820,7 @@ def do_group_DARTEL(output_dir,
 def do_subjects_preproc(subjects,
                         output_dir=None,
                         dataset_id="UNNAMED DATASET!",
+                        prepreproc_undergone="",
                         do_deleteorient=False,
                         do_report=True,
                         do_export_report=False,
@@ -1915,23 +1925,28 @@ def do_subjects_preproc(subjects,
             "alignment with them) can be generated. "
             "</li>") % DARTEL_URL
 
+    kwargs['additional_preproc_undergone'] = additional_preproc_undergone
+
     # get caller module handle from stack-frame
     user_script_name = sys.argv[0]
     user_source_code = base_reporter.get_module_source_code(
         user_script_name)
 
-    preproc_undergone = """\
-    <p>All preprocessing has been done using the <i>%s</i> script of
- <a href="%s">pypreprocess</a>, which is powered by
- <a href="%s">nipype</a>, and <a href="%s">SPM8</a>.
-    </p>""" % (user_script_name, PYPREPROCESS_URL,
-               NIPYPE_URL, SPM8_URL)
+    preproc_undergone = ""
 
-    preproc_undergone += "<ul>"
-
-    preproc_undergone += additional_preproc_undergone + "</ul>"
-
-    kwargs['additional_preproc_undergone'] = additional_preproc_undergone
+    preproc_undergone += preproc_reporter.\
+        generate_preproc_undergone_docstring(
+        prepreproc_undergone=prepreproc_undergone,
+        fwhm=fwhm,
+        do_bet=do_bet,
+        do_slicetiming=do_slicetiming,
+        do_realign=do_realign,
+        do_coreg=do_coreg,
+        coreg_func_to_anat=func_to_anat,
+        do_segment=do_segment,
+        do_normalize=do_normalize,
+        additional_preproc_undergone=additional_preproc_undergone,
+        )
 
     # generate html report (for QA) as desired
     parent_results_gallery = None
@@ -1996,7 +2011,7 @@ def do_subjects_preproc(subjects,
             dataset_description=dataset_description,
             source_code=user_source_code,
             source_script_name=user_script_name,
-            preproc_params=preproc_params,
+            preproc_params=preproc_params
             )
 
         main_html = base_reporter.get_dataset_report_html_template(
@@ -2052,7 +2067,7 @@ def do_subjects_preproc(subjects,
         structural_files = [
             output['anat'] for _, output in results]
 
-        functional = [
+        functional_files = [
             output['anat'] for _, output in results]
 
         # collect gallery related subject-specific stuff
