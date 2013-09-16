@@ -10,7 +10,10 @@ from external.nilearn.datasets import (
     fetch_spm_auditory_data,
     fetch_spm_multimodal_fmri_data
     )
-import spike.single_subject_pipeline as ssp
+from spike.single_subject_pipeline import do_subject_preproc
+from pipeline_comparisons import (execute_spm_auditory_glm,
+                                  execute_spm_multimodal_fmri_glm
+                                  )
 
 # ##############################################
 # # SPM Multimodal fMRI (faces vs. scrambled)
@@ -32,16 +35,16 @@ subject_data = {
     }
 
 # run preproc pipeline
-preproc_output  = ssp.do_subject_preproc(
+preproc_output  = do_subject_preproc(
     subject_data,
     slice_order='descending',
-    fwhm=[10, 10, 10],  # 8mm isotropic kernel
+    # fwhm=[10, 10, 10],
     write_preproc_output_images=True,
     concat=True
     )
 
-# # run GLM on preprocesses data
-# ssp.execute_spm_multimodal_fmri_glm(preproc_output)
+# run GLM on preprocesses data
+execute_spm_multimodal_fmri_glm(preproc_output)
 
 ################################
 # SPM single-subject Auditory
@@ -60,12 +63,13 @@ subject_data = {
     'output_dir': 'spm_auditory_preproc'
     }
 
-preproc_output  = ssp.do_subject_preproc(
+# run preproc pipeline
+preproc_output  = do_subject_preproc(
     subject_data,
-    fwhm=[10, 10, 10],  # 8mm isotropic kernel
+    fwhm=[10, 10, 10],
     write_preproc_output_images=True,
     concat=True
     )
 
 # run GLM on preprocesses data
-ssp.execute_spm_auditory_glm(preproc_output)
+execute_spm_auditory_glm(preproc_output)
