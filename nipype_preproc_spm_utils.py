@@ -28,9 +28,10 @@ import pylab as pl
 
 # imports i/o
 import numpy as np
+import nibabel
 from nipype.interfaces.base import Bunch
 from coreutils.io_utils import delete_orientation, is_3D, get_vox_dims,\
-    compute_mean_image, hard_link
+    compute_mean_image, hard_link, load_specific_vol
 from datasets_extras import unzip_nii_gz
 
 # spm and matlab imports
@@ -303,6 +304,7 @@ def _do_subject_coreg(output_dir,
 
             if coreg_func_to_anat:
                 target, source = source, target
+                ref_brain, source_brain = source_brain, ref_brain
 
             execution_log = preproc_reporter.get_nipype_report(
                 preproc_reporter.get_nipype_report_filename(source))
@@ -780,6 +782,9 @@ def _do_subject_preproc(
     def _cached(f):
         return mem.cache(f)
 
+    def _save_vol(data, affine, output_filename):
+        nibabel.save(nibabel.Nifti1Image(data, affine), output_filename)
+
     # generate explanation of preproc steps undergone by subject
     preproc_undergone = preproc_reporter.\
         generate_preproc_undergone_docstring(
@@ -1069,8 +1074,7 @@ def _do_subject_preproc(
                                         output_filename=ref_func)
         else:
             if isinstance(subject_data.func[0], basestring):
-                _cached(compute_mean_image)(subject_data.func[0],
-                                            output_filename=ref_func)
+                ref_func = subject_data.func[0]
             else:
                 ref_func = subject_data.func[0][0]
 
@@ -1079,13 +1083,22 @@ def _do_subject_preproc(
     ################################################################
     if do_coreg:
         coreg_jobtype = 'estimate'
+        apply_to_files = []
 
         # specify input files for coregistration
         comments = "anat -> epi"
         if func_to_anat:
+            # coreg_jobtype = 'estwrite'
             comments = 'epi -> anat'
             coreg_target = subject_data.anat
-            coreg_source = ref_func
+            
+            ref_func = _cached(load_specific_vol)(subject_data.func[0], 0)[0]
+            coreg_source = os.path.join(subject_data.output_dir,
+                                    "ref_func_vol.nii")
+            _cached(_save_vol)(ref_func.get_data(), ref_func.get_affine(),
+                               coreg_source)
+
+            apply_to_files = subject_data.func
         else:
             coreg_target = ref_func
             if subject_data.anat is None:
@@ -1106,6 +1119,7 @@ def _do_subject_preproc(
             comments=comments,
             target=coreg_target,
             source=coreg_source,
+            apply_to_files=apply_to_files,
             jobtype=coreg_jobtype,
             ignore_exception=ignore_exception
             )
@@ -1124,10 +1138,13 @@ def _do_subject_preproc(
                 ("spm.Coregister failed for subject %s!"
                  ) % subject_data.subject_id)
 
-        output['coregistered_anat'] = coreg_result.outputs.coregistered_source
-
-        # reset anat to coregistered version thereof
-        subject_data.anat = coreg_result.outputs.coregistered_source
+        if func_to_anat:
+            output['func'
+                   ] = coreg_result.outputs.coregistered_files
+            subject_data.func = output['func']
+        else:
+            output['anat'] = coreg_result.outputs.coregistered_source
+            subject_data.anat = output['anat']
 
         # generate report stub
         if do_report:
@@ -1137,7 +1154,7 @@ def _do_subject_preproc(
     # segmentation of anatomical image
     ###################################
     if do_segment:
-        segment_data = subject_data.anat
+        segment_data = output["anat"]
         segment_output = _do_subject_segment(
             subject_data.output_dir,
             subject_id=subject_data.subject_id,
@@ -1179,7 +1196,7 @@ def _do_subject_preproc(
             # using the deformations learned by segmentation
             ##############################################################
             norm_parameter_file = segment_result.outputs.transformation_mat
-            norm_apply_to_files = subject_data.func
+            norm_apply_to_files = output['func']
 
             norm_output = _do_subject_normalize(
                 subject_data.output_dir,
@@ -1222,7 +1239,7 @@ def _do_subject_preproc(
             # using the deformations learned by segmentation
             #########################################################
             norm_parameter_file = segment_result.outputs.transformation_mat
-            norm_apply_to_files = subject_data.anat
+            norm_apply_to_files = output['anat']
 
             norm_output = _do_subject_normalize(
                 subject_data.output_dir,
@@ -1271,7 +1288,7 @@ def _do_subject_preproc(
         norm_output = _do_subject_normalize(
             subject_data.output_dir,
             do_report=False,
-            source=subject_data.anat,
+            source=outout['anat'],
             template=t1_template,
             )
 
@@ -1290,7 +1307,7 @@ def _do_subject_preproc(
         # Warp EPI into MNI space using learned deformation
         ####################################################
         norm_parameter_file = norm_result.outputs.normalization_parameters
-        norm_apply_to_files = subject_data.func
+        norm_apply_to_files = output['func']
 
         norm_output = _do_subject_normalize(
             subject_data.output_dir,
@@ -1328,7 +1345,7 @@ def _do_subject_preproc(
         #####################################################
         # Warp anat into MNI space using learned deformation
         #####################################################
-        norm_apply_to_files = subject_data.anat
+        norm_apply_to_files = output['anat']
 
         norm_output = _do_subject_normalize(
             subject_data.output_dir,
@@ -1381,6 +1398,7 @@ def _do_subject_preproc(
                 % subject_data.subject_id)
 
         output['func'] = smooth_output['smoothed_files']
+        subject_data.func = output["func"]
 
         # smooth anat
         if not subject_data.anat is None:
@@ -2030,22 +2048,12 @@ def do_subjects_preproc(subjects,
                                      output['estimated_motion'])
                                     for _, output in results)
 
-        # collect structural files for DARTEL pipeline
-        if do_coreg:
-            structural_files = [
-                output['coreg_result'].outputs.coregistered_source
-                for _, output in results]
-        else:
-            structural_files = [
-                subject_data.anat for subject_data, _ in results]
+        # collect input files for DARTEL
+        structural_files = [
+            output['anat'] for _, output in results]
 
-        # collect functional files for DARTEL pipeline
-        if do_realign:
-            functional_files = [
-                output['realign_result'].outputs.realigned_files
-                for _, output in results]
-        else:
-            functional_files = [output['func'] for _, output in results]
+        functional = [
+            output['anat'] for _, output in results]
 
         # collect gallery related subject-specific stuff
         subject_final_thumbs = None

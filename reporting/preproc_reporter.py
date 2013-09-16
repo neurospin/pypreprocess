@@ -127,15 +127,15 @@ def generate_preproc_undergone_docstring(
             )
     if do_coreg:
         preproc_undergone += "<li>"
-        if not coreg_func_to_anat:
+        if coreg_func_to_anat:
             preproc_undergone += (
-                "The subject's anatomical image has been coregistered "
-                "against their functional images."
+                "The subject's functional images have been coregistered "
+                "to their anatomical image."
                 )
         else:
             preproc_undergone += (
             "The subject's anatomical image has been coregistered "
-            "against their functional images (precisely, to the mean thereof)."
+            "against their functional images."
                 )
         preproc_undergone += (
             " Coregistration is important as it allows: (1) segmentation of "
@@ -307,7 +307,7 @@ def generate_registration_thumbnails(
     target: tuple of length 2
         target[0]: string
             path to reference image used in the registration
-        target[1]: string
+e        target[1]: string
             short name (e.g 'anat', 'epi', 'MNI', etc.) for the
             reference image
     source: tuple of length 2

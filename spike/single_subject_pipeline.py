@@ -300,7 +300,7 @@ def do_subject_preproc(subject_data,
         mrimc = cached(MRIMotionCorrection(
                 n_sessions=n_sessions, verbose=verbose).fit)(
             [niimg2ndarrays(sess_func)
-             for session_func in output['func']])
+             for sess_func in output['func']])
 
         mrimc_output = cached(mrimc.transform)(reslice=True, concat=True
                                                )

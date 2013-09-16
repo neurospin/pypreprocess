@@ -38,6 +38,8 @@ APPLYTOPUP_CMDLINE = """fsl5.0-applytopup --imain=%s,%s \
 --inindex=1,4 --topup=%s/b0_dc_out --out=%s\
 """
 
+VIVI = False
+
 # main code follows
 if __name__ == '__main__':
     # sanitize input
@@ -198,17 +200,37 @@ if __name__ == '__main__':
 
     # preprocess the subjects proper
     n_jobs = int(os.environ['N_JOBS']) if 'N_JOBS' in os.environ else -1
-    nipype_preproc_spm_utils.do_subjects_preproc(
-        subject_factory(n_jobs=n_jobs),
-        n_jobs=n_jobs,
-        output_dir=output_dir,
-        dataset_id='CONNECTOME-DB',
-        func_to_anat=True,
+    if 1:
+        do_normalize = not VIVI
+        do_segment = not VIVI
+        preproc_results = nipype_preproc_spm_utils.do_subjects_preproc(
+            subject_factory(n_jobs=n_jobs),
+            n_jobs=n_jobs,
+            output_dir=output_dir,
+            dataset_id='CONNECTOME-DB',
+            func_to_anat=True,
 
-        # no normalization, etc.
-        do_segment=False,
-        do_normalize=False,
-        )
+            # no normalization, etc.
+            do_segment=do_segment,
+            do_normalize=do_segment,
+
+            # do_report=False
+            )
+    else:
+        from spike.single_subject_pipeline import do_subject_preproc
+
+        preproc_results = joblib.Parallel(n_jobs=n_jobs)(
+            joblib.delayed(do_subject_preproc)(
+                {'subject_id': subject_data.subject_id,
+                 'n_sessions': 2,
+                 'func': subject_data.func,
+                 'anat': subject_data.anat,
+                 'output_dir': os.path.join(subject_data.output_dir,
+                                            "3LV15_pipeline")
+                 },
+                do_stc=False,
+                coreg_func_to_anat=True
+                ) for subject_data in subject_factory())
 
     if len(skipped_subjects) > 0:
         print "\r\nSkipped subjects:"

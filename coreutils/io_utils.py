@@ -72,7 +72,7 @@ def load_vol(x):
     return vol
 
 
-def load_specific_vol(vols, t):
+def load_specific_vol(vols, t, strict=False):
     """
     Utility function for loading specific volume on demand.
 
@@ -102,8 +102,11 @@ def load_specific_vol(vols, t):
 
         _vols = nibabel.load(vols) if isinstance(vols, basestring) else vols
         if len(_vols.shape) != 4:
-            raise ValueError(
-                "Expecting 4D image, got %iD" % len(_vols.shape))
+            if strict:
+                raise ValueError(
+                    "Expecting 4D image, got %iD" % len(_vols.shape))
+            else:
+                return _vols, 1
 
         n_scans = _vols.shape[-1]
         vol = nibabel.four_to_three(_vols)[t]
@@ -355,7 +358,7 @@ def get_vox_dims(volume):
         niimg = nibabel.load(volume) if isinstance(
             volume, basestring) else volume
 
-        return list(niimg.get_header().get_zooms())[:3]
+        return [float(j) for j in niimg.get_header().get_zooms()[:3]]
     elif isinstance(volume, list):
         return get_vox_dims(volume[0])
     else:

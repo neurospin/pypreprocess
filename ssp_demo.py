@@ -5,15 +5,11 @@
 """
 
 # import goodies
-<<<<<<< HEAD
 import os
-from external.nilearn.datasets import fetch_spm_auditory_data
-=======
 from external.nilearn.datasets import (
     fetch_spm_auditory_data,
     fetch_spm_multimodal_fmri_data
     )
->>>>>>> c7241c5ef74c81c4eb4b6df887f7a3c5e02f6946
 import spike.single_subject_pipeline as ssp
 
 # ##############################################
@@ -21,8 +17,8 @@ import spike.single_subject_pipeline as ssp
 # ##############################################
 
 # fetch data
-sd = fetch_spm_multimodal_fmri_data(
-    "/home/elvis/CODE/datasets/spm_multimodal_fmri")
+sd = fetch_spm_multimodal_fmri_data(os.path.join(
+        os.environ["HOME"], "CODE/datasets/spm_multimodal_fmri"))
 
 # pack data into dict, the format understood by the pipeleine
 subject_data = {
@@ -64,20 +60,12 @@ subject_data = {
     'output_dir': 'spm_auditory_preproc'
     }
 
-# run preproc pipeline
-<<<<<<< HEAD
-preproc_output  = ssp.do_subject_preproc(subject_data,
-                                         write_preproc_output_images=True,
-                                         fwhm=[8, 8, 8],  # 8mm isotropic kernel
-                                         )
-=======
 preproc_output  = ssp.do_subject_preproc(
     subject_data,
     fwhm=[10, 10, 10],  # 8mm isotropic kernel
     write_preproc_output_images=True,
     concat=True
     )
->>>>>>> c7241c5ef74c81c4eb4b6df887f7a3c5e02f6946
 
 # run GLM on preprocesses data
 ssp.execute_spm_auditory_glm(preproc_output)
