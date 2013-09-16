@@ -374,7 +374,7 @@ def smooth_image(img, fwhm, **kwargs):
         img = ni.load(img)
     elif isinstance(img, tuple):
         assert len(img) == 2
-        return ni.Nifti1Image(img[0], img[1])
+        return smooth_image(ni.Nifti1Image(img[0], img[1]), fwhm, **kwargs)
     elif isinstance(img, list):
         return [smooth_image(x, fwhm, **kwargs) for x in img]
     else:

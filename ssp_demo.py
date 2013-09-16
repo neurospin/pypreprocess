@@ -9,38 +9,41 @@ from external.nilearn.datasets import (
     fetch_spm_auditory_data,
     fetch_spm_multimodal_fmri_data
     )
-import spike.single_subject_pipeline as ssp
+from spike.single_subject_pipeline import do_subject_preproc
+from pipeline_comparisons import (execute_spm_auditory_glm,
+                                  execute_spm_multimodal_fmri_glm
+                                  )
 
-# ##############################################
-# # SPM Multimodal fMRI (faces vs. scrambled)
-# ##############################################
+# # ##############################################
+# # # SPM Multimodal fMRI (faces vs. scrambled)
+# # ##############################################
 
-# fetch data
-sd = fetch_spm_multimodal_fmri_data(
-    "/home/elvis/CODE/datasets/spm_multimodal_fmri")
+# # fetch data
+# sd = fetch_spm_multimodal_fmri_data(
+#     "/home/elvis/CODE/datasets/spm_multimodal_fmri")
 
-# pack data into dict, the format understood by the pipeleine
-subject_data = {
-    'n_sessions': 2,  # number of sessions
-    'func': [sd.func1, sd.func2],  # functional (BOLD) images 1 item/session
-    'anat': sd.anat,  # anatomical (structural) image
-    'subject_id': 'sub001',
-    'output_dir': 'spm_multimodal_fmri_preproc',
-    'trials_ses1': sd.trials_ses1,
-    'trials_ses2': sd.trials_ses2
-    }
+# # pack data into dict, the format understood by the pipeleine
+# subject_data = {
+#     'n_sessions': 2,  # number of sessions
+#     'func': [sd.func1, sd.func2],  # functional (BOLD) images 1 item/session
+#     'anat': sd.anat,  # anatomical (structural) image
+#     'subject_id': 'sub001',
+#     'output_dir': 'spm_multimodal_fmri_preproc',
+#     'trials_ses1': sd.trials_ses1,
+#     'trials_ses2': sd.trials_ses2
+#     }
 
-# run preproc pipeline
-preproc_output  = ssp.do_subject_preproc(
-    subject_data,
-    slice_order='descending',
-    fwhm=[10, 10, 10],  # 8mm isotropic kernel
-    write_preproc_output_images=True,
-    concat=True
-    )
+# # run preproc pipeline
+# preproc_output  = do_subject_preproc(
+#     subject_data,
+#     slice_order='descending',
+#     # fwhm=[10, 10, 10],
+#     write_preproc_output_images=True,
+#     concat=True
+#     )
 
 # # run GLM on preprocesses data
-# ssp.execute_spm_multimodal_fmri_glm(preproc_output)
+# execute_spm_multimodal_fmri_glm(preproc_output)
 
 ################################
 # SPM single-subject Auditory
@@ -59,12 +62,12 @@ subject_data = {
     }
 
 # run preproc pipeline
-preproc_output  = ssp.do_subject_preproc(
+preproc_output  = do_subject_preproc(
     subject_data,
-    fwhm=[10, 10, 10],  # 8mm isotropic kernel
+    fwhm=[10, 10, 10],
     write_preproc_output_images=True,
     concat=True
     )
 
 # run GLM on preprocesses data
-ssp.execute_spm_auditory_glm(preproc_output)
+execute_spm_auditory_glm(preproc_output)

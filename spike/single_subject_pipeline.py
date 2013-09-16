@@ -157,10 +157,11 @@ def do_subject_preproc(subject_data,
     if do_caching:
         mem = joblib.Memory(cachedir=os.path.join(
                 subject_data['output_dir'], 'cache_dir'),
+                            mmap_mode='r+',
                             verbose=100
                             )
 
-    def cached(f):
+    def _cached(f):
         """
         If caching is enabled, then this wrapper caches calls to a function f.
         Otherwise the behaviour of f is unchanged.
@@ -186,10 +187,10 @@ def do_subject_preproc(subject_data,
         func_prefix = PREPROC_OUTPUT_IMAGE_PRERICES['smoothing'] + func_prefix
 
     # cast all images to niimg
-    output['func'] = [cached(load_4D_img)(x) for x in output['func']]
+    output['func'] = [load_4D_img(x) for x in output['func']]
 
     if 'anat' in output:
-        output['anat'] = cached(load_vol)(output['anat'])
+        output['anat'] = load_vol(output['anat'])
 
     if do_report:
         # generate explanation of preproc steps undergone by subject
@@ -268,12 +269,12 @@ def do_subject_preproc(subject_data,
         original_bold = list(output['func'])
         for sess_func in output['func']:
             sess_func_data, sess_func_affine = niimg2ndarrays(sess_func)
-            fmristc = cached(fMRISTC(slice_order=slice_order,
-                                     interleaved=interleaved,
-                                     verbose=verbose
-                                     ).fit)(raw_data=sess_func_data)
+            fmristc = _cached(fMRISTC(slice_order=slice_order,
+                                      interleaved=interleaved,
+                                      verbose=verbose
+                                      ).fit)(raw_data=sess_func_data)
 
-            stc_output.append(nibabel.Nifti1Image(cached(fmristc.transform)(
+            stc_output.append(nibabel.Nifti1Image(_cached(fmristc.transform)(
                         sess_func_data), sess_func_affine))
 
         output['func'] = stc_output
@@ -297,12 +298,12 @@ def do_subject_preproc(subject_data,
     if do_realign:
         print "\r\nNODE> Motion Correction"
 
-        mrimc = cached(MRIMotionCorrection(
+        mrimc = _cached(MRIMotionCorrection(
                 n_sessions=n_sessions, verbose=verbose).fit)(
             [niimg2ndarrays(sess_func)
-             for session_func in output['func']])
+             for sess_func in output['func']])
 
-        mrimc_output = cached(mrimc.transform)(reslice=True, concat=True
+        mrimc_output = _cached(mrimc.transform)(reslice=True, concat=True
                                                )
 
         output['func'] = mrimc_output['realigned_images']
@@ -337,7 +338,7 @@ def do_subject_preproc(subject_data,
             ref, src = src, ref
 
         # estimate realignment (affine) params for coreg
-        spmcoreg = cached(SPMCoreg(verbose=verbose).fit)(
+        spmcoreg = _cached(SPMCoreg(verbose=verbose).fit)(
             niimg2ndarrays(ref),
             niimg2ndarrays(src))
 
@@ -345,12 +346,12 @@ def do_subject_preproc(subject_data,
         if coreg_func_to_anat:
             coreg_func = []
             for sess_func in output['func']:
-                coreg_func.append(cached(spmcoreg.transform)(
-                sess_func)['coregistered_source'])
-            output['func'] = coreg_func
+                coreg_func.append(_cached(spmcoreg.transform)(
+                        sess_func)['coregistered_source'])
+                output['func'] = coreg_func
             src = load_specific_vol(output['func'][0], 0)[0]
         else:
-            output['anat'] = cached(spmcoreg.transform)(
+            output['anat'] = _cached(spmcoreg.transform)(
                 output['anat'])['coregistered_source']
             src = output['anat']
 
@@ -375,7 +376,8 @@ def do_subject_preproc(subject_data,
 
         sfunc = []
         for sess_func in output['func']:
-            sfunc.append(cached(smooth_image)(niimg2ndarrays(sess_func), fwhm))
+            sfunc.append(_cached(smooth_image)(niimg2ndarrays(sess_func),
+                                               fwhm))
 
         output['func'] = sfunc
 
