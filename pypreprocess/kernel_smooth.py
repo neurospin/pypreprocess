@@ -15,15 +15,9 @@ import numpy.fft as npfft
 import nibabel as ni
 import scipy.linalg
 import gc
-import affine_transformations
-
-# pypreprocess dir
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__)))))
-
-from coreutils.io_utils import (is_niimg
-                                )
+from .affine_transformations import get_physical_coords
+from .io_utils import (is_niimg
+                       )
 
 
 def fwhm2sigma(fwhm):
@@ -183,8 +177,7 @@ class LinearFilter(object):
 
         # coordinates of physical center.  XXX - why the 'floor' here?
         vox_center = np.floor((np.array(self._bshape) - 1) / 2.0)
-        phys_center = affine_transformations.get_physical_coords(self._affine,
-                                                                 vox_center)
+        phys_center = get_physical_coords(self._affine, vox_center)
 
         # reshape to (N coordinates, -1).  We appear to need to assign
         # to shape instead of doing a reshape, in order to avoid memory
@@ -192,7 +185,7 @@ class LinearFilter(object):
         voxels.shape = (voxels.shape[0], np.product(voxels.shape[1:]))
 
         # physical coordinates relative to center
-        X = affine_transformations.get_physical_coords(self._affine,
+        X = get_physical_coords(self._affine,
                                                         voxels) - phys_center
 
         X.shape = (self._ndims[1],) + tuple(self._bshape)

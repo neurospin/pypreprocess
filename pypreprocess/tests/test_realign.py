@@ -4,7 +4,6 @@ XXX only use nosetests command-line tool to run this test module!
 """
 
 import os
-import sys
 import inspect
 import numpy as np
 import nibabel
@@ -13,25 +12,21 @@ import nose
 import nose.tools
 import numpy.testing
 
-# pypreproces path
-PYPREPROCESS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.split(os.path.abspath(__file__))[0])))
-sys.path.append(PYPREPROCESS_DIR)
-
 # import the APIs to be tested
-from coreutils.io_utils import load_specific_vol
-from algorithms.registration.spm_realign import (
+from ..io_utils import load_specific_vol
+from ..realign import (
     _compute_rate_of_change_of_chisq,
     _apply_realignment,
     _extract_realignment_params,
     MRIMotionCorrection
     )
-from algorithms.registration.affine_transformations import (
+from ..affine_transformations import (
     get_initial_motion_params)
 
 # global setup
-this_file = os.path.basename(os.path.abspath(__file__)).split('.')[0]
-OUTPUT_DIR = "/tmp/%s" % this_file
+THIS_FILE = os.path.abspath(__file__).split('.')[0]
+THIS_DIR = os.path.dirname(THIS_FILE)
+OUTPUT_DIR = "/tmp/%s" % os.path.basename(THIS_FILE)
 
 
 def create_random_image(shape=None,
@@ -212,7 +207,7 @@ def test_MRIMotionCorrection_fit():
     MAX_RE = .12  # we'll test for this max relative error in estimating motion
 
     # create data
-    vol = scipy.io.loadmat(os.path.join(PYPREPROCESS_DIR,
+    vol = scipy.io.loadmat(os.path.join(THIS_DIR,
                                         "test_data/spmmmfmri.mat"),
                            squeeze_me=True, struct_as_record=False)
     data = np.ndarray(list(vol['data'].shape) + [n_scans])

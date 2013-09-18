@@ -8,13 +8,8 @@ import inspect
 import nose
 import nose.tools
 
-# pypreproces path
-PYPREPROCESS_DIR = os.path.dirname(os.path.dirname(
-        os.path.split(os.path.abspath(__file__))[0]))
-sys.path.append(PYPREPROCESS_DIR)
-
 # import the APIIS to be tested
-from coreutils.io_utils import (
+from ..io_utils import (
     load_vol,
     load_specific_vol,
     do_3Dto4D_merge,
@@ -24,8 +19,7 @@ from coreutils.io_utils import (
     get_basenames,
     load_4D_img,
     is_niimg,
-    get_vox_dims,
-    hard_link
+    get_vox_dims
     )
 
 # global setup

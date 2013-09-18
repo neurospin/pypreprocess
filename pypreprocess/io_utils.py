@@ -11,7 +11,6 @@ import commands
 import tempfile
 import numpy as np
 import nibabel
-from external.nilearn import resampling
 
 
 def is_niimg(img):

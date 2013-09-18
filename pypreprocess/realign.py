@@ -15,21 +15,19 @@ import sys
 import numpy as np
 import scipy.ndimage as sndi
 import scipy.linalg
-import kernel_smooth
-import affine_transformations
-import spm_reslice
-
-# pypreprocess dir
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__)))))
-
-from coreutils.io_utils import (load_specific_vol,
-                                load_vol,
-                                save_vols,
-                                save_vol,
-                                get_basenames
-                                )
+from .kernel_smooth import smooth_image
+from .affine_transformations import (get_initial_motion_params,
+                                     spm_matrix,
+                                     spm_imatrix,
+                                     transform_coords
+                                     )
+from .reslice import reslice_vols
+from .io_utils import (load_specific_vol,
+                        load_vol,
+                        save_vols,
+                        save_vol,
+                        get_basenames
+                        )
 
 # useful constants
 INFINITY = np.inf
@@ -63,14 +61,14 @@ def _compute_rate_of_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
     # loop over parameters (this loop computes columns of A)
     A = np.ndarray((coords.shape[1], len(lkp)))
     for i in xrange(len(lkp)):
-        pt = affine_transformations.get_initial_motion_params()
+        pt = get_initial_motion_params()
 
         # regularization ith parameter
         pt[lkp[i]] = pt[i] + 1e-6
 
         # map cartesian coordinate space according to motion
         # parameters pt (using jacobian associated with the transformation)
-        transformed_coords  = affine_transformations.transform_coords(pt, M, M,
+        transformed_coords  = transform_coords(pt, M, M,
                                                                       coords)
 
         # compute change in cartesian coordinates as a result of change in
@@ -120,7 +118,7 @@ def _apply_realignment_to_vol(vol, q, inverse=True):
     vol = load_vol(vol)
 
     # convert realigment params to affine transformation
-    M_q = affine_transformations.spm_matrix(q)
+    M_q = spm_matrix(q)
 
     if inverse:
         M_q = scipy.linalg.inv(M_q)
@@ -177,7 +175,7 @@ def _extract_realignment_params(ref_vol, vol):
     """
 
    # store estimated motion for volume t
-    return affine_transformations.spm_imatrix(
+    return spm_imatrix(
         np.dot(vol.get_affine(), scipy.linalg.inv(ref_vol.get_affine()))
                )
 
@@ -296,7 +294,7 @@ class MRIMotionCorrection(object):
         # single vol ?
         if n_scans < 2:
             return np.array(
-                [affine_transformations.get_initial_motion_params()])
+                [get_initial_motion_params()])
 
         # affine correction
         vol_0 = nibabel.Nifti1Image(vol_0.get_data(),
@@ -314,7 +312,7 @@ class MRIMotionCorrection(object):
                               0:dim[2] - .5 - 1:skip[2]].reshape((3, -1))
 
         # smooth 0th volume to absorb noise before differentiating
-        sref_vol = kernel_smooth.smooth_image(vol_0,
+        sref_vol = smooth_image(vol_0,
                                               self.fwhm).get_data()
 
         # resample the smoothed reference volume unto doped working grid
@@ -387,7 +385,7 @@ class MRIMotionCorrection(object):
         # register the volumes to the reference volume
         self._log("Registering volumes to reference ( = volume 1)...")
         rp = np.ndarray((n_scans, 12))
-        rp[0, ...] = affine_transformations.get_initial_motion_params(
+        rp[0, ...] = get_initial_motion_params(
             )  # don't mov the reference image
         for t in xrange(1, n_scans):
             self._log("\tRegistering volume %i/%i..." % (
@@ -400,13 +398,13 @@ class MRIMotionCorrection(object):
                                              vol.get_affine()))
 
             # initialize final rp for this vol
-            rp[t, ...] = affine_transformations.get_initial_motion_params()
+            rp[t, ...] = get_initial_motion_params()
 
             # smooth volume t
-            V = kernel_smooth.smooth_image(vol, self.fwhm).get_data()
+            V = smooth_image(vol, self.fwhm).get_data()
 
             # intialize motion params for this vol
-            rp[t, ...] = affine_transformations.get_initial_motion_params()
+            rp[t, ...] = get_initial_motion_params()
 
             # global optical flow problem with affine motion model: run
             # Gauss-Newton iterated LS (this loop should normally converge
@@ -417,13 +415,12 @@ class MRIMotionCorrection(object):
             countdown = -1
             for iteration in xrange(self.n_iterations):
                 # starting point
-                q = affine_transformations.get_initial_motion_params()
+                q = get_initial_motion_params()
 
                 # pass from volume t's grid to that of the reference
                 # volume (0)
-                y1, y2, y3 = affine_transformations.transform_coords(
-                    np.zeros(6), vol_0.get_affine(),
-                    vol.get_affine(), [x1, x2, x3])
+                y1, y2, y3 = transform_coords(np.zeros(6), vol_0.get_affine(),
+                                              vol.get_affine(), [x1, x2, x3])
 
                 # sanity mask: some voxels might have fallen out of business;
                 # and zap'em
@@ -651,7 +648,7 @@ class MRIMotionCorrection(object):
             if reslice:
                 self._log('Reslicing volumes for session %i/%i...' % (
                         sess + 1, self.n_sessions))
-                sess_rvols = list(spm_reslice.reslice_vols(sess_rvols))
+                sess_rvols = list(reslice_vols(sess_rvols))
                 self._log('...done; session %i/%i.' % (
                         sess + 1, self.n_sessions))
 
