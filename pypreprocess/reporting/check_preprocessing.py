@@ -18,11 +18,11 @@ from nipy.labs import compute_mask_files
 from nipy.labs import viz
 import joblib
 
-from coreutils.io_utils import (do_3Dto4D_merge,
-                                compute_mean_3D_image,
-                                load_vol,
-                                load_4D_img
-                                )
+from pypreprocess.io_utils import (do_3Dto4D_merge,
+                                   compute_mean_3D_image,
+                                   load_vol,
+                                   load_4D_img
+                                   )
 
 EPS = np.finfo(float).eps
 

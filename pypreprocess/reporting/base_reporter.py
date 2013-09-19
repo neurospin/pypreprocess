@@ -15,7 +15,9 @@ import time
 import matplotlib as mpl
 import pylab as pl
 import numpy as np
-import external.tempita.tempita as tempita
+from pypreprocess.tempita import (HTMLTemplate,
+                                  bunch
+                                  )
 
 # find package path
 ROOT_DIR = os.path.split(os.path.abspath(__file__))[0]
@@ -155,7 +157,7 @@ def get_gallery_html_markup():
 
     """
 
-    return tempita.HTMLTemplate(
+    return HTMLTemplate(
         """
 {{for thumbnail in thumbnails}}
 <div class="img">
@@ -168,7 +170,7 @@ def get_gallery_html_markup():
 """)
 
 
-class _HTMLElement(tempita.bunch):
+class _HTMLElement(bunch):
     """
     Parameters
     ----------
@@ -186,7 +188,7 @@ class _HTMLElement(tempita.bunch):
 
     def __init__(self, **kwargs):
 
-        tempita.bunch.__init__(self, **kwargs)
+        bunch.__init__(self, **kwargs)
 
         for param in self._compulsary_params:
             if not param in kwargs:
@@ -586,7 +588,7 @@ def get_subject_report_log_html_template():
             ROOT_DIR, 'template_reports',
             'subject_report_log_template.tmpl.html')) as fd:
         _text = fd.read()
-        return tempita.HTMLTemplate(_text)
+        return HTMLTemplate(_text)
 
 
 def get_subject_report_html_template():
@@ -598,7 +600,7 @@ def get_subject_report_html_template():
             ROOT_DIR, 'template_reports',
                            'subject_report_template.tmpl.html')) as fd:
         _text = fd.read()
-        return tempita.HTMLTemplate(_text)
+        return HTMLTemplate(_text)
 
 
 def get_subject_report_preproc_html_template():
@@ -610,7 +612,7 @@ def get_subject_report_preproc_html_template():
             ROOT_DIR, 'template_reports',
             'subject_report_preproc_template.tmpl.html')) as fd:
         _text = fd.read()
-        return tempita.HTMLTemplate(_text)
+        return HTMLTemplate(_text)
 
 
 def get_subject_report_stats_html_template():
@@ -621,7 +623,7 @@ def get_subject_report_stats_html_template():
             ROOT_DIR, 'template_reports',
             'subject_report_stats_template.tmpl.html')) as fd:
         _text = fd.read()
-        return tempita.HTMLTemplate(_text)
+        return HTMLTemplate(_text)
 
 
 def get_ica_html_template():
@@ -632,7 +634,7 @@ def get_ica_html_template():
             ROOT_DIR, 'template_reports',
             'ica_report_template.tmpl.html')) as fd:
         _text = fd.read()
-        return tempita.HTMLTemplate(_text)
+        return HTMLTemplate(_text)
 
 
 def get_dataset_report_html_template():
@@ -644,7 +646,7 @@ def get_dataset_report_html_template():
             ROOT_DIR, 'template_reports',
                            'dataset_report_template.tmpl.html')) as fd:
         _text = fd.read()
-        return tempita.HTMLTemplate(_text)
+        return HTMLTemplate(_text)
 
 
 def get_dataset_report_preproc_html_template():
@@ -656,7 +658,7 @@ def get_dataset_report_preproc_html_template():
             ROOT_DIR, 'template_reports',
             'dataset_report_preproc_template.tmpl.html')) as fd:
         _text = fd.read()
-        return tempita.HTMLTemplate(_text)
+        return HTMLTemplate(_text)
 
 
 def get_dataset_report_stats_html_template():
@@ -668,7 +670,7 @@ def get_dataset_report_stats_html_template():
             ROOT_DIR, 'template_reports',
             'dataset_report_stats_template.tmpl.html')) as fd:
         _text = fd.read()
-        return tempita.HTMLTemplate(_text)
+        return HTMLTemplate(_text)
 
 
 def get_dataset_report_log_html_template():
@@ -680,7 +682,7 @@ def get_dataset_report_log_html_template():
             ROOT_DIR, 'template_reports',
             'dataset_report_log_template.tmpl.html')) as fd:
         _text = fd.read()
-        return tempita.HTMLTemplate(_text)
+        return HTMLTemplate(_text)
 
 
 def copy_web_conf_files(output_dir):

@@ -253,7 +253,6 @@ def test_MRIMotionCorrection_fit():
 
     nose.tools.assert_true(mrimc_output['realigned_files'], basestring)
 
-
 # run all tests
 if __name__ == "__main__":
     nose.runmodule(config=nose.config.Config(

@@ -7,18 +7,12 @@ import os
 import sys
 import glob
 import commands
+import nibabel
 import numpy as np
 import joblib
-
-# import spm preproc utilities
-sys.path.append(os.path.dirname(
-        os.path.dirname(os.path.abspath(sys.argv[0]))))
-import nipype_preproc_spm_utils
-
-# data fetching imports
-from external.nilearn.datasets import fetch_nyu_rest
-from datasets_extras import unzip_nii_gz
-import nibabel
+from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
+                                                   SubjectData
+                                                   )
 
 # session ids we're interested in
 SESSIONS = ['tfMRI_LANGUAGE', 'tfMRI_MOTOR']
@@ -67,7 +61,7 @@ if __name__ == '__main__':
 
     def do_b0_dc(subject_id, subject_data_dir):
         # instantiate subject data object
-        subject_data = nipype_preproc_spm_utils.SubjectData()
+        subject_data = SubjectData()
 
         # glob anat
         try:
@@ -200,47 +194,29 @@ if __name__ == '__main__':
 
     # preprocess the subjects proper
     n_jobs = int(os.environ['N_JOBS']) if 'N_JOBS' in os.environ else -1
-    if 1:
-        do_normalize = not VIVI
-        do_segment = not VIVI
-        preproc_results = nipype_preproc_spm_utils.do_subjects_preproc(
-            subject_factory(n_jobs=n_jobs),
-            n_jobs=n_jobs,
-            output_dir=output_dir,
-            dataset_id='CONNECTOME-DB',
-            prepreproc_undergone=(
-                "Data was collected with reversed phase-encode "
-                "blips (LR/RL), resulting in pairs of images with "
-                "distortions going in opposite directions. From "
-                "these pairs the susceptibility-induced "
-                "off-resonance field was estimated using a "
-                "method similar to that described in [Andersson"
-                " 2003] as implemented in FSL topup tool [Smith 2004] "
-                "and the two images were combined into a single "
-                "corrected one."),
-            func_to_anat=True,
+    do_normalize = not VIVI
+    do_segment = not VIVI
+    preproc_results = do_subjects_preproc(
+        subject_factory(n_jobs=n_jobs),
+        n_jobs=n_jobs,
+        output_dir=output_dir,
+        dataset_id='CONNECTOME-DB',
+        prepreproc_undergone=(
+            "Data was collected with reversed phase-encode "
+            "blips (LR/RL), resulting in pairs of images with "
+            "distortions going in opposite directions. From "
+            "these pairs the susceptibility-induced "
+            "off-resonance field was estimated using a "
+            "method similar to that described in [Andersson"
+            " 2003] as implemented in FSL topup tool [Smith 2004] "
+            "and the two images were combined into a single "
+            "corrected one."),
+        func_to_anat=True,
 
-            # no normalization, etc.
-            do_segment=do_segment,
-            do_normalize=do_segment,
-
-            # do_report=False
-            )
-    else:
-        from spike.single_subject_pipeline import do_subject_preproc
-
-        preproc_results = joblib.Parallel(n_jobs=n_jobs)(
-            joblib.delayed(do_subject_preproc)(
-                {'subject_id': subject_data.subject_id,
-                 'n_sessions': 2,
-                 'func': subject_data.func,
-                 'anat': subject_data.anat,
-                 'output_dir': os.path.join(subject_data.output_dir,
-                                            "3LV15_pipeline")
-                 },
-                do_stc=False,
-                coreg_func_to_anat=True
-                ) for subject_data in subject_factory())
+        # disable normalization ?
+        do_segment=do_segment,
+        do_normalize=do_segment,
+        )
 
     if len(skipped_subjects) > 0:
         print "\r\nSkipped subjects:"

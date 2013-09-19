@@ -3,21 +3,18 @@ import sys
 from collections import namedtuple
 import matplotlib.pyplot as plt
 
-# pypreprocess dir
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
-
-from algorithms.registration.spm_realign import (
+from pypreprocess.realign import (
     MRIMotionCorrection
     )
-from reporting.check_preprocessing import (
+from pypreprocess.reporting.check_preprocessing import (
     plot_spm_motion_parameters
     )
-from external.nilearn.datasets import (
+from pypreprocess.datasets import (
     fetch_nyu_rest,
     fetch_fsl_feeds_data,
     fetch_spm_multimodal_fmri_data,
-    fetch_spm_auditory_data)
+    fetch_spm_auditory_data
+    )
 
 # datastructure for subject data
 SubjectData = namedtuple('SubjectData', 'subject_id func output_dir')
@@ -202,13 +199,6 @@ def demo_spm_auditory(data_dir="/tmp/spm_auditory_data",
 
 # main
 if __name__ == '__main__':
-    warning = ("%s: THIS SCRIPT MUST BE RUN FROM ITS PARENT "
-               "DIRECTORY!") % sys.argv[0]
-    banner = "#" * len(warning)
-    separator = "\r\n\t"
-
-    print separator.join(['', banner, warning, banner, ''])
-
     # run spm multimodal demo
     demo_spm_multimodal_fmri()
 

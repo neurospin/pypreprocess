@@ -30,7 +30,7 @@ import pylab as pl
 import numpy as np
 import nibabel
 from nipype.interfaces.base import Bunch
-from coreutils.io_utils import delete_orientation, is_3D, get_vox_dims,\
+from .io_utils import delete_orientation, is_3D, get_vox_dims,\
     compute_mean_image, hard_link, load_specific_vol
 from datasets_extras import unzip_nii_gz
 
