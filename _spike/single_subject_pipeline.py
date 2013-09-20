@@ -13,32 +13,21 @@ import numpy as np
 import nibabel
 import joblib
 from collections import namedtuple
-import tempfile
-
-# pypreprocess root dir
-PYPREPROCESS_DIR = os.path.dirname(
-    os.path.split(os.path.abspath(__file__))[0])
-sys.path.append(PYPREPROCESS_DIR)
-
-import reporting.preproc_reporter as preproc_reporter
-import reporting.base_reporter as base_reporter
-from coreutils.io_utils import (get_basenames,
-                                save_vols,
-                                save_vol,
-                                load_specific_vol,
-                                load_vol,
-                                load_4D_img,
-                                is_niimg,
-                                niimg2ndarrays
-                                )
-from algorithms.slice_timing.spm_slice_timing import fMRISTC
-from algorithms.registration.spm_realign import MRIMotionCorrection
-from algorithms.registration.affine_transformations import spm_matrix
-from algorithms.registration.kernel_smooth import smooth_image
-from algorithms.registration.spm_coreg import SPMCoreg
-from reporting.base_reporter import (ProgressReport,
-                                     PYPREPROCESS_URL
-                                     )
+import pypreprocess.reporting.preproc_reporter as preproc_reporter
+import pypreprocess.reporting.base_reporter as base_reporter
+from pypreprocess.io_utils import (get_basenames,
+                                   save_vols,
+                                   save_vol,
+                                   load_specific_vol,
+                                   load_vol,
+                                   load_4D_img,
+                                   niimg2ndarrays
+                                   )
+from pypreprocess.slice_timing import fMRISTC
+from pypreprocess.realign import MRIMotionCorrection
+from pypreprocess.kernel_smooth import smooth_image
+from pypreprocess.coreg import SPMCoreg
+from pypreprocess.reporting.base_reporter import PYPREPROCESS_URL
 
 
 # output image prefices

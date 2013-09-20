@@ -5,23 +5,16 @@
 
 """
 
-import sys
 import os
-import copy
 import nibabel
 import scipy
 import numpy as np
 import matplotlib.pyplot as plt
-
-# pypreprocess dir
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from coreutils.io_utils import (load_specific_vol,
-                                load_vol,
-                                is_niimg,
-                                save_vols
-                                )
+from .io_utils import (load_specific_vol,
+                       load_vol,
+                       is_niimg,
+                       save_vols
+                       )
 
 
 def get_slice_indices(n_slices, slice_order='ascending',
@@ -540,182 +533,182 @@ class fMRISTC(STC):
         return self.output_data_
 
 
-def plot_slicetiming_results(acquired_sample,
-                             st_corrected_sample,
-                             TR=1.,
-                             ground_truth_signal=None,
-                             ground_truth_time=None,
-                             x=None,
-                             y=None,
-                             compare_with=None,
-                             suptitle_prefix="",
-                             output_dir=None,
-                             ):
-    """Function to generate QA plots post-STC business, for a single voxel
+# def plot_slicetiming_results(acquired_sample,
+#                              st_corrected_sample,
+#                              TR=1.,
+#                              ground_truth_signal=None,
+#                              ground_truth_time=None,
+#                              x=None,
+#                              y=None,
+#                              compare_with=None,
+#                              suptitle_prefix="",
+#                              output_dir=None,
+#                              ):
+#     """Function to generate QA plots post-STC business, for a single voxel
 
-    Parameters
-    ----------
-    acquired_sample: 1D array
-        the input sample signal to the STC
-    st_corrected_sample: 1D array same shape as
-    acquired_sample
-        the output corrected signal from the STC
-    TR: float
-        Repeation Time exploited by the STC algorithm
-    ground_truth_signal: 1D array (optional, default None), same length as
-    acquired_signal
-        ground truth signal
-    ground_truth_time: array (optional, default None), same length as
-    ground_truth_time
-        ground truth time w.r.t. which the ground truth signal was collected
-    x: int (optional, default None)
-        x coordinate of test voxel used for QA
-    y: int (optional, default None)
-        y coordinate of test voxel used for QA
-    compare_with: 1D array of same shape as st_corrected_array (optional,
-    default None)
-        output from another STC implementation, so we can compare ours
-        that implementation
-    suptitle_prefix: string (optional, default "")
-        prefix to append to suptitles
-    output_dir: string, optional (default None)
-        dirname where generated plots will be saved
+#     Parameters
+#     ----------
+#     acquired_sample: 1D array
+#         the input sample signal to the STC
+#     st_corrected_sample: 1D array same shape as
+#     acquired_sample
+#         the output corrected signal from the STC
+#     TR: float
+#         Repeation Time exploited by the STC algorithm
+#     ground_truth_signal: 1D array (optional, default None), same length as
+#     acquired_signal
+#         ground truth signal
+#     ground_truth_time: array (optional, default None), same length as
+#     ground_truth_time
+#         ground truth time w.r.t. which the ground truth signal was collected
+#     x: int (optional, default None)
+#         x coordinate of test voxel used for QA
+#     y: int (optional, default None)
+#         y coordinate of test voxel used for QA
+#     compare_with: 1D array of same shape as st_corrected_array (optional,
+#     default None)
+#         output from another STC implementation, so we can compare ours
+#         that implementation
+#     suptitle_prefix: string (optional, default "")
+#         prefix to append to suptitles
+#     output_dir: string, optional (default None)
+#         dirname where generated plots will be saved
 
-    Returns
-    -------
-    None
+#     Returns
+#     -------
+#     None
 
-    """
+#     """
 
-    # sanitize arrays
-    acquired_sample = np.array(acquired_sample)
-    st_corrected_sample = np.array(st_corrected_sample)
+#     # sanitize arrays
+#     acquired_sample = np.array(acquired_sample)
+#     st_corrected_sample = np.array(st_corrected_sample)
 
-    n_rows, n_columns, n_slices, n_scans = acquired_sample.shape
+#     n_rows, n_columns, n_slices, n_scans = acquired_sample.shape
 
-    if not compare_with is None:
-        compare_with = np.array(compare_with)
-        assert compare_with.shape == acquired_sample.shape
+#     if not compare_with is None:
+#         compare_with = np.array(compare_with)
+#         assert compare_with.shape == acquired_sample.shape
 
-    # centralize x and y if None
-    x = n_rows // 2 if x is None else x
-    y = n_columns // 2 if y is None else y
+#     # centralize x and y if None
+#     x = n_rows // 2 if x is None else x
+#     y = n_columns // 2 if y is None else y
 
-    # sanitize x and y
-    x = x % n_rows
-    y = y % n_columns
+#     # sanitize x and y
+#     x = x % n_rows
+#     y = y % n_columns
 
-    # number of rows in plot
-    n_rows_plot = 2
+#     # number of rows in plot
+#     n_rows_plot = 2
 
-    if not ground_truth_signal is None and not ground_truth_time is None:
-        n_rows_plot += 1
-        N = len(ground_truth_signal)
-        sampling_freq = (N - 1) / (n_scans - 1)  # XXX formula correct ??
+#     if not ground_truth_signal is None and not ground_truth_time is None:
+#         n_rows_plot += 1
+#         N = len(ground_truth_signal)
+#         sampling_freq = (N - 1) / (n_scans - 1)  # XXX formula correct ??
 
-        # acquire signal at same time points as corrected sample
-        sampled_ground_truth_signal = ground_truth_signal[
-            ::sampling_freq]
+#         # acquire signal at same time points as corrected sample
+#         sampled_ground_truth_signal = ground_truth_signal[
+#             ::sampling_freq]
 
-    print ("Starting QA engines for %i voxels in the line x = %i, y = %i"
-           " (close figure to see the next one)..." % (n_slices, x, y))
+#     print ("Starting QA engines for %i voxels in the line x = %i, y = %i"
+#            " (close figure to see the next one)..." % (n_slices, x, y))
 
-    acquisition_time = np.linspace(0, (n_scans - 1) * TR, n_scans)
-    n_rows = 4
-    n_cols = 3 if (
-        not ground_truth_signal is None and not ground_truth_time is None
-        ) else 2
-    slices_for_QA = np.arange(0, n_slices, n_slices / (n_rows * n_cols))
-    plt.figure()
-    for z in xrange(len(slices_for_QA)):
-        # setup for plotting
-        loc = np.unravel_index(z, (n_rows, n_cols))
-        ax1 = plt.subplot2grid((n_rows, n_cols), loc)
+#     acquisition_time = np.linspace(0, (n_scans - 1) * TR, n_scans)
+#     n_rows = 4
+#     n_cols = 3 if (
+#         not ground_truth_signal is None and not ground_truth_time is None
+#         ) else 2
+#     slices_for_QA = np.arange(0, n_slices, n_slices / (n_rows * n_cols))
+#     plt.figure()
+#     for z in xrange(len(slices_for_QA)):
+#         # setup for plotting
+#         loc = np.unravel_index(z, (n_rows, n_cols))
+#         ax1 = plt.subplot2grid((n_rows, n_cols), loc)
 
-        # plot acquired sample
-        ax1.plot(acquisition_time, acquired_sample[x][y][z],
-                 'r--o')
-        ax1.hold('on')
+#         # plot acquired sample
+#         ax1.plot(acquisition_time, acquired_sample[x][y][z],
+#                  'r--o')
+#         ax1.hold('on')
 
-        # plot ST corrected sample
-        ax1.plot(acquisition_time, st_corrected_sample[x][y][z],
-                 's-')
-        ax1.hold('on')
+#         # plot ST corrected sample
+#         ax1.plot(acquisition_time, st_corrected_sample[x][y][z],
+#                  's-')
+#         ax1.hold('on')
 
-        # plot groud-truth (if provided)
-        if not ground_truth_signal is None and not ground_truth_time is None:
-            ax1.plot(ground_truth_time, ground_truth_signal)
-            plt.hold('on')
+#         # plot groud-truth (if provided)
+#         if not ground_truth_signal is None and not ground_truth_time is None:
+#             ax1.plot(ground_truth_time, ground_truth_signal)
+#             plt.hold('on')
 
-            ax1 = plt.subplot2grid((n_rows_plot, 1),
-                                   (2, 0))
+#             ax1 = plt.subplot2grid((n_rows_plot, 1),
+#                                    (2, 0))
 
-            # compute absolute error and plot an error
-            abs_error = np.abs(
-                sampled_ground_truth_signal - st_corrected_sample[x][y][z])
-            ax3.plot(acquisition_time, abs_error)
-            ax3.hold("on")
+#             # compute absolute error and plot an error
+#             abs_error = np.abs(
+#                 sampled_ground_truth_signal - st_corrected_sample[x][y][z])
+#             ax3.plot(acquisition_time, abs_error)
+#             ax3.hold("on")
 
-            # compute and plot absolute error for other method
-            if not compare_with is None:
-                compare_with_abs_error = np.abs(
-                    sampled_ground_truth_signal - compare_with[x][y][z])
-                ax3.plot(acquisition_time, compare_with_abs_error)
-                ax3.hold("on")
+#             # compute and plot absolute error for other method
+#             if not compare_with is None:
+#                 compare_with_abs_error = np.abs(
+#                     sampled_ground_truth_signal - compare_with[x][y][z])
+#                 ax3.plot(acquisition_time, compare_with_abs_error)
+#                 ax3.hold("on")
 
-        if not compare_with is None:
-            ax1.plot(acquisition_time, compare_with[x][y][z],
-                     's-')
-            ax1.hold('on')
+#         if not compare_with is None:
+#             ax1.plot(acquisition_time, compare_with[x][y][z],
+#                      's-')
+#             ax1.hold('on')
 
-        # plot ffts
-        # XXX the zeroth time point has been removed in the plots below
-        # to enable a better appretiation of the y axis
-        ax2 = plt.subplot2grid((n_rows_plot, 1),
-                               (1, 0))
+#         # plot ffts
+#         # XXX the zeroth time point has been removed in the plots below
+#         # to enable a better appretiation of the y axis
+#         ax2 = plt.subplot2grid((n_rows_plot, 1),
+#                                (1, 0))
 
-        ax2.plot(acquisition_time[1:],
-                 np.abs(np.fft.fft(acquired_sample[x][y][z])[1:]))
+#         ax2.plot(acquisition_time[1:],
+#                  np.abs(np.fft.fft(acquired_sample[x][y][z])[1:]))
 
-        ax2.plot(acquisition_time[1:],
-                 np.abs(np.fft.fft(st_corrected_sample[x][y][z])[1:]))
+#         ax2.plot(acquisition_time[1:],
+#                  np.abs(np.fft.fft(st_corrected_sample[x][y][z])[1:]))
 
-        if not compare_with is None:
-            ax2.plot(acquisition_time[1:],
-                     np.abs(np.fft.fft(compare_with[x][y][z])[1:]))
+#         if not compare_with is None:
+#             ax2.plot(acquisition_time[1:],
+#                      np.abs(np.fft.fft(compare_with[x][y][z])[1:]))
 
-        # misc
-        plt.xlabel("time (s)")
+#         # misc
+#         plt.xlabel("time (s)")
 
-        method1 = "ST corrected sample"
-        if not compare_with is None:
-            method1 = "STC method 1"
+#         method1 = "ST corrected sample"
+#         if not compare_with is None:
+#             method1 = "STC method 1"
 
-        ax1.legend(("Acquired sample",
-                    method1,
-                    "STC method 2",
-                    "Ground-truth signal",))
-        ax1.set_ylabel("BOLD")
+#         ax1.legend(("Acquired sample",
+#                     method1,
+#                     "STC method 2",
+#                     "Ground-truth signal",))
+#         ax1.set_ylabel("BOLD")
 
-        # ax2.set_title("Absolute value of FFT")
-        ax2.legend(("Acquired sample",
-                    method1,
-                    "STC method 2"))
-        ax2.set_ylabel("|fft|")
+#         # ax2.set_title("Absolute value of FFT")
+#         ax2.legend(("Acquired sample",
+#                     method1,
+#                     "STC method 2"))
+#         ax2.set_ylabel("|fft|")
 
-        if n_rows_plot > 2:
-            # ax3.set_title(
-            #     "Absolute Error (between ground-truth and correctd sample")
-            ax3.legend((method1,
-                        "STC method 2",))
-            ax3.set_ylabel("absolute error")
+#         if n_rows_plot > 2:
+#             # ax3.set_title(
+#             #     "Absolute Error (between ground-truth and correctd sample")
+#             ax3.legend((method1,
+#                         "STC method 2",))
+#             ax3.set_ylabel("absolute error")
 
-        if not output_dir is None:
-            output_filename = os.path.join(output_dir,
-                                           "stc_results__slice_%i.png" % z)
-            # dump image unto disk
-            plt.savefig(output_filename, bbox_inches="tight", dpi=200)
+#         if not output_dir is None:
+#             output_filename = os.path.join(output_dir,
+#                                            "stc_results__slice_%i.png" % z)
+#             # dump image unto disk
+#             plt.savefig(output_filename, bbox_inches="tight", dpi=200)
 
-        plt.show()
+#     plt.show()
 
-    print "Done."
+#     print "Done."

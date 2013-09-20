@@ -6,6 +6,7 @@
 """
 
 import os
+import sys
 import joblib
 import commands
 import tempfile
@@ -398,8 +399,18 @@ def delete_orientation(imgs, output_dir, output_tag=''):
             output_dir,
             "deleteorient_%s_" % (output_tag) + os.path.basename(img))
         nibabel.save(nibabel.load(img), output_img)
-        print commands.getoutput(
+        commands_output = commands.getoutput(
             "fslorient -deleteorient %s" % output_img)
+        if "fslorient: not found" in commands_output:
+            raise RuntimeError(
+                ("Error: Can't run fslorient command."
+                 " Please source FSL by executing (copy-and-paste)"
+                 "\r\n\r\n\t\tsource "
+                 "/etc/fsl/4.1/fsl.sh\r\n\r\n"
+                 "in your terminal before rerunning this script (%s)"
+                 ) % sys.argv[0])
+        print commands_output
+
         print "+++++++Done (deleteorient)."
         print "Deleted orientation meta-data %s." % output_img
         output_imgs.append(output_img)
@@ -695,3 +706,82 @@ def niimg2ndarrays(niimg):
     # return memmapped_data, memmapped_affine
 
     return niimg.get_data(), niimg.get_affine()
+
+
+def loaduint8(img, log=None):
+    """Load data from file indicated by V into array of unsigned bytes.
+
+    Parameters
+    ----------
+    img: string, `np.ndarray`, or niimg
+        image to be loaded
+
+    Returns
+    -------
+    uint8_data: `np.ndarray`, if input was ndarray; `nibabel.NiftiImage1' else
+        the loaded image (dtype='uint8')
+
+    """
+
+    def _progress_bar(msg):
+        """
+        Progress bar.
+
+        """
+
+        if not log is None:
+            log(msg)
+        else:
+            print(msg)
+
+    _progress_bar("Loading %s..." % img)
+
+    # load volume into memory
+    if isinstance(img, np.ndarray) or isinstance(img, list):
+        vol = np.array(img)
+    elif isinstance(img, basestring):
+        img = nibabel.load(img)
+        vol = img.get_data()
+    elif is_niimg(img):
+        vol = img.get_data()
+    else:
+        raise TypeError("Unsupported input type: %s" % type(img))
+
+    if vol.ndim == 4:
+        vol = vol[..., 0]
+
+    assert vol.ndim == 3
+
+    def _spm_slice_vol(p):
+        """
+        Gets data pth slice of vol.
+
+        """
+
+        return vol[..., p].copy()
+
+    # min/max
+    mx = -np.inf
+    mn = np.inf
+    _progress_bar("\tComputing min/max...")
+    for p in xrange(vol.shape[2]):
+        _img = _spm_slice_vol(p)
+        mx = max(_img.max(), mx)
+        mn = min(_img.min(), mn)
+
+    # load data from file indicated by V into an array of unsigned bytes
+    uint8_dat = np.ndarray(vol.shape, dtype='uint8')
+    for p in xrange(vol.shape[2]):
+        _img = _spm_slice_vol(p)
+
+        # pth slice
+        uint8_dat[..., p] = np.uint8(np.maximum(np.minimum(np.round((
+                            _img - mn) * (255. / (mx - mn))), 255.), 0.))
+
+    _progress_bar("...done.")
+
+    # return the data
+    if isinstance(img, basestring) or is_niimg(img):
+        return nibabel.Nifti1Image(uint8_dat, img.get_affine())
+    else:
+        return uint8_dat

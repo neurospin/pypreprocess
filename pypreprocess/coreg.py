@@ -3,7 +3,6 @@
 
 """
 
-import sys
 import os
 from collections import namedtuple
 import numpy as np
@@ -15,105 +14,22 @@ import scipy.io
 import nibabel
 import spm_hist2py
 
-# pypreprocess dir
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__)))))
-
-from coreutils.io_utils import (is_niimg,
-                                save_vol,
-                                get_basenames,
-                                load_specific_vol
-                                )
-from affine_transformations import (spm_matrix,
-                                    nibabel2spm_affine
-                                    )
-from kernel_smooth import fwhm2sigma
+from .io_utils import (is_niimg,
+                       save_vol,
+                       get_basenames,
+                       load_specific_vol,
+                       loaduint8
+                       )
+from .affine_transformations import (spm_matrix,
+                                     nibabel2spm_affine
+                                     )
+from .kernel_smooth import fwhm2sigma
 
 # flags for fitting coregistration model
 Flags = namedtuple('Flags', 'fwhm sep cost_fun tol params')
 
 # 'texture' of floats in machine presicion
 EPS = np.finfo(float).eps
-
-
-def loaduint8(img, log=None):
-    """Load data from file indicated by V into array of unsigned bytes.
-
-    Parameters
-    ----------
-    img: string, `np.ndarray`, or niimg
-        image to be loaded
-
-    Returns
-    -------
-    uint8_data: `np.ndarray`, if input was ndarray; `nibabel.NiftiImage1' else
-        the loaded image (dtype='uint8')
-
-    """
-
-    def _progress_bar(msg):
-        """
-        Progress bar.
-
-        """
-
-        if not log is None:
-            log(msg)
-        else:
-            print(msg)
-
-    _progress_bar("Loading %s..." % img)
-
-    # load volume into memory
-    if isinstance(img, np.ndarray) or isinstance(img, list):
-        vol = np.array(img)
-    elif isinstance(img, basestring):
-        img = nibabel.load(img)
-        vol = img.get_data()
-    elif is_niimg(img):
-        vol = img.get_data()
-    else:
-        raise TypeError("Unsupported input type: %s" % type(img))
-
-    if vol.ndim == 4:
-        vol = vol[..., 0]
-
-    assert vol.ndim == 3
-
-    def _spm_slice_vol(p):
-        """
-        Gets data pth slice of vol.
-
-        """
-
-        return vol[..., p].copy()
-
-    # min/max
-    mx = -np.inf
-    mn = np.inf
-    _progress_bar("\tComputing min/max...")
-    for p in xrange(vol.shape[2]):
-        _img = _spm_slice_vol(p)
-        mx = max(_img.max(), mx)
-        mn = min(_img.min(), mn)
-
-    # load data from file indicated by V into an array of unsigned bytes
-    uint8_dat = np.ndarray(vol.shape, dtype='uint8')
-    for p in xrange(vol.shape[2]):
-        _img = _spm_slice_vol(p)
-
-        # pth slice
-        uint8_dat[..., p] = np.uint8(np.maximum(np.minimum(np.round((
-                            _img - mn) * (255. / (mx - mn))), 255.), 0.))
-
-    _progress_bar("...done.")
-
-    # return the data
-    if isinstance(img, basestring) or is_niimg(img):
-        return nibabel.Nifti1Image(uint8_dat, img.get_affine())
-    else:
-        return uint8_dat
 
 
 def smoothing_kernel(fwhm, x):
@@ -435,91 +351,3 @@ class SPMCoreg(object):
                      basename=basename, ext=ext, prefix=prefix)
 
         return output
-
-if __name__ == '__main__':
-    import glob
-    import matplotlib.pyplot as plt
-    from external.nilearn.datasets import (fetch_spm_auditory_data,
-                                           fetch_nyu_rest,
-                                           fetch_spm_multimodal_fmri_data
-                                           )
-    from algorithms.registration.spm_realign import _apply_realignment_to_vol
-    from algorithms.registration.affine_transformations import spm_matrix
-    from reporting.check_preprocessing import plot_registration
-    from coreutils.io_utils import delete_orientation
-
-    def _nyu_rest_factory():
-        sd = fetch_nyu_rest(data_dir=os.path.join(
-                os.environ['HOME'], "CODE/datasets/nyu_rest"), sessions=[1],
-                            n_subjects=7)
-
-        for j in xrange(len(sd.func)):
-            output_dir = os.path.join("/tmp", os.path.basename(
-                    os.path.dirname(os.path.dirname(sd.func[j]))))
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-
-            yield delete_orientation(sd.func[j], output_dir
-                                     ), delete_orientation(sd.anat_skull[j],
-                                                           output_dir)
-
-    def _spm_auditory_factory():
-        sd = fetch_spm_auditory_data(os.path.join(
-                os.environ['HOME'], "CODE/datasets/spm_auditory"))
-
-        return sd.func[0], sd.anat
-
-    def _abide_factory(institute="KKI"):
-        for scans in sorted(glob.glob(
-                "/home/elvis/CODE/datasets/ABIDE/%s_*/%s_*/scans" % (
-                    institute, institute))):
-            subject_id = os.path.basename(os.path.dirname(
-                    os.path.dirname(scans)))
-            func = os.path.join(scans, "rest/resources/NIfTI/files/rest.nii")
-            anat = os.path.join(scans,
-                                "anat/resources/NIfTI/files/mprage.nii")
-
-            yield subject_id, func, anat
-
-    def _run_demo(func, anat):
-        # fit SPMCoreg object
-        spmcoreg = SPMCoreg().fit(anat, func)
-
-        # apply coreg
-        VFk = load_specific_vol(spmcoreg.transform(
-                func)['coregistered_source'], 0)[0]
-
-        # QA
-        plot_registration(anat, VFk, title="before coreg")
-        plot_registration(VFk, anat, title="after coreg")
-        plt.show()
-
-    # ABIDE demo
-    for subject_id, func, anat in _abide_factory():
-        print "%s +++%s+++\r\n" % ("\t" * 5, subject_id)
-        _run_demo(func, anat)
-
-    # # spm auditory demo
-    # _run_demo(*_spm_auditory_factory())
-
-    # abide rest demo
-    for func, anat in _abide_factory():
-        _run_demo(func, anat)
-
-    # VFk = _apply_realignment_to_vol(VFk, q0)
-    # print q0
-
-    # shape = (2, 2)
-    # p = np.zeros(6)
-    # spmcoreg = SPMCoreg()
-    # for i, j in np.ndindex(shape):
-    #     p[:3] = np.random.randn(3) * (i + j) * 2
-    #     p[3:] = np.random.randn(3) * .1
-
-    #     x = _apply_realignment_to_vol(sd.func[0], p)
-    #     q = spmcoreg.fit(sd.func[0], x).params_
-
-    #     ax = plt.subplot2grid(shape, (i, j))
-    #     ax.plot(np.transpose([p, -q]), 's-')
-
-    plt.show()

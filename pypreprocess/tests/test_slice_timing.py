@@ -7,22 +7,17 @@ import nose
 import nose.tools
 import inspect
 
-# pypreproces path
-PYPREPROCESS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.split(os.path.abspath(__file__))[0])))
-sys.path.append(PYPREPROCESS_DIR)
-
 # import APIs to be tested
-from algorithms.slice_timing.spm_slice_timing import (
+from ..slice_timing import (
     STC,
     fMRISTC,
     get_slice_indices,
     _load_fmri_data
     )
-from external.nilearn.datasets import (
+from ..datasets import (
     fetch_spm_auditory_data
     )
-from coreutils.io_utils import (
+from ..io_utils import (
     save_vols
     )
 

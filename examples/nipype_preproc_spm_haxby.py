@@ -1,4 +1,4 @@
-B"""
+"""
 :Module: nipype_preproc_spm_haxby
 :1;3201;0cSynopsis: SPM use-case for preprocessing HAXBY 2001 dataset
 :Author: dohmatob elvis dopgima
@@ -9,16 +9,14 @@ B"""
 import os
 import sys
 
-# pypreprocess dir
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
-
 # data-grabbing imports
-from datasets_extras import unzip_nii_gz
-from external.nilearn.datasets import fetch_haxby
+from pypreprocess.datasets_extras import unzip_nii_gz
+from pypreprocess.datasets import fetch_haxby
 
 # import spm preproc utilities
-import nipype_preproc_spm_utils
+from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
+                                                   SubjectData
+                                                   )
 
 # DARTEL ?
 DO_DARTEL = False
@@ -68,7 +66,7 @@ def subject_factory():
                            for x in haxby_data.func]):
 
         # instantiate subject_data object
-        subject_data = nipype_preproc_spm_utils.SubjectData()
+        subject_data = SubjectData()
         subject_data.subject_id = subject_id
         subject_data.session_id = "haxby2001"
 
@@ -98,7 +96,7 @@ def subject_factory():
         yield subject_data
 
 # do preprocessing proper
-results = nipype_preproc_spm_utils.do_subjects_preproc(
+results = do_subjects_preproc(
     subject_factory(),
     output_dir=OUTPUT_DIR,
     dataset_id="HAXBY 2001",

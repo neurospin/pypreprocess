@@ -7,20 +7,19 @@ import numpy.testing
 import scipy.io
 import nibabel
 
-# pypreproces path
-PYPREPROCESS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.split(os.path.abspath(__file__))[0])))
-sys.path.append(PYPREPROCESS_DIR)
-
 # import APIS to test
-from spike.spm_coreg import(
+from ..coreg import(
     optfun,
     loaduint8
     )
 
+# constants
+PYPREPROCESS_DIR = os.path.dirname(os.path.split(
+        os.path.abspath(__file__))[0])
+
 
 def test_loaduint8():
-    from external.nilearn.datasets import fetch_spm_auditory_data
+    from pypreprocess.datasets import fetch_spm_auditory_data
 
     sd = fetch_spm_auditory_data(os.path.join(os.environ['HOME'],
                                               "CODE/datasets/spm_auditory"))
@@ -33,8 +32,8 @@ def test_optfun():
     decimal_precision = 6
 
     # load real-data
-    tmp = scipy.io.loadmat(os.path.join(PYPREPROCESS_DIR,
-                                        "test_data/spm_hist2_args_1.mat"),
+    tmp = scipy.io.loadmat(os.path.join(
+            PYPREPROCESS_DIR, "tests/test_data/spm_hist2_args_1.mat"),
                            squeeze_me=True, struct_as_record=False)
 
     VG, VFk = [tmp[k] for k in ["VG", "VFk"]]

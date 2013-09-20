@@ -14,25 +14,22 @@ from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
                                                    SubjectData
                                                    )
 
-# session ids we're interested in
+# constants
 SESSIONS = ['tfMRI_LANGUAGE', 'tfMRI_MOTOR']
 DIRECTIONS = ['LR', 'RL']
-
 FSLMERGE_CMDLINE = "fsl5.0-fslmerge -t %s %s %s"
-
 ACQ_PARAMS = [[-1, 0, 0, 1]] * 3 + [[1, 0, 0, 1]] * 3
-
 TOPUP_CMDLINE = """fsl5.0-topup --verbose --config=b02b0.cnf \
 --imain=%s --datain=%s --out=%s/b0_dc_out --fout=%s/b0_dc_fout \
 --iout=%s/b0_dc_iout\
 """
-
 APPLYTOPUP_CMDLINE = """fsl5.0-applytopup --imain=%s,%s \
 --datain=%s --interp=spline --verbose \
 --inindex=1,4 --topup=%s/b0_dc_out --out=%s\
 """
 
-VIVI = False
+# viviana doesn't want me to normalize
+VIVI_IS_HERE = False
 
 # main code follows
 if __name__ == '__main__':
@@ -51,15 +48,31 @@ if __name__ == '__main__':
                         verbose=100)
 
     def _cached(f):
+        """
+        Runs a function in a cache 'sandbox'
+
+        """
+
         return mem.cache(f)
 
     skipped_subjects = []
 
     def _skip_subject(subject_id, reason):
+        """
+        Skips a subject.
+
+        """
+
         skipped_subjects.append((subject_id, reason))
         print "Skipping subject %s: %s" % (subject_id, reason)
 
-    def do_b0_dc(subject_id, subject_data_dir):
+    def _do_b0_dc(subject_id, subject_data_dir):
+        """
+        Uses FSL's topup tool to correct for phase encoding direction
+        bias in HCP subject fMRI data.
+
+        """
+
         # instantiate subject data object
         subject_data = SubjectData()
 
@@ -76,7 +89,7 @@ if __name__ == '__main__':
             _skip_subject(subject_id, "missing anat data")
             return
 
-        # misc
+        # set id params
         subject_data.subject_id = subject_id
         subject_data.session_id = SESSIONS
         subject_data.output_dir = os.path.join(output_dir, subject_id)
@@ -186,16 +199,15 @@ if __name__ == '__main__':
                         data_dir, "*")) if os.path.isdir(x)])
 
         for subject_data in joblib.Parallel(n_jobs=n_jobs, verbose=100)(
-            joblib.delayed(do_b0_dc)(subject_id,
-                                     subject_data_dir)
+            joblib.delayed(_do_b0_dc)(subject_id,
+                                      subject_data_dir)
             for subject_data_dir, subject_id in subject_stuff):
             if not subject_data is None:
                 yield subject_data
 
     # preprocess the subjects proper
     n_jobs = int(os.environ['N_JOBS']) if 'N_JOBS' in os.environ else -1
-    do_normalize = not VIVI
-    do_segment = not VIVI
+    do_normalize = do_segment = not VIVI_IS_HERE
     preproc_results = do_subjects_preproc(
         subject_factory(n_jobs=n_jobs),
         n_jobs=n_jobs,
@@ -212,8 +224,6 @@ if __name__ == '__main__':
             "and the two images were combined into a single "
             "corrected one."),
         func_to_anat=True,
-
-        # disable normalization ?
         do_segment=do_segment,
         do_normalize=do_segment,
         )

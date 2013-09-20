@@ -6,7 +6,6 @@
 """
 
 import os
-import sys
 import glob
 import re
 import shutil
@@ -799,6 +798,9 @@ def generate_stc_thumbnails(
         elif isinstance(data, basestring):
             data = nibabel.load(data).get_data()
         data = np.array(data)
+
+        if data.ndim < 5:
+            data = np.array([data])
 
         return data
 

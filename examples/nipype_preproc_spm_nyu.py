@@ -1,12 +1,6 @@
 """
 :Module: nipype_preproc_spm_nyu
-:Synopsis: SPM use-case for preprocessing NYU rest dataset
-(this is just a quick-and-dirty POC)
 :Author: dohmatob elvis dopgima
-
-XXX TODO: document this according to numpy/spinx standards
-XXX TODO: re-factor the code (use unittesting)
-XXX TODO: over-all testing (nose ?, see with GV & BT)
 
 Example cmd-line run (there are no breaks between the following lines):
 SPM_DIR=~/spm8 MATLAB_EXEC=/usr/local/MATLAB/R2011a/bin/matlab \
@@ -16,18 +10,13 @@ python nipype_preproc_spm_nyu.py
 
 """
 
-# standard imports
 import os
 import sys
-
-# import spm preproc utilities
-sys.path.append(os.path.dirname(
-        os.path.dirname(os.path.abspath(sys.argv[0]))))
-import nipype_preproc_spm_utils
-
-# data fetching imports
-from external.nilearn.datasets import fetch_nyu_rest
-from datasets_extras import unzip_nii_gz
+from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
+                                                   SubjectData
+                                                   )
+from pypreprocess.datasets import fetch_nyu_rest
+from pypreprocess.datasets_extras import unzip_nii_gz
 
 DATASET_DESCRIPTION = """\
 <p>The NYU CSC TestRetest resource includes EPI-images of 25 participants
@@ -87,7 +76,7 @@ if __name__ == '__main__':
                 continue
 
             # instantiate subject_data object
-            subject_data = nipype_preproc_spm_utils.SubjectData()
+            subject_data = SubjectData()
             subject_data.subject_id = subject_id
             subject_data.session_id = session
 
@@ -118,7 +107,7 @@ if __name__ == '__main__':
         # preproprec this session for all subjects
         print ("\r\n\r\n\t\t\tPreprocessing session %i for all subjects..."
                "\r\n\r\n") % session
-        nipype_preproc_spm_utils.do_subjects_preproc(
+        do_subjects_preproc(
             subject_factory(session_output_dir, session),
             output_dir=session_output_dir,
             do_deleteorient=True,
