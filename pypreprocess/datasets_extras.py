@@ -21,7 +21,7 @@ import nibabel as nb
 #             # os.remove(filename)  # XXX why ?
 
 
-def unzip_nii_gz(dirname):
+def unzip_nii_gz(dirname, output_dir=None):
     """
     Helper function for extracting .nii.gz to .nii.
 
@@ -32,4 +32,9 @@ def unzip_nii_gz(dirname):
             img = nb.load(filename)
             folder, fname = os.path.split(filename)
             fname = fname.split('.nii.gz')[0]
-            nb.save(img, os.path.join(folder, '%s.nii' % fname))
+            if output_dir is None:
+                nb.save(img, os.path.join(folder, '%s.nii' % fname))
+            else:
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+            nb.save(img, os.path.join(output_dir, '%s.nii' % fname))

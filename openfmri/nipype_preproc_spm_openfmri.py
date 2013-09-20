@@ -11,17 +11,19 @@ import glob
 import traceback
 
 # import spm preproc utilities
-import nipype_preproc_spm_utils
+from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
+                                                   SubjectData
+                                                   )
 
 # misc
-from datasets_extras import unzip_nii_gz
+from pypreprocess.datasets_extras import unzip_nii_gz
 
 DATASET_DESCRIPTION = """\
 <p><a href="https://openfmri.org/data-sets">openfmri.org datasets</a>.</p>
 """
 
 # location of openfmri dataset on disk
-DATA_ROOT_DIR = '/neurospin/tmp/havoc/openfmri_raw'
+DATA_ROOT_DIR = '/neurospin/tmp/openfmri'
 
 # wildcard defining directory structure
 subject_id_wildcard = "sub*"
@@ -50,25 +52,11 @@ datasets = {
     'ds107': 'Word and object processing',
     }
 
-# subjects per dataset we want to exclude
-# XXX please, justify each exclusion below (comments, etc.)
-datasets_exclusions = {
-    # let the pipeline find out itself what is evil --or not-- about the data
-    # 'ds017A': ['sub003'],  # XXX why ?
-    # 'ds017B': ['sub003'],
-    # 'ds007': ['sub009', 'sub018'],
-    # 'ds051': ['sub006',
-    #           'sub011',  # Running 'Realign: Estimate & Reslice'
-    #           # Failed  'Realign: Estimate & Reslice'
-    #           # Error using spm_bsplinc
-    #           # File too small.
-    #           ],
-    # 'ds107': ['sub003',  # garbage anat
-    #           ],
-    }
+datasets_exclusions = {}
 
 
-def main(data_dir, output_dir, exclusions=None, dataset_id=None):
+def main(data_dir, output_dir, exclusions=None, dataset_id=None,
+         n_jobs=-1):
     """Main function for preprocessing (and analysis ?)
 
     Parameters
@@ -83,7 +71,8 @@ def main(data_dir, output_dir, exclusions=None, dataset_id=None):
     # glob for subject ids
     subject_ids = [
         os.path.basename(x)
-        for x in glob.glob(os.path.join(data_dir, subject_id_wildcard))]
+        for x in glob.glob(os.path.join(data_dir,
+                                        subject_id_wildcard))]
 
     model_dirs = glob.glob(os.path.join(
         data_dir, subject_ids[0], 'model', '*'))
@@ -102,7 +91,7 @@ def main(data_dir, output_dir, exclusions=None, dataset_id=None):
                 continue
 
             # construct subject data structure
-            subject_data = nipype_preproc_spm_utils.SubjectData()
+            subject_data = SubjectData()
             subject_data.session_id = session_ids
             subject_data.subject_id = subject_id
             subject_data.func = []
@@ -114,11 +103,11 @@ def main(data_dir, output_dir, exclusions=None, dataset_id=None):
                     data_dir,
                     "%s/BOLD/%s" % (subject_id, session_id))
 
-                # extract .nii.gz to .nii
-                unzip_nii_gz(bold_dir)
+                # # extract .nii.gz to .nii
+                # unzip_nii_gz(bold_dir)
 
                 # glob bold data for this session
-                func = glob.glob(os.path.join(bold_dir, "bold.nii"))
+                func = glob.glob(os.path.join(bold_dir, "bold.nii.gz"))
 
                 # check that this session is OK (has bold data, etc.)
                 if not func:
@@ -136,14 +125,14 @@ def main(data_dir, output_dir, exclusions=None, dataset_id=None):
                 data_dir,
                 "%s/anatomy" % subject_id)
 
-            # extract .nii.gz to .ni
-            unzip_nii_gz(anat_dir)
+            # # extract .nii.gz to .ni
+            # unzip_nii_gz(anat_dir)
 
             # glob anatomical data proper
             subject_data.anat = glob.glob(
                 os.path.join(
                     data_dir,
-                    "%s/anatomy/highres001_brain.nii" % subject_id))[0]
+                    "%s/anatomy/highres001_brain.nii.gz" % subject_id))[0]
 
             # set subject output dir (all calculations for
             # this subject go here)
@@ -156,8 +145,9 @@ def main(data_dir, output_dir, exclusions=None, dataset_id=None):
     # do preprocessing proper
     report_filename = os.path.join(output_dir,
                                    "_report.html")
-    return nipype_preproc_spm_utils.do_subjects_preproc(
+    return do_subjects_preproc(
         subject_factory(),
+        n_jobs=n_jobs,
         dataset_id=dataset_id,
         output_dir=output_dir,
         do_deleteorient=True,  # some openfmri data have garbage orientation
@@ -169,6 +159,8 @@ def main(data_dir, output_dir, exclusions=None, dataset_id=None):
         )
 
 if __name__ == '__main__':
+    n_jobs = int(os.environ['N_JOBS']) if 'N_JOBS' in os.environ else -1
+
     # where output will be spat; replace as necessary
     output_root_dir = '/volatile/home/edohmato/openfmri_pypreproc_runs'
 
@@ -194,8 +186,7 @@ if __name__ == '__main__':
     # /!\ Don't try to 'parallelize' this loop!!!
     for ds_id in ds_ids:
         try:
-            ds_name = datasets[ds_id].lower().replace(' ', '_')
-            data_dir = os.path.join(DATA_ROOT_DIR, ds_name, ds_id)
+            data_dir = os.path.join(DATA_ROOT_DIR, ds_id)
             output_dir = os.path.join(output_root_dir, ds_id)
 
             if not os.path.exists(output_dir):
@@ -203,7 +194,8 @@ if __name__ == '__main__':
 
             results = main(data_dir, output_dir,
                            datasets_exclusions.get(ds_id),
-                           dataset_id=ds_id)
+                           dataset_id=ds_id,
+                           n_jobs=n_jobs)
         except:
             print traceback.format_exc()
             pass

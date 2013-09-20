@@ -130,7 +130,7 @@ class SubjectData(Bunch):
     def delete_orientation(self):
         # prepare for smart caching
         cache_dir = os.path.join(self.output_dir,
-                                 'deleteorient_cache')
+                                 'cache_dir/')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         mem = joblib.Memory(cachedir=cache_dir, verbose=5)
@@ -146,6 +146,41 @@ class SubjectData(Bunch):
         if not self.anat is None:
             self.anat = mem.cache(delete_orientation)(
                 self.anat, self.output_dir)
+
+    def nii_gz_to_nii(self):
+        # prepare for smart caching
+        cache_dir = os.path.join(self.output_dir,
+                                 'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        mem = joblib.Memory(cachedir=cache_dir, verbose=5)
+
+        def _nii_gz_2_nii(x):
+            if not x.endswith('.gz'):
+                return x
+
+            y = os.path.join(self.output_dir,
+                             os.path.basename(x).replace('.gz', ''))
+
+            print 'Decompressing %s -> %s...' % (x, y)
+
+            nibabel.save(nibabel.load(x), y)
+
+            return y
+
+        # func .nii.gz -> .nii
+        _func = []
+        for sess_func in self.func:
+            if isinstance(sess_func, basestring):
+                sess_func = mem.cache(_nii_gz_2_nii)(sess_func)
+            else:
+                sess_func = [mem.cache(_nii_gz_2_nii)(x) for x in sess_func]
+
+            _func.append(sess_func)
+        self.func = _func
+
+        # anat .nii.gz  -> .nii
+        self.anat = mem.cache(_nii_gz_2_nii)(self.anat)
 
     def sanitize(self, do_deleteorient=False):
         if isinstance(self.session_id,
@@ -163,6 +198,8 @@ class SubjectData(Bunch):
 
         if do_deleteorient or self.bad_orientation:
             self.delete_orientation()
+
+        self.nii_gz_to_nii()
 
 
 def _do_subject_realign(output_dir,
