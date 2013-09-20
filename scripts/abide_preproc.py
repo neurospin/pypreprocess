@@ -1,6 +1,6 @@
 """
-:Module: nipype_preproc_spm_nyu
-:Synopsis: SPM use-case for preprocessing ABIDE auditory rest dataset
+:Module: nipype_preproc_spm_abide
+:Synopsis: SPM use-case for preprocessing ABIDE rest dataset
 :Author: dohmatob elvis dopgima
 
 """
@@ -9,11 +9,11 @@
 import os
 import glob
 import sys
+from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
+                                                   SubjectData
+                                                   )
 
-"""import spm preproc utilities"""
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
-import nipype_preproc_spm_utils
-
+# brief description of ABIDE
 DATASET_DESCRIPTION = """\
 <p><a href="http://fcon_1000.projects.nitrc.org/indi/abide/">Institute %s, \
 ABIDE</a> rest auditory dataset.</p>\
@@ -74,7 +74,7 @@ def preproc_abide_institute(institute_id, abide_data_dir, abide_output_dir,
     # producer subject data
     def subject_factory():
         for subject_id in subject_ids:
-            subject_data = nipype_preproc_spm_utils.SubjectData()
+            subject_data = SubjectData()
             subject_data.subject_id = subject_id
 
             try:
@@ -118,12 +118,13 @@ def preproc_abide_institute(institute_id, abide_data_dir, abide_output_dir,
                 os.path.join(
                     institute_output_dir, subject_id))
 
+            # yield data for this subject
             yield subject_data
 
     # do preprocessing proper
     report_filename = os.path.join(institute_output_dir,
                                    "_report.html")
-    nipype_preproc_spm_utils.do_subjects_preproc(
+    do_subjects_preproc(
         subject_factory(),
         dataset_id=institute_id,
         output_dir=institute_output_dir,
