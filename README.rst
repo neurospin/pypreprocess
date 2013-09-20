@@ -49,7 +49,13 @@ cd to the pypreprocess/examples directory, and run the following command:
 Now open the file spm_auditory_runs/subXYZ/report.html in your browser (firefox), to see
 the generate report (QA).
 
+'Serious' examples
+----------------
+The scripts/ sub-folder contains scripts for preprocessing popular datasets like ABIDE, HCP, HAXBY2001, NYU rest, etc.
+They should work 'out-of-the-box'.
+
 TODO
 ====
 Improve on this README.
 
+Enjoy!
