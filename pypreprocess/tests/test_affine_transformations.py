@@ -8,13 +8,8 @@ import sys
 import numpy as np
 import nose.tools
 
-# pypreproces path
-PYPREPROCESS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.split(os.path.abspath(__file__))[0])))
-sys.path.append(PYPREPROCESS_DIR)
-
 # import the APIs to be tested
-from algorithms.registration.affine_transformations import (
+from ..affine_transformations import (
     get_initial_motion_params,
     spm_matrix,
     spm_imatrix,
