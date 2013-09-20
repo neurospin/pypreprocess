@@ -14,7 +14,7 @@ done
 """
 
 import sys
-from reporting.preproc_reporter import generate_dataset_preproc_report
+from pypreprocess.reporting.preproc_reporter import generate_dataset_preproc_report
 import os
 import glob
 from optparse import OptionParser
