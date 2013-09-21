@@ -226,7 +226,7 @@ def joint_histogram(ref, src, grid=None, samp=None, M=np.eye(4), bins=(256, 256)
 
     ref: 1D array of length n_voxels
         the reference image already sampled accuring to the current sampling
-        rate (in piramidal/multi-resolution loop)
+        rate (in pyramidal/multi-resolution loop)
 
     src: 3D array of shape
         the moving image to be resampled unto the reference image's grid,
@@ -454,7 +454,7 @@ def compute_similarity(x, ref, src, ref_affine, src_affine, grid,
 
     ref: 1D array of length n_voxels
         the reference image already sampled accuring to the current sampling
-        rate (in piramidal/multi-resolution loop)
+        rate (in pyramidal/multi-resolution loop)
 
     src: 3D array of shape
         moving image to be resampled unto the reference image's grid, deformed
@@ -556,7 +556,7 @@ class Coregister(object):
     Parameters
     ----------
     sep: 1D array of floats, optional (default [4, 2])
-        piramidal optimization seperation (in mm)
+        pyramidal optimization seperation (in mm)
 
     params: 1D array of length 6, optional (default [0, 0, 0, 0, 0, 0]
         starting estimates
@@ -680,7 +680,7 @@ class Coregister(object):
                 src.get_data(), fwhm2sigma(fwhmf)),
                                       src.get_affine())
 
-        # piramidal loop
+        # pyramidal loop
         self.params_ = np.array(self.params)
         for samp in self.sep:
             print ("\r\nRunning Powell gradient-less local optimization "
