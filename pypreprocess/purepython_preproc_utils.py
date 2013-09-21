@@ -1,18 +1,17 @@
 """
-:Module: single_subject_pipeline
-:Synopsis: intra-subject (single-subject) preprocessing
+:Module: single_subject_preproc_utils
+:Synopsis: intra-subject (single-subject) preprocessing in pure python
+(no nipype, no SPM, nothing)
 :Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
 """
 
-import sys
 import os
 import inspect
 import time
 import numpy as np
 import nibabel
 import joblib
-from collections import namedtuple
 import pypreprocess.reporting.preproc_reporter as preproc_reporter
 import pypreprocess.reporting.base_reporter as base_reporter
 from pypreprocess.io_utils import (get_basenames,
@@ -20,14 +19,12 @@ from pypreprocess.io_utils import (get_basenames,
                                    save_vol,
                                    load_specific_vol,
                                    load_vol,
-                                   load_4D_img,
-                                   niimg2ndarrays
+                                   load_4D_img
                                    )
 from pypreprocess.slice_timing import fMRISTC
 from pypreprocess.realign import MRIMotionCorrection
 from pypreprocess.kernel_smooth import smooth_image
-from pypreprocess.coreg import SPMCoreg
-from pypreprocess.reporting.base_reporter import PYPREPROCESS_URL
+from pypreprocess.coreg import Coregister
 
 
 # output image prefices
@@ -188,6 +185,7 @@ def do_subject_preproc(subject_data,
             do_slicetiming=do_stc,
             do_realign=do_realign,
             do_coreg=do_coreg,
+            coreg_func_to_anat=coreg_func_to_anat
             )
 
         # report filenames
@@ -256,14 +254,13 @@ def do_subject_preproc(subject_data,
         stc_output = []
         original_bold = list(output['func'])
         for sess_func in output['func']:
-            sess_func_data, sess_func_affine = niimg2ndarrays(sess_func)
             fmristc = _cached(fMRISTC(slice_order=slice_order,
                                       interleaved=interleaved,
                                       verbose=verbose
-                                      ).fit)(raw_data=sess_func_data)
+                                      ).fit)(raw_data=sess_func.get_data())
 
             stc_output.append(nibabel.Nifti1Image(_cached(fmristc.transform)(
-                        sess_func_data), sess_func_affine))
+                        sess_func.get_data()), sess_func.get_affine()))
 
         output['func'] = stc_output
 
@@ -288,11 +285,10 @@ def do_subject_preproc(subject_data,
 
         mrimc = _cached(MRIMotionCorrection(
                 n_sessions=n_sessions, verbose=verbose).fit)(
-            [niimg2ndarrays(sess_func)
-             for sess_func in output['func']])
+            [sess_func for sess_func in output['func']])
 
         mrimc_output = _cached(mrimc.transform)(reslice=True, concat=True
-                                               )
+                                                )
 
         output['func'] = mrimc_output['realigned_images']
         output['realignment_parameters'] = mrimc_output[
@@ -326,21 +322,19 @@ def do_subject_preproc(subject_data,
             ref, src = src, ref
 
         # estimate realignment (affine) params for coreg
-        spmcoreg = _cached(SPMCoreg(verbose=verbose).fit)(
-            niimg2ndarrays(ref),
-            niimg2ndarrays(src))
+        coreg = _cached(Coregister(verbose=verbose).fit)(ref, src)
 
         # apply coreg
         if coreg_func_to_anat:
             coreg_func = []
             for sess_func in output['func']:
-                coreg_func.append(_cached(spmcoreg.transform)(
-                        sess_func)['coregistered_source'])
+                coreg_func.append(_cached(coreg.transform)(
+                        sess_func))
                 output['func'] = coreg_func
             src = load_specific_vol(output['func'][0], 0)[0]
         else:
-            output['anat'] = _cached(spmcoreg.transform)(
-                output['anat'])['coregistered_source']
+            output['anat'] = _cached(coreg.transform)(
+                output['anat'])
             src = output['anat']
 
         if do_report:
@@ -353,7 +347,7 @@ def do_subject_preproc(subject_data,
                 )
 
         # garbage collection
-        del spmcoreg
+        del coreg
 
     ##############
     # Smoothing
@@ -364,7 +358,7 @@ def do_subject_preproc(subject_data,
 
         sfunc = []
         for sess_func in output['func']:
-            sfunc.append(_cached(smooth_image)(niimg2ndarrays(sess_func),
+            sfunc.append(_cached(smooth_image)(sess_func,
                                                fwhm))
 
         output['func'] = sfunc

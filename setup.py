@@ -49,6 +49,7 @@ def configuration(parent_package='', top_path=None):
     config.add_data_dir("pypreprocess/reporting/css")
     config.add_data_dir("pypreprocess/reporting/js")
     config.add_data_dir("pypreprocess/reporting/icons")
+    config.add_data_dir("pypreprocess/reporting/images")
 
     return config
 
