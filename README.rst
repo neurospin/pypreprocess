@@ -2,7 +2,7 @@
 
 pypreprocess
 ============
-**pypreprocess** is a collection of python scripts for preprocessing (motion 
+**pypreprocess** is a collection of python scripts and modules for preprocessing (motion 
 correction, spatial normalization, smoothing, etc.) fMRI data. It also contains utilities for automatic 
 QA like registration checks (using nipy.labs), and template-based html report
 generation using (tempita, jquery, and home-grown css). It contains:
