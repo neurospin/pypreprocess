@@ -196,7 +196,7 @@ def _trilinear_interp(f, shape, x, y, z):
     offset = np.asarray(ix - 1 + shape[0] * (iy - 1 + shape[1] * (iz - 1)),
                         dtype=np.integer)
 
-    # compute contribution of the corners of the parallelopided (aka voxel,
+    # compute contribution of the corners of the parallelopiped (aka voxel,
     # aka cube) in which the point(s) (x, y, z) live(s)
     k222 = f[offset + 0]
     k122 = f[offset + 1]
