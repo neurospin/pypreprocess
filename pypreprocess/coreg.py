@@ -50,6 +50,29 @@ ran = np.array([0.656619, 0.891183, 0.488144, 0.992646, 0.373326,
                 ])
 
 
+def _correct_voxel_samp(affine, samp):
+    """
+    Corrects a sampling rate (samp) according to the image's resolution.
+
+    Parameters
+    ----------
+    affine: 2D array of shape (4, 4)
+        affine matrix of the underlying image
+
+    samp: 1D array_like of 3 floats, optional (default [1, 1, 1])
+        sampling rate (in millimeters) along each axis
+
+    Returns
+    -------
+    samp_: array of 3 floats
+        samp corrected according to the affine matrix of the underlying
+        image
+
+    """
+
+    return 1. * np.array(samp) / np.sqrt(np.sum(affine[:3, :3] ** 2, axis=0))
+
+
 def mask_grid(grid, shape):
     """
     Remove voxels that have fallen out of the FOV.
@@ -114,6 +137,23 @@ def make_sampled_grid(shape, samp=[1., 1., 1.], magic=True):
 
     """
 
+    # sanitize input
+    assert len(shape) == 3, (
+        "Expected triplet of 3 integers, got %s") % shape
+
+    if len(np.shape(samp)) == 0:
+        samp = [samp] * 3
+    elif np.shape(samp) == (1,):
+        samp = [samp[0]] * 3
+    else:
+        print samp
+
+    samp = np.array(samp)
+
+    assert samp.ndim == 1 and len(samp) == 3, (
+        "samp must be float of triple of floats, got %s") % samp
+
+    # build the grid
     if magic:
         iran = 0
         grid = []
@@ -133,12 +173,12 @@ def make_sampled_grid(shape, samp=[1., 1., 1.], magic=True):
 
         return np.array(grid).T
     else:
-        return np.mgrid[:shape[0] - samp[0]:samp[0],
-                         :shape[1] - samp[1]:samp[1],
-                         :shape[2] - samp[2]:samp[2]].reshape((3, -1))
+        return np.mgrid[1:shape[0] - samp[0]:samp[0],
+                        1:shape[1] - samp[1]:samp[1],
+                        1:shape[2] - samp[2]:samp[2]].reshape((3, -1))
 
 
-def _trilinear_interp(f, shape, x, y, z):
+def trilinear_interp(f, shape, x, y, z):
     """
     Performs trilinear interpolation to determine the value of a function
     f at the 3D point(s) with coordinates (x, y, z), generally not aligned
@@ -215,7 +255,8 @@ def _trilinear_interp(f, shape, x, y, z):
                        (k211 * dx2 + k111 * dx1) * dy1)) * dz1
 
 
-def joint_histogram(ref, src, grid=None, samp=None, M=np.eye(4), bins=(256, 256)):
+def joint_histogram(ref, src, grid=None, samp=None, M=np.eye(4),
+                    bins=(256, 256)):
     """
     Function to compute the joint histogram between of a reference and a source
     (moving) image, under an optioanl rigid transformation (M) of the source
@@ -264,8 +305,6 @@ def joint_histogram(ref, src, grid=None, samp=None, M=np.eye(4), bins=(256, 256)
     """
 
     # sanity checks
-    assert ref.ndim == 1, ref.shape
-    assert grid.shape == (3, len(ref)), grid.shape
     assert M.shape == (4, 4), M.shape
     assert src.ndim == 3, src.shape
 
@@ -280,9 +319,11 @@ def joint_histogram(ref, src, grid=None, samp=None, M=np.eye(4), bins=(256, 256)
                 ref.get_affine(), samp))
 
         # interpolate ref on sampled grid
-        ref = _trilinear_interp(ref.get_data().ravel(order='F'),
-                                ref.shape, *grid)
+        ref = trilinear_interp(ref.get_data().ravel(order='F'),
+                               ref.shape, *grid)
     else:
+        assert ref.ndim == 1, ref.shape
+        assert grid.shape == (3, len(ref)), grid.shape
         assert isinstance(ref, np.ndarray)
         assert ref.ndim == 1
 
@@ -295,8 +336,8 @@ def joint_histogram(ref, src, grid=None, samp=None, M=np.eye(4), bins=(256, 256)
     deformed_grid = deformed_grid[..., msk]
     _ref = ref[msk]
 
-    warped_src = _trilinear_interp(src.ravel(order='F'), src.shape,
-                                   *deformed_grid)
+    warped_src = trilinear_interp(src.ravel(order='F'), src.shape,
+                                  *deformed_grid)
 
     # compute joint histogram proper
     # XXX all the bottle neck is in the following call to numpy's histogram2d
@@ -324,29 +365,6 @@ def _smoothing_kernel(fwhm, x):
     krn[krn < 0.] = 0
 
     return krn
-
-
-def _correct_voxel_samp(affine, samp):
-    """
-    Corrects a sampling rate (samp) according to the image's resolution.
-
-    Parameters
-    ----------
-    affine: 2D array of shape (4, 4)
-        affine matrix of the underlying image
-
-    samp: 1D array_like of 3 floats, optional (default [1, 1, 1])
-        sampling rate (in millimeters) along each axis
-
-    Returns
-    -------
-    samp_: array of 3 floats
-        samp corrected according to the affine matrix of the underlying
-        image
-
-    """
-
-    return 1. * np.array(samp) / np.sqrt(np.sum(affine[:3, :3] ** 2, axis=0))
 
 
 def compute_similarity_from_jhist(jh, fwhm=[7, 7], cost_fun='nmi'):
@@ -691,8 +709,8 @@ class Coregister(object):
                     ref.get_affine(), samp))
 
             # interpolate ref on sampled grid
-            sampled_ref = _trilinear_interp(ref.get_data().ravel(order='F'),
-                                            ref.shape, *grid)
+            sampled_ref = trilinear_interp(ref.get_data().ravel(order='F'),
+                                           ref.shape, *grid)
 
             # find optimal realignment parameters
             self.params_ = _run_powell(self.params_, self.xi, self.sc,
