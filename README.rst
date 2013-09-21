@@ -11,7 +11,7 @@ generation using (tempita, jquery, and home-grown css). It contains:
 
 
 Progressively, it contains the preprocessing is been done using pure-pythin code (void of nipype, etc.).
-See for example, the script `examples/purepython_preproc_demo.py`, an example script for minimal single-subject
+See for example, the script ``examples/purepython_preproc_demo.py``, an example script for minimal single-subject
 preprocessing (clice timing correction + motion correction + coregistration + smoothing) in pure python
 
 This work is made available by the INRIA Parietal Project.
@@ -57,7 +57,7 @@ We have written some examplary scripts for preprocessing some popular datasets.
 
 SPM auditory single-subject
 -----------------------------
-cd to the pypreprocess/examples directory, and run the following command:
+cd to the ``examples/`` directory, and run the following command:
 
        python nipy_glm_spm_auditory.py spm_auditory spm_auditory_runs/ 
 
@@ -66,8 +66,8 @@ the generate report (QA).
 
 Production scripts
 ------------------
-The scripts/ sub-folder contains scripts for preprocessing popular datasets like ABIDE, HCP, HAXBY2001, NYU rest, etc.
-For example the script `abide_preproc.py` preprocesses the ABIDE data.
+The ``scripts/`` sub-folder contains scripts for preprocessing popular datasets like ABIDE, HCP, HAXBY2001, NYU rest, etc.
+For example the script ``scripts/abide_preproc.py`` preprocesses the ABIDE data.
 
 Testing
 =======
