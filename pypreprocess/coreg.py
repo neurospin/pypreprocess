@@ -145,8 +145,6 @@ def make_sampled_grid(shape, samp=[1., 1., 1.], magic=True):
         samp = [samp] * 3
     elif np.shape(samp) == (1,):
         samp = [samp[0]] * 3
-    else:
-        print samp
 
     samp = np.array(samp)
 
