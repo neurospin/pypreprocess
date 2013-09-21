@@ -22,7 +22,5 @@ subject_data = {'n_sessions': 1,  # number of sessions
 
 # run preproc pipeline
 preproc_output  = do_subject_preproc(subject_data,
-                                     do_stc=False,
-                                     do_realign=False,
                                      concat=True
                                      )

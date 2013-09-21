@@ -215,13 +215,51 @@ def _trilinear_interp(f, shape, x, y, z):
                        (k211 * dx2 + k111 * dx1) * dy1)) * dz1
 
 
-def jhist(ref, src, grid=None, samp=None, M=np.eye(4), bins=(256, 256)):
+def joint_histogram(ref, src, grid=None, samp=None, M=np.eye(4), bins=(256, 256)):
     """
-    Function to compute the joint histogram between a reference and a source
+    Function to compute the joint histogram between of a reference and a source
+    (moving) image, under an optioanl rigid transformation (M) of the source
     image.
 
     Parameters
     ----------
+
+    ref: 1D array of length n_voxels
+        the reference image already sampled accuring to the current sampling
+        rate (in piramidal/multi-resolution loop)
+
+    src: 3D array of shape
+        the moving image to be resampled unto the reference image's grid,
+        deformed rigidly according to the matrix M
+
+    grid: 2D array of shape (3, n_voxels), optional (defaul None)
+        grid of reference image (ref). If a value is provided, then
+        it is assumed that ref is the result of sampling the reference image
+        on this case
+
+    samp: 1D array_like of 3 floats, optional (default [1, 1, 1])
+        sampling rate (in millimeters) along each axis. Exactly one of samp
+        and grid must be provided. If a value if provided (i.e if grid is None)
+        then the grid of the reference image (ref) is created and sampled
+        in along each coordinate direction at the rate samp; then the reference
+        image is resampled on this grid; then the grid is rigidly moved by M,
+        and the source (moving) image is resampled thereupon. Note that,
+
+    M: 2D array of shape (4, 4)
+        affine transformation matrix for transforming the source (moving)
+        image before computing the joint histogram. Thus the grid is rigidly
+        moved under action by L, and then the source image (src) is resampled
+        on this new grid
+
+    bins: pair of integers, optional (default (256, 256))
+       shape of the joint histogram being computed
+
+    Returns
+    -------
+    jh: 2D array of shape bins
+       the joint histogram of the reference imafe (ref) and the
+       source/moving image (src), the latter subject to an affine
+       transformation M
 
     """
 
@@ -248,7 +286,7 @@ def jhist(ref, src, grid=None, samp=None, M=np.eye(4), bins=(256, 256)):
         assert isinstance(ref, np.ndarray)
         assert ref.ndim == 1
 
-    # rigigly deform grid of reference image to obtain grid of moving image
+    # rigidly deform grid of reference image to obtain grid of moving image
     deformed_grid = np.dot(M, np.vstack((grid,
                                          np.ones(grid.shape[1]))))[:-1, ...]
 
@@ -292,30 +330,76 @@ def _correct_voxel_samp(affine, samp):
     """
     Corrects a sampling rate (samp) according to the image's resolution.
 
+    Parameters
+    ----------
+    affine: 2D array of shape (4, 4)
+        affine matrix of the underlying image
+
+    samp: 1D array_like of 3 floats, optional (default [1, 1, 1])
+        sampling rate (in millimeters) along each axis
+
+    Returns
+    -------
+    samp_: array of 3 floats
+        samp corrected according to the affine matrix of the underlying
+        image
+
     """
 
-    return samp / np.sqrt(np.sum(affine[:3, :3] ** 2, axis=0))
+    return 1. * np.array(samp) / np.sqrt(np.sum(affine[:3, :3] ** 2, axis=0))
 
 
-def compute_similarity_from_jhist(jh, fwhm=[7, 7], cf='nmi'):
+def compute_similarity_from_jhist(jh, fwhm=[7, 7], cost_fun='nmi'):
     """
     Computes an information-theoretic similarity from a joint histogram.
 
+    Parameters
+    ----------
+    jh: 2D array
+        joint histogram of the two random variables being compared
+
+    fwhm: float or pair of float
+        kernel width for smoothing the joint histogram
+
+    cost_fun: string, optional (default 'nmi')
+        smilarity model to use; possible values are:
+        'mi': Mutual Information
+        'nmi': Normalized Mutual Information
+        'ecc': Entropic Cross-Correlation
+
+    Returns
+    -------
+    o: float
+        the computed similariy measure
+
     """
 
-    # Smooth the histogram
-    lim  = np.ceil(fwhm * 2)
-    krn1 = _smoothing_kernel(fwhm[0], np.linspace(-1 * lim[0], lim[0],
-                                                  num=2 * lim[0]))
-    krn1 = krn1 / np.sum(krn1)
-    krn2 = _smoothing_kernel(fwhm[1], np.linspace(-1 * lim[1], lim[1],
-                                                  num=2 * lim[1]))
-    krn2 = krn2 / np.sum(krn2)
+    # sanitize input
+    assert len(np.shape(jh)) == 2, "jh must be 2D array, got %s" % jh
 
-    jh = scipy.signal.sepfir2d(jh, krn1, krn2)
-    # jh = scipy.ndimage.gaussian_filter(jh, sigma=fwhm2sigma(fwhm[:2]),
-    #                                   mode='wrap'
-    #                                   )
+    if len(np.shape(fwhm)) == 0:
+        fwhm = [fwhm] * 2
+
+    fwhm = fwhm[:2]
+
+    # smoothing the jh
+    if 0x1:
+        # create separable filter
+        lim  = np.ceil(fwhm * 2)
+        krn1 = _smoothing_kernel(fwhm[0], np.linspace(-1 * lim[0], lim[0],
+                                                      num=2 * lim[0]))
+        krn1 = krn1 / np.sum(krn1)
+        krn2 = _smoothing_kernel(fwhm[1], np.linspace(-1 * lim[1], lim[1],
+                                                      num=2 * lim[1]))
+        krn2 = krn2 / np.sum(krn2)
+
+        # smooth the histogram with kern1 x kern2
+        jh = scipy.signal.sepfir2d(jh, krn1, krn2)
+    else:
+        # smooth the jh with a gaussian filter of given fwhm
+        jh = scipy.ndimage.gaussian_filter(jh, sigma=fwhm2sigma(fwhm[:2]),
+                                           mode='wrap'
+                                           )
 
     # compute marginal histograms
     jh = jh + EPS
@@ -325,12 +409,12 @@ def compute_similarity_from_jhist(jh, fwhm=[7, 7], cf='nmi'):
     s2 = np.sum(jh, axis=1).reshape((jh.shape[1], -1))
 
     # compute cost function proper
-    if cf == 'mi':
+    if cost_fun == 'mi':
         # Mutual Information:
         jh = jh * np.log2(jh / np.dot(s2, s1))
         mi = np.sum(jh)
         o = -mi
-    elif cf == 'ecc':
+    elif cost_fun == 'ecc':
         # Entropy Correlation Coefficient of:
         # Maes, Collignon, Vandermeulen, Marchal & Suetens (1997).
         # "Multimodality image registration by maximisation of mutual
@@ -339,7 +423,7 @@ def compute_similarity_from_jhist(jh, fwhm=[7, 7], cf='nmi'):
         mi = np.sum(jh.ravel(order='F'))
         ecc = -2 * mi / (np.sum(s1 * np.log2(s1)) + np.sum(s2 * np.log2(s2)))
         o = -ecc
-    elif cf == 'nmi':
+    elif cost_fun == 'nmi':
         # Normalised Mutual Information of:
         # Studholme,  jhill & jhawkes (1998).
         # "A normalized entropy measure of 3-D medical image alignment".
@@ -348,13 +432,14 @@ def compute_similarity_from_jhist(jh, fwhm=[7, 7], cf='nmi'):
                 s2 * np.log2(s2))) / np.sum(np.sum(jh * np.log2(jh)))
         o = -nmi
     else:
-        raise NotImplementedError("Unsupported cf (cost function): %s" % cf)
+        raise NotImplementedError(
+            "Unsupported cost_fun (cost function): %s" % cost_fun)
 
     return o
 
 
 def compute_similarity(x, ref, src, ref_affine, src_affine, grid,
-                       cf='nmi', fwhm=[7, 7], bins=(256, 256)):
+                       cost_fun='nmi', fwhm=[7, 7], bins=(256, 256)):
     """
     Computes the similarity between the reference image (ref) and the moving
     image src, under the current affine motion parameters (x).
@@ -387,7 +472,7 @@ def compute_similarity(x, ref, src, ref_affine, src_affine, grid,
     bins: pair of integers, optional (default (256, 256))
        shape of the joint histogram being computed
 
-    cf: string, optional (default 'nmi')
+    cost_fun: string, optional (default 'nmi')
         smilarity model to use; possible values are:
         'mi': Mutual Information
         'nmi': Normalized Mutual Information
@@ -410,10 +495,10 @@ def compute_similarity(x, ref, src, ref_affine, src_affine, grid,
                                   ref_affine)
 
     # create the joint histogram
-    jh = jhist(ref.copy(), src.get_data(), grid=grid, M=M, bins=bins)
+    jh = joint_histogram(ref.copy(), src.get_data(), grid=grid, M=M, bins=bins)
 
     # compute similarity from joint histgram
-    return compute_similarity_from_jhist(jh, fwhm=fwhm, cf=cf)
+    return compute_similarity_from_jhist(jh, fwhm=fwhm, cost_fun=cost_fun)
 
 
 def _run_powell(x0, xi, tolsc, *otherargs):
@@ -663,7 +748,9 @@ class Coregister(object):
             else:
                 basename = 'coregistered_source'
 
-            save_vol(coregistered_source, output_dir=output_dir,
-                     basename=basename, ext=ext, prefix=prefix)
+            coregistered_source = save_vol(coregistered_source,
+                                           output_dir=output_dir,
+                                           basename=basename,
+                                           ext=ext, prefix=prefix)
 
         return coregistered_source
