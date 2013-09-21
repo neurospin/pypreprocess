@@ -7,7 +7,7 @@ import nibabel
 import scipy.io
 
 # import APIS to test
-from ..coreg import(
+from ..pypreprocess.coreg import(
     _correct_voxel_samp,
     make_sampled_grid,
     mask_grid,
@@ -16,7 +16,7 @@ from ..coreg import(
     compute_similarity_from_jhist,
     Coregister
     )
-from ..affine_transformations import apply_realignment_to_vol
+from ..pypreprocess.affine_transformations import apply_realignment_to_vol
 
 # global setup
 THIS_FILE = os.path.abspath(__file__).split('.')[0]

@@ -13,11 +13,11 @@ import nose.tools
 import numpy.testing
 
 # import the APIs to be tested
-from ..io_utils import load_specific_vol
-from ..realign import (_compute_rate_of_change_of_chisq,
+from ..pypreprocess.io_utils import load_specific_vol
+from ..pypreprocess.realign import (_compute_rate_of_change_of_chisq,
                        MRIMotionCorrection
                        )
-from ..affine_transformations import (apply_realignment,
+from ..pypreprocess.affine_transformations import (apply_realignment,
                                       extract_realignment_params,
                                       get_initial_motion_params
                                       )
