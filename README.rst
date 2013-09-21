@@ -71,4 +71,4 @@ For example the script ``scripts/abide_preproc.py`` preprocesses the ABIDE data.
 
 Testing
 =======
-  nosetools -v pypreprocess/tests
+  nosetools -v tests/
