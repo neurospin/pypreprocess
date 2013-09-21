@@ -1,8 +1,10 @@
+import os
 import numpy as np
 import nose
 import nose.tools
 import numpy.testing
 import nibabel
+import scipy.io
 
 # import APIS to test
 from ..coreg import(
@@ -11,8 +13,15 @@ from ..coreg import(
     mask_grid,
     trilinear_interp,
     joint_histogram,
-    compute_similarity_from_jhist
+    compute_similarity_from_jhist,
+    Coregister
     )
+from ..affine_transformations import apply_realignment_to_vol
+
+# global setup
+THIS_FILE = os.path.abspath(__file__).split('.')[0]
+THIS_DIR = os.path.dirname(THIS_FILE)
+OUTPUT_DIR = "/tmp/%s" % os.path.basename(THIS_FILE)
 
 
 def test_correct_voxel_samp():
@@ -53,7 +62,7 @@ def test_trilinear_interp():
     nose.tools.assert_true(0. < trilinear_interp(f, shape, 1.5, 1., 1.) < 1.)
 
 
-def test_joint_histogram_api():
+def test_joint_histogram():
     ref_shape = (23, 29, 61)
     src_shape = (13, 51, 19)
     ref = np.arange(np.prod(ref_shape)).reshape(ref_shape)
@@ -71,6 +80,61 @@ def test_joint_histogram_api():
                          src, samp=np.pi, M=np.eye(4))
     nose.tools.assert_equal(jh.shape, (256, 256))
     nose.tools.assert_true(np.all(jh >= 0))
+
+    return jh
+
+
+def test_compute_similarity_from_jhist():
+    jh = test_joint_histogram()
+
+    for cost_fun in ['mi', 'nmi', 'ecc']:
+        s = compute_similarity_from_jhist(jh, cost_fun=cost_fun)
+        nose.tools.assert_true(s <= --1)
+
+
+def test_coregister_on_toy_data():
+    shape = (23, 29, 31)
+    ref = nibabel.Nifti1Image(np.arange(np.prod(shape)).reshape(shape),
+                              np.eye(4)
+                              )
+
+    # rigidly move reference vol to get a new volume: the source vol
+    src = apply_realignment_to_vol(ref, [1, 1, 1,  # translations
+                                         0, .01, 0,  # rotations
+                                         ])
+
+    # learn realignment params for coregistration: src -> ref
+    c = Coregister(sep=[4, 2, 1]).fit(ref, src)
+
+    # compare estimated realigment parameters with ground-truth
+    numpy.testing.assert_almost_equal(-c.params_[4], .01, decimal=2)
+    numpy.testing.assert_array_almost_equal(-c.params_[[3, 5]],
+                                             [0, 0], decimal=2)
+    numpy.testing.assert_array_equal(np.round(-c.params_)[[0, 1, 2]],
+                                     [1., 1., 1.])
+
+
+def test_coregister_on_real_data():
+    # load data
+    _tmp = scipy.io.loadmat(
+        os.path.join(THIS_DIR, "test_data/some_anat.mat"),
+        squeeze_me=True, struct_as_record=False)
+    ref = nibabel.Nifti1Image(_tmp['data'], _tmp['affine'])
+
+    # rigidly move reference vol to get a new volume: the source vol
+    src = apply_realignment_to_vol(ref, [1, 2, 3,  # translations
+                                         0, .01, 0,  # rotations
+                                         ])
+
+    # learn realignment params for coregistration: src -> ref
+    c = Coregister().fit(ref, src)
+
+    # compare estimated realigment parameters with ground-truth
+    numpy.testing.assert_almost_equal(-c.params_[4], .01, decimal=4)
+    numpy.testing.assert_array_almost_equal(-c.params_[[3, 5]],
+                                             [0, 0], decimal=4)
+    numpy.testing.assert_array_equal(np.round(-c.params_)[[0, 1, 2]],
+                                     [1., 2., 3.])
 
 # run all tests
 nose.runmodule(config=nose.config.Config(

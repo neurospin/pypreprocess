@@ -11,6 +11,10 @@ References
 
 import numpy as np
 import scipy.linalg
+import nibabel
+from .io_utils import (load_specific_vol,
+                       load_vol
+                       )
 
 # house-hold convenience naming
 MOTION_PARAMS_NAMES = {0x0: 'Tx',
@@ -264,3 +268,95 @@ def nibabel2spm_affine(affine):
     affine[..., -1] = np.dot(affine, zero)
 
     return affine
+
+
+def apply_realignment_to_vol(vol, q, inverse=True):
+    """
+    Modifies the affine headers of the given volume according to
+    the realignment parameters (q).
+
+    Parameters
+    ----------
+    vol: `nibabel.Nifti1Image`
+        image to be transformed
+    q: 1D array of length <= 12
+        realignment parameters representing the rigid transformation
+    inverse: boolean, optional (default False)
+        indicates the direction in which the transformation is to be performed;
+        if set then, it is assumed q actually represents the inverse of the
+        transformation to be applied
+
+    Returns
+    -------
+    `nibabel.Nifti1Image` object
+        the realigned volume
+
+    Notes
+    -----
+    Input is not modified.
+
+    """
+
+    vol = load_vol(vol)
+
+    # convert realigment params to affine transformation
+    M_q = spm_matrix(q)
+
+    if inverse:
+        M_q = scipy.linalg.inv(M_q)
+
+    # apply affine transformation
+    rvol = nibabel.Nifti1Image(vol.get_data(), np.dot(
+            M_q, vol.get_affine()))
+
+    return rvol
+
+
+def apply_realignment(vols, rp, inverse=True):
+    """
+    Modifies  according to
+    the realignment parameters (rp).
+
+    vols: `nibabel.Nifti1Image`
+        volumes to be transformed
+    rp: 2D array of shape (n_vols, k), where k <=12
+        realignment parameters representing the rigid transformations to be
+        applied to the respective volumes
+    inverse: boolean, optional (default False)
+        indicates the direction in which the transformation is to be performed;
+        if set then, it is assumed q actually represents the inverse of the
+        transformation to be applied
+
+    Returns
+    -------
+    generator of `nibabel.Nifti1Image` objects
+        the realigned volumes
+
+    Notes
+    -----
+    Input is not modified.
+
+    """
+
+    _, n_scans = load_specific_vol(vols, 0)
+
+    for t in xrange(n_scans):
+        vol, _ = load_specific_vol(vols, t)
+
+        # apply realignment to vol
+        rvol = apply_realignment_to_vol(vol, rp[t], inverse=inverse)
+
+        # yield realigned vol
+        yield rvol
+
+
+def extract_realignment_params(ref_vol, vol):
+    """
+    Extracts realignment param for vol -> ref_vol rigid body registration
+
+    """
+
+   # store estimated motion for volume t
+    return spm_imatrix(
+        np.dot(vol.get_affine(), scipy.linalg.inv(ref_vol.get_affine()))
+               )

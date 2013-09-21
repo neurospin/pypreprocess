@@ -3,10 +3,6 @@
 :Synopsis: MRI within-modality Motion Correction, SPM style
 :Author: DOHMATOB Elvis Dopgima
 
-References
-----------
-[1] Rigid Body Registration, by J. Ashburner and K. Friston
-
 """
 
 import nibabel
@@ -17,17 +13,15 @@ import scipy.ndimage as sndi
 import scipy.linalg
 from .kernel_smooth import smooth_image
 from .affine_transformations import (get_initial_motion_params,
-                                     spm_matrix,
-                                     spm_imatrix,
-                                     transform_coords
+                                     transform_coords,
+                                     apply_realignment_to_vol,
+                                     apply_realignment
                                      )
 from .reslice import reslice_vols
 from .io_utils import (load_specific_vol,
-                        load_vol,
-                        save_vols,
-                        save_vol,
-                        get_basenames
-                        )
+                       save_vol,
+                       get_basenames
+                       )
 
 # useful constants
 INFINITY = np.inf
@@ -88,106 +82,76 @@ def _compute_rate_of_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
     return A
 
 
-def _apply_realignment_to_vol(vol, q, inverse=True):
-    """
-    Modifies the affine headers of the given volume according to
-    the realignment parameters (q).
-
-    Parameters
-    ----------
-    vol: `nibabel.Nifti1Image`
-        image to be transformed
-    q: 1D array of length <= 12
-        realignment parameters representing the rigid transformation
-    inverse: boolean, optional (default False)
-        indicates the direction in which the transformation is to be performed;
-        if set then, it is assumed q actually represents the inverse of the
-        transformation to be applied
-
-    Returns
-    -------
-    `nibabel.Nifti1Image` object
-        the realigned volume
-
-    Notes
-    -----
-    Input is not modified.
-
-    """
-
-    vol = load_vol(vol)
-
-    # convert realigment params to affine transformation
-    M_q = spm_matrix(q)
-
-    if inverse:
-        M_q = scipy.linalg.inv(M_q)
-
-    # apply affine transformation
-    rvol = nibabel.Nifti1Image(vol.get_data(), np.dot(
-            M_q, vol.get_affine()))
-
-    return rvol
-
-
-def _apply_realignment(vols, rp, inverse=True):
-    """
-    Modifies  according to
-    the realignment parameters (rp).
-
-    vols: `nibabel.Nifti1Image`
-        volumes to be transformed
-    rp: 2D array of shape (n_vols, k), where k <=12
-        realignment parameters representing the rigid transformations to be
-        applied to the respective volumes
-    inverse: boolean, optional (default False)
-        indicates the direction in which the transformation is to be performed;
-        if set then, it is assumed q actually represents the inverse of the
-        transformation to be applied
-
-    Returns
-    -------
-    generator of `nibabel.Nifti1Image` objects
-        the realigned volumes
-
-    Notes
-    -----
-    Input is not modified.
-
-    """
-
-    _, n_scans = load_specific_vol(vols, 0)
-
-    for t in xrange(n_scans):
-        vol, _ = load_specific_vol(vols, t)
-
-        # apply realignment to vol
-        rvol = _apply_realignment_to_vol(vol, rp[t], inverse=inverse)
-
-        # yield realigned vol
-        yield rvol
-
-
-def _extract_realignment_params(ref_vol, vol):
-    """
-    Extracts realignment param for vol -> ref_vol rigid body registration
-
-    """
-
-   # store estimated motion for volume t
-    return spm_imatrix(
-        np.dot(vol.get_affine(), scipy.linalg.inv(ref_vol.get_affine()))
-               )
-
-
 class MRIMotionCorrection(object):
-    """Implements within-modality multi-session rigid-body registration of MRI
+    """
+    Implements within-modality multi-session rigid-body registration of MRI
     volumes.
 
     The fit(...) method  estimates affine transformations necessary to
     rigidly align the other volumes to the first volume (hereafter referred
     to as the reference), whilst the transform(...) method actually writes
     these realigned files unto disk, optionally reslicing them.
+
+    Paremeters
+    ----------
+    quality: float, optional (default .9)
+        quality versus speed trade-off.  Highest quality (1) gives most
+        precise results, whereas lower qualities gives faster realignment.
+        The idea is that some voxels contribute little to the estimation
+        of the realignment parameters. This parameter is involved in
+        selecting the number of voxels that are used.
+
+    tol: float, optional (defaul 1e-8)
+        tolerance for Gauss-Newton LS iterations
+
+    fwhm: float, optional (default 10)
+        the FWHM of the Gaussian smoothing kernel (mm) applied to the
+        images before estimating the realignment parameters.
+
+    sep: intx, optional (default 4)
+        the default separation (mm) to sample the images
+
+    interp: int, optional (default 3)
+        B-spline degree used for interpolation
+
+    lkp: arry_like of ints, optional (default [0, 1, 2, 3, 4, 5])
+        affine transformation parameters sought-for. Possible values of
+        elements of the list are:
+        0  - x translation
+        1  - y translation
+        2  - z translation
+        3  - x rotation about - {pitch} (radians)
+        4  - y rotation about - {roll}  (radians)
+        5  - z rotation about - {yaw}   (radians)
+        6  - x scaling
+        7  - y scaling
+        8  - z scaling
+        9  - x shear
+        10 - y shear
+        11 - z shear
+
+    verbose: int, optional (default 1)
+        controls verbosity level. 0 means no verbose at all
+
+    n_iterations: int, optional (dafault 64)
+        max number of Gauss-Newton iterations when solving LSP for
+        registering a volume to the reference
+
+    Attributes
+    ----------
+    rp_: 3D array of shape (n_sessions, n_scans_session, 6)
+        the realigment parameters for each volume of each session
+
+    Examples
+    --------
+    >>> from pypreprocess.realign import MRIMotionCorrection
+    >>> mrimc = MRIMotionCorrection(n_sessions=2)
+    >>> mrimc.fit(['fmri1.nii.gz', 'fmri2.nii'])
+    >>> mrimc.transform()
+
+    References
+    ----------
+    [1] Rigid Body Registration, by J. Ashburner and K. Friston
 
     """
 
@@ -196,45 +160,6 @@ class MRIMotionCorrection(object):
                  n_iterations=64,
                  n_sessions=1
                  ):
-        """Default constructor.
-
-        quality: float, optional (default .9)
-            quality versus speed trade-off.  Highest quality (1) gives most
-            precise results, whereas lower qualities gives faster realignment.
-            The idea is that some voxels contribute little to the estimation
-            of the realignment parameters. This parameter is involved in
-            selecting the number of voxels that are used.
-        tol: float, optional (defaul 1e-8)
-            tolerance for Gauss-Newton LS iterations
-        fwhm: float, optional (default 10)
-            the FWHM of the Gaussian smoothing kernel (mm) applied to the
-            images before estimating the realignment parameters.
-        sep: intx, optional (default 4)
-            the default separation (mm) to sample the images
-        interp: int, optional (default 3)
-            B-spline degree used for interpolation
-        lkp: arry_like of ints, optional (default [0, 1, 2, 3, 4, 5])
-            affine transformation parameters sought-for. Possible values of
-            elements of the list are:
-            0  - x translation
-            1  - y translation
-            2  - z translation
-            3  - x rotation about - {pitch} (radians)
-            4  - y rotation about - {roll}  (radians)
-            5  - z rotation about - {yaw}   (radians)
-            6  - x scaling
-            7  - y scaling
-            8  - z scaling
-            9  - x shear
-            10 - y shear
-            11 - z shear
-        verbose: int, optional (default 1)
-            controls verbosity level. 0 means no verbose at all
-        n_iterations: int, optional (dafault 64)
-            max number of Gauss-Newton iterations when solving LSP for
-            registering a volume to the reference
-
-        """
 
         self.sep = sep
         self.interp = interp
@@ -259,6 +184,9 @@ class MRIMotionCorrection(object):
         if self.verbose:
             print(msg)
 
+    def __repr__(self):
+        return str(self.__dict__)
+
     def _single_session_fit(self, vols, quality=None,
                             affine_correction=None):
         """
@@ -268,8 +196,10 @@ class MRIMotionCorrection(object):
         ----------
         vols: list of `nibabel.Nifti1Image` objects
             the volumes to realign
+
         quality: float, optional (default None)
             to override instance value
+
         affine_correction: 2D array of shape (4, 4), optional (default None)
             affine transformation to be applied to vols before realignment
             (this is useful in multi-session realignment)
@@ -452,7 +382,7 @@ class MRIMotionCorrection(object):
                 rp[t, self.lkp] -= q_update
 
                 # update affine matrix for volume t by applying M_q
-                vol = _apply_realignment_to_vol(vol, q)
+                vol = apply_realignment_to_vol(vol, q)
 
                 # compute convergence criterion variables
                 pss = ss
@@ -551,9 +481,9 @@ class MRIMotionCorrection(object):
             quality=1.  # only a few vols, we can thus allow this lux
             )
 
-        rfirst_vols = list(_apply_realignment(first_vols, self.first_vols_rp_,
-                                              inverse=False
-                                              ))
+        rfirst_vols = list(apply_realignment(first_vols, self.first_vols_rp_,
+                                             inverse=False
+                                             ))
 
         if self.n_sessions > 1:
             self._log('...done (inter-session registration).\r\n')
@@ -593,12 +523,16 @@ class MRIMotionCorrection(object):
         ----------
         reslice: bool, optional (default False)
             reslice the realigned volumes
+
         output_dir: string, optional (dafault None)
             existing dirname where output will be written
+
         prefix: string, optional (default 'r')
             prefix for output filenames.
+
         ext: string, optional (default ".nii.gz")
             file extension for ouput images
+
         concat: boolean, optional (default False)
             concatenate the ouput volumes for each session into a single
             4D film
@@ -639,10 +573,10 @@ class MRIMotionCorrection(object):
 
             # modify the header of each 3D vol according to the
             # estimated motion (realignment params)
-            sess_rvols = list(_apply_realignment(self.vols_[sess],
-                                                 self.rp_[sess],
-                                                 inverse=False
-                                                 ))
+            sess_rvols = list(apply_realignment(self.vols_[sess],
+                                                self.rp_[sess],
+                                                inverse=False
+                                                ))
 
             # reslice vols
             if reslice:

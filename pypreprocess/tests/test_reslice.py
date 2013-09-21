@@ -14,11 +14,9 @@ import nose.tools
 from ..reslice import (
     reslice_vols
     )
-from ..realign import (
-    _apply_realignment,
-    )
 from ..affine_transformations import (
-    get_initial_motion_params
+    get_initial_motion_params,
+    apply_realignment
     )
 
 
@@ -46,7 +44,7 @@ def test_reslice_vols():
         rp[t, ...][:3] += t / n_scans
         rp[t, ...][3:6] += np.pi * t
 
-    film = list(_apply_realignment(film, rp))
+    film = list(apply_realignment(film, rp))
 
     # affines are not the same
     nose.tools.assert_false(np.all(

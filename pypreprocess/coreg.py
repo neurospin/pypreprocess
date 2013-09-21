@@ -8,15 +8,18 @@
 import scipy.ndimage
 import scipy.optimize
 import scipy.special
+import scipy.signal
 import numpy as np
 import nibabel
 from .affine_transformations import (spm_matrix,
+                                     apply_realignment,
+                                     get_physical_coords,
                                      nibabel2spm_affine
                                      )
 from .io_utils import (loaduint8,
                        is_niimg,
                        get_basenames,
-                       save_vol,
+                       save_vols,
                        load_specific_vol
                        )
 from .kernel_smooth import fwhm2sigma
@@ -326,8 +329,7 @@ def joint_histogram(ref, src, grid=None, samp=None, M=np.eye(4),
         assert ref.ndim == 1
 
     # rigidly deform grid of reference image to obtain grid of moving image
-    deformed_grid = np.dot(M, np.vstack((grid,
-                                         np.ones(grid.shape[1]))))[:-1, ...]
+    deformed_grid = get_physical_coords(M, grid)
 
     # mask out points that have fallen out of the source image's FOV
     msk = mask_grid(deformed_grid, src.shape)
@@ -599,6 +601,19 @@ class Coregister(object):
     params_: 1D array of 6 floats (3 translations + 3 rotations)
         the realign parameters estimated
 
+    Examples
+    --------
+    >>> from pypreprocess.coreg import Coregister
+    >>> c = Coregister()
+    >>> ref = '/home/elvis/CODE/datasets/spm_auditory/sM00223/sM00223_002.img'
+    >>> src = '/home/elvis/CODE/datasets/spm_auditory/fM00223/fM00223_004.img'
+    >>> c.fit(ref, src)
+    >>> c.transform(src)
+
+    References
+    ----------
+    [1] Rigid Body Registration, by J. Ashburner and K. Friston
+
     """
 
     def __init__(self,
@@ -638,6 +653,9 @@ class Coregister(object):
 
         if self.verbose:
             print(msg)
+
+    def __repr__(self):
+        return str(self.__dict__)
 
     def fit(self, ref, src):
         """
@@ -752,10 +770,11 @@ class Coregister(object):
         src = load_specific_vol(src, 0)[0]
 
         # apply coreg
-        coregistered_source = nibabel.Nifti1Image(src.get_data(),
-                                                  scipy.linalg.lstsq(
-                spm_matrix(self.params_),
-                src.get_affine())[0])
+        coregistered_source = list(apply_realignment(src, self.params_,
+                                                     inverse=False
+                                                     ))
+        if len(coregistered_source) == 1:
+            coregistere_source = coregistered_source[0]
 
         # save output unto disk
         if not output_dir is None:
@@ -764,9 +783,9 @@ class Coregister(object):
             else:
                 basename = 'coregistered_source'
 
-            coregistered_source = save_vol(coregistered_source,
-                                           output_dir=output_dir,
-                                           basename=basename,
-                                           ext=ext, prefix=prefix)
+            coregistered_source = save_vols(coregistered_source,
+                                            output_dir=output_dir,
+                                            basename=basename,
+                                            ext=ext, prefix=prefix)
 
         return coregistered_source

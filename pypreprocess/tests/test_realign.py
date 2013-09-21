@@ -14,43 +14,19 @@ import numpy.testing
 
 # import the APIs to be tested
 from ..io_utils import load_specific_vol
-from ..realign import (
-    _compute_rate_of_change_of_chisq,
-    _apply_realignment,
-    _extract_realignment_params,
-    MRIMotionCorrection
-    )
-from ..affine_transformations import (
-    get_initial_motion_params)
+from ..realign import (_compute_rate_of_change_of_chisq,
+                       MRIMotionCorrection
+                       )
+from ..affine_transformations import (apply_realignment,
+                                      extract_realignment_params,
+                                      get_initial_motion_params
+                                      )
+from ._test_utils import create_random_image
 
 # global setup
 THIS_FILE = os.path.abspath(__file__).split('.')[0]
 THIS_DIR = os.path.dirname(THIS_FILE)
 OUTPUT_DIR = "/tmp/%s" % os.path.basename(THIS_FILE)
-
-
-def create_random_image(shape=None,
-                        ndim=3,
-                        n_scans=None,
-                        affine=np.eye(4),
-                        parent_class=nibabel.Nifti1Image):
-    """
-    Creates a random image of prescribed shape
-
-    """
-
-    rng = np.random.RandomState(0)
-
-    if shape is None:
-        shape = np.random.random_integers(20, size=ndim)
-
-    ndim = len(shape)
-
-    ndim = len(shape)
-    if not n_scans is None and ndim == 4:
-        shape[-1] = n_scans
-
-    return parent_class(np.random.randn(*shape), affine)
 
 
 def _make_vol_specific_translation(translation, n_scans, t):
@@ -167,7 +143,7 @@ def test_appy_realigment_and_extract_realignment_params_APIs():
 
     # there should be no motion
     for t in xrange(n_scans):
-        numpy.testing.assert_array_equal(_extract_realignment_params(
+        numpy.testing.assert_array_equal(extract_realignment_params(
                 load_specific_vol(film, t)[0],
                 load_specific_vol(film, 0)[0]),
                                       get_initial_motion_params())
@@ -180,7 +156,7 @@ def test_appy_realigment_and_extract_realignment_params_APIs():
         rp[t, 3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
 
     # apply motion (noise)
-    film = list(_apply_realignment(film, rp))
+    film = list(apply_realignment(film, rp))
 
     # check that motion has been induced
     for t in xrange(n_scans):
@@ -188,7 +164,7 @@ def test_appy_realigment_and_extract_realignment_params_APIs():
         _tmp[:3] += _make_vol_specific_translation(translation, n_scans, t)
         _tmp[3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
 
-        numpy.testing.assert_array_almost_equal(_extract_realignment_params(
+        numpy.testing.assert_array_almost_equal(extract_realignment_params(
                 load_specific_vol(film, t)[0],
                 load_specific_vol(film, 0)[0]),
                                              _tmp)
@@ -223,7 +199,7 @@ def test_MRIMotionCorrection_fit():
             translation, n_scans, t)
         rp[t, ...][3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
 
-    film = list(_apply_realignment(film, rp))
+    film = list(apply_realignment(film, rp))
 
     # instantiate object
     mrimc = MRIMotionCorrection(quality=1., lkp=lkp).fit([film])
