@@ -684,7 +684,7 @@ class Coregister(object):
         self.params_ = np.array(self.params)
         for samp in self.sep:
             print ("\r\nRunning Powell gradient-less local optimization "
-                   "(sampling rate = every %i voxels)...") % samp
+                   "(pyramidal level = %smm)...") % samp
 
             # create sampled grid for ref img
             grid = make_sampled_grid(ref.shape, samp=_correct_voxel_samp(
