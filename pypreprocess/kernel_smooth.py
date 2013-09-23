@@ -16,8 +16,10 @@ import nibabel as ni
 import scipy.linalg
 import gc
 from .affine_transformations import get_physical_coords
-from .io_utils import (is_niimg
-                       )
+from .io_utils import is_niimg
+
+# 'texture' of floats in machine precision
+EPS = np.finfo(float).eps
 
 
 def fwhm2sigma(fwhm):
@@ -389,3 +391,26 @@ def smooth_image(img, fwhm, **kwargs):
         return ni.Nifti1Image(smoothing_kernel.smooth(img.get_data(),
                                                       clean=True),
                               img.get_affine())
+
+
+def centered_smoothing_kernel(fwhm, x):
+    """
+    Creates a gaussian kernel centered at x, and with given fwhm.
+
+    """
+
+    # variance from fwhm
+    s = fwhm ** 2 / (8 * np.log(2)) + EPS
+
+    # Gaussian convolve with 0th degree B-spline
+    w1 = .5 * np.sqrt(2 / s)
+    w2 = -.5 / s
+    w3 = np.sqrt(s / 2 / np.pi)
+    krn = .5 * (scipy.special.erf(w1 * (x + 1)) * (x + 1) + scipy.special.erf(
+            w1 * (x - 1)) * (x - 1) - 2 * scipy.special.erf(
+            w1 * x) * x) + w3 * (np.exp(w2 * (x + 1) ** 2) + np.exp(
+            w2 * (x - 1) ** 2) - 2 * np.exp(w2 * x ** 2))
+
+    krn[krn < 0.] = 0
+
+    return krn

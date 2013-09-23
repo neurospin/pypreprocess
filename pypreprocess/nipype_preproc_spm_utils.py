@@ -30,9 +30,13 @@ import pylab as pl
 import numpy as np
 import nibabel
 from nipype.interfaces.base import Bunch
-from .io_utils import delete_orientation, is_3D, get_vox_dims,\
-    compute_mean_image, hard_link, load_specific_vol
-from datasets_extras import unzip_nii_gz
+from .io_utils import (delete_orientation,
+                       is_3D, get_vox_dims,
+                       compute_mean_image,
+                       hard_link,
+                       load_specific_vol
+                       )
+from .datasets_extras import unzip_nii_gz
 
 # spm and matlab imports
 import nipype.interfaces.spm as spm
@@ -339,12 +343,11 @@ def _do_subject_coreg(output_dir,
             target = spm_coregister_kwargs['target']
             source = coreg_result.outputs.coregistered_source
 
-            if coreg_func_to_anat:
-                target, source = source, target
-                ref_brain, source_brain = source_brain, ref_brain
-
+            # grap log from nipype
             execution_log = preproc_reporter.get_nipype_report(
                 preproc_reporter.get_nipype_report_filename(source))
+
+            # write the log
             execution_log_html_filename = os.path.join(
                 output_dir,
                 'coregistration_execution_log.html'
@@ -358,6 +361,10 @@ def _do_subject_coreg(output_dir,
                     '<b>Coregistration</b><br/><br/>')
                 progress_logger.log(execution_log)
                 progress_logger.log('<hr/>')
+
+            if coreg_func_to_anat:
+                target, source = source, target
+                ref_brain, source_brain = source_brain, ref_brain
 
             output.update(preproc_reporter.generate_coregistration_thumbnails(
                 (target, ref_brain),
@@ -426,7 +433,7 @@ def _do_subject_segment(output_dir,
 
             if progress_logger:
                 progress_logger.log(
-                    '<b>Segmentation</b><br/><br/>')
+              '<b>Segmentation</b><br/><br/>')
                 progress_logger.log(execution_log)
                 progress_logger.log('<hr/>')
 
@@ -732,10 +739,11 @@ def _do_subject_preproc(
     interleaved=False,
     do_realign=True,
     do_coreg=True,
-    func_to_anat=False,
+    func_to_anat=True,
     do_segment=True,
     do_normalize=True,
     do_cv_tc=True,
+    prepreproc_undergone="",
     additional_preproc_undergone=None,
     parent_results_gallery=None,
     subject_progress_logger=None,
@@ -791,15 +799,17 @@ def _do_subject_preproc(
 
     """
 
-    # sanity
+    # sanitze subject data
     subject_data.sanitize(do_deleteorient=do_deleteorient)
 
+    # dict of outputs
     output = {"subject_id": subject_data.subject_id,
               "session_id": subject_data.session_id,
               "output_dir": subject_data.output_dir,
               "func": subject_data.func,
               "anat": subject_data.anat}
 
+    # sanitize fwhm
     if not fwhm is None:
         if not (isinstance(fwhm, tuple) or isinstance(fwhm, list)):
             fwhm = [fwhm] * 3
@@ -825,15 +835,7 @@ def _do_subject_preproc(
     # generate explanation of preproc steps undergone by subject
     preproc_undergone = preproc_reporter.\
         generate_preproc_undergone_docstring(
-        prepreproc_undergone=("Data was collected with reversed phase-encode "
-                              "blips, resulting in pairs of images with "
-                              "distortions going in opposite directions. From "
-                              "these pairs the susceptibility-induced "
-                              "off-resonance field was estimated using a "
-                              "method similar to that described in [Andersson"
-                              " 2003] as implemented in FSL [Smith 2004] and"
-                              " the two images were combined into a single "
-                              "corrected one."),
+        prepreproc_undergone=prepreproc_undergone,
         do_deleteorient=do_deleteorient or subject_data.bad_orientation,
         fwhm=fwhm,
         do_bet=do_bet,
@@ -1904,14 +1906,10 @@ def do_subjects_preproc(subjects,
         do_segment = False
         do_normalize = False
 
-    # if do_report and report_filename is None:
-    #     raise RuntimeError(
-    #         ("You asked for reporting (do_report=True)  but specified"
-    #          " an invalid report_filename (None)"))
-
     kwargs = {'do_deleteorient': do_deleteorient,
               'do_bet': do_bet,
               'do_report': do_report,
+              'prepreproc_undergone': prepreproc_undergone,
               'do_slicetiming': do_slicetiming,
               'do_realign': do_realign, 'do_coreg': do_coreg,
               'func_to_anat': func_to_anat,
@@ -2072,7 +2070,8 @@ def do_subjects_preproc(subjects,
             progress_logger.finish(report_preproc_filename)
 
             if do_shutdown_reloaders:
-                progress_logger.finish_all()
+                print "Finishing %s..." % output_dir
+                progress_logger.finish_dir(output_dir)
 
         kwargs['parent_results_gallery'] = parent_results_gallery
 

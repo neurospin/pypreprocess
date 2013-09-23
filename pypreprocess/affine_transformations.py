@@ -319,9 +319,11 @@ def apply_realignment(vols, rp, inverse=True):
 
     vols: `nibabel.Nifti1Image`
         volumes to be transformed
-    rp: 2D array of shape (n_vols, k), where k <=12
+
+    rp: 2D array of shape (n_vols, k) or (1, k), where k <=12
         realignment parameters representing the rigid transformations to be
-        applied to the respective volumes
+        applied to the respective volumes.
+
     inverse: boolean, optional (default False)
         indicates the direction in which the transformation is to be performed;
         if set then, it is assumed q actually represents the inverse of the
@@ -338,7 +340,13 @@ def apply_realignment(vols, rp, inverse=True):
 
     """
 
+    # get number of scans
     _, n_scans = load_specific_vol(vols, 0)
+
+    # sanitize rp
+    rp = np.array(rp)
+    if rp.ndim == 1:
+        rp = np.array([rp] * n_scans)
 
     for t in xrange(n_scans):
         vol, _ = load_specific_vol(vols, t)

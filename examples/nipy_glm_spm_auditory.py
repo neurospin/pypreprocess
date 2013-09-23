@@ -19,6 +19,7 @@ from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
                                                    SubjectData
                                                    )
 import pypreprocess.reporting.glm_reporter as glm_reporter
+import pypreprocess.reporting.base_reporter as base_reporter
 from pypreprocess.datasets import fetch_spm_auditory_data
 from pypreprocess.io_utils import do_3Dto4D_merge
 
@@ -179,5 +180,7 @@ glm_reporter.generate_subject_stats_report(
     drift_model=drift_model,
     hrf_model=hrf_model,
     )
+
+base_reporter.ProgressReport().finish_dir(OUTPUT_DIR)
 
 print "\r\nStatistic report written to %s\r\n" % stats_report_filename

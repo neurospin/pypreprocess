@@ -102,7 +102,6 @@ def generate_preproc_undergone_docstring(
             'preprocessing functional data.') % PYPREPROCESS_URL,
 
     preproc_undergone = "<p>%s</p>" % tools_used
-
     preproc_undergone += "<ul>"
 
     if prepreproc_undergone:
@@ -325,7 +324,7 @@ def generate_registration_thumbnails(
     target: tuple of length 2
         target[0]: string
             path to reference image used in the registration
-e        target[1]: string
+        target[1]: string
             short name (e.g 'anat', 'epi', 'MNI', etc.) for the
             reference image
     source: tuple of length 2
@@ -484,6 +483,7 @@ def generate_coregistration_thumbnails(target,
         target[1]: string
             short name (e.g 'anat', 'epi', 'MNI', etc.) for the
             reference image
+
     source: tuple of length 2
         source[0]: string
             path to source image
