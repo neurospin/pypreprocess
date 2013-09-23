@@ -25,8 +25,7 @@ from pypreprocess.io_utils import do_3Dto4D_merge
 
 DATASET_DESCRIPTION = """\
 <p>MoAEpilot <a href="http://www.fil.ion.ucl.ac.uk/spm/data/auditory/">\
-SPM auditory dataset</a>.</p>\[+] Reslicing slice 52/64...
-
+SPM auditory dataset</a>.</p>
 """
 
 if len(sys.argv)  < 3:

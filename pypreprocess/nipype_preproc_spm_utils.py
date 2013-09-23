@@ -176,9 +176,11 @@ class SubjectData(Bunch):
         _func = []
         for sess_func in self.func:
             if isinstance(sess_func, basestring):
-                sess_func = mem.cache(_nii_gz_2_nii)(sess_func)
+                sess_func = mem.cache(_nii_gz_2_nii)(
+                    sess_func) if sess_func.endswith(".gz") else sess_func
             else:
-                sess_func = [mem.cache(_nii_gz_2_nii)(x) for x in sess_func]
+                sess_func = [mem.cache(_nii_gz_2_nii)(x) if x.endswith(
+                        ".gz") else x for x in sess_func]
 
             _func.append(sess_func)
         self.func = _func
