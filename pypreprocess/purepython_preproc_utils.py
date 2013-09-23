@@ -26,9 +26,8 @@ from pypreprocess.realign import MRIMotionCorrection
 from pypreprocess.kernel_smooth import smooth_image
 from pypreprocess.coreg import Coregister
 
-
 # output image prefices
-PREPROC_OUTPUT_IMAGE_PRERICES = {'STC': 'A',
+PREPROC_OUTPUT_IMAGE_PREFICES = {'STC': 'A',
                                  'MC': 'R',
                                  'coreg': 'Coreg',
                                  'smoothing': 'S'
@@ -44,8 +43,9 @@ def do_subject_preproc(subject_data,
                        do_realign=True,
                        do_coreg=True,
                        coreg_func_to_anat=True,
+                       do_cv_tc=False,
                        fwhm=None,
-                       write_preproc_output_images=False,
+                       write_preproc_output_images=True,
                        concat=False,
                        do_report=True,
                        parent_results_gallery=None,
@@ -130,10 +130,12 @@ def do_subject_preproc(subject_data,
 
     # dict of outputs
     output = subject_data.copy()
+    nii_output_dir = output['output_dir'
+                            ] if write_preproc_output_images else None
 
     # compute basenames of input images
     func_basenames = [get_basenames(func) for func in subject_data['func']]
-    anat_basename = get_basenames(subject_data['anat'])
+    # anat_basename = get_basenames(subject_data['anat'])
 
     # create output dir if inexistent
     if not os.path.exists(subject_data['output_dir']):
@@ -158,18 +160,6 @@ def do_subject_preproc(subject_data,
     # prefix for final output images
     func_prefix = ""
     anat_prefix = ""
-    if do_stc:
-        func_prefix = PREPROC_OUTPUT_IMAGE_PRERICES['STC'] + func_prefix
-    if do_realign:
-        func_prefix = PREPROC_OUTPUT_IMAGE_PRERICES['MC'] + func_prefix
-    if do_coreg:
-        if coreg_func_to_anat:
-            func_prefix = PREPROC_OUTPUT_IMAGE_PRERICES['coreg'] + func_prefix
-        else:
-            anat_prefix = PREPROC_OUTPUT_IMAGE_PRERICES['coreg'] + anat_prefix
-
-    if not fwhm is None:
-        func_prefix = PREPROC_OUTPUT_IMAGE_PRERICES['smoothing'] + func_prefix
 
     # cast all images to niimg
     output['func'] = [load_4D_img(x) for x in output['func']]
@@ -251,6 +241,8 @@ def do_subject_preproc(subject_data,
     if do_stc:
         print "\r\nNODE> Slice-Timing Correction"
 
+        func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['STC'] + func_prefix
+
         stc_output = []
         original_bold = list(output['func'])
         for sess_func in output['func']:
@@ -259,8 +251,10 @@ def do_subject_preproc(subject_data,
                                       verbose=verbose
                                       ).fit)(raw_data=sess_func.get_data())
 
-            stc_output.append(nibabel.Nifti1Image(_cached(fmristc.transform)(
-                        sess_func.get_data()), sess_func.get_affine()))
+            stc_output.append(_cached(fmristc.transform)(
+                        sess_func,
+                        output_dir=nii_output_dir,
+                        prefix=func_prefix))
 
         output['func'] = stc_output
 
@@ -283,12 +277,17 @@ def do_subject_preproc(subject_data,
     if do_realign:
         print "\r\nNODE> Motion Correction"
 
+        func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['MC'] + func_prefix
+
         mrimc = _cached(MRIMotionCorrection(
                 n_sessions=n_sessions, verbose=verbose).fit)(
             [sess_func for sess_func in output['func']])
 
-        mrimc_output = _cached(mrimc.transform)(reslice=True, concat=True
-                                                )
+        mrimc_output = _cached(mrimc.transform)(
+            reslice=True, concat=True,
+            output_dir=nii_output_dir,
+            prefix=func_prefix
+            )
 
         output['func'] = mrimc_output['realigned_images']
         output['realignment_parameters'] = mrimc_output[
@@ -313,6 +312,11 @@ def do_subject_preproc(subject_data,
         which = "func -> anat" if coreg_func_to_anat else "anat -> func"
         print "\r\nNODE> Coregistration %s" % which
 
+        if coreg_func_to_anat:
+            func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['coreg'] + func_prefix
+        else:
+            anat_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['coreg'] + anat_prefix
+
         ref_brain = 'func'
         src_brain = 'anat'
         ref = load_specific_vol(output['func'][0], 0)[0]
@@ -329,7 +333,10 @@ def do_subject_preproc(subject_data,
             coreg_func = []
             for sess_func in output['func']:
                 coreg_func.append(_cached(coreg.transform)(
-                        sess_func))
+                        sess_func, output_dir=nii_output_dir,
+                        prefix=func_prefix if coreg_func_to_anat else \
+                            anat_prefix
+                        ))
                 output['func'] = coreg_func
             src = load_specific_vol(output['func'][0], 0)[0]
         else:
@@ -356,6 +363,8 @@ def do_subject_preproc(subject_data,
         print ("\r\nNODE> Smoothing with %smm x %smm x %smm Gaussian"
                " kernel") % tuple(fwhm)
 
+        func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['smoothing'] + func_prefix
+
         sfunc = []
         for sess_func in output['func']:
             sfunc.append(_cached(smooth_image)(sess_func,
@@ -363,38 +372,32 @@ def do_subject_preproc(subject_data,
 
         output['func'] = sfunc
 
-    if do_report:
+        # write final output images
+        if write_preproc_output_images:
+            print "Saving preprocessed images unto disk..."
+
+            # save final func
+            func_basenames = func_basenames[0] if (not isinstance(
+                    func_basenames, basestring) and concat) else func_basenames
+
+            for sess in xrange(n_sessions):
+                sess_func = output['func'][sess]
+                save_vols(sess_func,
+                          output_dir=nii_output_dir,
+                          basenames=func_basenames[sess],
+                          prefix=func_prefix,
+                          concat=concat
+                          )
+
+    if do_report or do_cv_tc:
         # generate CV thumbs
+        print output['func']
         preproc_reporter.generate_cv_tc_thumbnail(
             output['func'],
             xrange(n_sessions),
             output['subject_id'],
             output['output_dir'],
             results_gallery=results_gallery)
-
-    # write final output images
-    if write_preproc_output_images:
-        print "Saving preprocessed images unto disk..."
-
-        # save final func
-        func_basenames = func_basenames[0] if (not isinstance(
-                func_basenames, basestring) and concat) else func_basenames
-
-        for sess in xrange(n_sessions):
-            sess_func = output['func'][sess]
-            save_vols(sess_func,
-                      output_dir=output['output_dir'],
-                      basenames=func_basenames[sess],
-                      prefix=func_prefix,
-                      concat=concat
-                      )
-
-        # save final anat
-        save_vol(output['anat'],
-                 output_dir=output['output_dir'],
-                 basename=anat_basename,
-                 prefix=anat_prefix
-                 )
 
     # finish reporting
     if do_report:

@@ -530,7 +530,8 @@ class fMRISTC(STC):
     def get_raw_data(self):
         return self.raw_data
 
-    def transform(self, raw_data=None, output_dir=None, affine=None):
+    def transform(self, raw_data=None, output_dir=None,
+                  affine=None, prefix='A'):
         self.output_data_ = STC.transform(self, raw_data=raw_data)
 
         if not affine is None:
@@ -555,7 +556,7 @@ class fMRISTC(STC):
 
             if not output_dir is None:
                 self.output_data_ = save_vols(self.output_data_,
-                                              output_dir, prefix='a',
+                                              output_dir, prefix=prefix,
                                               basenames=self.basenames_
                                               )
 

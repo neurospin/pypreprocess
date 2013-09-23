@@ -186,7 +186,8 @@ class SubjectData(Bunch):
         self.func = _func
 
         # anat .nii.gz  -> .nii
-        self.anat = mem.cache(_nii_gz_2_nii)(self.anat)
+        self.anat = mem.cache(_nii_gz_2_nii)(
+            self.anat) if self.anat.endswith('.gz') else self.anat
 
     def sanitize(self, do_deleteorient=False):
         if isinstance(self.session_id,
