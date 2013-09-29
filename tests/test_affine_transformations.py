@@ -3,8 +3,6 @@ XXX only use nosetests command-line tool to run this test module!
 
 """
 
-import os
-import sys
 import numpy as np
 import nose.tools
 
@@ -13,7 +11,10 @@ from ..pypreprocess.affine_transformations import (
     get_initial_motion_params,
     spm_matrix,
     spm_imatrix,
-    transform_coords)
+    transform_coords,
+    apply_realignment
+    )
+from ._test_utils import create_random_image
 
 
 def test_get_initial_motion_params():
@@ -60,6 +61,16 @@ def test_transform_coords():
     # coords shouldn't change
     nose.tools.assert_equal(new_coords.shape, (3, 1))
     np.testing.assert_array_equal(new_coords.ravel(), coords)
+
+
+def test_apply_realignment_3D_niimg():
+    # create 3D niimg
+    vol = create_random_image(shape=(7, 11, 13))
+
+    # apply realignment to vol
+    rvol = apply_realignment(vol, [1, 2, 3, 4, 5, 6])
+
+    print rvol.shape
 
 # run all tests
 nose.runmodule(config=nose.config.Config(

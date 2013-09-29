@@ -186,8 +186,9 @@ class SubjectData(Bunch):
         self.func = _func
 
         # anat .nii.gz  -> .nii
-        self.anat = mem.cache(_nii_gz_2_nii)(
-            self.anat) if self.anat.endswith('.gz') else self.anat
+        if not self.anat is None:
+            self.anat = mem.cache(_nii_gz_2_nii)(
+                self.anat) if self.anat.endswith('.gz') else self.anat
 
     def sanitize(self, do_deleteorient=False):
         if isinstance(self.session_id,
@@ -214,7 +215,7 @@ def _do_subject_realign(output_dir,
                         do_report=True,
                         results_gallery=None,
                         progress_logger=None,
-                       **spm_realign_kwargs):
+                        **spm_realign_kwargs):
     """
     Wrapper for nipype.interfaces.spm.Realign.
 
@@ -245,6 +246,7 @@ def _do_subject_realign(output_dir,
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
     mem = Memory(base_dir=cache_dir)
+
     # run workflow
     realign = mem.cache(spm.Realign)
     realign_result = realign(**spm_realign_kwargs)
@@ -941,140 +943,9 @@ def _do_subject_preproc(
         raise NotImplementedError(
             "STC module not yet integrated into this pipeline.")
 
-        # import algorithms.slice_timing.spm_slice_timing as spm_slice_timing
-
-        # # st_cache_dir = os.path.join(subject_data.output_dir,
-        # #                                      "cache_dir", "slice_timing")
-        # # if not os.path.isdir(st_cache_dir):
-        # #     os.makedirs(st_cache_dir)
-
-        # # mem = joblib.Memory(cachedir=st_cache_dir, verbose=100)
-
-        # def _load_fmri_data(fmri_files):
-        #     """Helper function to load fmri data from filename /
-        #     ndarray or list of such
-
-        #     """
-
-        #     if isinstance(fmri_files, np.ndarray):
-        #         return fmri_files
-
-        #     if isinstance(fmri_files, basestring):
-        #         return nibabel.load(fmri_files).get_data()
-        #     else:
-        #         n_scans = len(fmri_files)
-        #         _first = _load_fmri_data(fmri_files[0])
-        #         data = np.ndarray(tuple(list(_first.shape[:3]
-        #                                      ) + [n_scans]))
-        #         data[..., 0] = _first
-        #         for scan in xrange(1, n_scans):
-        #             data[..., scan] = _load_fmri_data(fmri_files[scan])
-
-        #         return data
-
-        # def _save_stc_output(output_data, output_dir,
-        #                      input_filenames,
-        #                      prefix='a'):
-
-        #     print "Saving STC output to %s..." % output_dir
-
-        #     print output_data.shape
-        #     n_scans = output_data.shape[-1]
-
-        #     # sanitize output_diir
-        #     ref_filename = input_filenames if isinstance(
-        #         input_filenames, basestring) else input_filenames[0]
-        #     ref_file_basename = os.path.basename(ref_filename)
-        #     if output_dir is None:
-        #         output_dir = output_dir
-        #     if output_dir is None:
-        #         output_dir = os.path.dirname(ref_filename)
-        #     if not os.path.exists(output_dir):
-        #         os.makedirs(output_dir)
-
-        #     # save realigned files to disk
-        #     if isinstance(input_filenames, basestring):
-        #         affine = nibabel.load(input_filenames).get_affine()
-
-        #         for t in xrange(n_scans):
-        #             output_filename = os.path.join(output_dir,
-        #                                            "%s%i%s" % (
-        #                     prefix, t, ref_file_basename))
-
-        #             nibabel.save(nibabel.Nifti1Image(output_data[..., t],
-        #                                              affine),
-        #                          output_filename)
-
-        #         output_filenames = output_filename
-        #     else:
-        #         output_filenames = []
-        #         for filename, t in zip(input_filenames, xrange(n_scans)):
-        #             affine = nibabel.load(filename).get_affine()
-        #             output_filename = os.path.join(output_dir,
-        #                                            "%s%s" % (
-        #                     prefix,
-        #                     os.path.basename(filename)))
-
-        #             nibabel.save(nibabel.Nifti1Image(output_data[..., t],
-        #                                              affine),
-        #                          output_filename)
-
-        #             output_filenames.append(output_filename)
-
-        #     return output_filenames
-
-        # stc = spm_slice_timing.STC()
-
-        # stc_func = []
-        # for s, func in zip(subject_data.session_id, subject_data.func):
-        #     print "\r\nLoading fmri data for session %s..." % s
-        #     fmri_data = _load_fmri_data(func)
-        #     stc.fit(raw_data=fmri_data, slice_order=slice_order,
-        #             interleaved=interleaved,)
-
-        #     stc.transform(fmri_data)
-
-        #     stc_func.append(_save_stc_output(
-        #             stc.get_last_output_data(),
-        #             os.path.join(subject_data.output_dir,
-        #                          "STC_session%s" % s),
-        #             func))
-
-        # subject_data.func = stc_func
-
-        # # # realigner = mem.cache(st.do_slicetiming_and_motion_correction)
-
-        # # # run realigment ( = slice timing + motion correction)
-        # # realigned_func_files, rp_files = realigner(
-        # #     subject_data.func,
-        # #     subject_data.output_dir,
-        # #     tr=TR, slice_order=slice_order,
-        # #     time_interp=True)
-
-        # # # collect outputs (pipeline-like)
-        # # subject_data.func = realigned_func_files
-        # # output['estimated_motion'] = rp_files
-        # # output['realigned_func'] = realigned_func_files
-
-        # # # generate gallery for HTML report
-        # # if do_report:
-        # #     sessions = subject_data.session_id
-        # #     estimated_motion = rp_files
-        # #     if isinstance(estimated_motion, basestring):
-        # #         estimated_motion = [estimated_motion]
-
-        # #     assert len(sessions) == len(estimated_motion), estimated_motion
-
-        # #     output.update(preproc_reporter.generate_realignment_thumbnails(
-        # #             estimated_motion,
-        # #             subject_data.output_dir,
-        # #             sessions=sessions,
-        # #             results_gallery=results_gallery,
-        # #             progress_logger=subject_progress_logger,
-        # #             ))
-    #####################
+    #######################
     #  motion correction
-    #####################
+    #######################
     if do_realign:
         realign_output = _do_subject_realign(
             subject_data.output_dir,
@@ -1085,7 +956,7 @@ def _do_subject_preproc(
             in_files=subject_data.func,
             register_to_mean=True,
             jobtype='estwrite',
-            # ignore_exception=ignore_exception,
+            ignore_exception=ignore_exception,
             )
 
         # collect output
@@ -1108,14 +979,13 @@ def _do_subject_preproc(
         output['estimated_motion'
                ] = realign_result.outputs.realignment_parameters
         output['func'] = realign_result.outputs.realigned_files
-        output['realigned_func'] = realign_result.outputs.realigned_files
+        # output['realigned_func'] = realign_result.outputs.realigned_files
 
         # generate report stub
         if do_report:
             final_thumbnail.img.src = realign_output['rp_plot']
     else:
         # manually compute mean (along time axis) of fMRI images
-        # XXX derive a more sensible path for the ref_func
         ref_func = os.path.join(
             subject_data.output_dir,
             'meanfunc.nii')
@@ -1129,9 +999,9 @@ def _do_subject_preproc(
             else:
                 ref_func = subject_data.func[0][0]
 
-    ################################################################
+    ##################################################################
     # co-registration of structural (anatomical) against functional
-    ################################################################
+    ##################################################################
     if do_coreg:
         coreg_jobtype = 'estimate'
         apply_to_files = []
@@ -1201,9 +1071,9 @@ def _do_subject_preproc(
         if do_report:
             final_thumbnail.img.src = coreg_output['axial']
 
-    ###################################
+    #####################################
     # segmentation of anatomical image
-    ###################################
+    #####################################
     if do_segment:
         segment_data = output["anat"]
         segment_output = _do_subject_segment(
@@ -1226,8 +1096,12 @@ def _do_subject_preproc(
             )
 
         segment_result = segment_output['result']
-        output['gm'] = segment_result.outputs.normalized_gm_image
-        output['wm'] = segment_result.outputs.normalized_wm_image
+        output['gm'] = segment_result.outputs.native_gm_image
+        output['wm'] = segment_result.outputs.native_wm_image
+        output['csf'] = segment_result.outputs.native_csf_image
+        output['wgm'] = segment_result.outputs.normalized_gm_image
+        output['wwm'] = segment_result.outputs.normalized_wm_image
+        output['wcsf'] = segment_result.outputs.normalized_csf_image
 
         # if failed to segment, return
         if segment_result.outputs is None:
@@ -1241,11 +1115,12 @@ def _do_subject_preproc(
 
         # output['segment_result'] = segment_result
 
+        ###########################################
+        # Spatial Normalization via Segmentation
+        ###########################################
         if do_normalize:
-            ##############################################################
             # indirect normalization: warp fMRI images int into MNI space
             # using the deformations learned by segmentation
-            ##############################################################
             norm_parameter_file = segment_result.outputs.transformation_mat
             norm_apply_to_files = output['func']
 
@@ -1285,10 +1160,8 @@ def _do_subject_preproc(
             if do_report:
                 final_thumbnail.img.src = norm_output['axial']
 
-            #########################################################
             # indirect normalization: warp anat image into MNI space
             # using the deformations learned by segmentation
-            #########################################################
             norm_parameter_file = segment_result.outputs.transformation_mat
             norm_apply_to_files = output['anat']
 
@@ -1324,10 +1197,11 @@ def _do_subject_preproc(
 
             output['anat'] = norm_output['normalized_files']
 
+    ###############################################
+    # Spatial Normalization without Segmentation
+    ###############################################
     elif do_normalize:
-        ############################################
         # learn T1 deformation without segmentation
-        ############################################
         t1_template = os.path.join(
             subject_data.output_dir,
             os.path.basename(EPI_TEMPLATE).replace('.gz', ''))
@@ -1339,7 +1213,7 @@ def _do_subject_preproc(
         norm_output = _do_subject_normalize(
             subject_data.output_dir,
             do_report=False,
-            source=outout['anat'],
+            source=output['anat'],
             template=t1_template,
             )
 
@@ -1354,9 +1228,7 @@ def _do_subject_preproc(
                 ("spm.Normalize failed for subject %s")
                 % subject_data.subject_id)
 
-        ####################################################
         # Warp EPI into MNI space using learned deformation
-        ####################################################
         norm_parameter_file = norm_result.outputs.normalization_parameters
         norm_apply_to_files = output['func']
 
@@ -1393,9 +1265,7 @@ def _do_subject_preproc(
         subject_data.func = norm_output['normalized_files']
         output['func'] = subject_data.func
 
-        #####################################################
         # Warp anat into MNI space using learned deformation
-        #####################################################
         norm_apply_to_files = output['anat']
 
         norm_output = _do_subject_normalize(
@@ -1428,7 +1298,11 @@ def _do_subject_preproc(
                 % subject_data.subject_id)
 
         output['anat'] = norm_output['normalized_files']
-    elif np.sum(fwhm) > 0:
+
+    #########################################
+    # Smooth without Spatial Normalization
+    #########################################
+    if not do_normalize and np.sum(fwhm) > 0:
         # smooth func
         smooth_output = _do_subject_smooth(
             subject_data.output_dir,
@@ -1450,28 +1324,6 @@ def _do_subject_preproc(
 
         output['func'] = smooth_output['smoothed_files']
         subject_data.func = output["func"]
-
-        # smooth anat
-        if not subject_data.anat is None:
-            smooth_output = _do_subject_smooth(
-                subject_data.output_dir,
-                results_gallery=results_gallery,
-                progress_logger=subject_progress_logger,
-                in_files=subject_data.anat,
-                fwhm=fwhm)
-
-            smooth_result = smooth_output['result']
-
-            if smooth_result is None:
-                if do_report:
-                    final_thumbnail.img.src = 'failed.png'
-                    final_thumbnail.description += ' (failed smoothing)'
-                    finalize_report()
-                raise RuntimeError(
-                    ("spm.Smooth failed (anat) for subject %s")
-                    % subject_data.subject_id)
-
-        output['anat'] = smooth_output['smoothed_files']
 
     if do_report:
         # generate cv plots
@@ -2230,7 +2082,12 @@ def do_subjects_preproc(subjects,
     # hard-link output files to subject's immediate output dir
     for x in results:
         for k, v in x.iteritems():
-            if k in ['anat', 'func', 'estimated_motion', 'gm', 'wm', 'csf']:
+            if k in ['func', 'anat', 'estimated_motion',
+                     'gm', 'wm', 'csf',
+                     'wgm', 'wwm', 'wcsf'
+                     ]:
+                dst = os.path.join(output_dir, x['subject_id'])
+                print "Hardlinking %s -> %s ..." % (v, dst)
                 x[k] = hard_link(v, os.path.join(output_dir, x['subject_id']))
 
     # finalize report

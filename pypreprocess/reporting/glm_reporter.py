@@ -161,6 +161,8 @@ def generate_subject_stats_report(
     subject_id=None,
     anat=None,
     anat_affine=None,
+    slicer="z",
+    cut_coords=None,
     threshold=2.3,
     cluster_th=0,
     cmap=viz.cm.cold_hot,
@@ -373,16 +375,24 @@ Z>%s voxel-level.
         if isinstance(z_map, basestring):
             z_map = nibabel.load(z_map)
 
-        # compute cut_coords for viz.plot_map(..) API
-        cut_coords = base_reporter.get_cut_coords(
-            z_map.get_data(), n_axials=12, delta_z_axis=3)
-
         # compute vmin and vmax
         vmin, vmax = base_reporter.compute_vmin_vmax(z_map.get_data())
 
         # update colorbar endpoints
         _vmax = max(_vmax, vmax)
         _vmin = min(_vmin, vmin)
+
+        # sanitize anat
+        if not anat is None:
+            if anat.ndim == 4:
+                assert anat.shape[-1] == 1, (
+                    "Expecting 3D array for ant, got shape %s" % str(
+                        anat.shape))
+                anat = anat[..., 0]
+            else:
+                assert anat.ndim == 3, (
+                    "Expecting 3D array for ant, got shape %s" % str(
+                        anat.shape))
 
         # plot activation proper
         viz.plot_map(z_map.get_data(), z_map.get_affine(),
@@ -392,10 +402,9 @@ Z>%s voxel-level.
                      vmin=vmin,
                      vmax=vmax,
                      threshold=threshold,
-                     slicer='z',
+                     slicer=slicer,
                      cut_coords=cut_coords,
-
-                     black_bg=True,
+                     black_bg=True
                      )
 
         # store activation plot

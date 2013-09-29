@@ -42,9 +42,10 @@ results = do_subjects_preproc(
     [subject_data],
     output_dir=OUTPUT_DIR,
     func_to_anat=True,
-    fwhm=8.,  # 8mm isotropic Gaussian kernel
+    fwhm=0.,  # 8mm isotropic Gaussian kernel
     dataset_id="SPM single-subject auditory",
     dataset_description=('<a href="http://www.fil.ion.ucl.ac.uk/spm/data'
                          '/auditory/">SPM auditory dataset</a>.</p>'),
-    do_shutdown_reloaders=False,
+    do_normalize=False,
+    do_shutdown_reloaders=True
     )

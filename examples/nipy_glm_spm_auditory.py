@@ -67,7 +67,9 @@ results = do_subjects_preproc(
     [subject_data],
     output_dir=OUTPUT_DIR,
     func_to_anat=True,
-    fwhm=6.,  # 6mm isotropic Gaussian kernel
+    # fwhm=8.,
+    do_segment=False,
+    do_normalize=False,
     dataset_id="SPM single-subject auditory",
     dataset_description=DATASET_DESCRIPTION,
     do_shutdown_reloaders=False,
@@ -167,6 +169,8 @@ glm_reporter.generate_subject_stats_report(
     subject_id=subject_data.subject_id,
     anat=anat,
     anat_affine=anat_affine,
+    slicer='z',
+    cut_coords=5,
     cluster_th=50,  # we're only interested in this 'large' clusters
     start_time=stats_start_time,
 

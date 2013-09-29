@@ -43,6 +43,9 @@ def configuration(parent_package='', top_path=None):
     # template engine
     config.add_subpackage('pypreprocess/tempita')
 
+    # experimental modules
+    config.add_subpackage('pypreprocess/_spike')
+
     # reporting plugin
     config.add_subpackage('pypreprocess/reporting')
     config.add_data_dir("pypreprocess/reporting/template_reports")

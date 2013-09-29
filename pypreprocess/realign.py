@@ -139,7 +139,7 @@ class MRIMotionCorrection(object):
 
     Attributes
     ----------
-    rp_: 3D array of shape (n_sessions, n_scans_session, 6)
+    realignment_parameters_: 3D array of shape (n_sessions, n_scans_session, 6)
         the realigment parameters for each volume of each session
 
     Examples
@@ -476,20 +476,21 @@ class MRIMotionCorrection(object):
                 ('\r\nInter-session registration: realigning first volumes'
                  ' of all sessions...'))
 
-        self.first_vols_rp_ = self._single_session_fit(
+        self.first_vols_realignment_parameters_ = self._single_session_fit(
             first_vols,
             quality=1.  # only a few vols, we can thus allow this lux
             )
 
-        rfirst_vols = list(apply_realignment(first_vols, self.first_vols_rp_,
-                                             inverse=False
-                                             ))
+        rfirst_vols = apply_realignment(first_vols,
+                                        self.first_vols_realignment_parameters_,
+                                        inverse=False
+                                        )
 
         if self.n_sessions > 1:
             self._log('...done (inter-session registration).\r\n')
 
         # realign all vols of each session with first vol of that session
-        self.rp_ = []
+        self.realignment_parameters_ = []
         for sess in xrange(self.n_sessions):
             self._log(
                 ("Intra-session registration: Realigning session"
@@ -504,15 +505,16 @@ class MRIMotionCorrection(object):
                 self.vols_[sess],
                 affine_correction=affine_correction)
 
-            self.rp_.append(sess_rp)
+            self.realignment_parameters_.append(sess_rp)
             self._log('...done; session %i.\r\n' % (sess + 1))
 
-        self.rp_ = np.array(self.rp_)[..., :6]
+        self.realignment_parameters_ = np.array(
+            self.realignment_parameters_)[..., :6]
 
         return self
 
     def transform(self, output_dir=None, reslice=False, prefix="r",
-                  ext=".nii.gz", concat=False):
+                  basenames=None, ext=".nii.gz", concat=False):
         """
         Saves realigned volumes and the realigment parameters to disk.
         Realigment parameters are stored in output_dir/rp.txt and Volumes
@@ -548,13 +550,13 @@ class MRIMotionCorrection(object):
             following items:
             realigned_files: list of strings
                 full paths of the realigned files
-            rp_filename: string
+            realignment_parameters_filename: string
                 full path of text file containing realignment parameters
 
         """
 
         # make sure object has been fitted
-        if not hasattr(self, 'rp_'):
+        if not hasattr(self, 'realignment_parameters_'):
             raise RuntimeError("fit(...) method not yet invoked.")
 
         # sanitize ext param
@@ -562,21 +564,24 @@ class MRIMotionCorrection(object):
             ext = "." + ext
 
         # sanitize reslice param
-        reslice = reslice or concat
+        reslice = reslice or concat  # can't conct without reslicing
 
-        output = {'realignment_parameters': self.rp_,
-                  'realigned_images': []}
+        # output dict
+        output = {"realigned_images": [],
+                  "realignment_parameters": self.realignment_parameters_ if \
+                      output_dir is None else []
+                  }
 
         for sess in xrange(self.n_sessions):
-            n_scans = len(self.rp_[sess])
+            n_scans = len(self.realignment_parameters_[sess])
             sess_realigned_files = []
 
             # modify the header of each 3D vol according to the
             # estimated motion (realignment params)
-            sess_rvols = list(apply_realignment(self.vols_[sess],
-                                                self.rp_[sess],
-                                                inverse=False
-                                                ))
+            sess_rvols = apply_realignment(self.vols_[sess],
+                                           self.realignment_parameters_[sess],
+                                           inverse=False
+                                           )
 
             # reslice vols
             if reslice:
@@ -589,33 +594,33 @@ class MRIMotionCorrection(object):
             if concat:
                 sess_rvols = nibabel.concat_images(sess_rvols)
 
-            output['realigned_images'].append(sess_rvols)
+            if output_dir is None:
+                output['realigned_images'].append(sess_rvols)
 
             # save output unto disk
             if not output_dir is None:
-                output['realigned_files'] = []
-                output['realignment_parameters'] = []
-
                 # make basenames for output files
-                basenames = None
-                if isinstance(self.vols_[sess], basestring):
-                    basenames = get_basenames(self.vols_[sess])
-                elif isinstance(self.vols_[sess], list):
-                    if isinstance(self.vols_[sess][0], basestring):
-                        basenames = get_basenames(self.vols_[sess])
-
                 if basenames is None:
-                    if not isinstance(self.vols_, list) or concat:
-                        basenames = "vols"
+                    if isinstance(self.vols_[sess], basestring):
+                        sess_basenames = get_basenames(self.vols_[sess])
+                    elif isinstance(self.vols_[sess], list):
+                        if isinstance(self.vols_[sess][0], basestring):
+                            sess_basenames = get_basenames(self.vols_[sess])
+                    else:
+                        if not isinstance(self.vols_, list) or concat:
+                            sess_basenames = "vols"
+                        else:
+                            sess_basenames = ["sess_%i_vol_%i" % (sess, i)
+                                         for i in xrange(n_scans)]
                 else:
-                    basenames = ["sess_%i_vol_%i" % (sess, i)
-                                 for i in xrange(len(self.vols_[sess]))]
+                    assert len(basenames) == self.n_sessions
+                    sess_basenames = basenames[sess]
 
                 # save realigned files to disk
                 if concat:
                     sess_realigned_files = save_vol(sess_rvols,
                         output_dir,
-                        basenames=basenames,
+                        basenames=sess_basenames,
                         concat=concat,
                         ext=ext,
                         prefix=prefix)
@@ -623,29 +628,32 @@ class MRIMotionCorrection(object):
                     sess_realigned_files = [save_vol(
                             sess_rvols[t],
                             output_dir=output_dir,
-                            basename=basenames[t] if isinstance(
-                                basenames,
-                                list) else basenames,
+                            basename=sess_basenames[t] if isinstance(
+                                sess_basenames,
+                                list) else sess_basenames,
                             ext=ext,
                             prefix=prefix) for t in xrange(n_scans)]
 
-                output['realigned_files'].append(sess_realigned_files)
+                output['realigned_images'].append(sess_realigned_files)
 
                 # save realignment params to disk
                 if basenames is None:
-                    sess_rp_filename = os.path.join(output_dir, "rp.txt")
+                    sess_realignment_parameters_filename = os.path.join(
+                        output_dir, "rp.txt")
                 else:
-                    if isinstance(basenames, basestring):
-                        sess_rp_filename = os.path.join(
+                    if isinstance(sess_basenames, basestring):
+                        sess_realignment_parameters_filename = os.path.join(
                             output_dir,
-                            "rp_" + basenames + ".txt")
+                            "rp_" + sess_basenames + ".txt")
                     else:
-                        sess_rp_filename = os.path.join(
+                        sess_realignment_parameters_filename = os.path.join(
                             output_dir,
-                            "rp_" + basenames[0] + ".txt")
+                            "rp_" + sess_basenames[0] + ".txt")
 
-                np.savetxt(sess_rp_filename, self.rp_[sess][..., self.lkp])
-                output['realignment_parameters'].append(sess_rp_filename)
+                np.savetxt(sess_realignment_parameters_filename,
+                           self.realignment_parameters_[sess][..., self.lkp])
+                output['realignment_parameters'].append(
+                    sess_realignment_parameters_filename)
 
                 self._log('...done; output saved to %s.' % output_dir)
 

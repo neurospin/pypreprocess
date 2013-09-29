@@ -180,8 +180,8 @@ def generate_preproc_undergone_docstring(
                     "<li>"
                     "Deformations from native to standard space have been "
                     "learnt on the anatomically brain. These deformations "
-                    "have been used to warp the functional into standard "
-                    "space.</li>")
+                    "have been used to warp the functional and anatomical "
+                    "images into standard space.</li>")
             else:
                 preproc_undergone += (
                 "<li>"
@@ -335,7 +335,7 @@ def generate_registration_thumbnails(
             source image
     procedure_name: string
         name of, or short comments on, the registration procedure used
-        (e.g 'anat -> func', etc.)
+        (e.g 'anat ==> func', etc.)
 
     """
 
@@ -496,7 +496,7 @@ def generate_coregistration_thumbnails(target,
     return generate_registration_thumbnails(
         target,
         source,
-        "Coregistration %s -> %s" % (source[1], target[1]),
+        "Coregistration %s => %s" % (source[1], target[1]),
         output_dir,
         execution_log_html_filename=execution_log_html_filename,
         results_gallery=results_gallery,
@@ -509,7 +509,9 @@ def generate_segmentation_thumbnails(
     subject_gm_file=None,
     subject_wm_file=None,
     subject_csf_file=None,
-    brain='EPI',
+    only_native=False,
+    brain='func',
+    comments="",
     execution_log_html_filename=None,
     cmap=None,
     results_gallery=None,
@@ -569,54 +571,59 @@ def generate_segmentation_thumbnails(
                        "log</a>)") % (os.path.basename(
                 execution_log_html_filename))
 
+    _brain = "(%s) %s" % (comments, brain) if comments else brain
+
     # plot contours of template compartments on subject's brain
-    template_compartments_contours = os.path.join(
-        output_dir,
-        "template_tmps_contours_on_%s.png" % brain)
-    template_compartments_contours_axial = os.path.join(
-        output_dir,
-        "template_compartments_contours_on_%s_axial.png" % brain)
+    if not only_native:
+        template_compartments_contours = os.path.join(
+            output_dir,
+            "template_tmps_contours_on_%s.png" % _brain)
+        template_compartments_contours_axial = os.path.join(
+            output_dir,
+            "template_compartments_contours_on_%s_axial.png" % _brain)
 
-    qa_mem.cache(plot_segmentation)(
-        normalized_file,
-        GM_TEMPLATE,
-        wm_filename=WM_TEMPLATE,
-        csf_filename=CSF_TEMPLATE,
-        output_filename=template_compartments_contours_axial,
-        slicer='z',
-        cmap=cmap,
-        title="template TPMs")
+        qa_mem.cache(plot_segmentation)(
+            normalized_file,
+            GM_TEMPLATE,
+            wm_filename=WM_TEMPLATE,
+            csf_filename=CSF_TEMPLATE,
+            output_filename=template_compartments_contours_axial,
+            slicer='z',
+            cmap=cmap,
+            title="template TPMs")
 
-    qa_mem.cache(plot_segmentation)(
-        normalized_file,
-        gm_filename=GM_TEMPLATE,
-        wm_filename=WM_TEMPLATE,
-        csf_filename=CSF_TEMPLATE,
-        output_filename=template_compartments_contours,
-        cmap=cmap,
-        title=("Template GM, WM, and CSF contours on "
-               "subject's %s") % brain)
+        qa_mem.cache(plot_segmentation)(
+            normalized_file,
+            gm_filename=GM_TEMPLATE,
+            wm_filename=WM_TEMPLATE,
+            csf_filename=CSF_TEMPLATE,
+            output_filename=template_compartments_contours,
+            cmap=cmap,
+            title=("Template GM, WM, and CSF contours on "
+                   "subject's %s") % _brain)
 
-    # create thumbnail
-    if results_gallery:
-        thumbnail = Thumbnail()
-        thumbnail.a = a(
-            href=os.path.basename(template_compartments_contours))
-        thumbnail.img = img(
-            src=os.path.basename(template_compartments_contours),
-            height="250px")
-        thumbnail.description = thumb_desc
+        # create thumbnail
+        if results_gallery:
+            thumbnail = Thumbnail()
+            thumbnail.a = a(
+                href=os.path.basename(template_compartments_contours))
+            thumbnail.img = img(
+                src=os.path.basename(template_compartments_contours),
+                height="250px")
+            thumbnail.description = thumb_desc
 
-        results_gallery.commit_thumbnails(thumbnail)
+            results_gallery.commit_thumbnails(thumbnail)
+
+        output['axial'] = template_compartments_contours_axial
 
     # plot contours of subject's compartments on subject's brain
     if subject_gm_file:
         subject_compartments_contours = os.path.join(
             output_dir,
-            "subject_tmps_contours_on_subject_%s.png" % brain)
+            "subject_tmps_contours_on_subject_%s.png" % _brain)
         subject_compartments_contours_axial = os.path.join(
             output_dir,
-            "subject_tmps_contours_on_subject_%s_axial.png" % brain)
+            "subject_tmps_contours_on_subject_%s_axial.png" % _brain)
 
         qa_mem.cache(plot_segmentation)(
             normalized_file,
@@ -641,7 +648,7 @@ def generate_segmentation_thumbnails(
             output_filename=subject_compartments_contours,
             cmap=cmap,
             title=("%s contours on "
-               "subject's %s") % (title_prefix, brain))
+               "subject's %s") % (title_prefix, _brain))
 
         # create thumbnail
         if results_gallery:
@@ -655,8 +662,8 @@ def generate_segmentation_thumbnails(
 
             results_gallery.commit_thumbnails(thumbnail)
 
-    output['axials'] = {}
-    output['axial'] = template_compartments_contours_axial
+        if only_native:
+            output['axial'] = subject_compartments_contours_axial
 
     return output
 
@@ -794,20 +801,20 @@ def generate_stc_thumbnails(
             return np.array([_sanitize_data(x) for x in data])
 
         if is_niimg(data):
-            data = data.get_data()
+            data = np.rollaxis(data.get_data(), -1, start=0)
         elif isinstance(data, basestring):
             data = nibabel.load(data).get_data()
-        data = np.array(data)
 
-        if data.ndim < 5:
-            data = np.array([data])
+        # if data.ndim < 5:
+        #     data = np.array([data])
 
         return data
 
-    original_bold = _sanitize_data(original_bold)
-    st_corrected_bold = _sanitize_data(st_corrected_bold)
+    original_bold = np.rollaxis(_sanitize_data(original_bold), 1, 5)
+    st_corrected_bold = np.rollaxis(_sanitize_data(st_corrected_bold), 1, 5)
 
-    assert st_corrected_bold.shape == original_bold.shape
+    assert st_corrected_bold.shape == original_bold.shape, "%ss != %s" % (
+        str(st_corrected_bold.shape), str(original_bold.shape))
 
     if voxel is None:
         voxel = np.array(original_bold.shape[1:-1]) // 2
@@ -1217,3 +1224,25 @@ def generate_dataset_preproc_report(
         progress_logger.finish_all()
 
     return output
+
+
+def make_nipype_execution_log_html(nipype_output_files,
+                                   node_name, output_dir,
+                                   progress_logger=None):
+    execution_log = get_nipype_report(get_nipype_report_filename(
+            nipype_output_files))
+    execution_log_html_filename = os.path.join(
+        output_dir,
+        '%s_execution_log.html' % node_name
+        )
+
+    open(execution_log_html_filename, 'w').write(
+        execution_log)
+
+    if progress_logger:
+        progress_logger.log(
+            '<b>%s</b><br/><br/>' % node_name)
+        progress_logger.log(execution_log)
+        progress_logger.log('<hr/>')
+
+    return execution_log_html_filename

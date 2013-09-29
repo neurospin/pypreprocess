@@ -12,13 +12,13 @@ import scipy.signal
 import numpy as np
 import nibabel
 from .affine_transformations import (spm_matrix,
-                                     apply_realignment_to_vol,
+                                     apply_realignment,
                                      nibabel2spm_affine
                                      )
 from .io_utils import (loaduint8,
                        get_basenames,
                        save_vols,
-                       load_specific_vol
+                       get_basenames
                        )
 from .kernel_smooth import (fwhm2sigma,
                             centered_smoothing_kernel
@@ -409,6 +409,7 @@ class Coregister(object):
                   output_dir=None,
                   prefix="Coreg",
                   ext=".nii.gz",
+                  basenames=None
                   ):
         """
         Applies estimated co-registration parameter to the input volume
@@ -437,21 +438,18 @@ class Coregister(object):
 
         """
 
-        # load vol
-        src = load_specific_vol(src, 0)[0]
-
-        # apply coreg
-        coregistered_source = apply_realignment_to_vol(src, self.params_,
-                                                       inverse=True
-                                                       )
-
         # save output unto disk
         if not output_dir is None:
-            if isinstance(src, basestring):
+            if basenames is None:
                 basenames = get_basenames(src)
-            else:
-                basenames = 'coregistered_source'
 
+        # apply coreg
+        # XXX backend should handle nasty i/o logic!!
+        coregistered_source = list(apply_realignment(src, self.params_,
+                                                     inverse=True
+                                                     ))
+
+        if not output_dir is None:
             coregistered_source = save_vols(coregistered_source,
                                             output_dir=output_dir,
                                             basenames=basenames,

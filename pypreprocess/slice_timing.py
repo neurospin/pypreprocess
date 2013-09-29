@@ -531,8 +531,11 @@ class fMRISTC(STC):
         return self.raw_data
 
     def transform(self, raw_data=None, output_dir=None,
-                  affine=None, prefix='A'):
+                  affine=None, prefix='A', basenames=None):
         self.output_data_ = STC.transform(self, raw_data=raw_data)
+
+        if not basenames is None:
+            self.basenames_ = basenames
 
         if not affine is None:
             self.affine_ = affine

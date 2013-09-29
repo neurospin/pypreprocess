@@ -1,7 +1,8 @@
 """
 :Module: histograms
-:Synopsis: trilinear interpolation, computation of joint histograms between
-fixed and moving 3D images, etc.
+:Synopsis: building sampled meshgrids, masking meshgrids, performing trilinear
+interpolation, computation of joint histograms between fixed and moving
+3D images, etc.
 :Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
 """
@@ -234,17 +235,17 @@ def trilinear_interp(f, shape, x, y, z):
     k111 = f[offset + shape[0] + 1]
 
     # combine everything to get the value of f at the point(s) (x, y, z)
-    return (((k222 * dx2 + k122 * dx1) * dy2  +\
-                 (k212 * dx2 + k112 * dx1) * dy1)) * dz2 +\
-                 (((k221 * dx2 + k121 * dx1) * dy2 +\
+    return (((k222 * dx2 + k122 * dx1) * dy2  + \
+                 (k212 * dx2 + k112 * dx1) * dy1)) * dz2 + \
+                 (((k221 * dx2 + k121 * dx1) * dy2 + \
                        (k211 * dx2 + k111 * dx1) * dy1)) * dz1
 
 
 def joint_histogram(ref, src, grid=None, samp=None, M=np.eye(4),
                     bins=(256, 256)):
     """
-    Function to compute the joint histogram between of a reference and a source
-    (moving) image, under an optioanl rigid transformation (M) of the source
+    Function to compute the joint histogram between a reference and a source
+    (moving) image, under an optional rigid transformation (M) of the source
     image.
 
     Parameters
@@ -252,7 +253,8 @@ def joint_histogram(ref, src, grid=None, samp=None, M=np.eye(4),
 
     ref: 1D array of length n_voxels
         the reference image already sampled accuring to the current sampling
-        rate (in pyramidal/multi-resolution loop)
+        rate (in pyramidal/multi-resolution loop). The ravelled order of ref
+        is assumed to be 'F'.
 
     src: 3D array of shape
         the moving image to be resampled unto the reference image's grid,
@@ -305,8 +307,9 @@ def joint_histogram(ref, src, grid=None, samp=None, M=np.eye(4),
 
         # interpolate ref on sampled grid
         ref = trilinear_interp(ref.get_data().ravel(order='F'),
-                               ref.shape, *grid)
+                               ref.shape, grid[0], grid[1], grid[2])
     else:
+        # ref image already sampled on coarse grid
         assert ref.ndim == 1, ref.shape
         assert grid.shape == (3, len(ref)), grid.shape
         assert isinstance(ref, np.ndarray)
@@ -315,15 +318,16 @@ def joint_histogram(ref, src, grid=None, samp=None, M=np.eye(4),
     # rigidly deform grid of reference image to obtain grid of moving image
     deformed_grid = get_physical_coords(M, grid)
 
-    # mask out points that have fallen out of the source image's FOV
+    # mask out points that have fallen out of the src (moving) image's FOV
     msk = mask_grid(deformed_grid, src.shape)
     deformed_grid = deformed_grid[..., msk]
     _ref = ref[msk]
 
     # resample src image on deformed grid, thereby warping the former
     warped_src = trilinear_interp(src.ravel(order='F'), src.shape,
-                                  *deformed_grid)
+                                  deformed_grid[0], deformed_grid[1],
+                                  deformed_grid[2])
 
     # compute joint histogram proper
-    # XXX all the bottle neck is in the following call to numpy's histogram2d
+    # XXX all the bottle neck is in this call to numpy's histogram2d
     return np.histogram2d(_ref, warped_src, bins=bins)[0]

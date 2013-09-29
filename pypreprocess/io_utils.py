@@ -7,6 +7,7 @@
 
 import os
 import sys
+import shutil
 import joblib
 import commands
 import tempfile
@@ -64,7 +65,7 @@ def load_vol(x):
                                       vol.get_affine())
         else:
             raise ValueError(
-                "Each volume must be 3D; got %iD" % len(vol.shape))
+                "Each volume must be 3D; got shape %s" % str(vol.shape))
     elif len(vol.shape) != 3:
             raise ValueError(
                 "Each volume must be 3D; got %iD" % len(vol.shape))
@@ -236,6 +237,7 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
             vols = nibabel.four_to_three(vols)
             filenames = []
             for vol, basename in zip(vols, basenames):
+                assert isinstance(basename, basestring)
                 filename = os.path.join(output_dir, "%s%s%s" % (
                         prefix, basename.split(".")[0], ext))
                 nibabel.save(vol, filename)
@@ -255,7 +257,8 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
                 prefix = prefix + "_"
         else:
             assert not isinstance(basenames, basestring)
-            assert len(basenames) == len(vols)
+            assert len(basenames) == len(vols), "%i != %i" % (len(basenames),
+                                                              len(vols))
 
         for t, vol in zip(xrange(n_vols), vols):
             if isinstance(vol, np.ndarray):
@@ -274,6 +277,8 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
             else:
                 output_filename = os.path.join(output_dir, "%s%s%s" % (
                         prefix, basenames[t].split(".")[0], ext))
+
+            vol = load_vol(vol) if not is_niimg(vol) else vol
 
             nibabel.save(vol, output_filename)
 
@@ -614,14 +619,17 @@ def hard_link(filenames, output_dir):
             output_dir, os.path.basename(x)) for x in filenames]
 
         for x, y in zip(filenames, hardlinked_filenames):
-            print "\tHardlinking %s -> %s..." % (x, y)
+            print "\tHardlinking %s -> %s ..." % (x, y)
 
             # unlink if link already exists
             if os.path.exists(y):
                 os.unlink(y)
 
             # hard-link the file proper
-            os.link(x, y)
+            try:
+                os.link(x, y)
+            except OSError:
+                shutil.copy(x, y)
 
         return hardlinked_filenames[0]
     else:
@@ -708,7 +716,7 @@ def niimg2ndarrays(niimg):
     return niimg.get_data(), niimg.get_affine()
 
 
-def loaduint8(img, log=None):
+def loaduint8(img, t=0, log=None):
     """Load data from file indicated by V into array of unsigned bytes.
 
     Parameters
@@ -737,20 +745,23 @@ def loaduint8(img, log=None):
     _progress_bar("Loading %s..." % img)
 
     # load volume into memory
-    if isinstance(img, np.ndarray) or isinstance(img, list):
-        vol = np.array(img)
-    elif isinstance(img, basestring):
-        img = nibabel.load(img)
-        vol = img.get_data()
-    elif is_niimg(img):
-        vol = img.get_data()
-    else:
-        raise TypeError("Unsupported input type: %s" % type(img))
+    img = load_specific_vol(img, 0)[0]
+    vol = img.get_data()
 
-    if vol.ndim == 4:
-        vol = vol[..., 0]
+    # if isinstance(img, np.ndarray) or isinstance(img, list):
+    #     vol = np.array(img)
+    # elif isinstance(img, basestring):
+    #     img = nibabel.load(img)
+    #     vol = img.get_data()
+    # elif is_niimg(img):
+    #     vol = img.get_data()
+    # else:
+    #     raise TypeError("Unsupported input type: %s" % type(img))
 
-    assert vol.ndim == 3
+    # if vol.ndim == 4:
+    #     vol = vol[..., 0]
+
+    # assert vol.ndim == 3
 
     def _spm_slice_vol(p):
         """
@@ -785,3 +796,44 @@ def loaduint8(img, log=None):
         return nibabel.Nifti1Image(uint8_dat, img.get_affine())
     else:
         return uint8_dat
+
+
+def ravel_filenames(fs):
+    if isinstance(fs, basestring):
+        ofilenames = fs
+        file_types = 'basestring'
+    else:
+        file_types = []
+        ofilenames = []
+        for x in fs:
+            if isinstance(x, basestring):
+                ofilenames.append(x)
+                file_types.append('basestring')
+            else:
+                ofilenames += x
+                file_types.append(('list', len(x)))
+
+    return ofilenames, file_types
+
+
+def unravel_filenames(filenames, file_types):
+    if not isinstance(file_types, basestring):
+        _tmp = []
+        s = 0
+        for x in file_types:
+            if x == 'basestring':
+                if isinstance(filenames, basestring):
+                    _tmp = filenames
+                    break
+                else:
+                    _tmp.append(
+                        filenames[s])
+                    s += 1
+            else:
+                _tmp.append(
+                    filenames[s: s + x[1]])
+                s += x[1]
+
+        filenames = _tmp
+
+    return filenames

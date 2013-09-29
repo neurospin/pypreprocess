@@ -11,18 +11,15 @@ import traceback
 import tempfile
 import numpy as np
 import pylab as pl
-
 import nibabel
-
 from nipy.labs import compute_mask_files
 from nipy.labs import viz
 import joblib
-
-from pypreprocess.io_utils import (do_3Dto4D_merge,
-                                   compute_mean_3D_image,
-                                   load_vol,
-                                   load_4D_img
-                                   )
+from ..io_utils import (compute_mean_3D_image,
+                        load_vol,
+                        load_4D_img,
+                        is_niimg
+                        )
 
 EPS = np.finfo(float).eps
 
@@ -134,8 +131,16 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
     if isinstance(mask, basestring):
         mask_array = nibabel.load(mask).get_data() > 0
     elif mask == True:
-        print epi_data
-        mask_array = compute_mask_files(epi_data[0])
+        try:
+            mask_array = compute_mask_files(epi_data[0])
+        except AttributeError:  # nipy BUG / limitation
+            _img = epi_data[0] if is_niimg(epi_data[0]
+                                           ) else nibabel.concat_images(
+                epi_data[0])
+            _tmp = os.path.join(_output_dir, "_useless.nii.gz")
+            nibabel.save(_img, _tmp)
+
+            mask_array = compute_mask_files(_tmp)
     else:
         mask_array = None
     for (session_id, fmri_file) in zip(session_ids, epi_data):
@@ -253,7 +258,7 @@ def plot_registration(reference_img, coregistered_img,
         cmap=cmap,
         cut_coords=cut_coords,
         slicer=slicer,
-        # black_bg=True,
+        black_bg=True
         )
 
     # overlap the reference image
@@ -276,9 +281,10 @@ def plot_registration(reference_img, coregistered_img,
         try:
             pl.savefig(output_filename, dpi=200, bbox_inches='tight',
                        facecolor="k",
-                       edgecolor="k")
+                       edgecolor="k"
+                       )
         except AttributeError:
-            # XXX TODO: handy this case!!
+            # XXX TODO: handle this case!!
             pass
 
 
@@ -321,7 +327,7 @@ def plot_segmentation(img, gm_filename, wm_filename=None,
     # plot img
     if hasattr(img, '__len__'):
         img = compute_mean_3D_image(img)
-    # XXX else i'm assuming a nifi object ;)
+    # XXX else i'm assuming a nifti object
     anat = img.get_data()
     anat_affine = img.get_affine()
     _slicer = viz.plot_anat(

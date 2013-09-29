@@ -15,9 +15,9 @@ import time
 import matplotlib as mpl
 import pylab as pl
 import numpy as np
-from pypreprocess.tempita import (HTMLTemplate,
-                                  bunch
-                                  )
+from ..tempita import (HTMLTemplate,
+                        bunch
+                        )
 
 # find package path
 ROOT_DIR = os.path.split(os.path.abspath(__file__))[0]

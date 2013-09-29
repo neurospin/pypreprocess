@@ -348,14 +348,11 @@ def apply_realignment(vols, rp, inverse=True):
     if rp.ndim == 1:
         rp = np.array([rp] * n_scans)
 
-    for t in xrange(n_scans):
-        vol, _ = load_specific_vol(vols, t)
+    rvols = [apply_realignment_to_vol(load_specific_vol(vols, t)[0],
+                                      rp[t], inverse=inverse)
+             for t in xrange(n_scans)]
 
-        # apply realignment to vol
-        rvol = apply_realignment_to_vol(vol, rp[t], inverse=inverse)
-
-        # yield realigned vol
-        yield rvol
+    return rvols if n_scans > 1 or isinstance(vols, list) else rvols[0]
 
 
 def extract_realignment_params(ref_vol, vol):
