@@ -9,6 +9,11 @@ from pypreprocess.datasets import (fetch_spm_auditory_data,
                                    )
 
 
+ABIDE_OUTPUT_DIR = os.path.join(os.environ['HOME'],
+                                "CODE/datasets/abide_preproc"
+                                )
+
+
 def _abide_factory(institute="KKI"):
     for scans in sorted(glob.glob(
             "/home/elvis/CODE/datasets/ABIDE/%s_*/%s_*/scans" % (
@@ -20,13 +25,14 @@ def _abide_factory(institute="KKI"):
                                          "rest/resources/NIfTI/files/rest.nii")
         subject_data.anat = os.path.join(
             scans, "anat/resources/NIfTI/files/mprage.nii")
-        subject_data.output_dir = os.path.join(os.environ['HOME'],
-                                               "CODE/datasets/abide_preproc",
+        subject_data.output_dir = os.path.join(ABIDE_OUTPUT_DIR,
                                                subject_data.subject_id)
         yield subject_data
 
 # run preproc pipeline
-do_subjects_preproc(_abide_factory(), fwhm=[8, 8, 8])
+do_subjects_preproc(_abide_factory(), fwhm=[8, 8, 8],
+                    output_dir=ABIDE_OUTPUT_DIR,
+                    dataset_id='ABIDE')
 
 if 0x1:
     for (with_anat, do_segment, do_normalize,

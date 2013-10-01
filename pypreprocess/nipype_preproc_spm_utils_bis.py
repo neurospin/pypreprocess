@@ -7,6 +7,7 @@
 import numpy as np
 import nibabel
 import os
+import sys
 import shutil
 import glob
 import time
@@ -41,7 +42,12 @@ from .reporting.base_reporter import (Thumbnail,
                                       copy_web_conf_files,
                                       get_subject_report_html_template,
                                       get_subject_report_preproc_html_template,
-                                      # get_subject_report_log_html_template
+                                      get_dataset_report_preproc_html_template,
+                                      get_dataset_report_html_template,
+                                      get_dataset_report_log_html_template,
+                                      dict_to_html_ul,
+                                      get_module_source_code,
+                                      commit_subject_thumnbail_to_parent_gallery
                                       )
 from .reporting.preproc_reporter import (generate_preproc_undergone_docstring,
                                          generate_realignment_thumbnails,
@@ -285,7 +291,7 @@ def _do_subject_realign(subject_data, nipype_cached,
     # generate report
     if do_report:
         # generate realignment thumbs
-        generate_realignment_thumbnails(
+        thumbs = generate_realignment_thumbnails(
             subject_data.realignment_parameters,
             subject_data.output_dir,
             sessions=subject_data.session_id,
@@ -294,6 +300,8 @@ def _do_subject_realign(subject_data, nipype_cached,
                 subject_data.output_dir),
             results_gallery=results_gallery
             )
+
+        subject_data.final_thumbnail.img.src = thumbs['rp_plot']
 
     return subject_data
 
@@ -399,7 +407,7 @@ def _do_subject_coregister(subject_data, nipype_cached, joblib_cached,
 
     # report coreg
     if do_report:
-        generate_coregistration_thumbnails(
+        thumbs = generate_coregistration_thumbnails(
             (coreg_target, ref_brain),
             (coreg_result.outputs.coregistered_source, src_brain),
             subject_data.output_dir,
@@ -408,6 +416,8 @@ def _do_subject_coregister(subject_data, nipype_cached, joblib_cached,
                 subject_data.output_dir),
             results_gallery=results_gallery
             )
+
+        subject_data.final_thumbnail.img.src = thumbs['axial']
 
     return subject_data
 
@@ -521,7 +531,7 @@ def _do_subject_segment(subject_data, nipype_cached, do_normalize=False,
         for brain_name, brain, cmap in zip(
             ['anat', 'func'], [subject_data.anat, subject_data.func],
             [cm.gray, cm.spectral]):
-            generate_segmentation_thumbnails(
+            thumbs = generate_segmentation_thumbnails(
                 subject_data.anat,
                 subject_data.output_dir,
                 subject_gm_file=subject_data.gm,
@@ -535,6 +545,9 @@ def _do_subject_segment(subject_data, nipype_cached, do_normalize=False,
                     subject_data.output_dir),
                 results_gallery=results_gallery
                 )
+
+            if brain_name == 'func':
+                subject_data.final_thumbnail.img.src = thumbs['axial']
 
     return subject_data
 
@@ -679,7 +692,7 @@ def _do_subject_normalize(subject_data, nipype_cached, fwhm=0., do_report=True,
         if do_report:
             # generate segmentation thumbs
             if segmented:
-                generate_segmentation_thumbnails(
+                thumbs = generate_segmentation_thumbnails(
                     subject_data.anat,
                     subject_data.output_dir,
                     subject_gm_file=subject_data.wgm,
@@ -695,6 +708,9 @@ def _do_subject_normalize(subject_data, nipype_cached, fwhm=0., do_report=True,
                     results_gallery=results_gallery
                     )
 
+                if brain_name == 'func':
+                    subject_data.final_thumbnail.img.src = thumbs['axial']
+
             # generate normalization thumbs
             generate_normalization_thumbnails(
                 normalize_result.outputs.normalized_files,
@@ -706,11 +722,13 @@ def _do_subject_normalize(subject_data, nipype_cached, fwhm=0., do_report=True,
                 results_gallery=results_gallery,
                 )
 
+            if not segmented and brain_name == 'func':
+                subject_data.final_thumbnail.img.src = thumbs['axial']
+
     return subject_data
 
 
 def _do_subject_smooth(subject_data, _nipype_cached, fwhm,
-                       do_report=True, results_gallery=None,
                        ignore_exception=False):
     """
     Wrapper for running spm.Smooth with optional reporting.
@@ -723,9 +741,6 @@ def _do_subject_smooth(subject_data, _nipype_cached, fwhm,
 
     nipype_cached: nipype memroy cache
         Wrapper for running node with nipype.caching.Memory
-
-    do_report: bool, optional (default True)
-       flag controlling whether post-preprocessing reports should be generated
 
     results_gallery: `ResultsGallery` object
        initialized results gallery for the subject being preprocessed; new QA
@@ -778,6 +793,7 @@ def do_subject_preproc(
     fwhm=0.,
     hard_link_output=True,
     do_report=True,
+    parent_results_gallery=None,
     last_stage=True,
     ignore_exception=False
     ):
@@ -908,10 +924,12 @@ def do_subject_preproc(
         results_gallery = ResultsGallery(
             loader_filename=loader_filename,
             title="Report for subject %s" % subject_data.subject_id)
-        final_thumbnail = Thumbnail()
-        final_thumbnail.a = a(href=report_preproc_filename)
-        final_thumbnail.img = img()
-        final_thumbnail.description = subject_data.subject_id
+
+        # final thumbnail most representative of this subject's QA
+        subject_data.final_thumbnail = Thumbnail()
+        subject_data.final_thumbnail.a = a(href=report_preproc_filename)
+        subject_data.final_thumbnail.img = img(src=None)
+        subject_data.final_thumbnail.description = subject_data.subject_id
 
         # copy web stuff to subject output dir
         copy_web_conf_files(subject_data.output_dir)
@@ -962,6 +980,12 @@ def do_subject_preproc(
                 progress_logger.finish(report_preproc_filename)
 
                 if last_stage:
+                    if not parent_results_gallery is None:
+                        commit_subject_thumnbail_to_parent_gallery(
+                            subject_data.final_thumbnail,
+                            subject_data.subject_id,
+                            parent_results_gallery)
+
                     progress_logger.finish_dir(subject_data.output_dir)
 
                 print ("\r\nPreproc report for subject %s written to %s"
@@ -1036,7 +1060,13 @@ def do_subject_preproc(
 
 
 def do_subjects_preproc(subject_factory,
+                        output_dir=None,
                         n_jobs=None,
+                        do_report=True,
+                        dataset_id="UNKNOWN!",
+                        dataset_description="",
+                        prepreproc_undergone="",
+                        shutdown_reloaders=True,
                         **do_subject_preproc_kwargs
                         ):
     """
@@ -1064,9 +1094,119 @@ def do_subjects_preproc(subject_factory,
 
     """
 
+    # sanitize output_dir
+    if not output_dir is None:
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
     # configure number of jobs
     n_jobs = int(os.environ['N_JOBS']) if 'N_JOBS' in os.environ else (
         -1 if n_jobs is None else n_jobs)
+
+    # get caller module handle from stack-frame
+    user_script_name = sys.argv[0]
+    user_source_code = get_module_source_code(
+        user_script_name)
+
+    preproc_undergone = ""
+
+    preproc_undergone += generate_preproc_undergone_docstring(
+        prepreproc_undergone=prepreproc_undergone,
+        **do_subject_preproc_kwargs
+        )
+
+    # generate html report (for QA) as desired
+    parent_results_gallery = None
+    if do_report:
+        copy_web_conf_files(output_dir)
+
+        report_log_filename = os.path.join(
+            output_dir, 'report_log.html')
+        report_preproc_filename = os.path.join(
+            output_dir, 'report_preproc.html')
+        report_filename = os.path.join(
+            output_dir, 'report.html')
+
+        # scrape this function's arguments
+        preproc_params = ""
+        frame = inspect.currentframe()
+        args, _, _, values = inspect.getargvalues(frame)
+        preproc_func_name = inspect.getframeinfo(frame)[2]
+        preproc_params += ("Function <i>%s(...)</i> was invoked by the script"
+                           " <i>%s</i> with the following arguments:"
+                           ) % (preproc_func_name, user_script_name)
+        args_dict = dict((arg, values[arg]) for arg in args if not arg in [
+                "dataset_description",
+                "report_filename",
+                "do_report",
+                "do_cv_tc",
+                "do_export_report",
+                "do_shutdown_reloaders",
+                "subjects",
+                # add other args to exclude below
+                ])
+        args_dict['output_dir'] = output_dir
+        preproc_params += dict_to_html_ul(
+            args_dict
+            )
+
+        # initialize results gallery
+        loader_filename = os.path.join(
+            output_dir, "results_loader.php")
+        parent_results_gallery = ResultsGallery(
+            loader_filename=loader_filename,
+            refresh_timeout=30,
+            )
+
+        # initialize progress bar
+        progress_logger = ProgressReport(
+            report_log_filename,
+            other_watched_files=[report_filename,
+                                 report_preproc_filename])
+
+        # html markup
+        log = get_dataset_report_log_html_template(
+            ).substitute(
+            start_time=time.ctime(),
+            )
+
+        preproc = get_dataset_report_preproc_html_template(
+            ).substitute(
+            results=parent_results_gallery,
+            start_time=time.ctime(),
+            preproc_undergone=preproc_undergone,
+            dataset_description=dataset_description,
+            source_code=user_source_code,
+            source_script_name=user_script_name,
+            preproc_params=preproc_params
+            )
+
+        main_html = get_dataset_report_html_template(
+            ).substitute(
+            results=parent_results_gallery,
+            start_time=time.ctime(),
+            dataset_id=dataset_id,
+            )
+
+        with open(report_log_filename, 'w') as fd:
+            fd.write(str(log))
+            fd.close()
+        with open(report_preproc_filename, 'w') as fd:
+            fd.write(str(preproc))
+            fd.close()
+        with open(report_filename, 'w') as fd:
+            fd.write(str(main_html))
+            fd.close()
+
+        def finalize_report():
+            progress_logger.finish(report_preproc_filename)
+
+            if shutdown_reloaders:
+                print "Finishing %s..." % output_dir
+                progress_logger.finish_dir(output_dir)
+
+        do_subject_preproc_kwargs['parent_results_gallery'
+                                  ] = parent_results_gallery
 
     preproc_subject_data = Parallel(n_jobs=n_jobs)(delayed(do_subject_preproc)(
             subject_data, **do_subject_preproc_kwargs
