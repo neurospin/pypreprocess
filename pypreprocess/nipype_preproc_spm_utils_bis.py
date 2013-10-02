@@ -225,7 +225,7 @@ class SubjectData(object):
                                               self.output_dir))
 
 
-def _do_subject_realign(subject_data, nipype_cached,
+def _do_subject_realign(subject_data, nipype_mem=None,
                         do_report=True, results_gallery=None,
                         ignore_exception=False):
     """
@@ -237,7 +237,7 @@ def _do_subject_realign(subject_data, nipype_cached,
         subject data whose functional images (subject_data.func) are to be
         realigned
 
-    nipype_cached: nipype memroy cache
+    nipype_mem: `nipype.caching.Memory` object
         Wrapper for running node with nipype.caching.Memory
 
     do_report: bool, optional (default True)
@@ -271,8 +271,16 @@ def _do_subject_realign(subject_data, nipype_cached,
 
     """
 
+    # prepare for smart caching
+    if nipype_mem is None:
+        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+
+        nipype_mem = NipypeMemory(base_dir=cache_dir)
+
     # configure node
-    realign = nipype_cached(spm.Realign)
+    realign = nipype_mem.cache(spm.Realign)
 
     # run node
     realign_result = realign(
@@ -306,10 +314,11 @@ def _do_subject_realign(subject_data, nipype_cached,
     return subject_data
 
 
-def _do_subject_coregister(subject_data, nipype_cached, joblib_cached,
-                           coreg_anat_to_func,
+def _do_subject_coregister(subject_data, coreg_anat_to_func=False,
+                           nipype_mem=None, joblib_mem=None,
                            ignore_exception=False,
-                           do_report=True, results_gallery=None):
+                           do_report=True, results_gallery=None
+                           ):
     """
     Wrapper for running spm.Coregister with optional reporting.
 
@@ -357,11 +366,26 @@ def _do_subject_coregister(subject_data, nipype_cached, joblib_cached,
 
     """
 
+    # prepare for smart caching
+    if nipype_mem is None:
+        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+
+        nipype_mem = NipypeMemory(base_dir=cache_dir)
+
+    if joblib_mem is None:
+        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+
+            nipype_mem = NipypeMemory(base_dir=cache_dir)
+
     def _save_vol(data, affine, output_filename):
         nibabel.save(nibabel.Nifti1Image(data, affine), output_filename)
 
     # config node
-    coreg = nipype_cached(spm.Coregister)
+    coreg = nipype_mem.cache(spm.Coregister)
     coreg_jobtype = 'estimate'
     apply_to_files = []
     ref_brain = 'anat'
@@ -377,8 +401,7 @@ def _do_subject_coregister(subject_data, nipype_cached, joblib_cached,
             coreg_source = subject_data.anat
     else:
         coreg_target = subject_data.anat
-
-        ref_func = joblib_cached(load_specific_vol)(
+        ref_func = joblib_mem.cache(load_specific_vol)(
             subject_data.func if isinstance(subject_data.func, basestring)
             else subject_data.func[0], 0)[0]
         coreg_source = os.path.join(subject_data.output_dir,
@@ -422,7 +445,7 @@ def _do_subject_coregister(subject_data, nipype_cached, joblib_cached,
     return subject_data
 
 
-def _do_subject_segment(subject_data, nipype_cached, do_normalize=False,
+def _do_subject_segment(subject_data, do_normalize=False, nipype_mem=None,
                         do_report=True, results_gallery=None,
                         ignore_exception=False):
     """
@@ -434,7 +457,7 @@ def _do_subject_segment(subject_data, nipype_cached, do_normalize=False,
         subject data whose anatomical image (subject_data.anat) is to be
         segmented
 
-    nipype_cached: nipype memroy cache
+    nipype_mem: `nipype.caching.Memory` object
         Wrapper for running node with nipype.caching.Memory
 
     do_normalize: bool, optional (default False)
@@ -490,8 +513,16 @@ def _do_subject_segment(subject_data, nipype_cached, do_normalize=False,
 
     """
 
+    # prepare for smart caching
+    if nipype_mem is None:
+        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+
+        nipype_mem = NipypeMemory(base_dir=cache_dir)
+
     # configure node
-    segment = nipype_cached(spm.Segment)
+    segment = nipype_mem.cache(spm.Segment)
     if not do_normalize:
         gm_output_type = [False, False, True]
         wm_output_type = [False, False, True]
@@ -552,7 +583,7 @@ def _do_subject_segment(subject_data, nipype_cached, do_normalize=False,
     return subject_data
 
 
-def _do_subject_normalize(subject_data, nipype_cached, fwhm=0., do_report=True,
+def _do_subject_normalize(subject_data, nipype_mem, fwhm=0., do_report=True,
                           results_gallery=None, ignore_exception=False):
     """
     Wrapper for running spm.Segment with optional reporting.
@@ -605,6 +636,14 @@ def _do_subject_normalize(subject_data, nipype_cached, fwhm=0., do_report=True,
 
     """
 
+    # prepare for smart caching
+    if nipype_mem is None:
+        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+
+        nipype_mem = NipypeMemory(base_dir=cache_dir)
+
     segmented = 'segment' in subject_data.nipype_results
 
     # configure node for normalization
@@ -612,14 +651,14 @@ def _do_subject_normalize(subject_data, nipype_cached, fwhm=0., do_report=True,
         # learn T1 deformation without segmentation
         t1_template = niigz2nii(SPM_T1_TEMPLATE,
                                 output_dir=subject_data.output_dir)
-        normalize = nipype_cached(spm.Normalize)
+        normalize = nipype_mem.cache(spm.Normalize)
         normalize_result = normalize(source=subject_data.anat,
                                      template=t1_template,
                                      )
         parameter_file = normalize_result.outputs.normalization_parameters
-        normalize = nipype_cached(spm.Normalize)
+        normalize = nipype_mem.cache(spm.Normalize)
     else:
-        normalize = nipype_cached(spm.Normalize)
+        normalize = nipype_mem.cache(spm.Normalize)
         parameter_file = subject_data.nipype_results[
             'segment'].outputs.transformation_mat
 
@@ -681,8 +720,7 @@ def _do_subject_normalize(subject_data, nipype_cached, fwhm=0., do_report=True,
             # explicit smoothing
             if np.sum(fwhm) > 0:
                 subject_data = _do_subject_smooth(
-                    subject_data, nipype_cached,
-                    fwhm=fwhm,
+                    subject_data, fwhm, nipype_mem=nipype_mem,
                     ignore_exception=ignore_exception
                     )
         else:
@@ -728,7 +766,7 @@ def _do_subject_normalize(subject_data, nipype_cached, fwhm=0., do_report=True,
     return subject_data
 
 
-def _do_subject_smooth(subject_data, _nipype_cached, fwhm,
+def _do_subject_smooth(subject_data, fwhm, nipype_mem=None,
                        ignore_exception=False):
     """
     Wrapper for running spm.Smooth with optional reporting.
@@ -739,7 +777,7 @@ def _do_subject_smooth(subject_data, _nipype_cached, fwhm,
         subject data whose functional images (subject_data.func) are to be
         smoothed
 
-    nipype_cached: nipype memroy cache
+    nipype_mem: `nipype.caching.Memory` object
         Wrapper for running node with nipype.caching.Memory
 
     results_gallery: `ResultsGallery` object
@@ -767,7 +805,15 @@ def _do_subject_smooth(subject_data, _nipype_cached, fwhm,
 
     """
 
-    smooth = _nipype_cached(spm.Smooth)
+    # prepare for smart caching
+    if nipype_mem is None:
+        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+
+        nipype_mem = NipypeMemory(base_dir=cache_dir)
+
+    smooth = nipype_mem.cache(spm.Smooth)
     in_files, file_types = ravel_filenames(subject_data.func)
     smooth_result = smooth(in_files=in_files,
                            fwhm=fwhm,
@@ -891,12 +937,6 @@ def do_subject_preproc(
     nipype_mem = NipypeMemory(base_dir=cache_dir)
     joblib_mem = JoblibMemory(cache_dir, verbose=100)
 
-    def _nipype_cached(f):
-        return nipype_mem.cache(f)
-
-    def _joblib_cached(f):
-        return joblib_mem.cache(f)
-
     # get ready for reporting
     results_gallery = None
     if do_report:
@@ -996,7 +1036,7 @@ def do_subject_preproc(
     #  motion correction
     #######################
     if do_realign:
-        subject_data = _do_subject_realign(subject_data, _nipype_cached,
+        subject_data = _do_subject_realign(subject_data, nipype_mem=nipype_mem,
                                            do_report=do_report,
                                            results_gallery=results_gallery,
                                            ignore_exception=ignore_exception
@@ -1007,8 +1047,8 @@ def do_subject_preproc(
     ##################################################################
     if do_coreg:
         subject_data = _do_subject_coregister(
-            subject_data, _nipype_cached,
-            _joblib_cached,
+            subject_data, nipype_mem=nipype_mem,
+            joblib_mem=joblib_mem,
             coreg_anat_to_func=coreg_anat_to_func,
             do_report=do_report,
             results_gallery=results_gallery,
@@ -1019,7 +1059,7 @@ def do_subject_preproc(
     # segmentation of anatomical image
     #####################################
     if do_segment:
-        subject_data = _do_subject_segment(subject_data, _nipype_cached,
+        subject_data = _do_subject_segment(subject_data, nipype_mem=nipype_mem,
                                            do_normalize=do_normalize,
                                            do_report=do_report,
                                            results_gallery=results_gallery,
@@ -1031,8 +1071,9 @@ def do_subject_preproc(
     ##########################
     if do_normalize:
         subject_data = _do_subject_normalize(
-            subject_data, _nipype_cached,
-            fwhm=fwhm,  # smooth func after normalization
+            subject_data,
+            fwhm,  # smooth func after normalization
+            nipype_mem=nipype_mem,
             do_report=do_report,
             results_gallery=results_gallery,
             ignore_exception=ignore_exception
@@ -1042,8 +1083,7 @@ def do_subject_preproc(
     # Smooth without Spatial Normalization
     #########################################
     if not do_normalize and np.sum(fwhm) > 0:
-        subject_data = _do_subject_smooth(subject_data, _nipype_cached,
-                                          fwhm=fwhm,
+        subject_data = _do_subject_smooth(subject_data, fwhm, nipype_mem=nipype_mem,
                                           ignore_exception=ignore_exception
                                           )
 
