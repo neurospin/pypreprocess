@@ -54,6 +54,11 @@ def lines2breaks(lines, delimiter="\n", number_lines=False):
     -------
     HTML-formatted string
 
+    Parameters
+    ----------
+    lines: list or string
+       linbes to convert to HTML breaks <br/>
+
     """
 
     if isinstance(lines, basestring):
@@ -84,8 +89,6 @@ def dict_to_html_ul(mydict):
 
     """
 
-    html_ul = ""
-
     def make_li(stuff):
         # handle dict type
         if isinstance(stuff, dict):
@@ -107,10 +110,19 @@ def dict_to_html_ul(mydict):
 
         return val
 
-    for k, v in mydict.iteritems():
-        if not v is None:
-            html_ul += "<li>%s: %s</li>" % (k, make_li(v))
-    html_ul += "</ul>"
+    if isinstance(mydict, basestring):
+        return mydict
+    elif isinstance(mydict, list):
+        return make_li(mydict)
+    elif isinstance(mydict, dict):
+        html_ul = ""
+        for k, v in mydict.iteritems():
+            if not v is None:
+                html_ul += "<li>%s: %s</li>" % (k, make_li(v))
+        html_ul += "</ul>"
+    else:
+        raise TypeError(
+            "Input type must be string, list, or dict, got %s" % mydict)
 
     return html_ul
 
@@ -316,8 +328,12 @@ class ResultsGallery(object):
             loader_fd.close()
 
     def commit_thumbnails(self, thumbnails, id=None):
+        # sanitize thumbnail
         if not type(thumbnails) is list:
             thumbnails = [thumbnails]
+
+        for thumbnail in thumbnails:
+            thumbnail.description = dict_to_html_ul(thumbnail.description)
 
         self.raw = get_gallery_html_markup().substitute(thumbnails=thumbnails)
 
@@ -440,7 +456,7 @@ class ProgressReport(object):
 
             old_state = ("<font color=red><i>STILL RUNNING .."
                          "</i><blink>.</blink></font>")
-            new_state = "Ended: %s" % time.ctime()
+            new_state = "Ended: %s" % pretty_time()
             new_content = content.replace(old_state, new_state)
             with open(filename, 'w') as o_fd:
                 o_fd.write(new_content)
@@ -723,3 +739,12 @@ def copy_report_files(src, dst):
         for x in glob.glob(os.path.join(src,
                                         "*.%s" % ext)):
             shutil.copy(x, dst)
+
+
+def pretty_time():
+    """
+    Returns currenct time in the format: hh:mm:ss ddd mmm yyyy
+
+    """
+
+    return " ".join([time.ctime().split(" ")[i] for i in [3, 0, 2, 1, 4]])

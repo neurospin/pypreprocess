@@ -10,6 +10,7 @@
 {{default activation_colorbar_image = "activation_colorbar.png"}}
 {{default report_html = "report.html"}}
 {{default conf_path = "."}}
+{{default threshold = None}}
 {{default cmap = None}}
 {{default title="GLM and Statistical Inference"}}
 {{default source_script_name = None}}
@@ -28,6 +29,7 @@
   <body>
     <object data="{{report_html}}"></object>
     <h2>{{title}}</h2>
+    <font color=red>ONLY WORKS ON FIREFOX!</font><br/><br/>
     Started: {{start_time}}
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color=red><i>STILL RUNNING ..</i><blink>.</blink></font>
     <br clear="all"/>   
@@ -69,7 +71,7 @@
     <script type="text/javascript">
       $('#activation').load("{{activation_thumbs}}").fadeIn("slow");
     </script>
-    <b>Thresholded activation maps</b><br/><br/>
+    <b>Thresholded activation maps{{if not threshold is None}} (threshold = {{threshold}}){{endif}}</b><br/><br/>
     Below are thresholded activation z-maps{{if not cmap is None}} (<b>cmap = "{{cmap}}"</b>){{endif}} for the different contrasts of interest. Click on a thumbnail for more details.<br/>
     <br clear="all"/>
     <center><img src="{{activation_colorbar_image}}" /></center> <!-- centralized colorbar for activations-->

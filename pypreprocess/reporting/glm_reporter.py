@@ -167,6 +167,7 @@ def generate_subject_stats_report(
     cluster_th=0,
     cmap=viz.cm.cold_hot,
     start_time=None,
+    title=None,
     user_script_name=None,
     progress_logger=None,
     shutdown_all_reloaders=True,
@@ -273,6 +274,7 @@ Z>%s voxel-level.
 
     # report the control parameters used in the paradigm and analysis
     design_params = ""
+    glm_kwargs["contrasts"] = contrasts
     if len(glm_kwargs):
         design_params += ("The following control parameters were used for  "
                     " specifying the experimental paradigm and fitting the "
@@ -281,15 +283,16 @@ Z>%s voxel-level.
         design_params += base_reporter.dict_to_html_ul(glm_kwargs)
 
     if start_time is None:
-        start_time = time.ctime()
+        start_time = base_reporter.pretty_time()
 
-    report_title = "GLM and Statistical Inference"
-    if not subject_id is None:
-        report_title += " for subject %s" % subject_id
+    if title is None:
+        title = "GLM and Statistical Inference"
+        if not subject_id is None:
+            title += " for subject %s" % subject_id
 
     level1_html_markup = base_reporter.get_subject_report_stats_html_template(
         ).substitute(
-        title=report_title,
+        title=title,
         start_time=start_time,
         subject_id=subject_id,
 
@@ -299,6 +302,7 @@ Z>%s voxel-level.
 
         design_params=design_params,
         methods=methods,
+        threshold=threshold,
         cmap=cmap.name)
 
     with open(stats_report_filename, 'w') as fd:
@@ -309,6 +313,9 @@ Z>%s voxel-level.
 
     # create design matrix thumbs
     if not design_matrices is None:
+        if not hasattr(design_matrices, '__len__'):
+            design_matrices = [design_matrices]
+
         for design_matrix, j in zip(design_matrices,
                                     xrange(len(design_matrices))):
             # sanitize design_matrix type
@@ -322,13 +329,13 @@ Z>%s voxel-level.
                 else:
                     # XXX handle case of .png, jpeg design matrix image
                     raise TypeError(
-                        "Unsupported design matrix type '%'" % type(
+                        "Unsupported design matrix type: %s" % type(
                             design_matrix))
             elif isinstance(design_matrix, np.ndarray) or isinstance(
                 design_matrix,
                 list):
                 X = np.array(design_matrix)
-                assert len(X.shape) == 2
+                # assert len(X.shape) == 2
                 conditions = ['%i' % i for i in xrange(X.shape[-1])]
                 design_matrix = DesignMatrix(X, conditions)
             # else:
@@ -368,7 +375,8 @@ Z>%s voxel-level.
     _vmin = threshold
     for j in xrange(len(contrasts)):
         contrast_id = contrasts.keys()[j]
-        contrast_val = contrasts[contrast_id]
+        contrast_val = "[" + ", ".join([str(x)
+                                        for x in contrasts[contrast_id]]) + "]"
         z_map = z_maps[contrast_id]
 
         # load the map
@@ -399,8 +407,8 @@ Z>%s voxel-level.
                      cmap=cmap,
                      anat=anat,
                      anat_affine=anat_affine,
-                     vmin=vmin,
-                     vmax=vmax,
+                     # vmin=vmin,
+                     # vmax=vmax,
                      threshold=threshold,
                      slicer=slicer,
                      cut_coords=cut_coords,

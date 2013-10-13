@@ -472,50 +472,50 @@ def do_3Dto4D_merge(
     return fourD_img
 
 
-def resample_img(input_img_filename,
-                 new_vox_dims, output_img_filename=None):
-    """Resamples an image to a new resolution
+# def resample_img(input_img_filename,
+#                  new_vox_dims, output_img_filename=None):
+#     """Resamples an image to a new resolution
 
-    Parameters
-    ----------
-    input_img_filename: string
-        path to image to be resampled
+#     Parameters
+#     ----------
+#     input_img_filename: string
+#         path to image to be resampled
 
-    new_vox_dims: list or tuple of +ve floats
-        new vox dimensions to which the image is to be resampled
+#     new_vox_dims: list or tuple of +ve floats
+#         new vox dimensions to which the image is to be resampled
 
-    output_img_filename: string (optional)
-        where output image will be written
+#     output_img_filename: string (optional)
+#         where output image will be written
 
-    Returns
-    -------
-    output_img_filename: string
-        where the resampled img has been written
+#     Returns
+#     -------
+#     output_img_filename: string
+#         where the resampled img has been written
 
-    """
+#     """
 
-    # sanity
-    if output_img_filename is None:
-        output_img_filename = os.path.join(
-            os.path.dirname(input_img_filename),
-            "resample_" + os.path.basename(input_img_filename))
+#     # sanity
+#     if output_img_filename is None:
+#         output_img_filename = os.path.join(
+#             os.path.dirname(input_img_filename),
+#             "resample_" + os.path.basename(input_img_filename))
 
-    # prepare for smart-caching
-    output_dir = os.path.dirname(output_img_filename)
-    cache_dir = os.path.join(output_dir, "resample_img_cache")
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    mem = joblib.Memory(cachedir=cache_dir, verbose=5)
+#     # prepare for smart-caching
+#     output_dir = os.path.dirname(output_img_filename)
+#     cache_dir = os.path.join(output_dir, "resample_img_cache")
+#     if not os.path.exists(cache_dir):
+#         os.makedirs(cache_dir)
+#     mem = joblib.Memory(cachedir=cache_dir, verbose=5)
 
-    # resample input img to new resolution
-    resampled_img = mem.cache(resampling.resample_img)(
-        input_img_filename,
-        target_affine=np.diag(new_vox_dims))
+#     # resample input img to new resolution
+#     resampled_img = mem.cache(resampling.resample_img)(
+#         input_img_filename,
+#         target_affine=np.diag(new_vox_dims))
 
-    # save resampled img
-    nibabel.save(resampled_img, output_img_filename)
+#     # save resampled img
+#     nibabel.save(resampled_img, output_img_filename)
 
-    return output_img_filename
+#     return output_img_filename
 
 
 def compute_mean_image(images, output_filename=None, threeD=False):
@@ -540,12 +540,13 @@ def compute_mean_image(images, output_filename=None, threeD=False):
     all_data = []
     all_affine = []
     for image in images:
-        if isinstance(image, basestring):
-            image = nibabel.load(image)
-        else:
-            image = nibabel.concat_images(image,
-                                          check_affines=False
-                                          )
+        if not is_niimg(image):
+            if isinstance(image, basestring):
+                image = nibabel.load(image)
+            else:
+                image = nibabel.concat_images(image,
+                                              check_affines=False
+                                              )
         data = image.get_data()
 
         if threeD:
@@ -608,6 +609,8 @@ def hard_link(filenames, output_dir):
 
     """
 
+    assert filenames
+
     if isinstance(filenames, basestring):
         filenames = [filenames]
         if filenames[0].endswith(".img"):
@@ -618,18 +621,25 @@ def hard_link(filenames, output_dir):
         hardlinked_filenames = [os.path.join(
             output_dir, os.path.basename(x)) for x in filenames]
 
-        for x, y in zip(filenames, hardlinked_filenames):
-            print "\tHardlinking %s -> %s ..." % (x, y)
+        for src, dst in zip(filenames, hardlinked_filenames):
+            if dst == src:
+                # same file
+                continue
+
+            print "\tHardlinking %s -> %s ..." % (src, dst)
+
+            assert os.path.isfile(src), "src file %s doesn't exist" % src
 
             # unlink if link already exists
-            if os.path.exists(y):
-                os.unlink(y)
+            if os.path.exists(dst):
+                os.unlink(dst)
 
             # hard-link the file proper
             try:
-                os.link(x, y)
+                os.link(src, dst)
             except OSError:
-                shutil.copy(x, y)
+                # cross linking on different devices ?
+                shutil.copy(src, dst)
 
         return hardlinked_filenames[0]
     else:
@@ -837,3 +847,46 @@ def unravel_filenames(filenames, file_types):
         filenames = _tmp
 
     return filenames
+
+
+def niigz2nii(ifilename, output_dir=None):
+    """
+    Converts .nii.gz to .nii (SPM doesn't support .nii.gz images).
+
+    Parameters
+    ----------
+    ifilename: string, of list of strings
+        input filename of image to be extracted
+
+    output_dir: string, optional (default None)
+        output directory to which exctracted file will be written.
+        If no value is given, the output will be written in the parent
+        directory of ifilename
+
+    Returns
+    -------
+    ofilename: string
+        filename of extracted image
+
+    """
+
+    if isinstance(ifilename, list):
+        return [niigz2nii(x, output_dir=output_dir) for x in ifilename]
+    else:
+        assert isinstance(ifilename, basestring), (
+            "ifilename must be string or list of strings, got %s" % type(
+                ifilename))
+
+    if not ifilename.endswith('.nii.gz'):
+        return ifilename
+
+    ofilename = ifilename[:-3]
+    if not output_dir is None:
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        ofilename = os.path.join(output_dir, os.path.basename(ofilename))
+
+    nibabel.save(nibabel.load(ifilename), ofilename)
+
+    return ofilename

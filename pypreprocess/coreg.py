@@ -67,7 +67,7 @@ def compute_similarity_from_jhist(jh, fwhm=[7, 7], cost_fun='nmi'):
     fwhm = fwhm[:2]
 
     # smoothing the jh
-    if 0x1:
+    if 0x1:  # XXX this is dirty
         # create separable filter
         lim  = np.ceil(fwhm * 2)
         krn1 = centered_smoothing_kernel(fwhm[0],
@@ -124,7 +124,7 @@ def compute_similarity_from_jhist(jh, fwhm=[7, 7], cost_fun='nmi'):
     return o
 
 
-def compute_similarity(x, ref, src, ref_affine, src_affine, grid,
+def compute_similarity(params, ref, src, ref_affine, src_affine, grid,
                        cost_fun='nmi', fwhm=[7, 7], bins=(256, 256)):
     """
     Computes the similarity between the reference image (ref) and the moving
@@ -134,7 +134,7 @@ def compute_similarity(x, ref, src, ref_affine, src_affine, grid,
 
     Parameters
     ----------
-    x: 1D array of 6 floats
+    params: 1D array of 6 floats
         current affine motion parameters; specifies an affine transformation
         matrix
 
@@ -175,10 +175,10 @@ def compute_similarity(x, ref, src, ref_affine, src_affine, grid,
     """
 
     # compute affine transformation matrix
-    x = np.array(x)
+    params = np.array(params)
     M = np.dot(scipy.linalg.lstsq(src_affine,
-                                  spm_matrix(x))[0],
-                                  ref_affine)
+                                  spm_matrix(params))[0],
+               ref_affine)
 
     # create the joint histogram
     jh = joint_histogram(ref.copy(), src.get_data(), grid=grid, M=M, bins=bins)
@@ -187,16 +187,16 @@ def compute_similarity(x, ref, src, ref_affine, src_affine, grid,
     return compute_similarity_from_jhist(jh, fwhm=fwhm, cost_fun=cost_fun)
 
 
-def _run_powell(x0, xi, tolsc, *otherargs):
+def _run_powell(params, direct, tolsc, *otherargs):
     """
     Run Powell optimization.
 
     Parameters
     ----------
-    x0: 1D array of 6 floats
+    params: 1D array of 6 floats
         starting estimates for realignment parameters
 
-    xi: 2D array of shape (n_directions, 6)
+    direc: 2D array of shape (n_directions, 6)
         search directions for Brent's line-search
 
     tolsc: 1D array of 6 floats
@@ -215,7 +215,7 @@ def _run_powell(x0, xi, tolsc, *otherargs):
 
     def _compute_similarity(x):
         """
-        Just a sandbox.
+        Run compute_similarity API with verbose reporting.
 
         """
 
@@ -229,8 +229,8 @@ def _run_powell(x0, xi, tolsc, *otherargs):
         return output
 
     # fire!
-    return scipy.optimize.fmin_powell(_compute_similarity, x0,
-                                      direc=xi,
+    return scipy.optimize.fmin_powell(_compute_similarity, params,
+                                      direc=direc,
                                       xtol=min(np.min(tolsc), 1e-3),
                                       )
 
@@ -286,7 +286,7 @@ class Coregister(object):
 
     def __init__(self,
                  sep=np.array([4, 2]),
-                 params=np.zeros(6),
+                 params_init=np.zeros(6),
                  tol=np.array([.02, .02, .02, .001, .001, .001]),
                  cost_fun="nmi",
                  smooth_vols=True,
@@ -294,20 +294,14 @@ class Coregister(object):
                  bins=(256, 256),
                  verbose=1
                  ):
-
-        self.sep = np.array(sep)
-        self.params = np.array(params)
-        self.tol = np.array(tol)
+        self.sep = sep
+        self.params_init = params_init
+        self.tol = tol
         self.cost_fun = cost_fun
-        self.fwhm = np.array(fwhm)
+        self.fwhm = fwhm
         self.bins = bins
         self.smooth_vols = smooth_vols
         self.verbose = verbose
-
-        # configure the Powell optimizer
-        self.sc = np.array(tol)
-        self.sc = self.sc[:len(params)]
-        self.xi = np.diag(self.sc * 20)
 
     def _log(self, msg):
         """Logs a message, according to verbose level.
@@ -351,6 +345,11 @@ class Coregister(object):
 
         """
 
+        # configure the Powell optimizer
+        self.sc_ = np.array(self.tol)
+        self.sc = self.sc[:len(self.params_init)]
+        self.search_direc_ = np.diag(self.sc_ * 20)
+
         # load vols
         ref = loaduint8(ref)
         src = loaduint8(src)
@@ -383,7 +382,7 @@ class Coregister(object):
                                       src.get_affine())
 
         # pyramidal loop
-        self.params_ = np.array(self.params)
+        self.params_ = np.array(self.params_init)
         for samp in self.sep:
             print ("\r\nRunning Powell gradient-less local optimization "
                    "(pyramidal level = %smm)...") % samp

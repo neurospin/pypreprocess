@@ -343,6 +343,9 @@ def apply_realignment(vols, rp, inverse=True):
     # get number of scans
     _, n_scans = load_specific_vol(vols, 0)
 
+    if n_scans == 1:
+        vols = [load_specific_vol(vols, 0)[0]]
+
     # sanitize rp
     rp = np.array(rp)
     if rp.ndim == 1:

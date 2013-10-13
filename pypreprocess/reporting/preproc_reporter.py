@@ -27,6 +27,7 @@ from ..io_utils import (compute_mean_3D_image,
                         )
 from .base_reporter import (Thumbnail,
                             ResultsGallery,
+                            ProgressReport,
                             a,
                             img,
                             lines2breaks,
@@ -35,7 +36,10 @@ from .base_reporter import (Thumbnail,
                             get_subject_report_html_template,
                             get_subject_report_preproc_html_template,
                             PYPREPROCESS_URL,
-                            ROOT_DIR
+                            DARTEL_URL,
+                            ROOT_DIR,
+                            commit_subject_thumnbail_to_parent_gallery,
+                            get_dataset_report_log_html_template
                             )
 
 # set templates
@@ -89,7 +93,9 @@ def generate_preproc_undergone_docstring(
     coreg_func_to_anat=False,
     do_segment=False,
     do_normalize=False,
-    additional_preproc_undergone=""):
+    do_dartel=False,
+    additional_preproc_undergone="",
+    **other_params):
     """
     Generates a brief description of the pipeline used in the preprocessing.
 
@@ -136,7 +142,7 @@ def generate_preproc_undergone_docstring(
         preproc_undergone += (
             "<li>"
             "Motion correction has been done so as to estimate, and then "
-            "correct for, subject's head motion during the acquisition."
+            "correct for, subject's head motion."
             "</li>"
             )
     if do_coreg:
@@ -164,8 +170,8 @@ def generate_preproc_undergone_docstring(
         preproc_undergone += (
             "<li>"
             "Tissue Segmentation has been employed to segment the "
-            "anatomical image into GM, WM, and CSF compartments by using "
-            "TPMs (Tissue Probability Maps) as priors.</li>")
+            "anatomical image into GM, WM, and CSF compartments, using "
+            "template TPMs (Tissue Probability Maps).</li>")
     if do_normalize:
         if do_segment:
             preproc_undergone += (
@@ -187,6 +193,38 @@ def generate_preproc_undergone_docstring(
                 "<li>"
                 "The functional images have been warped from native to "
                 "standard space via classical normalization.</li>")
+    if do_dartel:
+        preproc_undergone += (
+            "<li>"
+            "Group/Inter-subject Normalization has been done using the "
+            "SPM8 <a href='%s'>DARTEL</a> to warp subject brains into "
+            "MNI space. "
+            "The idea is to register images by computing a &ldquo;flow"
+            " field&rdquo; which can then be &ldquo;exponentiated"
+            "&rdquo; to generate both forward and backward deformation"
+            "s. Processing begins with the &ldquo;import&rdquo; "
+            "step. This involves taking the parameter files "
+            "produced by the segmentation (NewSegment), and writing "
+            "out rigidly "
+            "transformed versions of the tissue class images, "
+            "such that they are in as close alignment as possible with"
+            " the tissue probability maps. &nbsp; "
+            "The next step is the registration itself. This involves "
+            "the simultaneous registration of e.g. GM with GM, "
+            "WM with WM and 1-(GM+WM) with 1-(GM+WM) (when needed, the"
+            " 1- (GM+WM) class is generated implicitly, so there "
+            "is no need to include this class yourself). This "
+            "procedure begins by creating a mean of all the images, "
+            "which is used as an initial template. Deformations "
+            "from this template to each of the individual images "
+            "are computed, and the template is then re-generated"
+            " by applying the inverses of the deformations to "
+            "the images and averaging. This procedure is repeated a "
+            "number of times. &nbsp;Finally, warped "
+            "versions of the images (or other images that are in "
+            "alignment with them) can be generated. "
+            "</li>") % DARTEL_URL
+
     if additional_preproc_undergone:
         preproc_undergone += additional_preproc_undergone
     if not fwhm is None:
