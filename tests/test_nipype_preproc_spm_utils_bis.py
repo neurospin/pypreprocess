@@ -5,59 +5,11 @@ import nibabel
 from ._test_utils import create_random_image
 from ..pypreprocess.nipype_preproc_spm_utils_bis import (niigz2nii,
                                                          SubjectData,
-                                                         do_subject_preproc
+                                                         _do_subject_realign
                                                          )
-
-
-def test_niigz2nii_with_filename():
-    # create and save .nii.gz image
-    img = create_random_image()
-    ifilename = '/tmp/toto.nii.gz'
-    nibabel.save(img, ifilename)
-
-    # convert img to .nii
-    ofilename = niigz2nii(ifilename, output_dir='/tmp/titi')
-
-    # checks
-    nose.tools.assert_equal(ofilename, '/tmp/titi/toto.nii')
-    nibabel.load(ofilename)
-
-
-def test_niigz2nii_with_list_of_filenames():
-    # creates and save .nii.gz image
-    ifilenames = []
-    for i in xrange(4):
-        img = create_random_image()
-        ifilename = '/tmp/img%i.nii.gz' % i
-        nibabel.save(img, ifilename)
-        ifilenames.append(ifilename)
-
-    # convert imgs to .nii
-    ofilenames = niigz2nii(ifilenames, output_dir='/tmp/titi')
-
-    # checks
-    nose.tools.assert_equal(len(ifilenames), len(ofilenames))
-    for x in xrange(len(ifilenames)):
-        nibabel.load(ofilenames[x])
-
-
-def test_niigz2nii_with_list_of_lists_of_filenames():
-    # creates and save .nii.gz image
-    ifilenames = []
-    for i in xrange(4):
-        img = create_random_image()
-        ifilename = '/tmp/img%i.nii.gz' % i
-        nibabel.save(img, ifilename)
-        ifilenames.append(ifilename)
-
-    # convert imgs to .nii
-    ofilenames = niigz2nii([ifilenames], output_dir='/tmp/titi')
-
-    # checks
-    nose.tools.assert_equal(1, len(ofilenames))
-    for x in xrange(len(ofilenames[0])):
-        nibabel.load(ofilenames[0][x])
-
+from ..pypreprocess.datasets import (fetch_spm_auditory_data,
+                                     fetch_spm_multimodal_fmri_data
+                                     )
 
 def test_subject_data():
     # create subject data
@@ -77,6 +29,13 @@ def test_subject_data():
     nose.tools.assert_equal(sd.anat, '/tmp/kimbo/sub001/anat.nii')
     nose.tools.assert_equal(sd.session_id, ['session_0'])
 
+
+def test_do_subject_realign():
+    sd = fetch_spm_auditory_data(os.path.join(os.environ['HOME'],
+                                              "CODE/datasets/spm_auditory"))
+    subject_data = SubjectData(func=sd.func, anat=sd.anat,
+                               output_dir="/tmp/toto/sub001")
+    subject_data = _do_subject_realign(subject_data)
 
 # run all tests
 nose.runmodule(config=nose.config.Config(

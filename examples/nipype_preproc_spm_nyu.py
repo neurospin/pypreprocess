@@ -12,7 +12,7 @@ python nipype_preproc_spm_nyu.py
 
 import os
 import sys
-from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
+from pypreprocess.nipype_preproc_spm_utils_bis import (do_subjects_preproc,
                                                    SubjectData
                                                    )
 from pypreprocess.datasets import fetch_nyu_rest
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     if len(sys.argv) < 3:
         print ("\r\nUsage: source /etc/fsl/4.1/fsl.sh; python %s "
                "<NYU_data_dir> <output_dir>") % sys.argv[0]
-        print ("Example: source /etc/fsl/4.1/fsl.sh; python %s "
+        print ("\r\nExample:\r\nsource /etc/fsl/4.1/fsl.sh; python %s "
                "~/CODE/datasets/nyu_data nyu_runs\r\n") % sys.argv[0]
         sys.exit(-1)
 
@@ -58,7 +58,7 @@ if __name__ == '__main__':
         os.makedirs(OUTPUT_DIR)
 
     # fetch data
-    nyu_data = fetch_nyu_rest(data_dir=sys.argv[1], sessions=[1, 2, 3])
+    nyu_data = fetch_nyu_rest(data_dir=sys.argv[1], sessions=[1], n_subjects=7)
 
     # subject data factory
     def subject_factory(session_output_dir, session):
@@ -81,18 +81,14 @@ if __name__ == '__main__':
             subject_data.session_id = session
 
             # set func
-            subject_data.func = [
-                x.replace(".gz", "") for x in session_func if subject_id in x]
+            subject_data.func = [x for x in session_func if subject_id in x]
             assert len(subject_data.func) == 1
             subject_data.func = subject_data.func[0]
-            unzip_nii_gz(os.path.dirname(subject_data.func))
 
             # set anat
-            subject_data.anat = [
-                x.replace(".gz", "") for x in session_anat if subject_id in x]
+            subject_data.anat = [x for x in session_anat if subject_id in x]
             assert len(subject_data.anat) == 1
             subject_data.anat = subject_data.anat[0]
-            unzip_nii_gz(os.path.dirname(subject_data.anat))
 
             # set subject output directory
             subject_data.output_dir = os.path.join(
@@ -114,7 +110,6 @@ if __name__ == '__main__':
             do_dartel=DARTEL,
             dataset_id="NYU Test/Retest session %i" % session,
             dataset_description=DATASET_DESCRIPTION,
-            do_export_report=True,
             )
 
     print "\r\nDone (NYU Test/Retest)."

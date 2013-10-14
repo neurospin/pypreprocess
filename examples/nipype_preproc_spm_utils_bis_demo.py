@@ -27,14 +27,18 @@ def _abide_factory(institute="KKI"):
             scans, "anat/resources/NIfTI/files/mprage.nii")
         subject_data.output_dir = os.path.join(ABIDE_OUTPUT_DIR,
                                                subject_data.subject_id)
+
         yield subject_data
 
 # run preproc pipeline
 do_subjects_preproc(_abide_factory(), fwhm=[8, 8, 8],
                     output_dir=ABIDE_OUTPUT_DIR,
-                    dataset_id='ABIDE')
+                    dataset_id='ABIDE',
+                    # do_report=False,
+                    # do_dartel=True
+                    )
 
-if 0x1:
+if 0x0:
     for (with_anat, do_segment, do_normalize,
          fwhm, hard_link_output) in itertools.product(
         [False, True], [False, True], [False, True], [0, 8, [8, 8, 8]],
@@ -56,8 +60,9 @@ if 0x1:
         subject_data2.output_dir = "/tmp/kiki/sub001/"
 
         do_subjects_preproc([subject_data1, subject_data2],
+                            do_dartel=True,
                             do_segment=do_segment,
                             do_normalize=do_normalize,
-                            hard_link_output=hard_link_output,
-                            fwhm=fwhm
+                            fwhm=fwhm,
+                            hard_link_output=hard_link_output
                             )

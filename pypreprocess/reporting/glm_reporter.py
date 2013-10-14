@@ -5,6 +5,7 @@ from nipy.labs import viz
 import nibabel
 import numpy as np
 import nipy.labs.statistical_mapping as sm
+from nipy.labs.viz_tools.coord_tools import _maximally_separated_subset
 from nipy.modalities.fmri.design_matrix import DesignMatrix
 import base_reporter
 import time
@@ -151,6 +152,8 @@ def generate_level1_stats_table(zmap, mask,
     page.write("</center>\n")
     page.close()
 
+    return clusters
+
 
 def generate_subject_stats_report(
     stats_report_filename,
@@ -163,6 +166,7 @@ def generate_subject_stats_report(
     anat_affine=None,
     slicer="z",
     cut_coords=None,
+    statistical_mapping_trick=True,
     threshold=2.3,
     cluster_th=0,
     cmap=viz.cm.cold_hot,
@@ -373,8 +377,7 @@ Z>%s voxel-level.
     # create activation thumbs
     _vmax = 0
     _vmin = threshold
-    for j in xrange(len(contrasts)):
-        contrast_id = contrasts.keys()[j]
+    for contrast_id, contrast_val in contrasts.iteritems():
         contrast_val = "[" + ", ".join([str(x)
                                         for x in contrasts[contrast_id]]) + "]"
         z_map = z_maps[contrast_id]
@@ -402,13 +405,39 @@ Z>%s voxel-level.
                     "Expecting 3D array for ant, got shape %s" % str(
                         anat.shape))
 
+        # generate level 1 stats table
+        title = "Level 1 stats for %s contrast" % contrast_id
+        stats_table = os.path.join(output_dir, "%s_stats_table.html" % (
+                contrast_id))
+        z_clusters = generate_level1_stats_table(
+            z_map, mask,
+            stats_table,
+            cluster_th=cluster_th,
+            z_threshold=threshold,
+            title=title,
+            )
+
+        # compute cut_coords
+        if statistical_mapping_trick:
+            slicer = slicer.lower()
+            if slicer in ["x", "y", "z"] and cut_coords is None or isinstance(
+                cut_coords, int):
+                axis = 'xyz'.index(slicer)
+                if cut_coords is None:
+                    cut_coords = min(5, len(z_clusters))
+                _cut_coords = [x for zc in z_clusters for x in list(
+                        set(zc['maxima'][..., axis]))]
+                _cut_coords = _maximally_separated_subset(
+                    _cut_coords, cut_coords)
+
+                assert len(_cut_coords) == cut_coords
+                cut_coords = _cut_coords
+
         # plot activation proper
         viz.plot_map(z_map.get_data(), z_map.get_affine(),
                      cmap=cmap,
                      anat=anat,
                      anat_affine=anat_affine,
-                     # vmin=vmin,
-                     # vmax=vmax,
                      threshold=threshold,
                      slicer=slicer,
                      cut_coords=cut_coords,
@@ -418,29 +447,16 @@ Z>%s voxel-level.
         # store activation plot
         z_map_plot = os.path.join(output_dir,
                                   "%s_z_map.png" % contrast_id)
-        pl.savefig(z_map_plot, dpi=200, bbox_inches='tight',
-                   facecolor="k",
+        pl.savefig(z_map_plot, dpi=200, bbox_inches='tight', facecolor="k",
                    edgecolor="k")
-        stats_table = os.path.join(output_dir,
-                                   "%s_stats_table.html" % contrast_id)
 
         # create thumbnail for activation
         thumbnail = base_reporter.Thumbnail()
         thumbnail.a = base_reporter.a(href=os.path.basename(stats_table))
-        thumbnail.img = base_reporter.img(
-            src=os.path.basename(z_map_plot), height="200px",)
+        thumbnail.img = base_reporter.img(src=os.path.basename(z_map_plot),
+                                          height="150px",)
         thumbnail.description = "%s contrast: %s" % (contrast_id, contrast_val)
         activation_thumbs.commit_thumbnails(thumbnail)
-
-        # generate level 1 stats table
-        title = "Level 1 stats for %s contrast" % contrast_id
-        generate_level1_stats_table(
-            z_map, mask,
-            stats_table,
-            cluster_th=cluster_th,
-            z_threshold=threshold,
-            title=title,
-            )
 
     # make colorbar for activations
     base_reporter.make_standalone_colorbar(

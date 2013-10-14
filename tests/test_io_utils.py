@@ -18,7 +18,8 @@ from ..pypreprocess.io_utils import (
     get_basenames,
     load_4D_img,
     is_niimg,
-    get_vox_dims
+    get_vox_dims,
+    niigz2nii
     )
 
 # global setup
@@ -97,7 +98,8 @@ def test_load_specific_vol():
         nose.tools.assert_equal(_n_scans, n_scans)
         nose.tools.assert_true(isinstance(_vol, type(film)))
         nose.tools.assert_equal(_vol.shape, film.shape[:-1])
-        numpy.testing.assert_array_equal(_vol.get_data(), film.get_data()[..., t])
+        numpy.testing.assert_array_equal(_vol.get_data(),
+                                         film.get_data()[..., t])
 
     # test loading vol from a single 4D filename
     for ext in IMAGE_EXTENSIONS:
@@ -390,6 +392,56 @@ def test_is_niimg():
 
     # filename is not niimg
     nose.tools.assert_false(is_niimg("/path/to/some/nii.gz"))
+
+
+def test_niigz2nii_with_filename():
+    # create and save .nii.gz image
+    img = create_random_image()
+    ifilename = '/tmp/toto.nii.gz'
+    nibabel.save(img, ifilename)
+
+    # convert img to .nii
+    ofilename = niigz2nii(ifilename, output_dir='/tmp/titi')
+
+    # checks
+    nose.tools.assert_equal(ofilename, '/tmp/titi/toto.nii')
+    nibabel.load(ofilename)
+
+
+def test_niigz2nii_with_list_of_filenames():
+    # creates and save .nii.gz image
+    ifilenames = []
+    for i in xrange(4):
+        img = create_random_image()
+        ifilename = '/tmp/img%i.nii.gz' % i
+        nibabel.save(img, ifilename)
+        ifilenames.append(ifilename)
+
+    # convert imgs to .nii
+    ofilenames = niigz2nii(ifilenames, output_dir='/tmp/titi')
+
+    # checks
+    nose.tools.assert_equal(len(ifilenames), len(ofilenames))
+    for x in xrange(len(ifilenames)):
+        nibabel.load(ofilenames[x])
+
+
+def test_niigz2nii_with_list_of_lists_of_filenames():
+    # creates and save .nii.gz image
+    ifilenames = []
+    for i in xrange(4):
+        img = create_random_image()
+        ifilename = '/tmp/img%i.nii.gz' % i
+        nibabel.save(img, ifilename)
+        ifilenames.append(ifilename)
+
+    # convert imgs to .nii
+    ofilenames = niigz2nii([ifilenames], output_dir='/tmp/titi')
+
+    # checks
+    nose.tools.assert_equal(1, len(ofilenames))
+    for x in xrange(len(ofilenames[0])):
+        nibabel.load(ofilenames[0][x])
 
 
 # run all tests
