@@ -70,8 +70,6 @@ def test_apply_realignment_3D_niimg():
     # apply realignment to vol
     rvol = apply_realignment(vol, [1, 2, 3, 4, 5, 6])
 
-    print rvol.shape
-
 # run all tests
 nose.runmodule(config=nose.config.Config(
         verbose=2,
