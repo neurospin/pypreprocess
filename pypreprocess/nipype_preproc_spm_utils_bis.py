@@ -194,8 +194,11 @@ class SubjectData(object):
 
         # sanitize session_id
         if self.session_id is None:
-            self.session_id = ["session_%i" % i
-                               for i in xrange(len(self.func))]
+            if len(self.func) < 10:
+                self.session_id = ["session_%i" % i
+                                   for i in xrange(len(self.func))]
+            else:
+                self.session_id = ["session_0"]
         else:
             if isinstance(self.session_id, (basestring, int)):
                 assert len(self.func) == 1
@@ -1071,7 +1074,7 @@ def do_subject_preproc(
                     )
 
         if last_stage:
-            subject_data.progress_logger.finish()
+            subject_data.progress_logger.finish_dir(subject_data.output_dir)
 
         if not parent_results_gallery is None:
             commit_subject_thumnbail_to_parent_gallery(
@@ -1498,16 +1501,19 @@ def do_subjects_preproc(subject_factory,
             fd.write(str(main_html))
             fd.close()
 
-        def finalize_report():
-            progress_logger.finish(report_preproc_filename)
-
-            if shutdown_reloaders:
-                print "Finishing %s..." % output_dir
-                progress_logger.finish_dir(output_dir)
-
         if not do_dartel:
             do_subject_preproc_kwargs['parent_results_gallery'
                                       ] = parent_results_gallery
+
+    def finalize_report():
+        if not do_report:
+            return
+
+        progress_logger.finish(report_preproc_filename)
+
+        if shutdown_reloaders:
+            print "Finishing %s..." % output_dir
+            progress_logger.finish_dir(output_dir)
 
     do_subject_preproc_kwargs['do_report'] = do_report
 
@@ -1534,7 +1540,6 @@ def do_subjects_preproc(subject_factory,
             )
 
     if do_report:
-        for subject_data in preproc_subject_data:
-            subject_data.progress_logger.finish()
+        finalize_report()
 
     return preproc_subject_data

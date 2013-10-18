@@ -10,9 +10,9 @@ import sys
 import os
 
 # import API for preprocessing business
-from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
-                                                   SubjectData
-                                                   )
+from pypreprocess.nipype_preproc_spm_utils_bis import (do_subjects_preproc,
+                                                       SubjectData
+                                                       )
 
 # input data-grabber for SPM Auditory (single-subject) data
 from pypreprocess.datasets import fetch_spm_auditory_data
@@ -41,11 +41,10 @@ subject_data.output_dir = os.path.join(OUTPUT_DIR, subject_data.subject_id)
 results = do_subjects_preproc(
     [subject_data],
     output_dir=OUTPUT_DIR,
-    func_to_anat=True,
     fwhm=0.,  # 8mm isotropic Gaussian kernel
     dataset_id="SPM single-subject auditory",
     dataset_description=('<a href="http://www.fil.ion.ucl.ac.uk/spm/data'
                          '/auditory/">SPM auditory dataset</a>.</p>'),
-    do_normalize=False,
-    do_shutdown_reloaders=True
+    # do_normalize=False,
+    last_stage=True
     )

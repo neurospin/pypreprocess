@@ -230,7 +230,7 @@ def _run_powell(params, direct, tolsc, *otherargs):
 
     # fire!
     return scipy.optimize.fmin_powell(_compute_similarity, params,
-                                      direc=direc,
+                                      direc=direct,
                                       xtol=min(np.min(tolsc), 1e-3),
                                       )
 
@@ -347,8 +347,8 @@ class Coregister(object):
 
         # configure the Powell optimizer
         self.sc_ = np.array(self.tol)
-        self.sc = self.sc[:len(self.params_init)]
-        self.search_direc_ = np.diag(self.sc_ * 20)
+        self.sc = self.sc_[:len(self.params_init)]
+        self.search_direction_ = np.diag(self.sc_ * 20)
 
         # load vols
         ref = loaduint8(ref)
@@ -396,7 +396,8 @@ class Coregister(object):
                                            ref.shape, *grid)
 
             # find optimal realignment parameters
-            self.params_ = _run_powell(self.params_, self.xi, self.sc,
+            self.params_ = _run_powell(self.params_,
+                                       self.search_direction_, self.sc_,
                                        sampled_ref, src, ref.get_affine(),
                                        src.get_affine(), grid, self.cost_fun,
                                        self.fwhm, self.bins)
