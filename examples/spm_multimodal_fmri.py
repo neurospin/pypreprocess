@@ -19,7 +19,7 @@ import os
 from pypreprocess.reporting.base_reporter import ProgressReport
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
 from pypreprocess.datasets import fetch_spm_multimodal_fmri_data
-from pypreprocess.nipype_preproc_spm_utils_bis import (do_subject_preproc,
+from pypreprocess.nipype_preproc_spm_utils import (do_subject_preproc,
                                                        SubjectData
                                                        )
 

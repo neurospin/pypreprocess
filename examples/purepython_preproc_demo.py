@@ -8,7 +8,7 @@ import os
 from pypreprocess.datasets import fetch_spm_auditory_data
 from pypreprocess.purepython_preproc_utils import do_subject_preproc
 from pypreprocess._spike.pipeline_comparisons import execute_spm_auditory_glm
-from pypreprocess.nipype_preproc_spm_utils_bis import (
+from pypreprocess.nipype_preproc_spm_utils import (
     do_subject_preproc as dsp,
     SubjectData
     )

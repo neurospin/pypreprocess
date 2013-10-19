@@ -10,7 +10,7 @@ import sys
 import os
 
 # import API for preprocessing business
-from pypreprocess.nipype_preproc_spm_utils_bis import (do_subjects_preproc,
+from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
                                                        SubjectData
                                                        )
 

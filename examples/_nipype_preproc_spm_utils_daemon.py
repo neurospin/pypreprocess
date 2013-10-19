@@ -1,9 +1,9 @@
 import os
 import glob
 import itertools
-from pypreprocess.nipype_preproc_spm_utils_bis import (do_subjects_preproc,
-                                                       SubjectData
-                                                       )
+from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
+                                                   SubjectData
+                                                   )
 from pypreprocess.datasets import (fetch_spm_auditory_data,
                                    fetch_spm_multimodal_fmri_data
                                    )

@@ -1,56 +1,71 @@
 """
-Module: nipype_preproc_spm_utils
-Synopsis: routine functions for SPM preprocessing business
-Author: dohmatob elvis dopgima (hereafter referred to as DED)
+:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
-XXX TODO: document the code!
-XcXX TODO: re-factor the code!
+XXX TODO : if a node fails and reporting is enabled, the generate a
+failure thumbnail!!!
 
 """
 
 # standard imports
-import os
-import sys
-import shutil
-import json
-import glob
-import time
-import inspect
-
-# imports for caching (yeah, we aint got time to loose!)
-from nipype.caching import Memory
-
-# reporting imports
-import reporting.preproc_reporter as preproc_reporter
-import reporting.base_reporter as base_reporter
-
-import pylab as pl
-
-# imports i/o
 import numpy as np
 import nibabel
-from nipype.interfaces.base import Bunch
-from .io_utils import (delete_orientation,
-                       is_3D, get_vox_dims,
-                       compute_mean_image,
-                       hard_link,
-                       load_specific_vol
-                       )
-from .datasets_extras import unzip_nii_gz
+import os
+import sys
+import glob
+import time
+from matplotlib.pyplot import cm
+import inspect
 
-# spm and matlab imports
+# import joblib API
+from joblib import (Parallel,
+                    delayed,
+                    Memory as JoblibMemory
+                    )
+
+# import nipype API
 import nipype.interfaces.spm as spm
+from nipype.caching import Memory as NipypeMemory
 import nipype.interfaces.matlab as matlab
 
-# parallelism imports
-import joblib
+# import API for i/o
+from .io_utils import (load_specific_vol,
+                       ravel_filenames,
+                       unravel_filenames,
+                       get_vox_dims,
+                       hard_link,
+                       delete_orientation,
+                       niigz2nii
+                       )
 
-# set job count
-N_JOBS = -1
-if 'N_JOBS' in os.environ:
-    N_JOBS = int(os.environ['N_JOBS'])
+# import API for reporting
+from .reporting.base_reporter import (
+    Thumbnail,
+    ResultsGallery,
+    ProgressReport,
+    a,
+    img,
+    copy_web_conf_files,
+    get_module_source_code,
+    dict_to_html_ul,
+    commit_subject_thumnbail_to_parent_gallery
+    )
 
-# set matlab exec path
+from .reporting.preproc_reporter import (
+    make_nipype_execution_log_html,
+    generate_preproc_undergone_docstring,
+    get_dataset_report_log_html_template,
+    get_dataset_report_preproc_html_template,
+    get_dataset_report_html_template,
+    get_subject_report_html_template,
+    get_subject_report_preproc_html_template,
+    generate_realignment_thumbnails,
+    generate_coregistration_thumbnails,
+    generate_cv_tc_thumbnail,
+    generate_normalization_thumbnails,
+    generate_segmentation_thumbnails
+    )
+
+# configure MATLAB exec
 MATLAB_EXEC = "/neurospin/local/matlab/bin/matlab"
 if not os.path.exists(MATLAB_EXEC):
     m_choices = glob.glob("/neurospin/local/matlab/R*/bin/matlab")
@@ -63,7 +78,7 @@ assert os.path.exists(MATLAB_EXEC), \
 doesn't exist; you need to export MATLAB_EXEC" % MATLAB_EXEC
 matlab.MatlabCommand.set_default_matlab_cmd(MATLAB_EXEC)
 
-# set matlab SPM back-end path
+# configure matlab SPM
 SPM_DIR = '/i2bm/local/spm8'
 if 'SPM_DIR' in os.environ:
     SPM_DIR = os.environ['SPM_DIR']
@@ -72,38 +87,26 @@ assert os.path.exists(SPM_DIR), \
  doesn't exist; you need to export SPM_DIR" % SPM_DIR
 matlab.MatlabCommand.set_default_paths(SPM_DIR)
 
-# set templates
+# configure template images
 EPI_TEMPLATE = os.path.join(SPM_DIR, 'templates/EPI.nii')
+SPM_T1_TEMPLATE = os.path.join(SPM_DIR, "templates/T1.nii")
 T1_TEMPLATE = "/usr/share/data/fsl-mni152-templates/avg152T1.nii"
 if not os.path.isfile(T1_TEMPLATE):
     T1_TEMPLATE += '.gz'
     if not os.path.exists(T1_TEMPLATE):
-        T1_TEMPLATE = os.path.join(SPM_DIR, "templates/T1.nii")
-
-#os.path.join(SPM_DIR, 'templates/T1.nii')
+        T1_TEMPLATE = SPM_T1_TEMPLATE
 GM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/grey.nii')
 WM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/white.nii')
 CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
 
-# MISC
-SPM8_URL = "http://www.fil.ion.ucl.ac.uk/spm/software/spm8/"
-PYPREPROCESS_URL = "https://github.com/neurospin/pypreprocess"
-DARTEL_URL = ("http://www.fil.ion.ucl.ac.uk/spm/software/spm8/"
-              "SPM8_Release_Notes.pdf")
-NIPYPE_URL = "http://nipy.sourceforge.net/nipype/"
 
-
-class SubjectData(Bunch):
+class SubjectData(object):
     """
     Encapsulation for subject data, relative to preprocessing.
 
-    XXX Use custom objects (dicts, tuples, etc.) instead of this 'Bunch' stuff.
-
-    """
-
-    def __init__(self):
-        """
-        Data member, func, can be one of the following types:
+    Parameters
+    ----------
+    func: can be one of the following types:
         ---------------------------------------------------------------
         Type                       | Explanation
         ---------------------------------------------------------------
@@ -119,25 +122,34 @@ class SubjectData(Bunch):
                                    | per session
         ---------------------------------------------------------------
 
-        """
+    anat: string
+        path to anatomical image
 
-        Bunch.__init__(self)
+    subject_id: string, optional (default 'sub001')
+        subject id
 
-        self.subject_id = "subXYZ"
-        self.session_id = ["UNKNOWN_SESSION"]
-        self.anat = None
-        self.func = None
-        self.hires = None
-        self.bad_orientation = False
-        self.output_dir = None
+    session_id: string or list of strings, optional (default None):
+        session ids for all sessions (i.e runs)
+
+    """
+
+    def __init__(self, func=None, anat=None, subject_id="sub001",
+                 session_id=None, output_dir=None, **kwargs):
+        self.func = func
+        self.anat = anat
+        self.subject_id = subject_id
+        self.session_id = session_id
+        self.output_dir = output_dir
+
+        for k, v in kwargs.iteritems():
+            setattr(self, k, v)
 
     def delete_orientation(self):
         # prepare for smart caching
-        cache_dir = os.path.join(self.output_dir,
-                                 'cache_dir/')
+        cache_dir = os.path.join(self.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        mem = joblib.Memory(cachedir=cache_dir, verbose=5)
+        mem = JoblibMemory(cachedir=cache_dir, verbose=5)
 
         # deleteorient for func
         self.func = [mem.cache(delete_orientation)(
@@ -147,1221 +159,739 @@ class SubjectData(Bunch):
                      for j in xrange(len(self.session_id))]
 
         # deleteorient for anat
+        print self.anat
         if not self.anat is None:
             self.anat = mem.cache(delete_orientation)(
                 self.anat, self.output_dir)
 
-    def nii_gz_to_nii(self):
-        # prepare for smart caching
-        cache_dir = os.path.join(self.output_dir,
-                                 'cache_dir')
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
-        mem = joblib.Memory(cachedir=cache_dir, verbose=5)
-
-        def _nii_gz_2_nii(x):
-            if not x.endswith('.gz'):
-                return x
-
-            y = os.path.join(self.output_dir,
-                             os.path.basename(x).replace('.gz', ''))
-
-            print 'Decompressing %s -> %s...' % (x, y)
-
-            nibabel.save(nibabel.load(x), y)
-
-            return y
-
-        # func .nii.gz -> .nii
-        _func = []
-        for sess_func in self.func:
-            if isinstance(sess_func, basestring):
-                sess_func = mem.cache(_nii_gz_2_nii)(
-                    sess_func) if sess_func.endswith(".gz") else sess_func
-            else:
-                sess_func = [mem.cache(_nii_gz_2_nii)(x) if x.endswith(
-                        ".gz") else x for x in sess_func]
-
-            _func.append(sess_func)
-        self.func = _func
-
-        # anat .nii.gz  -> .nii
-        if not self.anat is None:
-            self.anat = mem.cache(_nii_gz_2_nii)(
-                self.anat) if self.anat.endswith('.gz') else self.anat
-
     def sanitize(self, do_deleteorient=False):
-        if isinstance(self.session_id,
-                      basestring) or isinstance(self.session_id, int):
-            self.session_id = [self.session_id]
+        """
+        This method does basic sanitization of the `SubjectData` instance, like
+        extracting .nii.gz -> .nii (crusial for SPM), ensuring that functional
+        images actually exist on disk, etc.
 
+        """
+
+        # sanitize output_dir
+        assert not self.output_dir is None
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
+
+        cache_dir = os.path.join(self.output_dir, 'cache_dir')
+        mem = JoblibMemory(cache_dir, verbose=100)
+
+        # sanitize func
         if isinstance(self.func, basestring):
             self.func = [self.func]
+        self.func = mem.cache(niigz2nii)(self.func,
+                                              output_dir=self.output_dir)
 
-        if isinstance(self.func[0], basestring):
-            if is_3D(self.func[0]):
-                self.func = [self.func]
+        # sanitize anat
+        if not self.anat is None:
+            assert os.path.isfile(self.anat)
+            self.anat = mem.cache(niigz2nii)(self.anat,
+                                             output_dir=self.output_dir)
 
-        assert len(self.func) == len(self.session_id)
+        # sanitize session_id
+        if self.session_id is None:
+            if len(self.func) < 10:
+                self.session_id = ["session_%i" % i
+                                   for i in xrange(len(self.func))]
+            else:
+                self.session_id = ["session_0"]
+        else:
+            if isinstance(self.session_id, (basestring, int)):
+                assert len(self.func) == 1
+                self.session_id = [self.session_id]
+            else:
+                assert len(self.session_id) == len(self.func), "%s != %s" % (
+                    self.session_id, len(self.func))
 
-        if do_deleteorient or self.bad_orientation:
+        if do_deleteorient:
             self.delete_orientation()
 
-        self.nii_gz_to_nii()
-
-
-def _do_subject_realign(output_dir,
-                        sessions=None,
-                        do_report=True,
-                        results_gallery=None,
-                        progress_logger=None,
-                        **spm_realign_kwargs):
-    """
-    Wrapper for nipype.interfaces.spm.Realign.
-
-    Does realignment and generates QA plots (motion parameters, etc.).
-
-    Parameters
-    ----------
-    output_dir: string
-        An existing folder where all output files will be written.
-    subject_id: string (optional)
-        id of the subject being preprocessed
-    do_report: boolean (optional)
-        if true, then QA plots will be generated after executing the realign
-        node.
-    *spm_realign_kwargs: kwargs (paramete-value dict)
-        parameters to be passed to the nipype.interfaces.spm.Realign back-end
-        node
-
-    """
-
-    output = {}
-
-    if progress_logger:
-        progress_logger.log('<b>Motion Correction</b><br/><br/>')
-
-    # prepare for smart caching
-    cache_dir = os.path.join(output_dir, 'cache_dir')
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    mem = Memory(base_dir=cache_dir)
-
-    # run workflow
-    realign = mem.cache(spm.Realign)
-    realign_result = realign(**spm_realign_kwargs)
-
-    # generate gallery for HTML report
-    if do_report:
-        if not realign_result.outputs is None:
-            estimated_motion = realign_result.outputs.realignment_parameters
-            if isinstance(estimated_motion, basestring):
-                estimated_motion = [estimated_motion]
-
-            assert len(sessions) == len(estimated_motion), estimated_motion
-
-            execution_log = preproc_reporter.get_nipype_report(
-                preproc_reporter.get_nipype_report_filename(estimated_motion))
-            execution_log_html_filename = os.path.join(
-                output_dir,
-                'realignment_execution_log.html'
-                )
-
-            open(execution_log_html_filename, 'w').write(
-                execution_log)
-
-            if progress_logger:
-                progress_logger.log(
-                    '<b>Realignment</b><br/><br/>')
-                progress_logger.log(execution_log)
-                progress_logger.log('<hr/>')
-
-            output.update(preproc_reporter.generate_realignment_thumbnails(
-                    estimated_motion,
-                    output_dir,
-                    sessions=sessions,
-                    execution_log_html_filename=execution_log_html_filename,
-                    results_gallery=results_gallery,
-                    progress_logger=progress_logger,
-                    ))
-
-    # collect ouput
-    output['result'] = realign_result
-
-    return output
-
-
-def _do_subject_coreg(output_dir,
-                      subject_id=None,
-                      do_report=True,
-                      results_gallery=None,
-                      progress_logger=None,
-                      coreg_func_to_anat=False,
-                      comments="",
-                      **spm_coregister_kwargs):
-    """
-    Wrapper for nipype.interfaces.spm.Coregister.
-
-    Does coregistration and generates QA plots (outline of coregistered source
-    on target, etc.).
-
-    Parameters
-    ----------
-    output_dir: string
-        An existing folder where all output files will be written.
-
-    subject_id: string (optional)
-        id of the subject being preprocessed
-
-    do_report: boolean (optional)
-        if true, then QA plots will be generated after executing the coregister
-        node.
-
-    *spm_coregister_kwargs: kwargs (paramete-value dict)
-        parameters to be passed to the nipype.interfaces.spm.Coregister
-        back-end node
-
-    """
-
-    output = {}
-
-    # prepare for smart caching
-    cache_dir = os.path.join(output_dir, 'cache_dir')
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    mem = Memory(base_dir=cache_dir)
-
-    # run workflow
-    coreg = mem.cache(spm.Coregister)
-    coreg_result = coreg(**spm_coregister_kwargs)
-
-    # generate gallery for HTML report
-    if do_report:
-        #
-        # XXX move the following code to reporting.preproc_reporter.py
-        #
-
-        ref_brain = "EPI"
-        source_brain = "anat"
-
-        if not coreg_result.outputs is None:
-            target = spm_coregister_kwargs['target']
-            source = coreg_result.outputs.coregistered_source
-
-            # grap log from nipype
-            execution_log = preproc_reporter.get_nipype_report(
-                preproc_reporter.get_nipype_report_filename(source))
-
-            # write the log
-            execution_log_html_filename = os.path.join(
-                output_dir,
-                'coregistration_execution_log.html'
-                )
-
-            open(execution_log_html_filename, 'w').write(
-                execution_log)
-
-            if progress_logger:
-                progress_logger.log(
-                    '<b>Coregistration</b><br/><br/>')
-                progress_logger.log(execution_log)
-                progress_logger.log('<hr/>')
-
-            if coreg_func_to_anat:
-                target, source = source, target
-                ref_brain, source_brain = source_brain, ref_brain
-
-            output.update(preproc_reporter.generate_coregistration_thumbnails(
-                (target, ref_brain),
-                (source, source_brain),
-                output_dir,
-                execution_log_html_filename=execution_log_html_filename,
-                results_gallery=results_gallery,
-                progress_logger=progress_logger,
-                ))
-
-    # collect ouput
-    output['result'] = coreg_result
-
-    return output
-
-
-def _do_subject_segment(output_dir,
-                        subject_id=None,
-                        do_report=True,
-                        progress_logger=None,
-                        **spm_segment_kwargs):
-    """
-    Wrapper for nipype.interfaces.spm.Segment.
-
-    Does segmentation of brain into GM, WM, and CSF compartments and
-    generates QA plots.
-
-    Parameters
-    ----------
-    output_dir: string
-        An existing folder where all output files will be written.
-
-    subject_id: string (optional)
-        id of the subject being preprocessed
-
-    do_report: boolean (optional)
-        if true, then QA plots will be generated after executing the segment
-        node.
-
-    *spm_segment_kwargs: kwargs (parameter-value dict)
-        parameters to be passed to the nipype.interfaces.spm.Segment back-end
-        node
-
-    """
-
-    output = {}
-
-    # prepare for smart caching
-    cache_dir = os.path.join(output_dir, 'cache_dir')
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    mem = Memory(base_dir=cache_dir)
-
-    # run workflow
-    segment = mem.cache(spm.Segment)
-    segment_result = segment(**spm_segment_kwargs)
-
-    # generate gallery for HTML report
-    if do_report:
-        if not segment_result.outputs is None:
-            # nipype report
-            execution_log = preproc_reporter.get_nipype_report(
-                preproc_reporter.get_nipype_report_filename(
-                    segment_result.outputs.transformation_mat)
-                )
-
-            if progress_logger:
-                progress_logger.log(
-              '<b>Segmentation</b><br/><br/>')
-                progress_logger.log(execution_log)
-                progress_logger.log('<hr/>')
-
-    # collect ouput
-    output['result'] = segment_result
-
-    return output
-
-
-def _do_subject_normalize(output_dir,
-                          segment_result=None,
-                          do_report=True,
-                          results_gallery=None,
-                          progress_logger=None,
-                          brain="EPI",
-                          cmap=None,
-                          fwhm=0,
-                          **spm_normalize_kwargs):
-    """
-    Wrapper for nipype.interfaces.spm.Normalize.
-
-    Does normalization and generates QA plots (outlines of normalized files on
-    template, etc.).
-
-    Parameters
-    ----------
-    output_dir: string
-        An existing folder where all output files will be written.
-
-    subject_id: string (optional)
-        id of the subject being preprocessed
-
-    do_report: boolean (optional)
-        if true, then QA plots will be generated after executing the normalize
-        node.
-
-    *spm_normalize_kwargs: kwargs (paramete-value dict)
-        parameters to be passed to the nipype.interfaces.spm.Normalize back-end
-        node
-
-    """
-
-    nipype_report_filenames = []
-
-    # sanity
-    def get_norm_apply_to_files(files):
-        if isinstance(files, basestring):
-            norm_apply_to_files = files
-            file_types = 'string'
+    def hardlink_output_files(self, final=False):
+        """
+        Hard-links output files to subject's immediate output directory.
+
+        Parameters
+        ----------
+        final: bool, optional (default False)
+            flag indicating whether, we're finalizing the preprocessingpipeline
+
+        """
+
+        for item in ['func', 'anat', 'realignment_parameters',
+                     'gm', 'wm', 'csf',  # native
+                     'wgm', 'wwm', 'wcsf'  # warped/normalized
+                     ]:
+            if hasattr(self, item):
+                filename = getattr(self, item)
+                if not filename is None:
+                    linked_filename = hard_link(filename, self.output_dir)
+                    if final:
+                        setattr(self, item, linked_filename)
+
+    def _finalize_report(self, do_report=False, parent_results_gallery=None,
+                         do_cv_tc=False, last_stage=False):
+        """
+        Finalizes the business of reporting.
+
+        """
+
+        if not self.do_report:
+            return
+
+        # generate failure thumbnail
+        if self.failed:
+            self.final_thumbnail.img.src = 'failed.png'
+            self.final_thumbnail.description += (
+                ' (failed realignment)')
         else:
-            file_types = []
-            norm_apply_to_files = []
-            for x in files:
-                if isinstance(x, basestring):
-                    norm_apply_to_files.append(x)
-                    file_types.append('string')
-                else:
-                    norm_apply_to_files += x
-                    file_types.append(('list', len(x)))
+            # geneate cv_tc plots
+            if do_cv_tc:
+                generate_cv_tc_thumbnail(
+                    self.func,
+                    self.session_id,
+                    self.subject_id,
+                    self.output_dir,
+                    results_gallery=self.results_gallery
+                    )
 
-        return norm_apply_to_files, file_types
+        if last_stage:
+            self.progress_logger.finish_dir(self.output_dir)
 
-    if 'apply_to_files' in spm_normalize_kwargs:
-        spm_normalize_kwargs['apply_to_files'], file_types = \
-            get_norm_apply_to_files(spm_normalize_kwargs['apply_to_files'])
+        if not parent_results_gallery is None:
+            commit_subject_thumnbail_to_parent_gallery(
+                self.final_thumbnail,
+                self.subject_id,
+                parent_results_gallery)
 
-    output = {}
+        print ("\r\nPreproc report for subject %s written to %s"
+               " .\r\n" % (self.subject_id,
+                           self.report_preproc_filename))
+
+
+def _do_subject_realign(subject_data, nipype_mem=None,
+                        do_report=True):
+    """
+    Wrapper for running spm.Realign with optional reporting.
+
+    If subject_data has a `results_gallery` attribute, then QA thumbnails will
+    be commited after this node is executed
+
+    Parameters
+    -----------
+    subject_data: `SubjectData` object
+        subject data whose functional images (subject_data.func) are to be
+        realigned.
+
+    nipype_mem: `nipype.caching.Memory` object
+        Wrapper for running node with nipype.caching.Memory
+
+    do_report: bool, optional (default True)
+       flag controlling whether post-preprocessing reports should be generated
+
+    Returns
+    -------
+    subject_data: `SubjectData` object
+        preprocessed subject_data. The func field (subject_data.func) now
+        contain the realigned functional images of the subject
+
+        New Attributes
+        ==============
+        realignment_parameters: string of list of strings
+            filename(s) containing realignment parameters from spm.Realign node
+
+        subject_data.nipype_results['realign']: Nipype output object
+            (raw) result of running spm.Realign
+
+    Notes
+    -----
+    Input subject_data is modified.
+
+    """
+
+    if not hasattr(subject_data, 'nipype_results'):
+        subject_data.nipype_results = {}
 
     # prepare for smart caching
-    cache_dir = os.path.join(output_dir, 'cache_dir')
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    mem = Memory(base_dir=cache_dir)
+    if nipype_mem is None:
+        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
 
-    # run workflow
-    normalize = mem.cache(spm.Normalize)
-    norm_result = normalize(**spm_normalize_kwargs)
+        nipype_mem = NipypeMemory(base_dir=cache_dir)
 
-    # collect ouput
-    output['result'] = norm_result
-    if not norm_result.outputs is None:
-        normalized_files = norm_result.outputs.normalized_files
+    # configure node
+    realign = nipype_mem.cache(spm.Realign)
 
-        # define execution log html output filename
-        execution_log_html_filename = os.path.join(
-            output_dir,
-            'normalization_of_%s_execution_log.html' % brain,
+    # run node
+    realign_result = realign(
+        in_files=subject_data.func,
+        jobtype="estwrite",
+        register_to_mean=True,
+        ignore_exception=True
+        )
+
+    subject_data.nipype_results['realign'] = realign_result
+
+    # failed node
+    if realign_result.outputs is None:
+        subject_data.failed = True
+        return subject_data
+
+    # collect output
+    subject_data.func = realign_result.outputs.realigned_files
+    subject_data.realignment_parameters = \
+        realign_result.outputs.realignment_parameters
+
+    # generate report
+    if do_report:
+        # generate realignment thumbs
+        thumbs = generate_realignment_thumbnails(
+            subject_data.realignment_parameters,
+            subject_data.output_dir,
+            sessions=subject_data.session_id,
+            execution_log_html_filename=make_nipype_execution_log_html(
+                realign_result.outputs.realigned_files, "Realign",
+                subject_data.output_dir),
+            results_gallery=subject_data.results_gallery
             )
 
-        # grab execution log
-        execution_log = preproc_reporter.get_nipype_report(
-            preproc_reporter.get_nipype_report_filename(normalized_files))
+        subject_data.final_thumbnail.img.src = thumbs['rp_plot']
 
-        # write execution log
-        open(execution_log_html_filename, 'w').write(
-            execution_log)
-
-        # update progress bar
-        if progress_logger:
-            progress_logger.log(
-                '<b>Normalization of %s</b><br/><br/>' % brain)
-            progress_logger.log(execution_log)
-            progress_logger.log('<hr/>')
-
-        # do smoothing
-        if np.sum(fwhm):
-            smooth = mem.cache(spm.Smooth)
-            smooth_result = smooth(
-                in_files=output['result'].outputs.normalized_files,
-                fwhm=fwhm)
-
-            # collect ouput
-            output['result'] = smooth_result
-            if not smooth_result.outputs is None:
-                normalized_files = smooth_result.outputs.smoothed_files
-                output['normalized_files'] = normalized_files
-
-                # grab execution log
-                execution_log = preproc_reporter.get_nipype_report(
-                    preproc_reporter.get_nipype_report_filename(
-                        normalized_files))
-
-                # write execution log
-                open(execution_log_html_filename, 'w').write(
-                    execution_log)
-
-                # update progress bar
-                if progress_logger:
-                    progress_logger.log(
-                        '<b>Smoothening of %s</b><br/><br/>' % brain)
-                    progress_logger.log(execution_log)
-                    progress_logger.log('<hr/>')
-
-        if 'apply_to_files' in spm_normalize_kwargs:
-            if not isinstance(file_types, basestring):
-                _tmp = []
-                s = 0
-                for x in file_types:
-                    if x == 'string':
-                        if isinstance(normalized_files, basestring):
-                            _tmp = normalized_files
-                            break
-                        else:
-                            _tmp.append(
-                                normalized_files[s])
-                            s += 1
-                    else:
-                        _tmp.append(
-                            normalized_files[s: s + x[1]])
-                        s += x[1]
-
-                normalized_files = _tmp
-
-        output['normalized_files'] = normalized_files
-
-    # generate gallery for HTML report
-    if do_report:
-        if normalized_files:
-            if segment_result:
-                subject_gm_file = segment_result.outputs.modulated_gm_image
-                subject_wm_file = segment_result.outputs.modulated_wm_image
-                subject_csf_file = segment_result.outputs.modulated_csf_image
-            else:
-                subject_gm_file = None
-                subject_wm_file = None
-                subject_csf_file = None
-
-            nipype_report_filenames = [
-                preproc_reporter.get_nipype_report_filename(
-                    subject_gm_file)] + nipype_report_filenames
-
-            # generate normalization thumbs
-            output.update(preproc_reporter.generate_normalization_thumbnails(
-                normalized_files,
-                output_dir,
-                brain=brain,
-                execution_log_html_filename=execution_log_html_filename,
-                results_gallery=results_gallery,
-                ))
-
-            # generate segmentation thumbs
-            output.update(preproc_reporter.generate_segmentation_thumbnails(
-                normalized_files,
-                output_dir,
-                subject_gm_file=subject_gm_file,
-                subject_wm_file=subject_wm_file,
-                subject_csf_file=subject_csf_file,
-                brain=brain,
-                execution_log_html_filename=execution_log_html_filename,
-                cmap=cmap,
-                results_gallery=results_gallery))
-
-    # collect ouput
-    output['result'] = norm_result
-
-    return output
+    return subject_data
 
 
-def _do_subject_smooth(output_dir,
-                        do_report=True,
-                        results_gallery=None,
-                        progress_logger=None,
-                        brain="EPI",
-                        cmap=None,
-                        **spm_smooth_kwargs):
-    output = {}
-
-    # sanity
-    def get_norm_apply_to_files(files):
-        if isinstance(files, basestring):
-            norm_apply_to_files = files
-            file_types = 'string'
-        else:
-            file_types = []
-            norm_apply_to_files = []
-            for x in files:
-                if isinstance(x, basestring):
-                    norm_apply_to_files.append(x)
-                    file_types.append('string')
-                else:
-                    norm_apply_to_files += x
-                    file_types.append(('list', len(x)))
-
-        return norm_apply_to_files, file_types
-
-    if 'in_files' in spm_smooth_kwargs:
-        spm_smooth_kwargs['in_files'], file_types = \
-            get_norm_apply_to_files(spm_smooth_kwargs['in_files'])
-
-    # prepare for smart caching
-    cache_dir = os.path.join(output_dir, 'cache_dir')
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    mem = Memory(base_dir=cache_dir)
-
-    # do smoothing
-    smooth = mem.cache(spm.Smooth)
-    smooth_result = smooth(**spm_smooth_kwargs)
-
-    # collect ouput
-    output['result'] = smooth_result
-    if not smooth_result.outputs is None:
-        smoothed_files = smooth_result.outputs.smoothed_files
-        output['smoothed_files'] = smoothed_files
-
-        if 'in_files' in spm_smooth_kwargs:
-            if not isinstance(file_types, basestring):
-                _tmp = []
-                s = 0
-                for x in file_types:
-                    if x == 'string':
-                        if isinstance(smoothed_files, basestring):
-                            _tmp = smoothed_files
-                            break
-                        else:
-                            _tmp.append(
-                                smoothed_files[s])
-                            s += 1
-                    else:
-                        _tmp.append(
-                            smoothed_files[s: s + x[1]])
-                        s += x[1]
-
-                smoothed_files = _tmp
-
-        output['smoothed_files'] = smoothed_files
-
-        # define execution log html output filename
-        execution_log_html_filename = os.path.join(
-            output_dir,
-            'smoothening_of_%s_execution_log.html' % brain,
-            )
-
-        # grab execution log
-        execution_log = preproc_reporter.get_nipype_report(
-            preproc_reporter.get_nipype_report_filename(
-                smoothed_files))
-
-        # write execution log
-        open(execution_log_html_filename, 'w').write(
-            execution_log)
-
-        # update progress bar
-        if progress_logger:
-            progress_logger.log(
-                '<b>Smoothening of %s</b><br/><br/>' % brain)
-            progress_logger.log(execution_log)
-            progress_logger.log('<hr/>')
-
-    # collect ouput
-    output['result'] = smooth_result
-    return output
-
-
-def _do_subject_preproc(
-    subject_data,
-    do_deleteorient=False,
-    do_report=True,
-    fwhm=None,
-    do_bet=False,
-    do_slicetiming=False,
-    slice_order='ascending',
-    interleaved=False,
-    do_realign=True,
-    do_coreg=True,
-    func_to_anat=True,
-    do_segment=True,
-    do_normalize=True,
-    do_cv_tc=True,
-    prepreproc_undergone="",
-    additional_preproc_undergone=None,
-    parent_results_gallery=None,
-    subject_progress_logger=None,
-    last_stage=True,
-    ignore_exception=True):
+def _do_subject_coregister(subject_data, coreg_anat_to_func=False,
+                           nipype_mem=None, joblib_mem=None,
+                           do_report=True
+                           ):
     """
-    Function preprocessing data for a single subject.
+    Wrapper for running spm.Coregister with optional reporting.
+
+    If subject_data has a `results_gallery` attribute, then QA thumbnails will
+    be commited after this node is executed
 
     Parameters
-    ----------
-    subject_data: instance of SubjectData
-        Object containing information about the subject under inspection
-        (path to anat image, func image(s),
-        output directory, etc.)
+    -----------
+    subject_data: `SubjectData` object
+        subject data whose functional and anatomical images (subject_data.func
+        and subject_data.anat) are to be coregistered
 
-    delete_orientation: bool (optional)
-        if true, then orientation meta-data in all input image files for this
-        subject will be stripped-off
+    nipype_cached: nipype memroy cache
+        Wrapper for running node with nipype.caching.Memory
 
-    do_report: bool (optional)
-        if set, post-preprocessing QA report will be generated.
+    coreg_anat_to_func: bool, optional (default False)
+       if set, then functional data (subject_data.func) will be the reference
+       during coregistration. By default the anatomical data
+       (subject_data.anat) if the reference, to ensure a precise registration
+       (since anatomical data has finer resolution)
 
-    do_bet: bool (optional)
-        if set, brain-extraction will be applied to remove non-brain tissue
-        before preprocessing (this can help prevent the scull from aligning
-        with the cortical surface, for example)
+    do_report: bool, optional (default True)
+       flag controlling whether post-preprocessing reports should be generated
 
-    do_slicetiming: bool (optional)
-        if set, slice-timing correct temporal mis-alignment of the functional
-        slices
+    Returns
+    -------
+    subject_data: `SubjectData` object
+        preprocessed subject_data. The func and anatomical fields
+        (subject_data.func and subject_data.anat) now contain the oregistered
+        and anatomical images functional images of the subject
 
-    do_realign: bool (optional)
-        if set, then the functional data will be realigned to correct for
-        head-motion
+        New Attributes
+        ==============
+        subject_data.nipype_results['coregister']: Nipype output object
+            (raw) result of running spm.Coregister
 
-    do_coreg: bool (optional)
-        if set, then subject anat image (of the spm EPI template, if the later
-        if not available) will be coregistered against the functional images
-        (i.e the mean thereof)
-
-    do_segment: bool (optional)
-        if set, then the subject's anat image will be segmented to produce GM,
-        WM, and CSF compartments (useful for both indirect normalization
-        (intra-subject) or DARTEL (inter-subject) alike
-
-    do_cv_tc: bool (optional)
-        if set, a summarizing the time-course of the coefficient of variation
-        in the preprocessed fMRI time-series will be generated
-
-    parent_results_gallery: base_reporter.ResulsGallery object (optional)
-        a handle to the results gallery to which the final QA thumail for this
-        subject will be committed
+    Notes
+    -----
+    Input subject_data is modified.
 
     """
 
-    # sanitze subject data
-    subject_data.sanitize(do_deleteorient=do_deleteorient)
-
-    # dict of outputs
-    output = {"subject_id": subject_data.subject_id,
-              "session_id": subject_data.session_id,
-              "output_dir": subject_data.output_dir,
-              "func": subject_data.func,
-              "anat": subject_data.anat}
-
-    # sanitize fwhm
-    if not fwhm is None:
-        if not (isinstance(fwhm, tuple) or isinstance(fwhm, list)):
-            fwhm = [fwhm] * 3
-        fwhm = list(fwhm)
-
-    # create subject_data.output_dir if dir doesn't exist
-    if not os.path.exists(subject_data.output_dir):
-        os.makedirs(subject_data.output_dir)
-
     # prepare for smart caching
-    cache_dir = os.path.join(subject_data.output_dir, "cache_dir")
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
+    if nipype_mem is None:
+        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
 
-    mem = joblib.Memory(cachedir=cache_dir, verbose=100)
+        nipype_mem = NipypeMemory(base_dir=cache_dir)
 
-    def _cached(f):
-        return mem.cache(f)
+    if joblib_mem is None:
+        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+
+            nipype_mem = NipypeMemory(base_dir=cache_dir)
 
     def _save_vol(data, affine, output_filename):
         nibabel.save(nibabel.Nifti1Image(data, affine), output_filename)
 
-    # generate explanation of preproc steps undergone by subject
-    preproc_undergone = preproc_reporter.\
-        generate_preproc_undergone_docstring(
-        prepreproc_undergone=prepreproc_undergone,
-        do_deleteorient=do_deleteorient or subject_data.bad_orientation,
-        fwhm=fwhm,
-        do_bet=do_bet,
-        do_slicetiming=do_slicetiming,
-        do_realign=do_realign,
-        do_coreg=do_coreg,
-        coreg_func_to_anat=func_to_anat,
-        do_segment=do_segment,
-        do_normalize=do_normalize,
-        additional_preproc_undergone=additional_preproc_undergone,
+    # config node
+    coreg = nipype_mem.cache(spm.Coregister)
+    coreg_jobtype = 'estimate'
+    apply_to_files = []
+    ref_brain = 'anat'
+    src_brain = 'func'
+
+    if coreg_anat_to_func:
+        ref_brain, src_brain = src_brain, ref_brain
+        coreg_target = subject_data.func[0]
+        if subject_data.anat is None:
+            if not subject_data.hires is None:
+                coreg_source = subject_data.hires
+        else:
+            coreg_source = subject_data.anat
+    else:
+        coreg_target = subject_data.anat
+        ref_func = joblib_mem.cache(load_specific_vol)(
+            subject_data.func if isinstance(subject_data.func, basestring)
+            else subject_data.func[0], 0)[0]
+        coreg_source = os.path.join(subject_data.output_dir,
+                                "_coreg_first_func_vol.nii")
+        joblib_mem.cache(_save_vol)(ref_func.get_data(),
+                                    ref_func.get_affine(),
+                                    coreg_source)
+
+        apply_to_files, file_types = ravel_filenames(subject_data.func)
+
+    # run node
+    coreg_result = coreg(target=coreg_target,
+                         source=coreg_source,
+                         apply_to_files=apply_to_files,
+                         jobtype=coreg_jobtype,
+                         ignore_exception=True
+                         )
+    # failed node ?
+    if coreg_result.outputs is None:
+        subject_data.nipype_results['coreg'] = coreg_result
+        subject_data.failed = True
+        return subject_data
+
+    # collect output
+    subject_data.nipype_results['coreg'] = coreg_result
+    if coreg_anat_to_func:
+        subject_data.anat = coreg_result.outputs.coregistered_source
+    else:
+        subject_data.func = unravel_filenames(
+            coreg_result.outputs.coregistered_files, file_types)
+
+    # report coreg
+    if do_report:
+        thumbs = generate_coregistration_thumbnails(
+            (coreg_target, ref_brain),
+            (coreg_result.outputs.coregistered_source, src_brain),
+            subject_data.output_dir,
+            execution_log_html_filename=make_nipype_execution_log_html(
+                coreg_result.outputs.coregistered_source, "Coregister",
+                subject_data.output_dir),
+            results_gallery=subject_data.results_gallery
+            )
+
+        subject_data.final_thumbnail.img.src = thumbs['axial']
+
+    return subject_data
+
+
+def _do_subject_segment(subject_data, do_normalize=False, nipype_mem=None,
+                        do_report=True):
+    """
+    Wrapper for running spm.Segment with optional reporting.
+
+    If subject_data has a `results_gallery` attribute, then QA thumbnails will
+    be commited after this node is executed
+
+    Parameters
+    -----------
+    subject_data: `SubjectData` object
+        subject data whose anatomical image (subject_data.anat) is to be
+        segmented
+
+    nipype_mem: `nipype.caching.Memory` object
+        Wrapper for running node with nipype.caching.Memory
+
+    do_normalize: bool, optional (default False)
+        flag indicating whether warped brain compartments (gm, wm, csf) are to
+        be generated (necessary if the caller wishes the brain later)
+
+    do_report: bool, optional (default True)
+       flag controlling whether post-preprocessing reports should be generated
+
+    Returns
+    -------
+    subject_data: `SubjectData` object
+        preprocessed subject_data
+
+        New Attributes
+        ==============
+        subject_data.nipype_results['segment']: Nipype output object
+            (raw) result of running spm.Segment
+
+        subject_data.gm: string
+            path to subject's segmented gray matter image in native space
+
+        subject_data.wm: string
+            path to subject's segmented white matter image in native space
+
+        subject_data.csf: string
+            path to subject's CSF image in native space
+
+        if do_normalize then the following additional data fiels are
+        populated:
+
+        subject_data.wgm: string
+            path to subject's segmented gray matter image in standard space
+
+        subject_data.wwm: string
+            path to subject's segmented white matter image in standard space
+
+        subject_data.wcsf: string
+            path to subject's CSF image in standard space
+
+
+    Notes
+    -----
+    Input subject_data is modified.
+
+    """
+
+    # prepare for smart caching
+    if nipype_mem is None:
+        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+
+        nipype_mem = NipypeMemory(base_dir=cache_dir)
+
+    # configure node
+    segment = nipype_mem.cache(spm.Segment)
+    if not do_normalize:
+        gm_output_type = [False, False, True]
+        wm_output_type = [False, False, True]
+        csf_output_type = [False, False, True]
+    else:
+        gm_output_type = [True, True, True]
+        wm_output_type = [True, True, True]
+        csf_output_type = [True, True, True]
+
+    # run node
+    segment_result = segment(
+        data=subject_data.anat,
+        gm_output_type=wm_output_type,
+        wm_output_type=gm_output_type,
+        csf_output_type=csf_output_type,
+        tissue_prob_maps=[GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE],
+        gaussians_per_class=[2, 2, 2, 4],
+        affine_regularization="none",
+        bias_regularization=0.0001,
+        bias_fwhm=60,
+        warping_regularization=1,
+        ignore_exception=True
         )
 
-    output['preproc_undergone'] = preproc_undergone
+    # failed node
+    subject_data.nipype_results['segment'] = segment_result
+    if segment_result.outputs is None:
+        subject_data.failed = True
+        return subject_data
 
+    # collect output
+    subject_data.nipype_results['segment'] = segment_result
+    subject_data.gm = segment_result.outputs.native_gm_image
+    subject_data.wm = segment_result.outputs.native_wm_image
+    subject_data.csf = segment_result.outputs.native_csf_image
+    if do_normalize:
+        subject_data.wgm = segment_result.outputs.normalized_gm_image
+        subject_data.wwm = segment_result.outputs.normalized_wm_image
+        subject_data.wcsf = segment_result.outputs.normalized_csf_image
+
+    # do report
     if do_report:
-        base_reporter.copy_web_conf_files(subject_data.output_dir)
-
-        report_log_filename = os.path.join(
-            subject_data.output_dir, 'report_log.html')
-        report_preproc_filename = os.path.join(
-            subject_data.output_dir, 'report_preproc.html')
-        report_filename = os.path.join(
-            subject_data.output_dir, 'report.html')
-
-        final_thumbnail = base_reporter.Thumbnail()
-        final_thumbnail.a = base_reporter.a(href=report_preproc_filename)
-        final_thumbnail.img = base_reporter.img(src=None)
-        final_thumbnail.description = subject_data.subject_id
-
-        # initialize results gallery
-        loader_filename = os.path.join(
-            subject_data.output_dir, "results_loader.php")
-        results_gallery = base_reporter.ResultsGallery(
-            loader_filename=loader_filename,
-            title="Report for subject %s" % subject_data.subject_id)
-        output['results_gallery'] = results_gallery
-
-        # initialize progress bar
-        if subject_progress_logger is None:
-            subject_progress_logger = base_reporter.ProgressReport(
-                report_log_filename,
-                other_watched_files=[report_filename,
-                                     report_preproc_filename,
-                                     report_log_filename])
-        output['progress_logger'] = subject_progress_logger
-
-        # html markup
-        log = base_reporter.get_subject_report_log_html_template(
-            ).substitute(
-            start_time=time.ctime(),
-            subject_id=subject_data.subject_id
-            )
-
-        preproc = base_reporter.get_subject_report_preproc_html_template(
-            ).substitute(
-            results=results_gallery,
-            start_time=time.ctime(),
-            preproc_undergone=preproc_undergone,
-            subject_id=subject_data.subject_id
-            )
-
-        main_html = base_reporter.get_subject_report_html_template(
-            ).substitute(
-            start_time=time.ctime(),
-            subject_id=subject_data.subject_id
-            )
-
-        with open(report_log_filename, 'w') as fd:
-            fd.write(str(log))
-            fd.close()
-        with open(report_preproc_filename, 'w') as fd:
-            fd.write(str(preproc))
-            fd.close()
-        with open(report_filename, 'w') as fd:
-            fd.write(str(main_html))
-            fd.close()
-
-        def finalize_report():
-            output['final_thumbnail'] = final_thumbnail
-
-            if last_stage:
-                if parent_results_gallery:
-                    base_reporter.commit_subject_thumnbail_to_parent_gallery(
-                        final_thumbnail,
-                        subject_data.subject_id,
-                        parent_results_gallery)
-
-                subject_progress_logger.finish(report_preproc_filename)
-    else:
-        results_gallery = None
-
-    # brain extraction (bet)
-    if do_bet:
-        pass
-
-    ###############
-    # slice-timing
-    ###############
-    if do_slicetiming:
-        raise NotImplementedError(
-            "STC module not yet integrated into this pipeline.")
-
-    #######################
-    #  motion correction
-    #######################
-    if do_realign:
-        realign_output = _do_subject_realign(
-            subject_data.output_dir,
-            sessions=subject_data.session_id,
-            do_report=do_report,
-            results_gallery=results_gallery,
-            progress_logger=subject_progress_logger,
-            in_files=subject_data.func,
-            register_to_mean=True,
-            jobtype='estwrite',
-            ignore_exception=ignore_exception,
-            )
-
-        # collect output
-        realign_result = realign_output['result']
-
-        # if failed to realign, return
-        if realign_result.outputs is None:
-            if do_report:
-                final_thumbnail.img.src = 'failed.png'
-                final_thumbnail.description += ' (failed realignment)'
-                finalize_report()
-                raise RuntimeError(
-                    ("spm.Realign failed for subject %s (outputs is None)!"
-                     ) % subject_data.subject_id)
-
-        subject_data.func = realign_result.outputs.realigned_files
-        ref_func = realign_result.outputs.mean_image
-
-        output['realign_result'] = realign_result
-        output['estimated_motion'
-               ] = realign_result.outputs.realignment_parameters
-        output['func'] = realign_result.outputs.realigned_files
-        # output['realigned_func'] = realign_result.outputs.realigned_files
-
-        # generate report stub
-        if do_report:
-            final_thumbnail.img.src = realign_output['rp_plot']
-    else:
-        # manually compute mean (along time axis) of fMRI images
-        ref_func = os.path.join(
-            subject_data.output_dir,
-            'meanfunc.nii')
-
-        if len(subject_data.session_id) > 1:
-            _cached(compute_mean_image)(subject_data.func[0],
-                                        output_filename=ref_func)
-        else:
-            if isinstance(subject_data.func[0], basestring):
-                ref_func = subject_data.func[0]
-            else:
-                ref_func = subject_data.func[0][0]
-
-    ##################################################################
-    # co-registration of structural (anatomical) against functional
-    ##################################################################
-    if do_coreg:
-        coreg_jobtype = 'estimate'
-        apply_to_files = []
-
-        # specify input files for coregistration
-        comments = "anat -> epi"
-        if func_to_anat:
-            # coreg_jobtype = 'estwrite'
-            comments = 'epi -> anat'
-            coreg_target = subject_data.anat
-
-            ref_func = _cached(load_specific_vol)(subject_data.func[0], 0)[0]
-            coreg_source = os.path.join(subject_data.output_dir,
-                                    "ref_func_vol.nii")
-            _cached(_save_vol)(ref_func.get_data(), ref_func.get_affine(),
-                               coreg_source)
-
-            apply_to_files = subject_data.func
-        else:
-            coreg_target = ref_func
-            if subject_data.anat is None:
-                if not subject_data.hires is None:
-                    coreg_source = subject_data.hires
-                do_segment = False  # can't segment without anat
-            else:
-                coreg_source = subject_data.anat
-
-        # run coreg proper
-        coreg_output = _do_subject_coreg(
-            subject_data.output_dir,
-            subject_id=subject_data.subject_id,
-            do_report=do_report,
-            results_gallery=results_gallery,
-            progress_logger=subject_progress_logger,
-            coreg_func_to_anat=func_to_anat,
-            comments=comments,
-            target=coreg_target,
-            source=coreg_source,
-            apply_to_files=apply_to_files,
-            jobtype=coreg_jobtype,
-            ignore_exception=ignore_exception
-            )
-
-        # collect results
-        coreg_result = coreg_output['result']
-        output['coreg_result'] = coreg_result
-
-        # if failed to coregister, return
-        if coreg_result.outputs is None:
-            if do_report:
-                final_thumbnail.img.src = 'failed.png'
-                final_thumbnail.description += ' (failed coregistration)'
-                finalize_report()
-            raise RuntimeError(
-                ("spm.Coregister failed for subject %s!"
-                 ) % subject_data.subject_id)
-
-        if func_to_anat:
-            output['func'
-                   ] = coreg_result.outputs.coregistered_files
-            subject_data.func = output['func']
-        else:
-            output['anat'] = coreg_result.outputs.coregistered_source
-            subject_data.anat = output['anat']
-
-        # generate report stub
-        if do_report:
-            final_thumbnail.img.src = coreg_output['axial']
-
-    #####################################
-    # segmentation of anatomical image
-    #####################################
-    if do_segment:
-        segment_data = output["anat"]
-        segment_output = _do_subject_segment(
-            subject_data.output_dir,
-            subject_id=subject_data.subject_id,
-            do_report=do_report,
-            progress_logger=subject_progress_logger,
-            data=segment_data,
-            gm_output_type=[True, True, True],
-            wm_output_type=[True, True, True],
-            csf_output_type=[True, True, True],
-            tissue_prob_maps=[GM_TEMPLATE,
-                              WM_TEMPLATE, CSF_TEMPLATE],
-            gaussians_per_class=[2, 2, 2, 4],
-            affine_regularization="mni",
-            bias_regularization=0.0001,
-            bias_fwhm=60,
-            warping_regularization=1,
-            ignore_exception=ignore_exception
-            )
-
-        segment_result = segment_output['result']
-        output['gm'] = segment_result.outputs.native_gm_image
-        output['wm'] = segment_result.outputs.native_wm_image
-        output['csf'] = segment_result.outputs.native_csf_image
-        output['wgm'] = segment_result.outputs.normalized_gm_image
-        output['wwm'] = segment_result.outputs.normalized_wm_image
-        output['wcsf'] = segment_result.outputs.normalized_csf_image
-
-        # if failed to segment, return
-        if segment_result.outputs is None:
-            if do_report:
-                final_thumbnail.img.src = 'failed.png'
-                final_thumbnail.description += ' (failed segmentation)'
-                finalize_report()
-            raise RuntimeError(
-                ("spm.Segment failed for subject %s!"
-                 ) % subject_data.subject_id)
-
-        # output['segment_result'] = segment_result
-
-        ###########################################
-        # Spatial Normalization via Segmentation
-        ###########################################
-        if do_normalize:
-            # indirect normalization: warp fMRI images int into MNI space
-            # using the deformations learned by segmentation
-            norm_parameter_file = segment_result.outputs.transformation_mat
-            norm_apply_to_files = output['func']
-
-            norm_output = _do_subject_normalize(
+        for brain_name, brain, cmap in zip(
+            ['anat', 'func'], [subject_data.anat, subject_data.func],
+            [cm.gray, cm.spectral]):
+            thumbs = generate_segmentation_thumbnails(
+                brain,
                 subject_data.output_dir,
-                segment_result=segment_result,
-                do_report=do_report,
-                results_gallery=results_gallery,
-                progress_logger=subject_progress_logger,
-                brain='EPI',
-                cmap=pl.cm.spectral,
-                fwhm=fwhm,
-                parameter_file=norm_parameter_file,
-                apply_to_files=norm_apply_to_files,
-                write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-                write_voxel_sizes=get_vox_dims(norm_apply_to_files),
-                write_interp=1,
-                jobtype='write',
-                ignore_exception=ignore_exception
+                subject_gm_file=subject_data.gm,
+                subject_wm_file=subject_data.wm,
+                subject_csf_file=subject_data.csf,
+                cmap=cmap,
+                brain=brain_name,
+                only_native=True,
+                execution_log_html_filename=make_nipype_execution_log_html(
+                    segment_result.outputs.transformation_mat, "Segment",
+                    subject_data.output_dir),
+                results_gallery=subject_data.results_gallery
                 )
 
-            norm_result = norm_output["result"]
+            if brain_name == 'func':
+                subject_data.final_thumbnail.img.src = thumbs['axial']
 
-            # if failed to normalize, return None
-            if norm_result.outputs is None:
-                if do_report:
-                    final_thumbnail.img.src = 'failed.png'
-                    final_thumbnail.description += ' (failed normalization)'
-                    finalize_report()
-                raise RuntimeError(
-                    ("spm.Normalize failed (EPI) for subject %s")
-                    % subject_data.subject_id)
+    return subject_data
 
-            subject_data.func = norm_result.outputs.normalized_files
-            output['func'] = norm_output['normalized_files']
 
-            if do_report:
-                final_thumbnail.img.src = norm_output['axial']
+def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
+                          do_report=True
+                          ):
+    """
+    Wrapper for running spm.Segment with optional reporting.
 
-            # indirect normalization: warp anat image into MNI space
-            # using the deformations learned by segmentation
-            norm_parameter_file = segment_result.outputs.transformation_mat
-            norm_apply_to_files = output['anat']
+    If subject_data has a `results_gallery` attribute, then QA thumbnails will
+    be commited after this node is executed
 
-            norm_output = _do_subject_normalize(
-                subject_data.output_dir,
-                segment_result=segment_result,
-                brain="anat",
-                cmap=pl.cm.gray,
-                do_report=do_report,
-                results_gallery=results_gallery,
-                progress_logger=subject_progress_logger,
-                parameter_file=norm_parameter_file,
-                apply_to_files=norm_apply_to_files,
+    Parameters
+    -----------
+    subject_data: `SubjectData` object
+        subject data whose functiona and anatomical images (subject_data.func
+        and subject_data.anat) are to be normalized (warped into standard
+        spac)
+
+    nipype_cached: nipype memroy cache
+        Wrapper for running node with nipype.caching.Memory
+
+    fwhm: float or list of 3 floats, optional (default 0)
+        FWHM for smoothing the functional data (subject_data.func).
+        If do_normalize is set, then this parameter is based to spm.Normalize,
+        else spm.Smooth is used to explicitly smooth the functional data.
+
+        If spm.Smooth is used for smoothing (i.e if do_normalize if False
+        and fwhm is not 0), then subject_data.nipype_results['smooth']
+        will contain the result from the spm.Smooth node.
+
+    do_report: bool, optional (default True)
+       flag controlling whether post-preprocessing reports should be generated
+
+    Returns
+    -------
+    subject_data: `SubjectData` object
+        preprocessed subject_data. The func and anat fields
+        (subject_data.func and subject_data.anat) now contain the normalizeed
+        functional and anatomical images of the subject
+
+        New Attributes
+        ==============
+        subject_data.nipype_results['normalize']: Nipype output object
+            (raw) result of running spm.Normalize
+
+    Notes
+    -----
+    Input subject_data is modified
+
+    """
+
+    # prepare for smart caching
+    if nipype_mem is None:
+        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+
+        nipype_mem = NipypeMemory(base_dir=cache_dir)
+
+    segmented = 'segment' in subject_data.nipype_results
+
+    # configure node for normalization
+    if not segmented:
+        # learn T1 deformation without segmentation
+        t1_template = niigz2nii(SPM_T1_TEMPLATE,
+                                output_dir=subject_data.output_dir)
+        normalize = nipype_mem.cache(spm.Normalize)
+        normalize_result = normalize(source=subject_data.anat,
+                                     template=t1_template,
+                                     )
+        parameter_file = normalize_result.outputs.normalization_parameters
+        normalize = nipype_mem.cache(spm.Normalize)
+    else:
+        normalize = nipype_mem.cache(spm.Normalize)
+        parameter_file = subject_data.nipype_results[
+            'segment'].outputs.transformation_mat
+
+    # do normalization proper
+    for brain_name, brain, cmap in zip(
+        ['anat', 'func'], [subject_data.anat, subject_data.func],
+        [cm.gray, cm.spectral]):
+        if segmented:
+            if brain_name == 'func':
+                apply_to_files, file_types = ravel_filenames(subject_data.func)
+            else:
+                apply_to_files = subject_data.anat
+
+            # run node
+            normalize_result = normalize(
+                parameter_file=parameter_file,
+                apply_to_files=apply_to_files,
                 write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-                write_voxel_sizes=get_vox_dims(norm_apply_to_files),
+                write_voxel_sizes=get_vox_dims(apply_to_files),
+                write_interp=1,
+                jobtype='write',
+                ignore_exception=True
+                )
+
+            # failed node ?
+            if normalize_result.outputs is None:
+                subject_data.nipype_results['normalize_%s' % brain_name
+                                            ] = normalize_result
+                subject_data.failed = True
+                return subject_data
+        else:
+            if brain_name == 'func':
+                apply_to_files, file_types = ravel_filenames(
+                    subject_data.func)
+            else:
+                apply_to_files = subject_data.anat
+
+            # run node
+            normalize_result = normalize(
+                parameter_file=parameter_file,
+                apply_to_files=apply_to_files,
+                write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
+                write_voxel_sizes=get_vox_dims(apply_to_files),
                 write_wrap=[0, 0, 0],
                 write_interp=1,
                 jobtype='write',
-                ignore_exception=ignore_exception
+                ignore_exception=True
                 )
 
-            norm_result = norm_output['result']
+            # failed node
+            subject_data.nipype_results['normalize_%s' % brain_name
+                                        ] = normalize_result
+            if normalize_result is None:
+                # catch dirty exception from SPM back-end
+                subject_data.failed = True
+                return subject_data
 
-            # if failed to normalize, return None
-            if norm_result.outputs is None:
-                if do_report:
-                    final_thumbnail.img.src = 'failed.png'
-                    final_thumbnail.description += ' (failed normalization)'
-                    finalize_report()
-                raise RuntimeError(
-                    ("spm.Normalize failed (anat) for subject %s")
-                    % subject_data.subject_id)
+            if brain_name == 'func':
+                subject_data.func = unravel_filenames(
+                    normalize_result.outputs.normalized_files, file_types)
+            else:
+                subject_data.anat = \
+                    normalize_result.outputs.normalized_files
 
-            output['anat'] = norm_output['normalized_files']
+        # collect node output
+        subject_data.nipype_results['normalize_%s' % brain_name
+                                    ] = normalize_result
+        if brain_name == 'func':
+            subject_data.func = unravel_filenames(
+                normalize_result.outputs.normalized_files, file_types)
 
-    ###############################################
-    # Spatial Normalization without Segmentation
-    ###############################################
-    elif do_normalize:
-        # learn T1 deformation without segmentation
-        t1_template = os.path.join(
-            subject_data.output_dir,
-            os.path.basename(EPI_TEMPLATE).replace('.gz', ''))
-        if not os.path.exists(t1_template):
-            shutil.copy(
-                EPI_TEMPLATE, subject_data.output_dir)
-            unzip_nii_gz(subject_data.output_dir)
+            # explicit smoothing
+            if np.sum(fwhm) > 0:
+                subject_data = _do_subject_smooth(
+                    subject_data, fwhm, nipype_mem=nipype_mem
+                    )
+        else:
+            subject_data.anat = normalize_result.outputs.normalized_files
 
-        norm_output = _do_subject_normalize(
-            subject_data.output_dir,
-            do_report=False,
-            source=output['anat'],
-            template=t1_template,
-            )
+        # do report
+        if do_report:
+            # generate segmentation thumbs
+            if segmented:
+                thumbs = generate_segmentation_thumbnails(
+                    normalize_result.outputs.normalized_files,
+                    subject_data.output_dir,
+                    subject_gm_file=subject_data.wgm,
+                    subject_wm_file=subject_data.wwm,
+                    subject_csf_file=subject_data.wcsf,
+                    cmap=cmap,
+                    brain=brain_name,
+                    comments="warped",
+                    execution_log_html_filename=make_nipype_execution_log_html(
+                        subject_data.nipype_results[
+                            "segment"].outputs.transformation_mat, "Segment",
+                        subject_data.output_dir),
+                    results_gallery=subject_data.results_gallery
+                    )
 
-        norm_result = norm_output['result']
+                if brain_name == 'func':
+                    subject_data.final_thumbnail.img.src = thumbs['axial']
 
-        # if failed to normalize, return None
-        if norm_result.outputs is None:
-            if do_report:
-                final_thumbnail.img.src = 'failed.png'
-                finalize_report()
-            raise RuntimeError(
-                ("spm.Normalize failed for subject %s")
-                % subject_data.subject_id)
-
-        # Warp EPI into MNI space using learned deformation
-        norm_parameter_file = norm_result.outputs.normalization_parameters
-        norm_apply_to_files = output['func']
-
-        norm_output = _do_subject_normalize(
-            subject_data.output_dir,
-            brain="EPI",
-            cmap=pl.cm.spectral,
-            fwhm=fwhm,
-            do_report=do_report,
-            results_gallery=results_gallery,
-            progress_logger=subject_progress_logger,
-            parameter_file=norm_parameter_file,
-            apply_to_files=norm_apply_to_files,
-            write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-            write_voxel_sizes=get_vox_dims(norm_apply_to_files),
-            write_wrap=[0, 0, 0],
-            write_interp=1,
-            jobtype='write',
-            ignore_exception=ignore_exception
-            )
-
-        norm_result = norm_output["result"]
-
-        # if failed to normalize, return None
-        if norm_result.outputs is None:
-            if do_report:
-                final_thumbnail.img.src = 'failed.png'
-                final_thumbnail.description += ' (failed normalization)'
-                finalize_report()
-            raise RuntimeError(
-                ("spm.Normalize failed (EPI) for subject %s")
-                % subject_data.subject_id)
-
-        subject_data.func = norm_output['normalized_files']
-        output['func'] = subject_data.func
-
-        # Warp anat into MNI space using learned deformation
-        norm_apply_to_files = output['anat']
-
-        norm_output = _do_subject_normalize(
-            subject_data.output_dir,
-            brain="anat",
-            cmap=pl.cm.gray,
-            do_report=do_report,
-            results_gallery=results_gallery,
-            progress_logger=subject_progress_logger,
-            parameter_file=norm_parameter_file,
-            apply_to_files=norm_apply_to_files,
-            write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-            write_voxel_sizes=get_vox_dims(norm_apply_to_files),
-            write_wrap=[0, 0, 0],
-            write_interp=1,
-            jobtype='write',
-            ignore_exception=ignore_exception
-            )
-
-        norm_result = norm_output['result']
-
-        # if failed to normalize, return None
-        if norm_result.outputs is None:
-            if do_report:
-                final_thumbnail.img.src = 'failed.png'
-                final_thumbnail.description += ' (failed normalization)'
-                finalize_report()
-            raise RuntimeError(
-                ("spm.Normalize failed (anat) for subject %s")
-                % subject_data.subject_id)
-
-        output['anat'] = norm_output['normalized_files']
-
-    #########################################
-    # Smooth without Spatial Normalization
-    #########################################
-    if not do_normalize and np.sum(fwhm) > 0:
-        # smooth func
-        smooth_output = _do_subject_smooth(
-            subject_data.output_dir,
-            results_gallery=results_gallery,
-            progress_logger=subject_progress_logger,
-            in_files=subject_data.func,
-            fwhm=fwhm)
-
-        smooth_result = smooth_output['result']
-
-        if smooth_result is None:
-            if do_report:
-                final_thumbnail.img.src = 'failed.png'
-                final_thumbnail.description += ' (failed smoothing)'
-                finalize_report()
-            raise RuntimeError(
-                ("spm.Smooth failed (EPI) for subject %s")
-                % subject_data.subject_id)
-
-        output['func'] = smooth_output['smoothed_files']
-        subject_data.func = output["func"]
-
-    if do_report:
-        # generate cv plots
-        if do_cv_tc:
-            corrected_FMRI = output['func']
-
-            thumbnail = preproc_reporter.generate_cv_tc_thumbnail(
-                corrected_FMRI,
-                subject_data.session_id,
-                subject_data.subject_id,
+            # generate normalization thumbs
+            generate_normalization_thumbnails(
+                normalize_result.outputs.normalized_files,
                 subject_data.output_dir,
-                results_gallery=results_gallery)
+                brain=brain_name,
+                execution_log_html_filename=make_nipype_execution_log_html(
+                    normalize_result.outputs.normalized_files, "Normalize",
+                    subject_data.output_dir),
+                results_gallery=subject_data.results_gallery,
+                )
 
-            if final_thumbnail.img.src is None:
-                final_thumbnail = thumbnail
+            if not segmented and brain_name == 'func':
+                subject_data.final_thumbnail.img.src = thumbs['axial']
 
-        finalize_report()
-
-    return subject_data, output
+    return subject_data
 
 
-def _do_subject_dartelnorm2mni(output_dir,
-                               structural_file,
-                               functional_file,
-                               subject_gm_file=None,
-                               subject_wm_file=None,
-                               sessions=None,
-                               subject_id=None,
-                               downsample_func=True,
+def _do_subject_smooth(subject_data, fwhm, nipype_mem=None):
+    """
+    Wrapper for running spm.Smooth with optional reporting.
+
+    Parameters
+    -----------
+    subject_data: `SubjectData` object
+        subject data whose functional images (subject_data.func) are to be
+        smoothed
+
+    nipype_mem: `nipype.caching.Memory` object
+        Wrapper for running node with nipype.caching.Memory
+
+    Returns
+    -------
+    subject_data: `SubjectData` object
+        preprocessed subject_data. The func field (subject_data.func) now
+        contains the smoothed functional images of the subject
+
+        New Attributes
+        ==============
+        subject_data.nipype_results['smooth']: Nipype output object
+            (raw) result of running spm.Smooth
+
+    Notes
+    -----
+    Input subject_data is modified.
+
+    """
+
+    # prepare for smart caching
+    if nipype_mem is None:
+        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+
+        nipype_mem = NipypeMemory(base_dir=cache_dir)
+
+    # configure node
+    smooth = nipype_mem.cache(spm.Smooth)
+    in_files, file_types = ravel_filenames(subject_data.func)
+
+    # run node
+    smooth_result = smooth(in_files=in_files,
+                           fwhm=fwhm,
+                           ignore_exception=True
+                           )
+    # failed node ?
+    subject_data.nipype_results['smooth'] = smooth_result
+    if smooth_result.outputs is None:
+        subject_data.failed = True
+        return subject_data
+
+    # collect results
+    subject_data.func = unravel_filenames(
+        smooth_result.outputs.smoothed_files, file_types)
+
+    return subject_data
+
+
+def _do_subject_dartelnorm2mni(subject_data,
+                               template_file,
+                               fwhm=0,
+                               nipype_mem=None,
                                do_report=True,
-                               do_cv_tc=True,
-                               final_thumbnail=None,
-                               results_gallery=None,
                                parent_results_gallery=None,
-                               subject_progress_logger=None,
-                               last_stage=True,
-                               ignore_exception=True,
-                               **dartelnorm2mni_kwargs):
+                               do_cv_tc=True,
+                               last_stage=True
+                               ):
     """
     Uses spm.DARTELNorm2MNI to warp subject brain into MNI space.
 
@@ -1375,267 +905,419 @@ def _do_subject_dartelnorm2mni(output_dir,
 
     """
 
-    output = {"subject_id": subject_id,
-              "output_dir": output_dir}
-
-    fwhm = 0
-    if 'fwhm' in dartelnorm2mni_kwargs:
-        fwhm = dartelnorm2mni_kwargs['fwhm']
-
-    output['progress_logger'] = subject_progress_logger
-
     # prepare for smart caching
-    cache_dir = os.path.join(output_dir, 'cache_dir')
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    mem = Memory(base_dir=cache_dir)
+    if nipype_mem is None:
+        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
 
-    dartelnorm2mni = mem.cache(spm.DARTELNorm2MNI)
+        nipype_mem = NipypeMemory(base_dir=cache_dir)
 
-    # warp subject gm image (produced by Segment or NewSegment)
+    # configure node
+    dartelnorm2mni = nipype_mem.cache(spm.DARTELNorm2MNI)
+
+    # warp subject tissue class image (produced by Segment or NewSegment)
     # into MNI space
-    if subject_gm_file:
-        dartelnorm2mni_result = dartelnorm2mni(apply_to_files=subject_gm_file,
-                                               **dartelnorm2mni_kwargs)
-        subject_gm_file = dartelnorm2mni_result.outputs.normalized_files
-    # warp subject wm image (produced by Segment or NewSegment)
-    # into MNI space
-    if subject_wm_file:
-        dartelnorm2mni_result = dartelnorm2mni(apply_to_files=subject_wm_file,
-                                               **dartelnorm2mni_kwargs)
-        subject_wm_file = dartelnorm2mni_result.outputs.normalized_files
+    for tissue in ['gm', 'wm']:
+        if hasattr(subject_data, tissue):
+            dartelnorm2mni_result = dartelnorm2mni(
+                apply_to_files=getattr(subject_data, tissue),
+                flowfield_files=subject_data.dartel_flow_fields,
+                template_file=template_file,
+                modulate=False  # don't modulate
+                )
+            setattr(subject_data, "w" + tissue,
+                    dartelnorm2mni_result.outputs.normalized_files)
 
     # warp functional image into MNI space
     # functional_file = do_3Dto4D_merge(functional_file)
-    createwarped = mem.cache(spm.CreateWarped)
+    createwarped = nipype_mem.cache(spm.CreateWarped)
     createwarped_result = createwarped(
-        image_files=functional_file,
-        flowfield_files=dartelnorm2mni_kwargs['flowfield_files'],
-        ignore_exception=ignore_exception
+        image_files=subject_data.func,
+        flowfield_files=subject_data.dartel_flow_fields,
+        ignore_exception=False
         )
-
-    # if node failed, return None
-    if createwarped_result.outputs is None:
-        raise RuntimeError(
-            ("spm.CreateWarped failed for subject %s")
-            % subject_id)
-
-    warped_files = createwarped_result.outputs.warped_files
-
-    execution_log_html_filename = os.path.join(
-        output_dir,
-        'normalization_of_epi_execution_log.html',
-        )
-
-    # grab execution log
-    execution_log = preproc_reporter.get_nipype_report(
-        preproc_reporter.get_nipype_report_filename(warped_files))
-
-    # dump execution log unto html output file
-    open(execution_log_html_filename, 'w').write(
-        execution_log)
-
-    # log progress
-    if subject_progress_logger:
-        subject_progress_logger.log(
-            '<b>Normalization of EPI</b><br/><br/>')
-        subject_progress_logger.log(execution_log)
-        subject_progress_logger.log('<hr/>')
-
-    # do smoothing
-    if fwhm:
-        smooth = mem.cache(spm.Smooth)
-        smooth_result = smooth(
-            in_files=warped_files,
-            fwhm=fwhm)
-
-        # collect ouput
-        output['result'] = smooth_result
-        if not smooth_result.outputs is None:
-            warped_files = smooth_result.outputs.smoothed_files
-
-    # # down-sample warped epi to save disk space ?
-    # if downsample_func:
-    #     if isinstance(warped_files, basestring):
-    #         warped_files = [warped_files]
-
-    #     resampled_warped_files = []
-    #     for warped_file in warped_files:
-    #         # warped_file = do_3Dto4D_merge(warped_file)
-
-    #         # compute new vox dims to down-sample to
-    #         new_vox_dims = (np.array(get_vox_dims(warped_file)) \
-    #                         + np.array(get_vox_dims(functional_file))) / 2.0
-
-    #         # down-sample proper
-    #         resampled_warped_file = resample_img(
-    #             warped_file, new_vox_dims)
-    #         resampled_warped_files.append(resampled_warped_file)
-
-    #     warped_files = resampled_warped_files
-
-            # grab execution log
-            execution_log = preproc_reporter.get_nipype_report(
-                preproc_reporter.get_nipype_report_filename(
-                    warped_files))
-
-            # write execution log
-            open(execution_log_html_filename, 'w').write(
-                execution_log)
-
-            # update progress bar
-            if subject_progress_logger:
-                subject_progress_logger.log(
-                    '<b>Smoothening of EPI</b><br/><br/>')
-                subject_progress_logger.log(execution_log)
-                subject_progress_logger.log('<hr/>')
-
-    # do_QA
-    if do_report and results_gallery:
-        # generate normalization thumbs for EPI
-        preproc_reporter.generate_normalization_thumbnails(
-            warped_files,
-            output_dir,
-            brain='EPI',
-            execution_log_html_filename=execution_log_html_filename,
-            results_gallery=results_gallery,
-            )
-
-        # generate segmentation thumbs for EPI
-        epi_thumbs = preproc_reporter.generate_segmentation_thumbnails(
-                warped_files,
-                output_dir,
-                subject_gm_file=subject_gm_file,
-                subject_wm_file=subject_wm_file,
-                brain='EPI',
-                cmap=pl.cm.spectral,
-                execution_log_html_filename=execution_log_html_filename,
-                results_gallery=results_gallery,
-                )
+    subject_data.func = createwarped_result.outputs.warped_files
 
     # warp anat into MNI space
     dartelnorm2mni_result = dartelnorm2mni(
-        apply_to_files=structural_file,
-        ignore_exception=ignore_exception,
-        **dartelnorm2mni_kwargs
+        apply_to_files=subject_data.anat,
+        flowfield_files=subject_data.dartel_flow_fields,
+        template_file=template_file,
+        ignore_exception=True,
+        modulate=False,  # don't modulate
+        fwhm=0.  # don't smooth
         )
-
-    # if node failed, return None
-    if dartelnorm2mni_result.outputs is None:
-        raise RuntimeError(
-            ("spm.DartelNorm2MNI failed for subject %s")
-            % subject_id)
-
-    # define execution log html filename
-    execution_log_html_filename = os.path.join(
-        output_dir,
-        'normalization_of_anat_execution_log.html',
-        )
-
-    # grab execution log
-    execution_log = preproc_reporter.get_nipype_report(
-        preproc_reporter.get_nipype_report_filename(
-            dartelnorm2mni_result.outputs.normalized_files))
-
-    # dump execution log unto html output file
-    open(execution_log_html_filename, 'w').write(
-        execution_log)
-
-    # log progress
-    if subject_progress_logger:
-        subject_progress_logger.log(
-            '<b>Normalization of anat</b><br/><br/>')
-        subject_progress_logger.log(execution_log)
-        subject_progress_logger.log('<hr/>')
-
-    # do_QA
-    if do_report and results_gallery:
-        preproc_reporter.generate_normalization_thumbnails(
-            dartelnorm2mni_result.outputs.normalized_files,
-            output_dir,
-            brain='anat',
-            execution_log_html_filename=execution_log_html_filename,
-            results_gallery=results_gallery,
-            )
-
-        # generate segmentation thumbs
-        preproc_reporter.generate_segmentation_thumbnails(
-            dartelnorm2mni_result.outputs.normalized_files,
-            output_dir,
-            subject_gm_file=subject_gm_file,
-            subject_wm_file=subject_wm_file,
-            brain='anat',
-            execution_log_html_filename=execution_log_html_filename,
-            results_gallery=results_gallery,
-            )
-
-        # finalize report
-        if parent_results_gallery:
-            final_thumbnail.img.src = epi_thumbs['axial']
-            base_reporter.commit_subject_thumnbail_to_parent_gallery(
-                final_thumbnail,
-                subject_id,
-                parent_results_gallery)
+    subject_data.anat = dartelnorm2mni_result.outputs.normalized_files
 
     if do_report:
-        # generate cv plots
-        if do_cv_tc:
-            preproc_reporter.generate_cv_tc_thumbnail(
-                createwarped_result.outputs.warped_files,
-                sessions,
-                subject_id,
-                output_dir,
-                results_gallery=results_gallery)
+        for brain_name, brain, cmap in zip(
+            ['anat', 'func'], [subject_data.anat, subject_data.func],
+            [cm.gray, cm.spectral]):
 
-        # shutdown page reloader
-        if last_stage:
-            subject_progress_logger.finish_dir(output_dir)
+            # generate segmentation thumbs
+            thumbs = generate_segmentation_thumbnails(
+                brain,
+                subject_data.output_dir,
+                subject_gm_file=subject_data.wgm,
+                subject_wm_file=subject_data.wwm,
+                # subject_csf_file=subject_data.wcsf,
+                cmap=cmap,
+                brain=brain_name,
+                comments="warped",
+                execution_log_html_filename=make_nipype_execution_log_html(
+                    subject_data.dartel_flow_fields, "NewSegment",
+                    subject_data.output_dir),
+                results_gallery=subject_data.results_gallery
+                )
 
-    # collect results and return
-    output['func'] = warped_files
-    output['anat'] = dartelnorm2mni_result.outputs.normalized_files
-    output['gm'] = subject_gm_file
-    output['wm'] = subject_wm_file
+            if brain_name == 'func':
+                subject_data.final_thumbnail.img.src = thumbs['axial']
 
-    output['results_gallery'] = results_gallery
-    output['progress_logger'] = subject_progress_logger
+            # generate normalization thumbs
+            generate_normalization_thumbnails(
+                brain,
+                subject_data.output_dir,
+                brain=brain_name,
+                execution_log_html_filename=make_nipype_execution_log_html(
+                    brain, "Normalize",
+                    subject_data.output_dir),
+                results_gallery=subject_data.results_gallery,
+                )
 
-    return output
+        subject_data._finalize_report(
+            parent_results_gallery=parent_results_gallery,
+            do_cv_tc=do_cv_tc, last_stage=last_stage)
+
+    return subject_data
 
 
-def do_group_DARTEL(output_dir,
-                    subject_ids,
-                    session_ids,
-                    structural_files,
-                    functional_files,
-                    fwhm=0,
-                    subject_output_dirs=None,
-                    do_report=False,
-                    do_cv_tc=True,
-                    subject_final_thumbs=None,
-                    subject_results_galleries=None,
-                    subject_progress_loggers=None,
-                    parent_results_gallery=None,
-                    ignore_exception=True):
+def do_subject_preproc(
+    subject_data,
+    do_realign=True,
+    do_coreg=True,
+    coreg_anat_to_func=False,
+    do_segment=True,
+    do_normalize=True,
+    do_dartel=False,
+    do_cv_tc=True,
+    fwhm=0.,
+    do_deleteorient=False,
+    hardlink_output=True,
+    do_report=True,
+    parent_results_gallery=None,
+    last_stage=True,
+    preproc_undergone=None,
+    ):
+    """
+    Function preprocessing data for a single subject.
+
+    Parameters
+    ----------
+    subject_data: instance of `SubjectData`
+        Object containing information about the subject under inspection
+        (path to anat image, func image(s), output directory, etc.). Refer
+        to documentation of `SubjectData` class
+
+    do_realign: bool, optional (default True)
+        if set, then the functional data will be realigned to correct for
+        head-motion.
+
+        subject_data.nipype_results['realign'] will contain the result from
+        the spm.Realign node.
+
+    do_coreg: bool, optional (default True)
+        if set, the functional (subject_data.func) and anatomical
+        (subject_data.anat) images will be corregistered. If this
+        not set, and subject_data.anat is not None, the it is assumed that
+        subject_data.func and subject_data.anat have already bean coregistered.
+
+        subject_data.nipype_results['coregister'] will contain the result
+        from the spm.Coregister node.
+
+    coreg_anat_to_func: bool, optional (default False)
+       if set, then functional data (subject_data.func) will be the reference
+       during coregistration. By default the anatomical data
+       (subject_data.anat) if the reference, to ensure a precise registration
+       (since anatomical data has finer resolution)
+
+    do_segment: bool, optional (default True)
+        if set, then the subject's anatomical (subject_data.anat) image will be
+        segmented to produce GM, WM, and CSF compartments (useful for both
+        indirect normalization (intra-subject) or DARTEL (inter-subject) alike
+
+        subject_data.nipype_results['segment'] will contain the result from
+        the spm.Segment node.
+
+    do_normalize: bool, optional (default True)
+       if set, then the subject_data (subject_data.func and subject_data.anat)
+       will will be warped into MNI space
+
+       subject_data.nipype_results['normalize'] will contain the result from
+       the spm.Normalize node.
+
+    fwhm: float or list of 3 floats, optional (default 0)
+        FWHM for smoothing the functional data (subject_data.func).
+        If do_normalize is set, then this parameter is based to spm.Normalize,
+        else spm.Smooth is used to explicitly smooth the functional data.
+
+        If spm.Smooth is used for smoothing (i.e if do_normalize if False
+        and fwhm is not 0), then subject_data.nipype_results['smooth']
+        will contain the result from the spm.Smooth node.
+
+    do_deleteorient: bool (optional)
+        if true, then orientation meta-data in all input image files for this
+        subject will be stripped-off
+
+    hardlink_output: bool, optional (default True)
+        if set, then output files will be hard-linked from the respective
+        nipype cache directories, to the subject's immediate output directory
+        (subject_data.output_dir)
+
+    do_cv_tc: bool (optional)
+        if set, a summarizing the time-course of the coefficient of variation
+        in the preprocessed fMRI time-series will be generated
+
+    """
+
+    # sanitze subject data
+    if isinstance(subject_data, dict):
+        subject_data = SubjectData(**subject_data)
+    else:
+        assert isinstance(subject_data, SubjectData), (
+            "subject_datta must be SubjectData instance or dict, "
+            "got %s" % type(subject_data))
+
+    subject_data.do_report = do_report
+
+    subject_data.sanitize(do_deleteorient=do_deleteorient)
+    subject_data.failed = False
+
+    # sanitize fwhm
+    if not fwhm is None:
+        if not np.shape(fwhm):
+            fwhm = [fwhm, fwhm, fwhm]
+        if len(fwhm) == 1:
+            fwhm = list(fwhm) * 3
+        else:
+            assert len(fwhm) == 3, ("fwhm must be float or list of 3 "
+                                    "floats; got %s" % fwhm)
+
+    # XXX For the moment, we can neither segment nor normalize without anat.
+    # A trick would be to register the func with an EPI template and then
+    # the EPI template to MNI
+    do_segment = (not subject_data.anat is None) and do_segment
+    do_normalize = (not subject_data.anat is None) and do_normalize
+
+    # nipype outputs
+    subject_data.nipype_results = {}
+
+    # prepare for smart caching
+    cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    nipype_mem = NipypeMemory(base_dir=cache_dir)
+    joblib_mem = JoblibMemory(cache_dir, verbose=100)
+
+    # get ready for reporting
+    subject_data.results_gallery = None
+    if do_report:
+        # generate explanation of preproc steps undergone by subject
+        if preproc_undergone is None:
+            preproc_undergone = generate_preproc_undergone_docstring(
+                do_realign=do_realign,
+                do_coreg=do_coreg,
+                do_segment=do_segment,
+                do_normalize=do_normalize,
+                fwhm=fwhm,
+                do_dartel=do_dartel,
+                coreg_func_to_anat=not coreg_anat_to_func
+                )
+
+        # report filenames
+        subject_data.report_log_filename = os.path.join(
+            subject_data.output_dir, 'report_log.html')
+        subject_data.report_preproc_filename = os.path.join(
+            subject_data.output_dir, 'report_preproc.html')
+        subject_data.report_filename = os.path.join(subject_data.output_dir,
+                                                    'report.html')
+
+        # initialize results gallery
+        loader_filename = os.path.join(subject_data.output_dir,
+                                       "results_loader.php")
+        subject_data.results_gallery = ResultsGallery(
+            loader_filename=loader_filename,
+            title="Report for subject %s" % subject_data.subject_id)
+
+        # final thumbnail most representative of this subject's QA
+        subject_data.final_thumbnail = Thumbnail()
+        subject_data.final_thumbnail.a = a(
+            href=subject_data.report_preproc_filename)
+        subject_data.final_thumbnail.img = img(src=None)
+        subject_data.final_thumbnail.description = subject_data.subject_id
+
+        # copy web stuff to subject output dir
+        copy_web_conf_files(subject_data.output_dir)
+
+        # initialize progress bar
+        subject_data.progress_logger = ProgressReport(
+            subject_data.report_log_filename,
+            other_watched_files=[subject_data.report_preproc_filename])
+
+        # html markup
+        preproc = get_subject_report_preproc_html_template(
+            ).substitute(
+            results=subject_data.results_gallery,
+            start_time=time.ctime(),
+            preproc_undergone=preproc_undergone,
+            subject_id=subject_data.subject_id,
+            )
+        main_html = get_subject_report_html_template(
+            ).substitute(
+            start_time=time.ctime(),
+            subject_id=subject_data.subject_id
+            )
+
+        with open(subject_data.report_preproc_filename, 'w') as fd:
+            fd.write(str(preproc))
+            fd.close()
+        with open(subject_data.report_filename, 'w') as fd:
+            fd.write(str(main_html))
+            fd.close()
+
+    #######################
+    #  motion correction
+    #######################
+    if do_realign:
+        subject_data = _do_subject_realign(
+            subject_data, nipype_mem=nipype_mem,
+            do_report=do_report
+            )
+
+        # hard-link node output files
+        if hardlink_output:
+            subject_data.hardlink_output_files()
+
+        # handle failed node
+        if subject_data.failed:
+            subject_data._finalize_report(
+                parent_results_gallery=parent_results_gallery,
+                do_cv_tc=do_cv_tc, last_stage=last_stage)
+            return subject_data
+
+    ##################################################################
+    # co-registration of structural (anatomical) against functional
+    ##################################################################
+    if do_coreg:
+        subject_data = _do_subject_coregister(
+            subject_data, nipype_mem=nipype_mem,
+            joblib_mem=joblib_mem,
+            coreg_anat_to_func=coreg_anat_to_func,
+            do_report=do_report
+            )
+
+        # hard-link node output files
+        if hardlink_output:
+            subject_data.hardlink_output_files()
+
+        # handle failed node
+        if subject_data.failed:
+            subject_data._finalize_report(
+                parent_results_gallery=parent_results_gallery,
+                do_cv_tc=do_cv_tc, last_stage=last_stage)
+            return subject_data
+
+    #####################################
+    # segmentation of anatomical image
+    #####################################
+    if do_segment:
+        subject_data = _do_subject_segment(
+            subject_data, nipype_mem=nipype_mem,
+            do_normalize=do_normalize,
+            do_report=do_report
+            )
+
+        # hard-link node output files
+        if hardlink_output:
+            subject_data.hardlink_output_files()
+
+        # handle failed node
+        if subject_data.failed:
+            subject_data._finalize_report(
+                parent_results_gallery=parent_results_gallery,
+                do_cv_tc=do_cv_tc, last_stage=last_stage)
+            return subject_data
+
+    ##########################
+    # Spatial Normalization
+    ##########################
+    if do_normalize:
+        subject_data = _do_subject_normalize(
+            subject_data,
+            fwhm,  # smooth func after normalization
+            nipype_mem=nipype_mem,
+            do_report=do_report
+            )
+
+        # hard-link node output files
+        if hardlink_output:
+            subject_data.hardlink_output_files()
+
+        # handle failed node
+        if subject_data.failed:
+            subject_data._finalize_report(
+                parent_results_gallery=parent_results_gallery,
+                do_cv_tc=do_cv_tc, last_stage=last_stage)
+            return subject_data
+
+    #########################################
+    # Smooth without Spatial Normalization
+    #########################################
+    if not do_normalize and np.sum(fwhm) > 0:
+        subject_data = _do_subject_smooth(subject_data, fwhm,
+                                          nipype_mem=nipype_mem
+                                          )
+
+        # handle failed node
+        if subject_data.failed:
+            subject_data._finalize_report(
+                parent_results_gallery=parent_results_gallery,
+                do_cv_tc=do_cv_tc, last_stage=last_stage)
+            return subject_data
+
+    # finalize reports
+    if do_report:
+        subject_data._finalize_report(
+            parent_results_gallery=parent_results_gallery,
+            do_cv_tc=do_cv_tc, last_stage=last_stage)
+
+    # hard-link node output files
+    if last_stage:
+        if hardlink_output:
+            subject_data.hardlink_output_files(final=True)
+
+    # return preprocessed subject_data
+    return subject_data
+
+
+def _do_subjects_dartel(subjects,
+                        output_dir,
+                        fwhm=0,
+                        n_jobs=-1,
+                        do_report=True,
+                        do_cv_tc=True,
+                        parent_results_gallery=None
+                        ):
     """
     Undocumented API!
 
     """
 
-    if subject_results_galleries is None:
-        subject_results_galleries = [None] * len(structural_files)
-
-    if subject_progress_loggers is None:
-        subject_progress_loggers = [None] * len(structural_files)
-
-    if subject_final_thumbs is None:
-        subject_final_thumbs = [None] * len(structural_files)
-
     # prepare for smart caching
     cache_dir = os.path.join(output_dir, 'cache_dir')
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
-    mem = Memory(base_dir=cache_dir)
+    mem = NipypeMemory(base_dir=cache_dir)
 
     # compute gm, wm, etc. structural segmentation using Newsegment
     newsegment = mem.cache(spm.NewSegment)
@@ -1652,14 +1334,13 @@ def do_group_DARTEL(output_dir,
     tissue6 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 6),
                2, (False, False), (False, False))
     newsegment_result = newsegment(
-        channel_files=structural_files,
+        channel_files=[subject_data.anat for subject_data in subjects],
         tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6],
-        ignore_exception=ignore_exception
+        ignore_exception=True
         )
 
     if newsegment_result.outputs is None:
         return
-
     # compute DARTEL template for group data
     dartel = mem.cache(spm.DARTEL)
     dartel_input_images = [tpms for tpms in
@@ -1671,177 +1352,104 @@ def do_group_DARTEL(output_dir,
     if dartel_result.outputs is None:
         return
 
+    for subject_data, j in zip(subjects, xrange(len(subjects))):
+        subject_data.gm = newsegment_result.outputs.dartel_input_images[0][j]
+        subject_data.wm = newsegment_result.outputs.dartel_input_images[1][j]
+        subject_data.dartel_flow_fields = dartel_result.outputs\
+            .dartel_flow_fields[j]
+
     # warp individual brains into group (DARTEL) space
-    subject_gm_files = newsegment_result.outputs.dartel_input_images[
-        0]
-    subject_wm_files = newsegment_result.outputs.dartel_input_images[
-        1]
-
-    results = joblib.Parallel(
-        n_jobs=N_JOBS, verbose=100,
+    preproc_subject_data = Parallel(
+        n_jobs=n_jobs, verbose=100,
         pre_dispatch='1.5*n_jobs',  # for scalability over RAM
-        )(joblib.delayed(
-        _do_subject_dartelnorm2mni)(
-              subject_output_dirs[j],
-              structural_files[j],
-              functional_files[j],
-              subject_gm_file=subject_gm_files[j],
-              subject_wm_file=subject_wm_files[j],
-              sessions=session_ids[j],
-              subject_id=subject_ids[j],
-              do_report=do_report,
-              do_cv_tc=do_cv_tc,
-              final_thumbnail=subject_final_thumbs[j],
-              results_gallery=subject_results_galleries[j],
-              subject_progress_logger=subject_progress_loggers[j],
-              parent_results_gallery=parent_results_gallery,
-              ignore_exception=ignore_exception,
-              modulate=False,  # don't modulate
-              fwhm=fwhm,
-              flowfield_files=dartel_result.outputs.dartel_flow_fields[j],
-              template_file=dartel_result.outputs.final_template_file,
-              )
-          for j in xrange(
-              len(subject_ids)))
+        )(delayed(
+            _do_subject_dartelnorm2mni)(
+                subject_data,
+                do_report=do_report,
+                do_cv_tc=do_cv_tc,
+                parent_results_gallery=parent_results_gallery,
+                fwhm=fwhm,
+                template_file=dartel_result.outputs.final_template_file,
+                )
+          for subject_data in subjects)
 
-    # do QA
-    if do_report:
-        pass
-
-    return results, newsegment_result
+    return preproc_subject_data, newsegment_result
 
 
-def do_subjects_preproc(subjects,
+def do_subjects_preproc(subject_factory,
                         output_dir=None,
-                        dataset_id="UNNAMED DATASET!",
-                        prepreproc_undergone="",
-                        do_deleteorient=False,
-                        do_report=True,
-                        do_export_report=False,
-                        dataset_description=None,
-                        report_filename=None,
-                        do_shutdown_reloaders=True,
-                        fwhm=0,
-                        do_bet=False,
-                        do_slicetiming=False,
-                        do_realign=True,
-                        do_coreg=True,
-                        func_to_anat=False,
-                        do_segment=True,
-                        do_normalize=True,
+                        hardlink_output=True,
+                        n_jobs=None,
                         do_dartel=False,
-                        do_cv_tc=True,
-                        ignore_exception=True,
-                        n_jobs=N_JOBS,
+                        do_report=True,
+                        dataset_id="UNKNOWN!",
+                        dataset_description="",
+                        prepreproc_undergone="",
+                        shutdown_reloaders=True,
+                        **do_subject_preproc_kwargs
                         ):
-
-    """This functions doe intra-subject fMRI preprocessing on a
-    group os subjects.
+    """
+    This function does intra-subject preprocessing on a group of subjects.
 
     Parameters
     ----------
-    subjects: iterable of SubjectData objects
+    subject_factory: iterable of `SubjectData` objects
+        data for the subjects to be preprocessed
 
-    report_filename: string (optional)
-    if provided, an HTML report will be produced. This report is
-    dynamic and its contents are updated automatically as more
-    and more subjects are preprocessed.
+    n_jobs: int, optional (default None)
+        number of jobs to create; parameter passed to `joblib.Parallel`.
+        if N_JOBS is defined in the shell environment, then its value
+        is used instead.
+
+    do_subject_preproc_kwargs: parameter-value dict
+        optional parameters passed to the \do_subject_preproc` API. See
+        the API documentation for details
 
     Returns
     -------
-    list of Bunch dicts with keys: anat, func, and subject_id, etc.
-    for each preprocessed subject
+    preproc_subject_data: list of preprocessed `SubjectData` objects
+        each elements is the preprocessed version of the corresponding
+        input `SubjectData` object
 
     """
 
-    # sanitize input
-    subjects = list(subjects)
+    do_subject_preproc_kwargs['do_report'] = do_report
+    do_subject_preproc_kwargs["do_dartel"] = do_dartel
 
-    if do_dartel:
-        do_segment = False
-        do_normalize = False
-
-    kwargs = {'do_deleteorient': do_deleteorient,
-              'do_bet': do_bet,
-              'do_report': do_report,
-              'prepreproc_undergone': prepreproc_undergone,
-              'do_slicetiming': do_slicetiming,
-              'do_realign': do_realign, 'do_coreg': do_coreg,
-              'func_to_anat': func_to_anat,
-              'do_segment': do_segment, 'do_normalize': do_normalize,
-              'do_cv_tc': do_cv_tc,
-              'fwhm': fwhm,
-              'ignore_exception': ignore_exception,
-              'last_stage': not do_dartel,
-              }
-
+    # sanitize output_dir
     if output_dir is None:
-        output_dir = os.path.abspath("/tmp/runs_XYZ")
-        print "Output directory set to: %s" % output_dir
+        output_dir = os.path.join(os.getcwd(), "pypreproc_results")
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not output_dir is None:
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
 
-    additional_preproc_undergone = ""
-    if do_dartel:
-        additional_preproc_undergone += (
-            "<li>"
-            "Group/Inter-subject Normalization has been done using the "
-            "SPM8 <a href='%s'>DARTEL</a> to warp subject brains into "
-            "MNI space. "
-            "The idea is to register images by computing a &ldquo;flow"
-            " field&rdquo; which can then be &ldquo;exponentiated"
-            "&rdquo; to generate both forward and backward deformation"
-            "s. Processing begins with the &ldquo;import&rdquo; "
-            "step. This involves taking the parameter files "
-            "produced by the segmentation (NewSegment), and writing "
-            "out rigidly "
-            "transformed versions of the tissue class images, "
-            "such that they are in as close alignment as possible with"
-            " the tissue probability maps. &nbsp; "
-            "The next step is the registration itself. This involves "
-            "the simultaneous registration of e.g. GM with GM, "
-            "WM with WM and 1-(GM+WM) with 1-(GM+WM) (when needed, the"
-            " 1- (GM+WM) class is generated implicitly, so there "
-            "is no need to include this class yourself). This "
-            "procedure begins by creating a mean of all the images, "
-            "which is used as an initial template. Deformations "
-            "from this template to each of the individual images "
-            "are computed, and the template is then re-generated"
-            " by applying the inverses of the deformations to "
-            "the images and averaging. This procedure is repeated a "
-            "number of times. &nbsp;Finally, warped "
-            "versions of the images (or other images that are in "
-            "alignment with them) can be generated. "
-            "</li>") % DARTEL_URL
+    # generate list of subjects
+    subjects = [subject_data for subject_data in subject_factory]
 
-    kwargs['additional_preproc_undergone'] = additional_preproc_undergone
+    # ensure that we actually have data to preprocess
+    assert len(subjects) > 0, "subject_factory is empty; nothing to do!"
 
-    # get caller module handle from stack-frame
-    user_script_name = sys.argv[0]
-    user_source_code = base_reporter.get_module_source_code(
-        user_script_name)
+    # sanitize subject output directories
+    for subject_data in subjects:
+        if not hasattr(subject_data, "output_dir"):
+            if not hasattr(subject_data.subject_id):
+                subject_data.subject_id = "sub001"
+            subject_data.output_dir = os.path.join(output_dir,
+                                                   subject_data.subject_id)
 
-    preproc_undergone = ""
-
-    preproc_undergone += preproc_reporter.\
-        generate_preproc_undergone_docstring(
-        prepreproc_undergone=prepreproc_undergone,
-        fwhm=fwhm,
-        do_bet=do_bet,
-        do_slicetiming=do_slicetiming,
-        do_realign=do_realign,
-        do_coreg=do_coreg,
-        coreg_func_to_anat=func_to_anat,
-        do_segment=do_segment,
-        do_normalize=do_normalize,
-        additional_preproc_undergone=additional_preproc_undergone,
-        )
+    # configure number of jobs
+    n_jobs = int(os.environ['N_JOBS']) if 'N_JOBS' in os.environ else (
+        -1 if n_jobs is None else n_jobs)
 
     # generate html report (for QA) as desired
     parent_results_gallery = None
     if do_report:
-        base_reporter.copy_web_conf_files(output_dir)
+        # what exactly was typed at the command-line (terminal) ?
+        command_line = "python %s" % " ".join(sys.argv)
+
+        # copy web stuff to output_dir
+        copy_web_conf_files(output_dir)
 
         report_log_filename = os.path.join(
             output_dir, 'report_log.html')
@@ -1849,6 +1457,20 @@ def do_subjects_preproc(subjects,
             output_dir, 'report_preproc.html')
         report_filename = os.path.join(
             output_dir, 'report.html')
+
+        # get caller module handle from stack-frame
+        user_script_name = sys.argv[0]
+        user_source_code = get_module_source_code(
+            user_script_name)
+
+        # generate docstring for preproc tobe undergone
+        preproc_undergone = ""
+        preproc_undergone += generate_preproc_undergone_docstring(
+            command_line=command_line,
+            # prepreproc_undergone=prepreproc_undergone,
+            # do_dartel=do_dartel,
+            # **do_subject_preproc_kwargs
+            )
 
         # scrape this function's arguments
         preproc_params = ""
@@ -1863,37 +1485,36 @@ def do_subjects_preproc(subjects,
                 "report_filename",
                 "do_report",
                 "do_cv_tc",
-                "do_export_report",
                 "do_shutdown_reloaders",
                 "subjects",
                 # add other args to exclude below
                 ])
         args_dict['output_dir'] = output_dir
-        preproc_params += base_reporter.dict_to_html_ul(
+        preproc_params += dict_to_html_ul(
             args_dict
             )
 
         # initialize results gallery
         loader_filename = os.path.join(
             output_dir, "results_loader.php")
-        parent_results_gallery = base_reporter.ResultsGallery(
+        parent_results_gallery = ResultsGallery(
             loader_filename=loader_filename,
             refresh_timeout=30,
             )
 
         # initialize progress bar
-        progress_logger = base_reporter.ProgressReport(
+        progress_logger = ProgressReport(
             report_log_filename,
             other_watched_files=[report_filename,
                                  report_preproc_filename])
 
         # html markup
-        log = base_reporter.get_dataset_report_log_html_template(
+        log = get_dataset_report_log_html_template(
             ).substitute(
             start_time=time.ctime(),
             )
 
-        preproc = base_reporter.get_dataset_report_preproc_html_template(
+        preproc = get_dataset_report_preproc_html_template(
             ).substitute(
             results=parent_results_gallery,
             start_time=time.ctime(),
@@ -1904,7 +1525,7 @@ def do_subjects_preproc(subjects,
             preproc_params=preproc_params
             )
 
-        main_html = base_reporter.get_dataset_report_html_template(
+        main_html = get_dataset_report_html_template(
             ).substitute(
             results=parent_results_gallery,
             start_time=time.ctime(),
@@ -1921,197 +1542,59 @@ def do_subjects_preproc(subjects,
             fd.write(str(main_html))
             fd.close()
 
-        def finalize_report():
-            progress_logger.finish(report_preproc_filename)
+        if not do_dartel:
+            do_subject_preproc_kwargs['parent_results_gallery'
+                                      ] = parent_results_gallery
 
-            if do_shutdown_reloaders:
-                print "Finishing %s..." % output_dir
-                progress_logger.finish_dir(output_dir)
+        # log command line
+        progress_logger.log("<b>Command line</b><br/>")
+        progress_logger.log("%s" % command_line)
+        progress_logger.log("<hr/>")
 
-        kwargs['parent_results_gallery'] = parent_results_gallery
+        # log environ variables
+        progress_logger.log("<b>Environ Variables</b><br/>")
+        progress_logger.log(
+            "<ul>" + "".join(["<li>%s: %s</li>" % (item, value)
+                              for item, value in os.environ.iteritems()])
+            + "</ul><hr/>")
 
-    results = joblib.Parallel(
-        n_jobs=n_jobs,
-        pre_dispatch='1.5*n_jobs',  # for scalability over RAM
-        verbose=100)(joblib.delayed(
-            _do_subject_preproc)(
-                subject_data, **kwargs) for subject_data in subjects)
+    def finalize_report():
+        if not do_report:
+            return
 
-    subject_ids = [output['subject_id'] for _, output in results]
+        progress_logger.finish(report_preproc_filename)
 
-    # collect subject output dirs
-    subject_output_dirs = [output['output_dir'] for _, output in results]
+        if shutdown_reloaders:
+            print "Finishing %s..." % output_dir
+            progress_logger.finish_dir(output_dir)
 
+        print "\r\n\tHTML report written to %s" % report_preproc_filename
+
+    # preprocess subject's separately
     if do_dartel:
-        # collect subject_ids and session_ids
-        session_ids = [output['session_id'] for _, output in results]
-        _preproc_undergone = dict((output['subject_id'],
-                                   output['preproc_undergone'])
-                                  for _, output in results)
-        # collect estimated motion
-        if do_realign:
-            estimated_motion = dict((output["subject_id"],
-                                     output['estimated_motion'])
-                                    for _, output in results)
+        fwhm = do_subject_preproc_kwargs.get("fwhm", 0.)
+        do_subject_preproc_kwargs["fwhm"] = 0.
+        do_cv_tc = do_subject_preproc_kwargs.get("do_cv_tc", True)
+        for item in ["do_segment", "do_normalize", "do_cv_tc",
+                     "last_stage"]:
+            do_subject_preproc_kwargs[item] = False
 
-        # collect input files for DARTEL
-        structural_files = [
-            output['anat'] for _, output in results]
+    preproc_subject_data = Parallel(n_jobs=n_jobs)(
+        delayed(do_subject_preproc)(
+            subject_data, **do_subject_preproc_kwargs
+            ) for subject_data in subjects)
 
-        functional_files = [
-            output['anat'] for _, output in results]
-
-        # collect gallery related subject-specific stuff
-        subject_final_thumbs = None
-        subject_results_galleries = None
-        subject_progress_loggers = None
-
-        if do_report:
-            subject_final_thumbs = [output['final_thumbnail']
-                                    for _, output in results]
-            subject_results_galleries = [output['results_gallery']
-                                         for _, output in results]
-            subject_progress_loggers = [output['progress_logger']
-                                        for _, output in results]
-            if do_realign:
-                estimated_motion = dict((output["subject_id"],
-                                         output['estimated_motion'])
-                                        for _, output in results)
-
-        # normalize brains to their own template space (DARTEL)
-        results, newsegment_result = do_group_DARTEL(
-            output_dir,
-            subject_ids,
-            session_ids,
-            structural_files,
-            functional_files,
+    # DARTEL
+    if do_dartel:
+        preproc_subject_data = _do_subjects_dartel(
+            preproc_subject_data, output_dir,
+            n_jobs=n_jobs,
             fwhm=fwhm,
-            subject_output_dirs=subject_output_dirs,
-            do_report=do_report,
+            do_report=do_subject_preproc_kwargs.get("do_report", True),
             do_cv_tc=do_cv_tc,
-            subject_final_thumbs=subject_final_thumbs,
-            subject_results_galleries=subject_results_galleries,
-            subject_progress_loggers=subject_progress_loggers,
-            parent_results_gallery=parent_results_gallery,
-            ignore_exception=ignore_exception,
+            parent_results_gallery=parent_results_gallery
             )
 
-        # collect results
-        _results = []
+    finalize_report()
 
-        if results:
-            for item in results:
-                if item:
-                    subject_result = {}
-                    subject_result['preproc_undergone'] = _preproc_undergone[
-                        item['subject_id']]
-                    subject_result['subject_id'] = item['subject_id']
-
-                    # output final fmri and anat image filenames
-                    subject_result['func'] = item['func']
-                    subject_result['anat'] = item['anat']
-
-                    # output segmented GM compartment
-                    subject_result['gm'] = item['gm']
-
-                    # output segmented WM compartment
-                    subject_result['wm'] = item['wm']
-
-                    # output motion parameters
-                    if do_realign:
-                        subject_result['estimated_motion'] = estimated_motion[
-                            item['subject_id']]
-                    subject_result['output_dir'] = item['output_dir']
-
-                    json_output_filename = os.path.join(
-                        subject_result['output_dir'], 'infos_DARTEL.json')
-                    json.dump(subject_result, open(json_output_filename, 'wb'))
-
-                    if do_report:
-                        subject_result['progress_logger'] = item[
-                            'progress_logger']
-
-                        if do_shutdown_reloaders:
-                            subject_result['progress_logger'].finish_all()
-
-                    _results.append(subject_result)
-
-        results = _results
-    else:
-        # collect results
-        _results = []
-
-        if results:
-            for x in results:
-                if x is None:
-                    continue
-                else:
-                    item = x[1]
-                subject_result = {}
-                subject_result['preproc_undergone'] = item['preproc_undergone']
-                subject_result['subject_id'] = item['subject_id']
-                subject_result['func'] = item['func']
-                if 'anat' in item.keys():
-                    subject_result['anat'] = item['anat']
-                if do_realign:
-                    subject_result['estimated_motion'] = item[
-                        'estimated_motion']
-                if do_segment:
-                    # output segmented GM compartment
-                    subject_result['gm'] = item['gm']
-
-                    # output segmented WM compartment
-                    subject_result['wm'] = item['wm']
-
-                subject_result['output_dir'] = item['output_dir']
-
-                json_output_filename = os.path.join(
-                    subject_result['output_dir'], 'infos.json')
-                json.dump(subject_result, open(json_output_filename, 'wb'))
-
-                if do_report:
-                    subject_result['progress_logger'] = item['progress_logger']
-
-                    if do_shutdown_reloaders:
-                        subject_result['progress_logger'].finish_all()
-
-                _results.append(subject_result)
-
-        results = _results
-
-    # hard-link output files to subject's immediate output dir
-    for x in results:
-        for k, v in x.iteritems():
-            if k in ['func', 'anat', 'estimated_motion',
-                     'gm', 'wm', 'csf',
-                     'wgm', 'wwm', 'wcsf'
-                     ]:
-                dst = os.path.join(output_dir, x['subject_id'])
-                print "Hardlinking %s -> %s ..." % (v, dst)
-                x[k] = hard_link(v, os.path.join(output_dir, x['subject_id']))
-
-    # finalize report
-    if do_report:
-        finalize_report()
-
-        print "HTML report (dynamic) written to %s" % report_filename
-
-    # export report (so it can be emailed and commented offline, for example)
-    if do_report and do_export_report:
-        tag = "DARTEL" if do_dartel else "standard"
-
-        # dst dir for the frozen reports
-        frozen_report_dir = os.path.join(output_dir,
-                                         "frozen_report_%s" % tag)
-
-        # copy group-level report files
-        base_reporter.copy_report_files(output_dir, frozen_report_dir)
-
-        # copy subject-level report files
-        for subject_output_dir in subject_output_dirs:
-            dst = os.path.join(frozen_report_dir,
-                                  os.path.basename(subject_output_dir))
-            base_reporter.copy_report_files(subject_output_dir, dst)
-
-    # return preproc results
-    return results
+    return preproc_subject_data

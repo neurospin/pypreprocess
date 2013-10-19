@@ -12,7 +12,7 @@ python nipype_preproc_spm_nyu.py
 
 import os
 import sys
-from pypreprocess.nipype_preproc_spm_utils_bis import (do_subjects_preproc,
+from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
                                                    SubjectData
                                                    )
 from pypreprocess.datasets import fetch_nyu_rest
