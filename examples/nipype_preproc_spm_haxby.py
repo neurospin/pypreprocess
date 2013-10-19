@@ -10,7 +10,6 @@ import os
 import sys
 
 # data-grabbing imports
-from pypreprocess.datasets_extras import unzip_nii_gz
 from pypreprocess.datasets import fetch_haxby
 
 # import spm preproc utilities
@@ -71,23 +70,15 @@ def subject_factory():
         subject_data.session_id = "haxby2001"
 
         # set func
-        subject_data.func = [x.replace(".gz", "")
-                             for x in haxby_data.func if subject_id in x]
+        subject_data.func = [x for x in haxby_data.func if subject_id in x]
 
         assert len(subject_data.func) == 1
         subject_data.func = subject_data.func[0]
 
-        # because SPM doesn't understand .nii.gz format
-        unzip_nii_gz(os.path.dirname(subject_data.func))
-
         # set anat
-        subject_data.anat = [x.replace(".gz", "")
-                             for x in haxby_data.func if subject_id in x]
+        subject_data.anat = [x for x in haxby_data.func if subject_id in x]
         assert len(subject_data.anat) == 1
         subject_data.anat = subject_data.anat[0]
-
-        # because SPM doesn't understand .nii.gz format
-        unzip_nii_gz(os.path.dirname(subject_data.anat))
 
         # set subject output directory
         subject_data.output_dir = os.path.join(OUTPUT_DIR,

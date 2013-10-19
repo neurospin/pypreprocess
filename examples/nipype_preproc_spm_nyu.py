@@ -16,7 +16,6 @@ from pypreprocess.nipype_preproc_spm_utils_bis import (do_subjects_preproc,
                                                    SubjectData
                                                    )
 from pypreprocess.datasets import fetch_nyu_rest
-from pypreprocess.datasets_extras import unzip_nii_gz
 
 DATASET_DESCRIPTION = """\
 <p>The NYU CSC TestRetest resource includes EPI-images of 25 participants
@@ -33,7 +32,7 @@ same participants.</p>
 """
 
 # use DARTEL for normalization or not ?
-DARTEL = False
+DARTEL = True
 
 # session ids we're interested in
 SESSIONS = [1, 2, 3]
@@ -101,13 +100,20 @@ if __name__ == '__main__':
         session_output_dir = os.path.join(OUTPUT_DIR, "session%i" % session)
 
         # preproprec this session for all subjects
+        subjects = list(subject_factory(session_output_dir, session))
+        if len(subjects) == 0:
+            Warning("No data found for session %i" % session)
+            continue
+
         print ("\r\n\r\n\t\t\tPreprocessing session %i for all subjects..."
                "\r\n\r\n") % session
+
         do_subjects_preproc(
-            subject_factory(session_output_dir, session),
+            subjects,
             output_dir=session_output_dir,
             do_deleteorient=True,
             do_dartel=DARTEL,
+            do_cv_tc=not DARTEL,
             dataset_id="NYU Test/Retest session %i" % session,
             dataset_description=DATASET_DESCRIPTION,
             )

@@ -232,6 +232,45 @@ class SubjectData(object):
                     if final:
                         setattr(self, item, linked_filename)
 
+    def _finalize_report(self, do_report=False, parent_results_gallery=None,
+                         do_cv_tc=False, last_stage=False):
+        """
+        Finalizes the business of reporting.
+
+        """
+
+        if not self.do_report:
+            return
+
+        # generate failure thumbnail
+        if self.failed:
+            self.final_thumbnail.img.src = 'failed.png'
+            self.final_thumbnail.description += (
+                ' (failed realignment)')
+        else:
+            # geneate cv_tc plots
+            if do_cv_tc:
+                generate_cv_tc_thumbnail(
+                    self.func,
+                    self.session_id,
+                    self.subject_id,
+                    self.output_dir,
+                    results_gallery=self.results_gallery
+                    )
+
+        if last_stage:
+            self.progress_logger.finish_dir(self.output_dir)
+
+        if not parent_results_gallery is None:
+            commit_subject_thumnbail_to_parent_gallery(
+                self.final_thumbnail,
+                self.subject_id,
+                parent_results_gallery)
+
+        print ("\r\nPreproc report for subject %s written to %s"
+               " .\r\n" % (self.subject_id,
+                           self.report_preproc_filename))
+
 
 def _do_subject_realign(subject_data, nipype_mem=None,
                         do_report=True):
@@ -851,6 +890,7 @@ def _do_subject_dartelnorm2mni(subject_data,
                                do_report=True,
                                parent_results_gallery=None,
                                do_cv_tc=True,
+                               last_stage=True
                                ):
     """
     Uses spm.DARTELNorm2MNI to warp subject brain into MNI space.
@@ -905,7 +945,8 @@ def _do_subject_dartelnorm2mni(subject_data,
         flowfield_files=subject_data.dartel_flow_fields,
         template_file=template_file,
         ignore_exception=True,
-        modulate=False  # don't modulate
+        modulate=False,  # don't modulate
+        fwhm=0.  # don't smooth
         )
     subject_data.anat = dartelnorm2mni_result.outputs.normalized_files
 
@@ -944,6 +985,10 @@ def _do_subject_dartelnorm2mni(subject_data,
                 results_gallery=subject_data.results_gallery,
                 )
 
+        subject_data._finalize_report(
+            parent_results_gallery=parent_results_gallery,
+            do_cv_tc=do_cv_tc, last_stage=last_stage)
+
     return subject_data
 
 
@@ -954,6 +999,7 @@ def do_subject_preproc(
     coreg_anat_to_func=False,
     do_segment=True,
     do_normalize=True,
+    do_dartel=False,
     do_cv_tc=True,
     fwhm=0.,
     do_deleteorient=False,
@@ -1042,6 +1088,8 @@ def do_subject_preproc(
             "subject_datta must be SubjectData instance or dict, "
             "got %s" % type(subject_data))
 
+    subject_data.do_report = do_report
+
     subject_data.sanitize(do_deleteorient=do_deleteorient)
     subject_data.failed = False
 
@@ -1054,44 +1102,6 @@ def do_subject_preproc(
         else:
             assert len(fwhm) == 3, ("fwhm must be float or list of 3 "
                                     "floats; got %s" % fwhm)
-
-    def _finalize_report():
-        """
-        Finalizes the business of reporting.
-
-        """
-
-        if not do_report:
-            return
-
-        # generate failure thumbnail
-        if subject_data.failed:
-            subject_data.final_thumbnail.img.src = 'failed.png'
-            subject_data.final_thumbnail.description += (
-                ' (failed realignment)')
-        else:
-            # geneate cv_tc plots
-            if do_cv_tc:
-                generate_cv_tc_thumbnail(
-                    subject_data.func,
-                    subject_data.session_id,
-                    subject_data.subject_id,
-                    subject_data.output_dir,
-                    results_gallery=subject_data.results_gallery
-                    )
-
-        if last_stage:
-            subject_data.progress_logger.finish_dir(subject_data.output_dir)
-
-        if not parent_results_gallery is None:
-            commit_subject_thumnbail_to_parent_gallery(
-                subject_data.final_thumbnail,
-                subject_data.subject_id,
-                parent_results_gallery)
-
-        print ("\r\nPreproc report for subject %s written to %s"
-               " .\r\n" % (subject_data.subject_id,
-                           report_preproc_filename))
 
     # XXX For the moment, we can neither segment nor normalize without anat.
     # A trick would be to register the func with an EPI template and then
@@ -1120,16 +1130,17 @@ def do_subject_preproc(
                 do_segment=do_segment,
                 do_normalize=do_normalize,
                 fwhm=fwhm,
+                do_dartel=do_dartel,
                 coreg_func_to_anat=not coreg_anat_to_func
                 )
 
         # report filenames
-        report_log_filename = os.path.join(subject_data.output_dir,
-                                           'report_log.html')
-        report_preproc_filename = os.path.join(subject_data.output_dir,
-                                               'report_preproc.html')
-        report_filename = os.path.join(subject_data.output_dir,
-                                       'report.html')
+        subject_data.report_log_filename = os.path.join(
+            subject_data.output_dir, 'report_log.html')
+        subject_data.report_preproc_filename = os.path.join(
+            subject_data.output_dir, 'report_preproc.html')
+        subject_data.report_filename = os.path.join(subject_data.output_dir,
+                                                    'report.html')
 
         # initialize results gallery
         loader_filename = os.path.join(subject_data.output_dir,
@@ -1140,7 +1151,8 @@ def do_subject_preproc(
 
         # final thumbnail most representative of this subject's QA
         subject_data.final_thumbnail = Thumbnail()
-        subject_data.final_thumbnail.a = a(href=report_preproc_filename)
+        subject_data.final_thumbnail.a = a(
+            href=subject_data.report_preproc_filename)
         subject_data.final_thumbnail.img = img(src=None)
         subject_data.final_thumbnail.description = subject_data.subject_id
 
@@ -1149,8 +1161,8 @@ def do_subject_preproc(
 
         # initialize progress bar
         subject_data.progress_logger = ProgressReport(
-            report_log_filename,
-            other_watched_files=[report_preproc_filename])
+            subject_data.report_log_filename,
+            other_watched_files=[subject_data.report_preproc_filename])
 
         # html markup
         preproc = get_subject_report_preproc_html_template(
@@ -1166,10 +1178,10 @@ def do_subject_preproc(
             subject_id=subject_data.subject_id
             )
 
-        with open(report_preproc_filename, 'w') as fd:
+        with open(subject_data.report_preproc_filename, 'w') as fd:
             fd.write(str(preproc))
             fd.close()
-        with open(report_filename, 'w') as fd:
+        with open(subject_data.report_filename, 'w') as fd:
             fd.write(str(main_html))
             fd.close()
 
@@ -1188,7 +1200,9 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            _finalize_report()
+            subject_data._finalize_report(
+                parent_results_gallery=parent_results_gallery,
+                do_cv_tc=do_cv_tc, last_stage=last_stage)
             return subject_data
 
     ##################################################################
@@ -1208,7 +1222,9 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            _finalize_report()
+            subject_data._finalize_report(
+                parent_results_gallery=parent_results_gallery,
+                do_cv_tc=do_cv_tc, last_stage=last_stage)
             return subject_data
 
     #####################################
@@ -1227,7 +1243,9 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            _finalize_report()
+            subject_data._finalize_report(
+                parent_results_gallery=parent_results_gallery,
+                do_cv_tc=do_cv_tc, last_stage=last_stage)
             return subject_data
 
     ##########################
@@ -1247,7 +1265,9 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            _finalize_report()
+            subject_data._finalize_report(
+                parent_results_gallery=parent_results_gallery,
+                do_cv_tc=do_cv_tc, last_stage=last_stage)
             return subject_data
 
     #########################################
@@ -1260,12 +1280,16 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            _finalize_report()
+            subject_data._finalize_report(
+                parent_results_gallery=parent_results_gallery,
+                do_cv_tc=do_cv_tc, last_stage=last_stage)
             return subject_data
 
     # finalize reports
     if do_report:
-        _finalize_report()
+        subject_data._finalize_report(
+            parent_results_gallery=parent_results_gallery,
+            do_cv_tc=do_cv_tc, last_stage=last_stage)
 
     # hard-link node output files
     if last_stage:
@@ -1390,6 +1414,7 @@ def do_subjects_preproc(subject_factory,
     """
 
     do_subject_preproc_kwargs['do_report'] = do_report
+    do_subject_preproc_kwargs["do_dartel"] = do_dartel
 
     # sanitize output_dir
     if output_dir is None:
@@ -1401,6 +1426,9 @@ def do_subjects_preproc(subject_factory,
 
     # generate list of subjects
     subjects = [subject_data for subject_data in subject_factory]
+
+    # ensure that we actually have data to preprocess
+    assert len(subjects) > 0, "subject_factory is empty; nothing to do!"
 
     # sanitize subject output directories
     for subject_data in subjects:
@@ -1518,6 +1546,18 @@ def do_subjects_preproc(subject_factory,
             do_subject_preproc_kwargs['parent_results_gallery'
                                       ] = parent_results_gallery
 
+        # log command line
+        progress_logger.log("<b>Command line</b><br/>")
+        progress_logger.log("%s" % command_line)
+        progress_logger.log("<hr/>")
+
+        # log environ variables
+        progress_logger.log("<b>Environ Variables</b><br/>")
+        progress_logger.log(
+            "<ul>" + "".join(["<li>%s: %s</li>" % (item, value)
+                              for item, value in os.environ.iteritems()])
+            + "</ul><hr/>")
+
     def finalize_report():
         if not do_report:
             return
@@ -1528,21 +1568,13 @@ def do_subjects_preproc(subject_factory,
             print "Finishing %s..." % output_dir
             progress_logger.finish_dir(output_dir)
 
-    # log command line
-    progress_logger.log("<b>Command line</b><br/>")
-    progress_logger.log("%s" % command_line)
-    progress_logger.log("<hr/>")
-
-    # log environ variables
-    progress_logger.log("<b>Environ Variables</b><br/>")
-    progress_logger.log(
-        "<ul>" + "".join(["<li>%s: %s</li>" % (item, value)
-                          for item, value in os.environ.iteritems()])
-        + "</ul><hr/>")
+        print "\r\n\tHTML report written to %s" % report_preproc_filename
 
     # preprocess subject's separately
     if do_dartel:
+        fwhm = do_subject_preproc_kwargs.get("fwhm", 0.)
         do_subject_preproc_kwargs["fwhm"] = 0.
+        do_cv_tc = do_subject_preproc_kwargs.get("do_cv_tc", True)
         for item in ["do_segment", "do_normalize", "do_cv_tc",
                      "last_stage"]:
             do_subject_preproc_kwargs[item] = False
@@ -1554,15 +1586,15 @@ def do_subjects_preproc(subject_factory,
 
     # DARTEL
     if do_dartel:
-        preproc_subject_data, = _do_subjects_dartel(
+        preproc_subject_data = _do_subjects_dartel(
             preproc_subject_data, output_dir,
             n_jobs=n_jobs,
-            fwhm=do_subject_preproc_kwargs.get("fwhm", 0.),
+            fwhm=fwhm,
             do_report=do_subject_preproc_kwargs.get("do_report", True),
-            do_cv_tc=do_subject_preproc_kwargs.get("do_cv_tc", True)
+            do_cv_tc=do_cv_tc,
+            parent_results_gallery=parent_results_gallery
             )
 
-    if do_report:
-        finalize_report()
+    finalize_report()
 
     return preproc_subject_data
