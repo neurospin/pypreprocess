@@ -425,15 +425,8 @@ class ProgressReport(object):
         if self.log_filename is None:
             return
 
-        with open(self.log_filename, 'r') as i_fd:
-            content = i_fd.read()
-            i_fd.close()
-            marker = '<!-- log_next_thing_here -->'
-            content = content.replace(marker, msg + marker)
-            if not self.log_filename is None:
-                with open(self.log_filename, 'w') as o_fd:
-                    o_fd.write(content)
-                    o_fd.close()
+        with open(self.log_filename, 'a') as ofd:
+            ofd.write(msg + "<br/>")
 
     def finish(self, filename):
         """Stops the automatic reloading (by the browser, etc.) of a given

@@ -1389,6 +1389,8 @@ def do_subjects_preproc(subject_factory,
 
     """
 
+    do_subject_preproc_kwargs['do_report'] = do_report
+
     # sanitize output_dir
     if output_dir is None:
         output_dir = os.path.join(os.getcwd(), "pypreproc_results")
@@ -1415,6 +1417,10 @@ def do_subjects_preproc(subject_factory,
     # generate html report (for QA) as desired
     parent_results_gallery = None
     if do_report:
+        # what exactly was typed at the command-line (terminal) ?
+        command_line = "python %s" % " ".join(sys.argv)
+
+        # copy web stuff to output_dir
         copy_web_conf_files(output_dir)
 
         report_log_filename = os.path.join(
@@ -1429,14 +1435,14 @@ def do_subjects_preproc(subject_factory,
         user_source_code = get_module_source_code(
             user_script_name)
 
+        # generate docstring for preproc tobe undergone
         preproc_undergone = ""
-
         preproc_undergone += generate_preproc_undergone_docstring(
-            prepreproc_undergone=prepreproc_undergone,
-            do_dartel=do_dartel,
-            **do_subject_preproc_kwargs
+            command_line=command_line,
+            # prepreproc_undergone=prepreproc_undergone,
+            # do_dartel=do_dartel,
+            # **do_subject_preproc_kwargs
             )
-        do_subject_preproc_kwargs["preproc_undergone"] = preproc_undergone
 
         # scrape this function's arguments
         preproc_params = ""
@@ -1522,7 +1528,17 @@ def do_subjects_preproc(subject_factory,
             print "Finishing %s..." % output_dir
             progress_logger.finish_dir(output_dir)
 
-    do_subject_preproc_kwargs['do_report'] = do_report
+    # log command line
+    progress_logger.log("<b>Command line</b><br/>")
+    progress_logger.log("%s" % command_line)
+    progress_logger.log("<hr/>")
+
+    # log environ variables
+    progress_logger.log("<b>Environ Variables</b><br/>")
+    progress_logger.log(
+        "<ul>" + "".join(["<li>%s: %s</li>" % (item, value)
+                          for item, value in os.environ.iteritems()])
+        + "</ul><hr/>")
 
     # preprocess subject's separately
     if do_dartel:

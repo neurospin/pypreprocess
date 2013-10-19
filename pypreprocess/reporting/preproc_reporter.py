@@ -46,9 +46,9 @@ from .base_reporter import (Thumbnail,
 SPM_DIR = '/i2bm/local/spm8'
 if 'SPM_DIR' in os.environ:
     SPM_DIR = os.environ['SPM_DIR']
-# assert os.path.exists(SPM_DIR), \
-#     "nipype_preproc_smp_utils: SPM_DIR: %s,\
-#  doesn't exist; you need to export SPM_DIR" % SPM_DIR
+assert os.path.exists(SPM_DIR), \
+    "nipype_preproc_smp_utils: SPM_DIR: %s,\
+ doesn't exist; you need to export SPM_DIR" % SPM_DIR
 EPI_TEMPLATE = os.path.join(SPM_DIR, 'templates/EPI.nii')
 T1_TEMPLATE = "/usr/share/data/fsl-mni152-templates/avg152T1.nii"
 if not os.path.isfile(T1_TEMPLATE):
@@ -95,12 +95,20 @@ def generate_preproc_undergone_docstring(
     do_normalize=False,
     do_dartel=False,
     additional_preproc_undergone="",
-    **other_params):
+    command_line=None
+    ):
     """
     Generates a brief description of the pipeline used in the preprocessing.
 
+    Parameters
+    ----------
+    command_line: string, optional (None)
+        exact command-line typed at the terminal to run the underlying
+        preprocessing (useful if someone were to reproduce your results)
+
     """
 
+    # which tools were used ?
     if tools_used is None:
         tools_used = (
             'All preprocessing was done using <a href="%s">pypreprocess</a>,'
@@ -108,8 +116,12 @@ def generate_preproc_undergone_docstring(
             'preprocessing functional data.') % PYPREPROCESS_URL,
 
     preproc_undergone = "<p>%s</p>" % tools_used
-    preproc_undergone += "<ul>"
 
+    # what was actually typed at the command line ?
+    if not command_line is None:
+        preproc_undergone += "Command-line: <i>%s</i><br/>" % command_line
+
+    preproc_undergone += "<ul>"
     if prepreproc_undergone:
         preproc_undergone += "<li>%s</li>" % prepreproc_undergone
 
