@@ -52,8 +52,8 @@ def load_vol(x):
         vol = nibabel.load(x)
     elif is_niimg(x):
         vol = x
-    elif isinstance(x, tuple):
-        vol = nibabel.Nifti1Image(*x)
+    elif isinstance(x, list):
+        return load_vol(x[0])
     else:
         raise TypeError(
             ("Each volume must be string or image object; got:"
@@ -88,12 +88,7 @@ def load_specific_vol(vols, t, strict=False):
 
     assert t >= 0
 
-    if isinstance(vols, np.ndarray):
-        n_scans = vols.shape[-1]
-        vol = vols[..., t]
-    elif isinstance(vols, list):
-        if isinstance(vols[0], (list, np.ndarray)):
-            return load_specific_vol(np.array(vols), t)
+    if isinstance(vols, list):
         n_scans = len(vols)
         vol = load_vol(vols[t])
     elif is_niimg(vols) or isinstance(vols, basestring) or isinstance(
@@ -120,6 +115,9 @@ def load_specific_vol(vols, t, strict=False):
     if len(vol.shape) == 4:
         vol = nibabel.Nifti1Image(vol.get_data()[..., ..., ..., 0],
                                   vol.get_afffine())
+
+    assert is_niimg(vol)
+    assert is_3D(vol)
 
     return vol, n_scans
 
@@ -697,36 +695,7 @@ def load_4D_img(img):
     return img
 
 
-def niimg2ndarrays(niimg):
-    """
-    Splits a niimg into it's data and affine parts, both memmapped unto disk.
-
-    Returns
-    -------
-    pair (data, affine)
-
-    """
-
-    # memmap_dir = tempfile.mkdtemp()
-
-    # # data
-    # memmapped_data_filename = os.path.join(memmap_dir, 'data.txt')
-    # memmapped_data = np.memmap(memmapped_data_filename, mode='w+',
-    #                            shape=niimg.shape)
-    # memmapped_data[:] = niimg.get_data()[:]
-
-    # # affine
-    # memmapped_affine_filename = os.path.join(memmap_dir, 'affine.txt')
-    # memmapped_affine = np.memmap(memmapped_affine_filename, mode='w+',
-    #                   shape=(4, 4))
-    # memmapped_affine[:] = niimg.get_affine()[:]
-
-    # return memmapped_data, memmapped_affine
-
-    return niimg.get_data(), niimg.get_affine()
-
-
-def loaduint8(img, t=0, log=None):
+def loaduint8(img, log=None):
     """Load data from file indicated by V into array of unsigned bytes.
 
     Parameters
@@ -773,7 +742,7 @@ def loaduint8(img, t=0, log=None):
 
     # assert vol.ndim == 3
 
-    def _spm_slice_vol(p):
+    def _get_slice(p):
         """
         Gets data pth slice of vol.
 
@@ -786,14 +755,14 @@ def loaduint8(img, t=0, log=None):
     mn = np.inf
     _progress_bar("\tComputing min/max...")
     for p in xrange(vol.shape[2]):
-        _img = _spm_slice_vol(p)
+        _img = _get_slice(p)
         mx = max(_img.max(), mx)
         mn = min(_img.min(), mn)
 
     # load data from file indicated by V into an array of unsigned bytes
     uint8_dat = np.ndarray(vol.shape, dtype='uint8')
     for p in xrange(vol.shape[2]):
-        _img = _spm_slice_vol(p)
+        _img = _get_slice(p)
 
         # pth slice
         uint8_dat[..., p] = np.uint8(np.maximum(np.minimum(np.round((

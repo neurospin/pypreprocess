@@ -18,6 +18,7 @@ from ..pypreprocess.io_utils import (
     get_basenames,
     load_4D_img,
     is_niimg,
+    is_4D,
     get_vox_dims,
     niigz2nii
     )
@@ -191,6 +192,10 @@ def test_save_vols():
                                                 'fMETHODS-000007.nii.gz')
                 else:
                     nose.tools.assert_true(isinstance(saved_vols_filenames, basestring))
+                    nose.tools.assert_true(saved_vols_filenames.endswith('.nii.gz'))
+                    nose.tools.assert_true(is_4D(load_4D_img(
+                                saved_vols_filenames)))
+
 
 def test_save_vols_from_ndarray_with_affine():
     # setup

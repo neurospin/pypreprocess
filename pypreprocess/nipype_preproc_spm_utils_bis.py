@@ -177,8 +177,8 @@ class SubjectData(object):
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
-        self.cache_dir = os.path.join(self.output_dir, 'cache_dir')
-        mem = JoblibMemory(self.cache_dir, verbose=100)
+        cache_dir = os.path.join(self.output_dir, 'cache_dir')
+        mem = JoblibMemory(cache_dir, verbose=100)
 
         # sanitize func
         if isinstance(self.func, basestring):
@@ -1035,6 +1035,13 @@ def do_subject_preproc(
     """
 
     # sanitze subject data
+    if isinstance(subject_data, dict):
+        subject_data = SubjectData(**subject_data)
+    else:
+        assert isinstance(subject_data, SubjectData), (
+            "subject_datta must be SubjectData instance or dict, "
+            "got %s" % type(subject_data))
+
     subject_data.sanitize(do_deleteorient=do_deleteorient)
     subject_data.failed = False
 

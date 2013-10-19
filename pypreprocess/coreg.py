@@ -18,7 +18,9 @@ from .affine_transformations import (spm_matrix,
 from .io_utils import (loaduint8,
                        get_basenames,
                        save_vols,
-                       get_basenames
+                       get_basenames,
+                       is_3D,
+                       is_4D
                        )
 from .kernel_smooth import (fwhm2sigma,
                             centered_smoothing_kernel
@@ -332,12 +334,11 @@ class Coregister(object):
         vol: string (existing filename) or 3D (if 4D then then first volume
         will be used) nibabel image object
             reference volume (image that is kept fixed)
+
         vol: string (existing filename) or 3D nibabel image object
             source image (image that is jiggled about to fit the
             reference image)
 
-        Returns
-        -------
         Returns
         -------
         `Coregistration` instance

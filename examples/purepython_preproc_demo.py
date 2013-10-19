@@ -30,6 +30,7 @@ preproc_output  = do_subject_preproc(subject_data,
                                      do_stc=True,
                                      # fwhm=[8] * 3
                                      )
+
 sd = SubjectData()
 sd.subject_id = preproc_output['subject_id']
 sd.func = preproc_output['func']

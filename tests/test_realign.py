@@ -205,7 +205,8 @@ def test_MRIMotionCorrection_fit():
     mrimc = MRIMotionCorrection(quality=1., lkp=lkp).fit([film])
 
     # check shape of realignment params
-    numpy.testing.assert_array_equal(mrimc.rp_.shape, [1] + [n_scans, 6])
+    numpy.testing.assert_array_equal(mrimc.realignment_parameters_.shape,
+                                     [1] + [n_scans, 6])
 
     # check that we estimated the correct motion params
     # XXX refine the notion of "closeness" below
@@ -216,18 +217,20 @@ def test_MRIMotionCorrection_fit():
         _tmp[:3] += _make_vol_specific_translation(translation, n_scans, t)
         _tmp[3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
         if t > 0:
-            numpy.testing.assert_allclose(mrimc.rp_[0][t][lkp],
-                                          _tmp[lkp], rtol=MAX_RE)
+            numpy.testing.assert_allclose(
+                mrimc.realignment_parameters_[0][t][lkp],
+                _tmp[lkp], rtol=MAX_RE)
         else:
-            numpy.testing.assert_array_equal(mrimc.rp_[0][t],
-                                             get_initial_motion_params()[:6])
+            numpy.testing.assert_array_equal(
+                mrimc.realignment_parameters_[0][t],
+                get_initial_motion_params()[:6])
 
     ####################
     # check transform
     ####################
     mrimc_output = mrimc.transform(output_dir)
 
-    nose.tools.assert_true(mrimc_output['realigned_files'], basestring)
+    nose.tools.assert_true(mrimc_output['realigned_images'], basestring)
 
 # run all tests
 if __name__ == "__main__":

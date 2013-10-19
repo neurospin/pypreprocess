@@ -168,8 +168,8 @@ def do_subject_preproc(subject_data,
     # cast all images to niimg
     output['func'] = [load_4D_img(x) for x in output['func']]
 
-    if 'anat' in output:
-        output['anat'] = load_vol(output['anat'])
+    # if 'anat' in output:
+    #     output['anat'] = load_vol(output['anat'])
 
     if do_report:
         # generate explanation of preproc steps undergone by subject

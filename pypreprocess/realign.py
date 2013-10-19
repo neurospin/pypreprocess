@@ -7,7 +7,6 @@
 
 import nibabel
 import os
-import sys
 import numpy as np
 import scipy.ndimage as sndi
 import scipy.linalg
@@ -20,6 +19,7 @@ from .affine_transformations import (get_initial_motion_params,
 from .reslice import reslice_vols
 from .io_utils import (load_specific_vol,
                        save_vol,
+                       save_vols,
                        get_basenames
                        )
 
@@ -481,10 +481,11 @@ class MRIMotionCorrection(object):
             quality=1.  # only a few vols, we can thus allow this lux
             )
 
-        rfirst_vols = apply_realignment(first_vols,
-                                        self.first_vols_realignment_parameters_,
-                                        inverse=False
-                                        )
+        rfirst_vols = apply_realignment(
+            first_vols,
+            self.first_vols_realignment_parameters_,
+            inverse=False
+            )
 
         if self.n_sessions > 1:
             self._log('...done (inter-session registration).\r\n')
@@ -548,9 +549,10 @@ class MRIMotionCorrection(object):
 
             And if output_dir is not None, output will also have the
             following items:
-            realigned_files: list of strings
+            realigned_images: list of strings
                 full paths of the realigned files
-            realignment_parameters_filename: string
+
+            realignment_parameters_: string
                 full path of text file containing realignment parameters
 
         """
@@ -600,6 +602,7 @@ class MRIMotionCorrection(object):
             # save output unto disk
             if not output_dir is None:
                 # make basenames for output files
+                sess_basenames = None
                 if basenames is None:
                     if isinstance(self.vols_[sess], basestring):
                         sess_basenames = get_basenames(self.vols_[sess])
@@ -618,9 +621,12 @@ class MRIMotionCorrection(object):
 
                 # save realigned files to disk
                 if concat:
-                    sess_realigned_files = save_vol(sess_rvols,
+                    sess_realigned_files = save_vols(
+                        sess_rvols,
                         output_dir,
-                        basenames=sess_basenames,
+                        basenames=sess_basenames if isinstance(
+                            sess_basenames, basestring)
+                        else sess_basenames[0],
                         concat=concat,
                         ext=ext,
                         prefix=prefix)
