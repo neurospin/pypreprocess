@@ -1,4 +1,4 @@
-B"""
+"""
 :Module: nipype_preproc_spm_haxby
 :1;3201;0cSynopsis: SPM use-case for preprocessing HAXBY 2001 dataset
 :Author: dohmatob elvis dopgima
@@ -9,16 +9,13 @@ B"""
 import os
 import sys
 
-# pypreprocess dir
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
-
 # data-grabbing imports
-from datasets_extras import unzip_nii_gz
-from external.nilearn.datasets import fetch_haxby
+from pypreprocess.datasets import fetch_haxby
 
 # import spm preproc utilities
-import nipype_preproc_spm_utils
+from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
+                                                   SubjectData
+                                                   )
 
 # DARTEL ?
 DO_DARTEL = False
@@ -68,28 +65,20 @@ def subject_factory():
                            for x in haxby_data.func]):
 
         # instantiate subject_data object
-        subject_data = nipype_preproc_spm_utils.SubjectData()
+        subject_data = SubjectData()
         subject_data.subject_id = subject_id
         subject_data.session_id = "haxby2001"
 
         # set func
-        subject_data.func = [x.replace(".gz", "")
-                             for x in haxby_data.func if subject_id in x]
+        subject_data.func = [x for x in haxby_data.func if subject_id in x]
 
         assert len(subject_data.func) == 1
         subject_data.func = subject_data.func[0]
 
-        # because SPM doesn't understand .nii.gz format
-        unzip_nii_gz(os.path.dirname(subject_data.func))
-
         # set anat
-        subject_data.anat = [x.replace(".gz", "")
-                             for x in haxby_data.func if subject_id in x]
+        subject_data.anat = [x for x in haxby_data.func if subject_id in x]
         assert len(subject_data.anat) == 1
         subject_data.anat = subject_data.anat[0]
-
-        # because SPM doesn't understand .nii.gz format
-        unzip_nii_gz(os.path.dirname(subject_data.anat))
 
         # set subject output directory
         subject_data.output_dir = os.path.join(OUTPUT_DIR,
@@ -98,7 +87,7 @@ def subject_factory():
         yield subject_data
 
 # do preprocessing proper
-results = nipype_preproc_spm_utils.do_subjects_preproc(
+results = do_subjects_preproc(
     subject_factory(),
     output_dir=OUTPUT_DIR,
     dataset_id="HAXBY 2001",

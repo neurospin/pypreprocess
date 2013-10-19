@@ -1,0 +1,45 @@
+<!-- author: d0hm4t06 3lv15 d0p91m4 -->
+
+{{default refresh_timeout = 5}}
+{{default conf_path = "."}}
+
+<html>
+  <head>
+    <!--refreshstart-->
+    <meta http-equiv=refresh content={{refresh_timeout}}>
+      <!--refreshstop-->
+      <link rel=stylesheet type=text/css href={{conf_path}}/styles.css>
+	<title>pypreprocess report</title>
+  </head>
+  <body>
+    <object data=report.html></object>
+    <h2>Progress report / log</h2>
+    <hr/>
+    <!-- log_next_thing_here -->
+    <!-- 	feat main script<br><pre> -->
+    <!-- 	/bin/cp /tmp/feat_icfneq.fsf design.fsf -->
+    
+    <!-- /usr/share/fsl/4.1/bin/feat_model design  -->
+	
+    <!-- mkdir .files;cp /usr/share/fsl/4.1/doc/fsl.css .files;ln -s /usr/share/fsl/4.1/doc/images .files/images -->
+    
+    <!-- /usr/share/fsl/4.1/bin/fsl_sub -t 9 -l logs -n feat2_pre -j featmodelid  /usr/share/fsl/4.1/bin/feat /home/elvis/code/datasets/spm_auditory/+.feat/design.fsf -d /home/elvis/code/datasets/spm_auditory/+.feat -i 1 -prestats -->
+    <!-- </pre><hr>prestats<br><pre> -->
+    
+    <!-- /usr/share/fsl/4.1/bin/fslmaths /home/elvis/code/forked/pypreprocess/spm_auditory_runs/subxyz/4d prefiltered_func_data -odt float -->
+    <!-- total original volumes = 96 -->
+    
+    <!-- /usr/share/fsl/4.1/bin/fslroi prefiltered_func_data example_func 48 1 -->
+    
+    <!-- /usr/share/fsl/4.1/bin/mcflirt -in prefiltered_func_data -out prefiltered_func_data_mcf -mats -plots -refvol 48 -rmsrel -rmsabs -->
+    <!-- </pre> -->
+    <!-- It's time for javascript, folks -->
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script type='text/javascript'>
+      $(document).ready(function(){
+      $(window).scrollTop($(document).height());
+      });
+    </script>
+  </body>
+</html>
+      

@@ -10,32 +10,18 @@ import numpy as np
 from nipy.modalities.fmri.experimental_paradigm import EventRelatedParadigm
 from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
+from nipy.labs.mask import intersect_masks
 import nibabel
 import scipy.io
 import time
 import sys
 import os
-from collections import namedtuple
-
-warning = ("%s: THIS SCRIPT MUST BE RUN FROM ITS PARENT "
-           "DIRECTORY!") % sys.argv[0]
-banner = "#" * len(warning)
-separator = "\r\n\t"
-
-print separator.join(['', banner, warning, banner, ''])
-
-# pypreproces path
-PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
-sys.path.append(PYPREPROCESS_DIR)
-
-import reporting.glm_reporter as glm_reporter
-from external.nilearn.datasets import fetch_spm_multimodal_fmri_data
-from algorithms.registration.spm_realign import MRIMotionCorrection
-from algorithms.slice_timing.spm_slice_timing import fMRISTC
-
-# datastructure for subject data
-SubjectData = namedtuple('SubjectData',
-                         'subject_id session_id func anat output_dir')
+from pypreprocess.reporting.base_reporter import ProgressReport
+from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
+from pypreprocess.datasets import fetch_spm_multimodal_fmri_data
+from pypreprocess.nipype_preproc_spm_utils import (do_subject_preproc,
+                                                       SubjectData
+                                                       )
 
 # set data and output paths (change as you will)
 DATA_DIR = "spm_multimodal_fmri"
@@ -51,45 +37,23 @@ print
 
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
-
-DO_REPORT = True
-
 # fetch the data
-_subject_data = fetch_spm_multimodal_fmri_data(DATA_DIR)
+sd = fetch_spm_multimodal_fmri_data(DATA_DIR)
 subject_id = "sub001"
 subject_data = SubjectData(subject_id=subject_id,
                            session_id=["Session1", "Session2"],
-                           func=[_subject_data.func1, _subject_data.func2],
-                           anat=_subject_data.anat,
+                           func=[sd.func1, sd.func2],
+                           anat=sd.anat,
+                           trials_ses1=sd.trials_ses1,
+                           trials_ses2=sd.trials_ses2,
                            output_dir=os.path.join(OUTPUT_DIR, subject_id)
                            )
 
-# STC
-fmristc = fMRISTC(slice_order='descending', interleaved=False)
-stc_output = []
-for j in xrange(len(subject_data.session_id)):
-    fmristc.fit(raw_data=subject_data.func[j])
-    fmristc.transform()
-    stc_output.append(fmristc.get_last_output_data())
-
-# Motion Correction
-mrimc = MRIMotionCorrection(n_sessions=len(subject_data.session_id))
-mrimc.fit([[nibabel.Nifti1Image(stc_output[j][..., t],
-                                nibabel.load(
-                    subject_data.func[j][t]).get_affine())
-            for t in xrange(len(subject_data.func[j]))]
-           for j in xrange(len(subject_data.session_id))]
-          )
-mrimc_output = mrimc.transform(os.path.join(subject_data.output_dir,
-                                            "preproc"),
-                               reslice=True,
-                               concat=True,
-                               )
+# preprocess the data
+subject_data = do_subject_preproc(subject_data, do_normalize=False, fwhm=[8.])
 
 # collect preprocessed data
-fmri_files = mrimc_output['realigned_files']
-rp_filenames = mrimc_output['rp_filenames']
-anat_img = nibabel.four_to_three(nibabel.load(fmri_files[0]))[0]
+anat_img = nibabel.load(subject_data.anat)
 
 # experimental paradigm meta-params
 stats_start_time = time.ctime()
@@ -99,12 +63,18 @@ hrf_model = 'Canonical With Derivative'
 hfcut = 128.
 
 # make design matrices
-design_matrices = []
+first_level_effects_maps = []
+mask_images = []
 for x in xrange(2):
-    n_scans = nibabel.load(fmri_files[x]).shape[-1]
+    subject_session_output_dir = os.path.join(subject_data.output_dir,
+                                              "session_stats",
+                                              subject_data.session_id[x])
+    if not os.path.exists(subject_session_output_dir):
+        os.makedirs(subject_session_output_dir)
 
-    timing = scipy.io.loadmat(os.path.join(DATA_DIR,
-                                           "fMRI/trials_ses%i.mat" % (x + 1)),
+    # build paradigm
+    n_scans = len(subject_data.func[x])
+    timing = scipy.io.loadmat(getattr(subject_data, "trials_ses%i" % (x + 1)),
                               squeeze_me=True, struct_as_record=False)
 
     faces_onsets = timing['onsets'][0].ravel()
@@ -114,91 +84,99 @@ for x in xrange(2):
     conditions = ['faces'] * len(faces_onsets) + ['scrambled'] * len(
         scrambled_onsets)
     paradigm = EventRelatedParadigm(conditions, onsets)
+
+    # build design matrix
     frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)
     design_matrix = make_dmtx(
         frametimes,
         paradigm, hrf_model=hrf_model,
         drift_model=drift_model, hfcut=hfcut,
         add_reg_names=['tx', 'ty', 'tz', 'rx', 'ry', 'rz'],
-        add_regs=np.loadtxt(rp_filenames[x])
+        add_regs=np.loadtxt(subject_data.realignment_parameters[x])
         )
 
-    design_matrices.append(design_matrix)
+    # specify contrasts
+    contrasts = {}
+    n_columns = len(design_matrix.names)
+    for i in xrange(paradigm.n_conditions):
+        contrasts['%s' % design_matrix.names[2 * i]
+                  ] = np.eye(n_columns)[2 * i]
 
-# specify contrasts
-contrasts = {}
-n_columns = len(design_matrix.names)
-for i in xrange(paradigm.n_conditions):
-    contrasts['%s' % design_matrix.names[2 * i]] = np.eye(n_columns)[2 * i]
+    # more interesting contrasts
+    contrasts['faces-scrambled'] = contrasts['faces'
+                                             ] - contrasts['scrambled']
+    contrasts['scrambled-faces'] = -contrasts['faces-scrambled']
+    contrasts['effects_of_interest'] = contrasts['faces'
+                                                 ] + contrasts['scrambled']
 
-# more interesting contrasts
-contrasts['faces-scrambled'] = contrasts['faces'] - contrasts['scrambled']
-contrasts['scrambled-faces'] = contrasts['scrambled'] - contrasts['faces']
-contrasts['effects_of_interest'] = contrasts['faces'] + contrasts['scrambled']
+    # fit GLM
+    print 'Fitting a GLM for %s (this takes time)...' % (
+        subject_data.session_id[x])
+    fmri_glm = FMRILinearModel(nibabel.concat_images(subject_data.func[x]),
+                               design_matrix.matrix,
+                               mask='compute'
+                               )
+    fmri_glm.fit(do_scaling=True, model='ar1')
 
-# we've thesame contrasts over sessions, so let's replicate
-contrasts = dict((contrast_id, [contrast_val] * 2)
-                 for contrast_id, contrast_val in contrasts.iteritems())
+    # save computed mask
+    mask_path = os.path.join(subject_session_output_dir,
+                             "mask.nii.gz")
+    print "Saving mask image %s" % mask_path
+    nibabel.save(fmri_glm.mask, mask_path)
+    mask_images.append(mask_path)
 
-# fit GLM
-print('\r\nFitting a GLM (this takes time)...')
-fmri_glm = FMRILinearModel(fmri_files,
-                           [dmat.matrix for dmat in design_matrices],
-                           mask='compute')
-fmri_glm.fit(do_scaling=True, model='ar1')
+    # compute contrasts
+    z_maps = {}
+    effects_maps = {}
+    for contrast_id, contrast_val in contrasts.iteritems():
+        print "\tcontrast id: %s" % contrast_id
+        z_map, t_map, effects_map, var_map = fmri_glm.contrast(
+            contrast_val,
+            con_id=contrast_id,
+            output_z=True,
+            output_stat=True,
+            output_effects=True,
+            output_variance=True
+            )
 
-# save computed mask
-mask_path = os.path.join(OUTPUT_DIR, "mask.nii.gz")
-print "Saving mask image %s" % mask_path
-nibabel.save(fmri_glm.mask, mask_path)
+        # store stat maps to disk
+        for map_type, out_map in zip(['z', 't', 'effects', 'variance'],
+                                  [z_map, t_map, effects_map, var_map]):
+            map_dir = os.path.join(
+                subject_session_output_dir, '%s_maps' % map_type)
+            if not os.path.exists(map_dir):
+                os.makedirs(map_dir)
+            map_path = os.path.join(
+                map_dir, '%s.nii.gz' % contrast_id)
+            print "\t\tWriting %s ..." % map_path
+            nibabel.save(out_map, map_path)
 
-print "Computing contrasts .."
-z_maps = {}
-for contrast_id, contrast_val in contrasts.iteritems():
-    print "\tcontrast id: %s" % contrast_id
-    z_map, t_map, eff_map, var_map = fmri_glm.contrast(
-        contrast_val,
-        con_id=contrast_id,
-        output_z=True,
-        output_stat=True,
-        output_effects=True,
-        output_variance=True,
-        )
+            # collect zmaps for contrasts we're interested in
+            if map_type == 'z':
+                z_maps[contrast_id] = map_path
+            if map_type == 'effects':
+                effects_maps[contrast_id] = map_path
 
-    # store stat maps to disk
-    for dtype, out_map in zip(['z', 't', 'effects', 'variance'],
-                              [z_map, t_map, eff_map, var_map]):
-        map_dir = os.path.join(
-            OUTPUT_DIR, '%s_maps' % dtype)
-        if not os.path.exists(map_dir):
-            os.makedirs(map_dir)
-        map_path = os.path.join(
-            map_dir, '%s.nii.gz' % contrast_id)
-        nibabel.save(out_map, map_path)
+    first_level_effects_maps.append(effects_maps)
 
-        # collect zmaps for contrasts we're interested in
-        if dtype == 'z':
-            z_maps[contrast_id] = map_path
-
-        print "\t\t%s map: %s" % (dtype, map_path)
-
-# do stats report
-if DO_REPORT:
-    stats_report_filename = os.path.join(subject_data.output_dir,
+    # do stats report
+    stats_report_filename = os.path.join(subject_session_output_dir,
                                          "report_stats.html")
-    contrasts = dict((contrast_id, contrasts[contrast_id])
-                     for contrast_id in z_maps.keys())
-    glm_reporter.generate_subject_stats_report(
+    generate_subject_stats_report(
         stats_report_filename,
         contrasts,
         z_maps,
         fmri_glm.mask,
+        threshold=2.3,
+        cluster_th=15,
         anat=anat_img.get_data(),
         anat_affine=anat_img.get_affine(),
-        design_matrices=design_matrices,
+        design_matrices=design_matrix,
         subject_id="sub001",
-        cluster_th=15,  # we're only interested in this 'large' clusters
         start_time=stats_start_time,
+        title="GLM for subject %s, session %s" % (subject_data.subject_id,
+                                                  subject_data.session_id[x]
+                                                  ),
 
         # additional ``kwargs`` for more informative report
         paradigm=paradigm.__dict__,
@@ -210,7 +188,60 @@ if DO_REPORT:
         hrf_model=hrf_model,
         )
 
-    from reporting.base_reporter import ProgressReport
-    ProgressReport().finish_dir(OUTPUT_DIR)
+    ProgressReport().finish_dir(subject_session_output_dir)
+    print "Statistic report written to %s\r\n" % stats_report_filename
 
-    print "\r\nStatistic report written to %s\r\n" % stats_report_filename
+# compute a population-level mask as the intersection of individual masks
+print "Inter-session GLM"
+grp_mask = nibabel.Nifti1Image(intersect_masks(mask_images).astype(np.int8),
+                               nibabel.load(mask_images[0]).get_affine())
+second_level_z_maps = {}
+design_matrix = np.ones(len(first_level_effects_maps)
+                        )[:, np.newaxis]  # only the intercept
+for contrast_id in contrasts:
+    print "\tcontrast id: %s" % contrast_id
+
+    # effects maps will be the input to the second level GLM
+    first_level_image = nibabel.concat_images(
+        [x[contrast_id] for x in first_level_effects_maps])
+
+    # fit 2nd level GLM for given contrast
+    grp_model = FMRILinearModel(first_level_image, design_matrix, grp_mask)
+    grp_model.fit(do_scaling=False, model='ols')
+
+    # specify and estimate the contrast
+    contrast_val = np.array(([[1.]]))  # the only possible contrast !
+    z_map, = grp_model.contrast(contrast_val,
+                                con_id='one_sample %s' % contrast_id,
+                                output_z=True)
+
+    # save map
+    map_dir = os.path.join(subject_data.output_dir, 'z_maps')
+    if not os.path.exists(map_dir):
+        os.makedirs(map_dir)
+    map_path = os.path.join(map_dir, '2nd_level_%s.nii.gz' % contrast_id)
+    print "\t\tWriting %s ..." % map_path
+    nibabel.save(z_map, map_path)
+
+    second_level_z_maps[contrast_id] = map_path
+
+# do stats report
+stats_report_filename = os.path.join(subject_data.output_dir,
+                                     "report_stats.html")
+generate_subject_stats_report(
+    stats_report_filename,
+    contrasts,
+    second_level_z_maps,
+    grp_mask,
+    threshold=2.3,
+    cluster_th=1,
+    anat=anat_img.get_data(),
+    anat_affine=anat_img.get_affine(),
+    design_matrices=[design_matrix],
+    subject_id="sub001",
+    start_time=stats_start_time,
+    title="Inter-session GLM for subject %s" % subject_data.subject_id
+    )
+
+ProgressReport().finish_dir(subject_data.output_dir)
+print "\r\nStatistic report written to %s\r\n" % stats_report_filename

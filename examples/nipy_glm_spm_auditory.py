@@ -15,28 +15,17 @@ from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
 import nibabel
 import time
-
-warning = ("%s: THIS SCRIPT MUST BE RUN FROM ITS PARENT "
-           "DIRECTORY!") % sys.argv[0]
-banner = "#" * len(warning)
-separator = "\r\n\t"
-
-print separator.join(['', banner, warning, banner, ''])
-
-# pypreproces path
-PYPREPROCESS_DIR = os.path.dirname(os.path.split(os.path.abspath(__file__))[0])
-sys.path.append(PYPREPROCESS_DIR)
-
-# import pypreprocess stuff
-import nipype_preproc_spm_utils
-import reporting.glm_reporter as glm_reporter
-from external.nilearn.datasets import fetch_spm_auditory_data
-from coreutils.io_utils import do_3Dto4D_merge
+from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
+                                                   SubjectData
+                                                   )
+import pypreprocess.reporting.glm_reporter as glm_reporter
+import pypreprocess.reporting.base_reporter as base_reporter
+from pypreprocess.datasets import fetch_spm_auditory_data
+from pypreprocess.io_utils import do_3Dto4D_merge
 
 DATASET_DESCRIPTION = """\
 <p>MoAEpilot <a href="http://www.fil.ion.ucl.ac.uk/spm/data/auditory/">\
-SPM auditory dataset</a>.</p>\[+] Reslicing slice 52/64...
-
+SPM auditory dataset</a>.</p>
 """
 
 if len(sys.argv)  < 3:
@@ -67,21 +56,24 @@ hfcut = 2 * 2 * epoch_duration
 
 # fetch spm auditory data
 _subject_data = fetch_spm_auditory_data(DATA_DIR)
-subject_data = nipype_preproc_spm_utils.SubjectData()
+subject_data = SubjectData()
 subject_data.func = _subject_data.func
 subject_data.anat = _subject_data.anat
 subject_data.subject_id = "sub001"
 subject_data.output_dir = os.path.join(OUTPUT_DIR, subject_data.subject_id)
 
 # preprocess the data
-results = nipype_preproc_spm_utils.do_subjects_preproc(
-        [subject_data],
-        output_dir=OUTPUT_DIR,
-        fwhm=6.,  # 6mm isotropic Gaussian kernel
-        dataset_id="SPM single-subject auditory",
-        dataset_description=DATASET_DESCRIPTION,
-        do_shutdown_reloaders=False,
-        )
+results = do_subjects_preproc(
+    [subject_data],
+    output_dir=OUTPUT_DIR,
+    func_to_anat=True,
+    # fwhm=8.,
+    do_segment=False,
+    do_normalize=False,
+    dataset_id="SPM single-subject auditory",
+    dataset_description=DATASET_DESCRIPTION,
+    do_shutdown_reloaders=False,
+    )
 
 # collect preprocessed data
 fmri_files = results[0]['func']
@@ -177,6 +169,8 @@ glm_reporter.generate_subject_stats_report(
     subject_id=subject_data.subject_id,
     anat=anat,
     anat_affine=anat_affine,
+    slicer='z',
+    cut_coords=5,
     cluster_th=50,  # we're only interested in this 'large' clusters
     start_time=stats_start_time,
 
@@ -189,5 +183,7 @@ glm_reporter.generate_subject_stats_report(
     drift_model=drift_model,
     hrf_model=hrf_model,
     )
+
+base_reporter.ProgressReport().finish_dir(OUTPUT_DIR)
 
 print "\r\nStatistic report written to %s\r\n" % stats_report_filename

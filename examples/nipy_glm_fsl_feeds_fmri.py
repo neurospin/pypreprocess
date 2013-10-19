@@ -15,17 +15,13 @@ from nipy.modalities.fmri.glm import FMRILinearModel
 import nibabel
 import time
 
-"""path trick"""
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
-
 """import utilities for preproc, reporting, and io"""
-import nipype_preproc_spm_utils
-import reporting.glm_reporter as glm_reporter
-import reporting.base_reporter as base_reporter
-from external.nilearn.datasets import fetch_fsl_feeds_data
-from datasets_extras import unzip_nii_gz
-from io_utils import compute_mean_3D_image
+from pypreprocess.nipype_preproc_spm_utils import SubjectData, do_subjects_preproc
+from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
+from pypreprocess.reporting.base_reporter import ProgressReport
+from pypreprocess.datasets import fetch_fsl_feeds_data
+from pypreprocess.datasets_extras import unzip_nii_gz
+from pypreprocess.io_utils import compute_mean_3D_image
 
 """MISC"""
 DATASET_DESCRIPTION = "FSL FEADS example data (single-subject)"
@@ -43,7 +39,6 @@ data_dir = os.path.abspath(sys.argv[1])
 
 """set output dir"""
 output_dir = os.path.abspath(sys.argv[2])
-unzip_nii_gz(data_dir)
 
 """experimental setup"""
 stats_start_time = time.ctime()
@@ -76,20 +71,18 @@ design_matrix = make_dmtx(frametimes,
 
 """fetch input data"""
 _subject_data = fetch_fsl_feeds_data(data_dir)
-subject_data = nipype_preproc_spm_utils.SubjectData()
+subject_data = SubjectData()
 subject_data.subject_id = "sub001"
-subject_data.func = _subject_data.func.rstrip('.gz')
-unzip_nii_gz(os.path.dirname(subject_data.func))
-subject_data.anat = _subject_data.anat.rstrip('.gz')
+subject_data.func = _subject_data.func
+subject_data.anat = _subject_data.anat
 subject_data.output_dir = os.path.join(
     output_dir, subject_data.subject_id)
-unzip_nii_gz(os.path.dirname(subject_data.anat))
 
 """preprocess the data"""
-results = nipype_preproc_spm_utils.do_subjects_preproc(
+results = do_subjects_preproc(
     [subject_data],
     output_dir=output_dir,
-    # fwhm=[5, 5, 5],
+    fwhm=8,
     dataset_id="FSL FEEDS single-subject",
     dataset_description=DATASET_DESCRIPTION,
     do_shutdown_reloaders=False,
@@ -164,7 +157,7 @@ stats_report_filename = os.path.join(subject_data.output_dir,
                                      "report_stats.html")
 contrasts = dict((contrast_id, contrasts[contrast_id])
                  for contrast_id in z_maps.keys())
-glm_reporter.generate_subject_stats_report(
+generate_subject_stats_report(
     stats_report_filename,
     contrasts,
     z_maps,
@@ -184,9 +177,10 @@ glm_reporter.generate_subject_stats_report(
     frametimes=frametimes,
     drift_model=drift_model,
     hrf_model=hrf_model,
+    slicer='z'
     )
 
 # shutdown main report page
-base_reporter.ProgressReport().finish_dir(output_dir)
+ProgressReport().finish_dir(output_dir)
 
 print "\r\nStatistic report written to %s\r\n" % stats_report_filename
