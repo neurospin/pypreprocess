@@ -9,6 +9,10 @@ nipype's SPM and FSL interfaces. It also contains utilities for automatic
 QA like registration checks (using nipy.labs), and template-based html report
 generation using (tempita, jquery, and home-grown css).
 
+These days, it also contains pure-Python (no C extensions, no compiled code, just Python)
+modules and scripts for slice-timing correction, motion correction, coregistration,
+and smoothing, without need for nipype or matlab.
+
 Check out the wiki at https://github.com/neurospin/pypreprocess/wiki.
 
 This work is made available by the INRIA Parietal Project Team.
@@ -71,9 +75,16 @@ Now open the file spm_auditory_runs/sub001/report.html in your browser (firefox)
 the generate report (QA).
 
 'Serious' examples
-----------------
+------------------
 The scripts/ sub-folder contains scripts for preprocessing popular datasets like ABIDE, HCP, HAXBY2001, NYU rest, etc.
 They should work 'out-of-the-box'.
+
+Intra-subject preprocessing in pure-Python
+==========================================
+
+cd to the pypreprocess/examples directory, and run the following command:
+
+       python purepython_pipeline_stepwise.py
 
 Development
 ===========
