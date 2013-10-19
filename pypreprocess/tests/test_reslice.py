@@ -11,10 +11,10 @@ import nose
 import nose.tools
 
 # import the APIs to be tested
-from ..pypreprocess.reslice import (
+from ..reslice import (
     reslice_vols
     )
-from ..pypreprocess.affine_transformations import (
+from ..affine_transformations import (
     get_initial_motion_params,
     apply_realignment
     )

@@ -8,16 +8,16 @@ import nose.tools
 import inspect
 
 # import APIs to be tested
-from ..pypreprocess.slice_timing import (
+from ..slice_timing import (
     STC,
     fMRISTC,
     get_slice_indices,
     _load_fmri_data
     )
-from ..pypreprocess.datasets import (
+from ..datasets import (
     fetch_spm_auditory_data
     )
-from ..pypreprocess.io_utils import (
+from ..io_utils import (
     save_vols
     )
 

@@ -7,11 +7,11 @@ import nibabel
 import scipy.io
 
 # import APIS to test
-from ..pypreprocess.coreg import(
+from ..coreg import(
     compute_similarity_from_jhist,
     Coregister
     )
-from ..pypreprocess.affine_transformations import apply_realignment_to_vol
+from ..affine_transformations import apply_realignment_to_vol
 from .test_histograms import test_joint_histogram
 
 # global setup

@@ -8,7 +8,7 @@ import nose
 import nose.tools
 
 # import the APIIS to be tested
-from ..pypreprocess.io_utils import (
+from ..io_utils import (
     load_vol,
     load_specific_vol,
     do_3Dto4D_merge,

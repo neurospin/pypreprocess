@@ -7,7 +7,7 @@ import numpy as np
 import nose.tools
 
 # import the APIs to be tested
-from ..pypreprocess.affine_transformations import (
+from ..affine_transformations import (
     get_initial_motion_params,
     spm_matrix,
     spm_imatrix,

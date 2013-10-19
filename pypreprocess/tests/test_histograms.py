@@ -3,11 +3,11 @@ import nibabel
 import numpy.testing
 import nose
 import nose.tools
-from ..pypreprocess.histograms import(_correct_voxel_samp,
-                                      make_sampled_grid,
-                                      trilinear_interp,
-                                      joint_histogram
-                                      )
+from ..histograms import(_correct_voxel_samp,
+                         make_sampled_grid,
+                         trilinear_interp,
+                         joint_histogram
+                         )
 
 
 def test_correct_voxel_samp():

@@ -17,10 +17,7 @@ from .affine_transformations import (spm_matrix,
                                      )
 from .io_utils import (loaduint8,
                        get_basenames,
-                       save_vols,
-                       get_basenames,
-                       is_3D,
-                       is_4D
+                       save_vols
                        )
 from .kernel_smooth import (fwhm2sigma,
                             centered_smoothing_kernel

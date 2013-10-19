@@ -11,8 +11,8 @@ import scipy.io
 import nose
 import nose.tools
 import numpy.testing
-from ..pypreprocess.io_utils import load_specific_vol
-from ..pypreprocess.kernel_smooth import (
+from ..io_utils import load_specific_vol
+from ..kernel_smooth import (
     fwhm2sigma,
     sigma2fwhm,
     smooth_image

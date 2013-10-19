@@ -3,13 +3,12 @@ import nose.tools
 import os
 import nibabel
 from ._test_utils import create_random_image
-from ..pypreprocess.nipype_preproc_spm_utils_bis import (niigz2nii,
-                                                         SubjectData,
-                                                         _do_subject_realign
-                                                         )
-from ..pypreprocess.datasets import (fetch_spm_auditory_data,
-                                     fetch_spm_multimodal_fmri_data
-                                     )
+from ..nipype_preproc_spm_utils_bis import (niigz2nii,
+                                            SubjectData,
+                                            _do_subject_realign
+                                            )
+from ..datasets import fetch_spm_auditory_data,
+
 
 def test_subject_data():
     # create subject data
