@@ -91,11 +91,7 @@ def load_specific_vol(vols, t, strict=False):
     if isinstance(vols, list):
         n_scans = len(vols)
         vol = load_vol(vols[t])
-    elif is_niimg(vols) or isinstance(vols, basestring) or isinstance(
-        vols, tuple):
-        if isinstance(vols, tuple):
-            vols = nibabel.Nifti1Image(*vols)
-
+    elif is_niimg(vols) or isinstance(vols, basestring):
         _vols = nibabel.load(vols) if isinstance(vols, basestring) else vols
         if len(_vols.shape) != 4:
             if strict:
@@ -120,6 +116,18 @@ def load_specific_vol(vols, t, strict=False):
     assert is_3D(vol)
 
     return vol, n_scans
+
+
+def load_vols(vols):
+    if isinstance(vols, list):
+        return [load_vol(vol) if isinstance(vol, basestring)
+                else vol for vol in vols]
+    elif isinstance(vols, basestring):
+        return nibabel.four_to_three(nibabel.load(vols))
+    elif is_niimg(vols):
+        return nibabel.four_to_three(vols)
+    else:
+        raise TypeError(type(vols))
 
 
 def three_to_four(images):

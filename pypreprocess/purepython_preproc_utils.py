@@ -11,21 +11,24 @@ import inspect
 import time
 import numpy as np
 import nibabel
-import joblib
 import inspect
-import pypreprocess.reporting.preproc_reporter as preproc_reporter
-import pypreprocess.reporting.base_reporter as base_reporter
-from pypreprocess.io_utils import (get_basenames,
-                                   save_vols,
-                                   save_vol,
-                                   load_specific_vol,
-                                   load_vol,
-                                   load_4D_img
-                                   )
-from pypreprocess.slice_timing import fMRISTC
-from pypreprocess.realign import MRIMotionCorrection
-from pypreprocess.kernel_smooth import smooth_image
-from pypreprocess.coreg import Coregister
+from joblib import Memory
+from reporting.preproc_reporter import (
+    generate_stc_thumbnails,
+    generate_coregistration_thumbnails,
+    generate_realignment_thumbnails,
+    generate_preproc_undergone_docstring
+    )
+from .io_utils import (get_basenames,
+                       save_vols,
+                       load_specific_vol,
+                       load_4D_img
+                       )
+from .subject_data import SubjectData
+from .slice_timing import fMRISTC
+from .realign import MRIMotionCorrection
+from .kernel_smooth import smooth_image
+from .coreg import Coregister
 
 # output image prefices
 PREPROC_OUTPUT_IMAGE_PREFICES = {'STC': 'a',
@@ -44,7 +47,7 @@ def do_subject_preproc(subject_data,
                        do_realign=True,
                        do_coreg=True,
                        coreg_func_to_anat=True,
-                       do_cv_tc=False,
+                       do_cv_tc=True,
                        fwhm=None,
                        write_output_images=2,
                        concat=False,
@@ -111,6 +114,10 @@ def do_subject_preproc(subject_data,
     -------
     dict of preproc output
 
+    See also
+    ========
+    pypreprocess.nipype_preproc_spm_utils
+
     """
 
     # sanitize input args
@@ -121,9 +128,7 @@ def do_subject_preproc(subject_data,
                 ]:
         assert key in subject_data, "subject_data must have '%s' key" % key
 
-    assert len(subject_data['func']) == subject_data['n_sessions']
-    n_sessions = subject_data['n_sessions']
-    do_coreg = do_coreg and 'anat' in subject_data  # can't coreg without anat
+    dict_input = isinstance(subject_data, dict)
 
     # print input args
     frame = inspect.currentframe()
@@ -133,48 +138,35 @@ def do_subject_preproc(subject_data,
         print "\t %s=%s" % (i, values[i])
     print "\r\n"
 
-    # dict of outputs
-    output = subject_data.copy()
+    subject_data = SubjectData(**subject_data).sanitize()
+    n_sessions = len(subject_data.session_id)
+    do_coreg = do_coreg and not subject_data.anat is None
 
     # compute basenames of input images
-    func_basenames = [get_basenames(func) for func in output['func']]
+    func_basenames = [get_basenames(func) for func in subject_data.func]
     if do_coreg:
-        anat_basename = get_basenames(output['anat'])
-
-    # create output dir if inexistent
-    if not os.path.exists(subject_data['output_dir']):
-        os.makedirs(subject_data['output_dir'])
+        anat_basename = get_basenames(subject_data.anat)
 
     # prepare for smart caching
     if do_caching:
-        mem = joblib.Memory(cachedir=os.path.join(
-                subject_data['output_dir'], 'cache_dir'),
-                            verbose=100
-                            )
-
-    def _cached(f):
-        """
-        If caching is enabled, then this wrapper caches calls to a function f.
-        Otherwise the behaviour of f is unchanged.
-
-        """
-
-        return mem.cache(f) if do_caching else f
+        mem = Memory(cachedir=os.path.join(
+                subject_data.output_dir, 'cache_dir'),
+                     verbose=100
+                     )
 
     # prefix for final output images
     func_prefix = ""
     anat_prefix = ""
 
     # cast all images to niimg
-    output['func'] = [load_4D_img(x) for x in output['func']]
+    subject_data.func = [load_4D_img(x) for x in subject_data.func]
 
     # if 'anat' in output:
-    #     output['anat'] = load_vol(output['anat'])
+    #     subject_data.anat = load_vol(subject_data.anat)
 
     if do_report:
         # generate explanation of preproc steps undergone by subject
-        preproc_undergone = preproc_reporter.\
-            generate_preproc_undergone_docstring(
+        preproc_undergone = generate_preproc_undergone_docstring(
             fwhm=fwhm,
             do_slicetiming=do_stc,
             do_realign=do_realign,
@@ -182,62 +174,10 @@ def do_subject_preproc(subject_data,
             coreg_func_to_anat=coreg_func_to_anat
             )
 
-        # report filenames
-        report_log_filename = os.path.join(output['output_dir'],
-                                           'report_log.html')
-        report_preproc_filename = os.path.join(output['output_dir'],
-                                               'report_preproc.html')
-        report_filename = os.path.join(output['output_dir'],
-                                       'report.html')
-
-        # initialize results gallery
-        loader_filename = os.path.join(
-            output['output_dir'], "results_loader.php")
-        results_gallery = base_reporter.ResultsGallery(
-            loader_filename=loader_filename,
-            title="Report for subject %s" % output['subject_id'])
-        final_thumbnail = base_reporter.Thumbnail()
-        final_thumbnail.a = base_reporter.a(href=report_preproc_filename)
-        final_thumbnail.img = base_reporter.img()
-        final_thumbnail.description = output['subject_id']
-
-        output['results_gallery'] = results_gallery
-
-        # copy web stuff to subject output dir
-        base_reporter.copy_web_conf_files(output['output_dir'])
-
-        slice_order = output[
-            'slice_order'] if 'slice_order' in output else slice_order
-        interleaved = output[
-            'interleaved'] if 'interleaved' in output else interleaved
-
-        # initialize progress bar
-        subject_progress_logger = base_reporter.ProgressReport(
-            report_log_filename,
-            other_watched_files=[report_filename,
-                                 report_preproc_filename])
-        output['progress_logger'] = subject_progress_logger
-
-        # html markup
-        preproc = base_reporter.get_subject_report_preproc_html_template(
-            ).substitute(
-            results=results_gallery,
-            start_time=time.ctime(),
-            preproc_undergone=preproc_undergone,
-            subject_id=output['subject_id'],
-            )
-        main_html = base_reporter.get_subject_report_html_template(
-            ).substitute(
-            start_time=time.ctime(),
-            subject_id=output['subject_id']
-            )
-
-        with open(report_preproc_filename, 'w') as fd:
-            fd.write(str(preproc))
-            fd.close()
-        with open(report_filename, 'w') as fd:
-            fd.write(str(main_html))
-            fd.close()
+        subject_data.init_report(parent_results_gallery=parent_results_gallery,
+                                 last_stage=shutdown_reloaders,
+                                 preproc_undergone=preproc_undergone,
+                                 do_cv_tc=do_cv_tc)
 
     ############################
     # Slice-Timing Correction
@@ -248,32 +188,31 @@ def do_subject_preproc(subject_data,
         func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['STC'] + func_prefix
 
         stc_output = []
-        original_bold = output['func']
-        for sess_func, sess_id in zip(output['func'],
-                                      xrange(output['n_sessions'])):
-            fmristc = _cached(fMRISTC(slice_order=slice_order,
+        original_bold = subject_data.func
+        for sess_func, sess_id in zip(subject_data.func,
+                                      xrange(n_sessions)):
+            fmristc = mem.cache(fMRISTC(slice_order=slice_order,
                                       interleaved=interleaved,
                                       verbose=verbose
                                       ).fit)(raw_data=sess_func.get_data())
 
-            stc_output.append(_cached(fmristc.transform)(
-                        sess_func,
-                        output_dir=output['output_dir'
-                                          ] if write_output_images == 2
-                        else None,
-                        basenames=func_basenames[sess_id],
-                        prefix=func_prefix))
+            stc_output.append(mem.cache(fmristc.transform)(
+                    sess_func,
+                    output_dir=subject_data.output_dir if (
+                        write_output_images == 2) else None,
+                    basenames=func_basenames[sess_id],
+                    prefix=func_prefix))
 
-        output['func'] = stc_output
+        subject_data.func = stc_output
 
         if do_report:
             # generate STC QA thumbs
-            preproc_reporter.generate_stc_thumbnails(
+            generate_stc_thumbnails(
                 original_bold,
                 stc_output,
-                output['output_dir'],
+                subject_data.output_dir,
                 sessions=xrange(n_sessions),
-                results_gallery=results_gallery
+                results_gallery=subject_data.results_gallery
                 )
 
             # gc
@@ -290,29 +229,29 @@ def do_subject_preproc(subject_data,
 
         func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['MC'] + func_prefix
 
-        mrimc = _cached(MRIMotionCorrection(
+        mrimc = mem.cache(MRIMotionCorrection(
                 n_sessions=n_sessions, verbose=verbose).fit)(
-            [sess_func for sess_func in output['func']])
+            [sess_func for sess_func in subject_data.func])
 
-        mrimc_output = _cached(mrimc.transform)(
+        mrimc_output = mem.cache(mrimc.transform)(
             reslice=True,
-            output_dir=output['output_dir'
-                              ] if write_output_images == 2 else None,
+            output_dir=subject_data.output_dir if (
+                write_output_images == 2) else None,
             prefix=func_prefix,
             basenames=func_basenames
             )
 
-        output['func'] = mrimc_output['realigned_images']
-        output['realignment_parameters'] = mrimc_output[
+        subject_data.func = mrimc_output['realigned_images']
+        subject_data.realignment_parameters = mrimc_output[
             'realignment_parameters']
 
         if do_report:
             # generate realignment thumbs
-            preproc_reporter.generate_realignment_thumbnails(
-                output['realignment_parameters'],
-                output['output_dir'],
+            generate_realignment_thumbnails(
+                subject_data.realignment_parameters,
+                subject_data.output_dir,
                 sessions=range(n_sessions),
-                results_gallery=results_gallery
+                results_gallery=subject_data.results_gallery
                 )
 
         # garbage collection
@@ -321,7 +260,7 @@ def do_subject_preproc(subject_data,
     ###################
     # Coregistration
     ###################
-    if do_coreg and 'anat' in output:
+    if do_coreg and not subject_data.anat is None:
         which = "func -> anat" if coreg_func_to_anat else "anat -> func"
         print "\r\nNODE> Coregistration %s" % which
 
@@ -332,42 +271,41 @@ def do_subject_preproc(subject_data,
 
         ref_brain = 'func'
         src_brain = 'anat'
-        ref = output['func'][0]
-        src = output['anat']
+        ref = subject_data.func[0]
+        src = subject_data.anat
         if coreg_func_to_anat:
             ref_brain, src_brain = src_brain, ref_brain
             ref, src = src, ref
 
         # estimate realignment (affine) params for coreg
-        coreg = _cached(Coregister(verbose=verbose).fit)(ref, src)
+        coreg = mem.cache(Coregister(verbose=verbose).fit)(ref, src)
 
         # apply coreg
         if coreg_func_to_anat:
             coreg_func = []
-            for sess_func, sess_id in zip(output['func'], xrange(
-                    output['n_sessions'])):
-                coreg_func.append(_cached(coreg.transform)(
-                        sess_func, output_dir=output[
-                            'output_dir'] if write_output_images == 2
-                            else None,
+            for sess_func, sess_id in zip(subject_data.func, xrange(
+                    n_sessions)):
+                coreg_func.append(mem.cache(coreg.transform)(
+                        sess_func, output_dir=subject_data.output_dir if (
+                            write_output_images == 2) else None,
                         prefix=func_prefix,
                         basenames=func_basenames[sess_id] if coreg_func_to_anat
                         else anat_basename
                         ))
-                output['func'] = coreg_func
-            src = load_specific_vol(output['func'][0], 0)[0]
+                subject_data.func = coreg_func
+            src = load_specific_vol(subject_data.func[0], 0)[0]
         else:
-            output['anat'] = _cached(coreg.transform)(
-                output['anat'])
-            src = output['anat']
+            subject_data.anat = mem.cache(coreg.transform)(
+                subject_data.anat)
+            src = subject_data.anat
 
         if do_report:
             # generate coreg QA thumbs
-            preproc_reporter.generate_coregistration_thumbnails(
+            generate_coregistration_thumbnails(
                 (ref, ref_brain),
                 (src, src_brain),
-                output['output_dir'],
-                results_gallery=results_gallery,
+                subject_data.output_dir,
+                results_gallery=subject_data.results_gallery,
                 )
 
         # garbage collection
@@ -384,16 +322,16 @@ def do_subject_preproc(subject_data,
 
         sfunc = []
         for sess in xrange(n_sessions):
-            sess_func = output['func'][sess]
+            sess_func = subject_data.func[sess]
 
-            _tmp = _cached(smooth_image)(sess_func,
+            _tmp = mem.cache(smooth_image)(sess_func,
                                        fwhm)
 
             # save smoothed func
             if write_output_images == 2:
-                _tmp = _cached(save_vols)(
+                _tmp = mem.cache(save_vols)(
                     _tmp,
-                    output_dir=output['output_dir'],
+                    subject_data.output_dir,
                     basenames=func_basenames[sess],
                     prefix=func_prefix,
                     concat=concat
@@ -401,7 +339,7 @@ def do_subject_preproc(subject_data,
 
             sfunc.append(_tmp)
 
-        output['func'] = sfunc
+        subject_data.func = sfunc
 
     # write final output images
     if write_output_images == 1:
@@ -413,31 +351,18 @@ def do_subject_preproc(subject_data,
 
         _func = []
         for sess in xrange(n_sessions):
-            sess_func = output['func'][sess]
-            _func.append(_cached(save_vols)(sess_func,
-                                            output_dir=output['output_dir'],
-                                            basenames=func_basenames[sess],
-                                            prefix=func_prefix,
-                                            concat=concat
-                                            ))
-        output['func'] = _func
+            sess_func = subject_data.func[sess]
+            _func.append(mem.cache(save_vols)(
+                    sess_func,
+                    output_dir=subject_data.output_dir,
+                    basenames=func_basenames[sess],
+                    prefix=func_prefix,
+                    concat=concat
+                    ))
+        subject_data.func = _func
 
-    if do_report or do_cv_tc:
-        # generate CV thumbs
-        preproc_reporter.generate_cv_tc_thumbnail(
-            output['func'],
-            xrange(n_sessions),
-            output['subject_id'],
-            output['output_dir'],
-            results_gallery=results_gallery)
+    # finalize
+    subject_data._finalize_report()
+    subject_data.hardlink_output_files(final=True)
 
-    # finish reporting
-    if do_report:
-        base_reporter.ProgressReport().finish(report_preproc_filename)
-
-        if shutdown_reloaders:
-            base_reporter.ProgressReport().finish_dir(output['output_dir'])
-
-        print "\r\nHTML report written to %s\r\n" % report_preproc_filename
-
-    return output
+    return subject_data.__dict__ if dict_input else subject_data

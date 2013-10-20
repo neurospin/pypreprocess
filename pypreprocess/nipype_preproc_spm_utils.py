@@ -32,22 +32,17 @@ from .io_utils import (load_specific_vol,
                        ravel_filenames,
                        unravel_filenames,
                        get_vox_dims,
-                       hard_link,
-                       delete_orientation,
                        niigz2nii
                        )
+from subject_data import SubjectData
 
 # import API for reporting
 from .reporting.base_reporter import (
-    Thumbnail,
     ResultsGallery,
     ProgressReport,
-    a,
-    img,
     copy_web_conf_files,
     get_module_source_code,
     dict_to_html_ul,
-    commit_subject_thumnbail_to_parent_gallery
     )
 
 from .reporting.preproc_reporter import (
@@ -56,11 +51,8 @@ from .reporting.preproc_reporter import (
     get_dataset_report_log_html_template,
     get_dataset_report_preproc_html_template,
     get_dataset_report_html_template,
-    get_subject_report_html_template,
-    get_subject_report_preproc_html_template,
     generate_realignment_thumbnails,
     generate_coregistration_thumbnails,
-    generate_cv_tc_thumbnail,
     generate_normalization_thumbnails,
     generate_segmentation_thumbnails
     )
@@ -98,178 +90,6 @@ if not os.path.isfile(T1_TEMPLATE):
 GM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/grey.nii')
 WM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/white.nii')
 CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
-
-
-class SubjectData(object):
-    """
-    Encapsulation for subject data, relative to preprocessing.
-
-    Parameters
-    ----------
-    func: can be one of the following types:
-        ---------------------------------------------------------------
-        Type                       | Explanation
-        ---------------------------------------------------------------
-        string                     | one session, 1 4D image filename
-        ---------------------------------------------------------------
-        list of strings            | one session, multiple 3D image
-                                   | filenames (one per scan)
-                                   | OR multiple sessions, multiple 4D
-                                   | image filenames (one per session)
-        ---------------------------------------------------------------
-        list of list of strings    | multiiple sessions, one list of
-                                   | 3D image filenames (one per scan)
-                                   | per session
-        ---------------------------------------------------------------
-
-    anat: string
-        path to anatomical image
-
-    subject_id: string, optional (default 'sub001')
-        subject id
-
-    session_id: string or list of strings, optional (default None):
-        session ids for all sessions (i.e runs)
-
-    """
-
-    def __init__(self, func=None, anat=None, subject_id="sub001",
-                 session_id=None, output_dir=None, **kwargs):
-        self.func = func
-        self.anat = anat
-        self.subject_id = subject_id
-        self.session_id = session_id
-        self.output_dir = output_dir
-
-        for k, v in kwargs.iteritems():
-            setattr(self, k, v)
-
-    def delete_orientation(self):
-        # prepare for smart caching
-        cache_dir = os.path.join(self.output_dir, 'cache_dir')
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
-        mem = JoblibMemory(cachedir=cache_dir, verbose=5)
-
-        # deleteorient for func
-        self.func = [mem.cache(delete_orientation)(
-                self.func[j],
-                self.output_dir,
-                output_tag=self.session_id[j])
-                     for j in xrange(len(self.session_id))]
-
-        # deleteorient for anat
-        print self.anat
-        if not self.anat is None:
-            self.anat = mem.cache(delete_orientation)(
-                self.anat, self.output_dir)
-
-    def sanitize(self, do_deleteorient=False):
-        """
-        This method does basic sanitization of the `SubjectData` instance, like
-        extracting .nii.gz -> .nii (crusial for SPM), ensuring that functional
-        images actually exist on disk, etc.
-
-        """
-
-        # sanitize output_dir
-        assert not self.output_dir is None
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
-
-        cache_dir = os.path.join(self.output_dir, 'cache_dir')
-        mem = JoblibMemory(cache_dir, verbose=100)
-
-        # sanitize func
-        if isinstance(self.func, basestring):
-            self.func = [self.func]
-        self.func = mem.cache(niigz2nii)(self.func,
-                                              output_dir=self.output_dir)
-
-        # sanitize anat
-        if not self.anat is None:
-            assert os.path.isfile(self.anat)
-            self.anat = mem.cache(niigz2nii)(self.anat,
-                                             output_dir=self.output_dir)
-
-        # sanitize session_id
-        if self.session_id is None:
-            if len(self.func) < 10:
-                self.session_id = ["session_%i" % i
-                                   for i in xrange(len(self.func))]
-            else:
-                self.session_id = ["session_0"]
-        else:
-            if isinstance(self.session_id, (basestring, int)):
-                assert len(self.func) == 1
-                self.session_id = [self.session_id]
-            else:
-                assert len(self.session_id) == len(self.func), "%s != %s" % (
-                    self.session_id, len(self.func))
-
-        if do_deleteorient:
-            self.delete_orientation()
-
-    def hardlink_output_files(self, final=False):
-        """
-        Hard-links output files to subject's immediate output directory.
-
-        Parameters
-        ----------
-        final: bool, optional (default False)
-            flag indicating whether, we're finalizing the preprocessingpipeline
-
-        """
-
-        for item in ['func', 'anat', 'realignment_parameters',
-                     'gm', 'wm', 'csf',  # native
-                     'wgm', 'wwm', 'wcsf'  # warped/normalized
-                     ]:
-            if hasattr(self, item):
-                filename = getattr(self, item)
-                if not filename is None:
-                    linked_filename = hard_link(filename, self.output_dir)
-                    if final:
-                        setattr(self, item, linked_filename)
-
-    def _finalize_report(self, do_report=False, parent_results_gallery=None,
-                         do_cv_tc=False, last_stage=False):
-        """
-        Finalizes the business of reporting.
-
-        """
-
-        if not self.do_report:
-            return
-
-        # generate failure thumbnail
-        if self.failed:
-            self.final_thumbnail.img.src = 'failed.png'
-            self.final_thumbnail.description += (
-                ' (failed realignment)')
-        else:
-            # geneate cv_tc plots
-            if do_cv_tc:
-                generate_cv_tc_thumbnail(
-                    self.func,
-                    self.session_id,
-                    self.subject_id,
-                    self.output_dir,
-                    results_gallery=self.results_gallery
-                    )
-
-        if last_stage:
-            self.progress_logger.finish_dir(self.output_dir)
-
-        if not parent_results_gallery is None:
-            commit_subject_thumnbail_to_parent_gallery(
-                self.final_thumbnail,
-                self.subject_id,
-                parent_results_gallery)
-
-        print ("\r\nPreproc report for subject %s written to %s"
-               " .\r\n" % (self.subject_id,
-                           self.report_preproc_filename))
 
 
 def _do_subject_realign(subject_data, nipype_mem=None,
@@ -868,7 +688,7 @@ def _do_subject_smooth(subject_data, fwhm, nipype_mem=None):
     # run node
     smooth_result = smooth(in_files=in_files,
                            fwhm=fwhm,
-                           ignore_exception=True
+                           ignore_exception=False
                            )
     # failed node ?
     subject_data.nipype_results['smooth'] = smooth_result
@@ -985,9 +805,7 @@ def _do_subject_dartelnorm2mni(subject_data,
                 results_gallery=subject_data.results_gallery,
                 )
 
-        subject_data._finalize_report(
-            parent_results_gallery=parent_results_gallery,
-            do_cv_tc=do_cv_tc, last_stage=last_stage)
+        subject_data._finalize_report()
 
     return subject_data
 
@@ -1078,6 +896,10 @@ def do_subject_preproc(
         if set, a summarizing the time-course of the coefficient of variation
         in the preprocessed fMRI time-series will be generated
 
+    See also
+    ========
+    pypreprocess.purepython_preproc_utils
+
     """
 
     # sanitze subject data
@@ -1090,7 +912,7 @@ def do_subject_preproc(
 
     subject_data.do_report = do_report
 
-    subject_data.sanitize(do_deleteorient=do_deleteorient)
+    subject_data.sanitize(do_deleteorient=do_deleteorient, do_niigz2nii=True)
     subject_data.failed = False
 
     # sanitize fwhm
@@ -1134,56 +956,10 @@ def do_subject_preproc(
                 coreg_func_to_anat=not coreg_anat_to_func
                 )
 
-        # report filenames
-        subject_data.report_log_filename = os.path.join(
-            subject_data.output_dir, 'report_log.html')
-        subject_data.report_preproc_filename = os.path.join(
-            subject_data.output_dir, 'report_preproc.html')
-        subject_data.report_filename = os.path.join(subject_data.output_dir,
-                                                    'report.html')
-
-        # initialize results gallery
-        loader_filename = os.path.join(subject_data.output_dir,
-                                       "results_loader.php")
-        subject_data.results_gallery = ResultsGallery(
-            loader_filename=loader_filename,
-            title="Report for subject %s" % subject_data.subject_id)
-
-        # final thumbnail most representative of this subject's QA
-        subject_data.final_thumbnail = Thumbnail()
-        subject_data.final_thumbnail.a = a(
-            href=subject_data.report_preproc_filename)
-        subject_data.final_thumbnail.img = img(src=None)
-        subject_data.final_thumbnail.description = subject_data.subject_id
-
-        # copy web stuff to subject output dir
-        copy_web_conf_files(subject_data.output_dir)
-
-        # initialize progress bar
-        subject_data.progress_logger = ProgressReport(
-            subject_data.report_log_filename,
-            other_watched_files=[subject_data.report_preproc_filename])
-
-        # html markup
-        preproc = get_subject_report_preproc_html_template(
-            ).substitute(
-            results=subject_data.results_gallery,
-            start_time=time.ctime(),
-            preproc_undergone=preproc_undergone,
-            subject_id=subject_data.subject_id,
-            )
-        main_html = get_subject_report_html_template(
-            ).substitute(
-            start_time=time.ctime(),
-            subject_id=subject_data.subject_id
-            )
-
-        with open(subject_data.report_preproc_filename, 'w') as fd:
-            fd.write(str(preproc))
-            fd.close()
-        with open(subject_data.report_filename, 'w') as fd:
-            fd.write(str(main_html))
-            fd.close()
+        subject_data.init_report(parent_results_gallery=parent_results_gallery,
+                                 last_stage=last_stage,
+                                 preproc_undergone=preproc_undergone,
+                                 do_cv_tc=do_cv_tc)
 
     #######################
     #  motion correction
@@ -1200,9 +976,7 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data._finalize_report(
-                parent_results_gallery=parent_results_gallery,
-                do_cv_tc=do_cv_tc, last_stage=last_stage)
+            subject_data._finalize_report()
             return subject_data
 
     ##################################################################
@@ -1222,9 +996,7 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data._finalize_report(
-                parent_results_gallery=parent_results_gallery,
-                do_cv_tc=do_cv_tc, last_stage=last_stage)
+            subject_data._finalize_report()
             return subject_data
 
     #####################################
@@ -1243,9 +1015,7 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data._finalize_report(
-                parent_results_gallery=parent_results_gallery,
-                do_cv_tc=do_cv_tc, last_stage=last_stage)
+            subject_data._finalize_report()
             return subject_data
 
     ##########################
@@ -1265,9 +1035,7 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data._finalize_report(
-                parent_results_gallery=parent_results_gallery,
-                do_cv_tc=do_cv_tc, last_stage=last_stage)
+            subject_data._finalize_report()
             return subject_data
 
     #########################################
@@ -1280,16 +1048,10 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data._finalize_report(
-                parent_results_gallery=parent_results_gallery,
-                do_cv_tc=do_cv_tc, last_stage=last_stage)
+            subject_data._finalize_report()
             return subject_data
 
-    # finalize reports
-    if do_report:
-        subject_data._finalize_report(
-            parent_results_gallery=parent_results_gallery,
-            do_cv_tc=do_cv_tc, last_stage=last_stage)
+    subject_data._finalize_report()
 
     # hard-link node output files
     if last_stage:
@@ -1309,7 +1071,7 @@ def _do_subjects_dartel(subjects,
                         parent_results_gallery=None
                         ):
     """
-    Undocumented API!
+    Runs NewSegment + DARTEL on given subjects.
 
     """
 

@@ -200,10 +200,10 @@ def demo_spm_auditory(data_dir="/tmp/spm_auditory_data",
 # main
 if __name__ == '__main__':
     # run spm multimodal demo
-    demo_spm_multimodal_fmri()
+    demo_spm_auditory()
 
     # run spm multimodal demo
-    demo_spm_auditory()
+    demo_spm_multimodal_fmri()
 
     # run fsl feeds demo
     demo_fsl_feeds()

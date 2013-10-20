@@ -13,7 +13,8 @@ import numpy as np
 import scipy.linalg
 import nibabel
 from .io_utils import (load_specific_vol,
-                       load_vol
+                       load_vol,
+                       load_vols
                        )
 
 # house-hold convenience naming
@@ -309,6 +310,8 @@ def apply_realignment_to_vol(vol, q, inverse=True):
     rvol = nibabel.Nifti1Image(vol.get_data(), np.dot(
             M_q, vol.get_affine()))
 
+    rvol.get_data()
+
     return rvol
 
 
@@ -351,9 +354,9 @@ def apply_realignment(vols, rp, inverse=True):
     if rp.ndim == 1:
         rp = np.array([rp] * n_scans)
 
-    rvols = [apply_realignment_to_vol(load_specific_vol(vols, t)[0],
-                                      rp[t], inverse=inverse)
-             for t in xrange(n_scans)]
+    rvols = [apply_realignment_to_vol(vol, rp[t], inverse=inverse)
+             for vol, t in zip(load_vols(vols),
+                               xrange(n_scans))]
 
     return rvols if n_scans > 1 or isinstance(vols, list) else rvols[0]
 
