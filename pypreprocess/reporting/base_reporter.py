@@ -369,9 +369,9 @@ def commit_subject_thumnbail_to_parent_gallery(
     # resize thumbnail
     thumbnail.img.height = "250px"
 
-    thumbnail.img.src = os.path.join(subject_id,
+    thumbnail.img.src = os.path.join(subject_id, "reports",
                                      os.path.basename(thumbnail.img.src))
-    thumbnail.a.href = os.path.join(subject_id,
+    thumbnail.a.href = os.path.join(subject_id, "reports",
                                     os.path.basename(thumbnail.a.href))
 
     # commit thumbnail to parent's gallery
@@ -694,17 +694,36 @@ def get_dataset_report_log_html_template():
         return HTMLTemplate(_text)
 
 
+def copy_failed_png(output_dir):
+    """
+    Copies failed.png image to output_dir
+
+    """
+
+    shutil.copy(os.path.join(ROOT_DIR, "images/failed.png"),
+                output_dir)
+
+
 def copy_web_conf_files(output_dir):
     """Function to copy css, js, icon files to given directory.
 
     """
 
-    def _copy_web_conf_file_ext(src_dir_basename, extentions):
+    def _copy_web_conf_file_ext(src_dir_basename, extentions, ignore=None):
+        if ignore is None:
+            ignore = []
+        if isinstance(ignore, basestring):
+            ignore = [ignore]
 
         for ext in extentions:
-            for x in glob.glob(os.path.join(ROOT_DIR, "%s/*%s" % (
+            for src in glob.glob(os.path.join(ROOT_DIR, "%s/*%s" % (
                         src_dir_basename, ext))):
-                shutil.copy(x, output_dir)
+
+                # skip faild.png image (see issue #30)
+                if src.endswith("failed.png"):
+                    continue
+
+                shutil.copy(src, output_dir)
 
     # copy js stuff
     _copy_web_conf_file_ext("js", ['.js'])

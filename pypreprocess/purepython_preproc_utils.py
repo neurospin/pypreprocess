@@ -174,8 +174,8 @@ def do_subject_preproc(subject_data,
             coreg_func_to_anat=coreg_func_to_anat
             )
 
+        # initialize reports factory
         subject_data.init_report(parent_results_gallery=parent_results_gallery,
-                                 last_stage=shutdown_reloaders,
                                  preproc_undergone=preproc_undergone,
                                  do_cv_tc=do_cv_tc)
 
@@ -206,11 +206,12 @@ def do_subject_preproc(subject_data,
         subject_data.func = stc_output
 
         if do_report:
+            print subject_data.reports_output_dir
             # generate STC QA thumbs
             generate_stc_thumbnails(
                 original_bold,
                 stc_output,
-                subject_data.output_dir,
+                subject_data.reports_output_dir,
                 sessions=xrange(n_sessions),
                 results_gallery=subject_data.results_gallery
                 )
@@ -245,14 +246,9 @@ def do_subject_preproc(subject_data,
         subject_data.realignment_parameters = mrimc_output[
             'realignment_parameters']
 
+        # generate realignment thumbs
         if do_report:
-            # generate realignment thumbs
-            generate_realignment_thumbnails(
-                subject_data.realignment_parameters,
-                subject_data.output_dir,
-                sessions=range(n_sessions),
-                results_gallery=subject_data.results_gallery
-                )
+            subject_data.generate_realignment_thumbnails()
 
         # garbage collection
         del mrimc
@@ -301,12 +297,8 @@ def do_subject_preproc(subject_data,
 
         if do_report:
             # generate coreg QA thumbs
-            generate_coregistration_thumbnails(
-                (ref, ref_brain),
-                (src, src_brain),
-                subject_data.output_dir,
-                results_gallery=subject_data.results_gallery,
-                )
+            subject_data.generate_coregistration_thumbnails(
+                coreg_func_to_anat=coreg_func_to_anat)
 
         # garbage collection
         del coreg
@@ -362,7 +354,7 @@ def do_subject_preproc(subject_data,
         subject_data.func = _func
 
     # finalize
-    subject_data._finalize_report()
+    subject_data.finalize_report(last_stage=shutdown_reloaders)
     subject_data.hardlink_output_files(final=True)
 
     return subject_data.__dict__ if dict_input else subject_data
