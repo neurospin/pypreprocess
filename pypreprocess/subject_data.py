@@ -9,6 +9,7 @@ teardown for reports, etc., general sanitization, etc.
 import os
 import time
 from joblib import Memory
+from matplotlib.pyplot import cm
 from .io_utils import (niigz2nii,
                        delete_orientation,
                        hard_link)
@@ -23,7 +24,14 @@ from .reporting.base_reporter import (
     get_subject_report_html_template,
     get_subject_report_preproc_html_template
     )
-from .reporting.preproc_reporter import generate_cv_tc_thumbnail
+from .reporting.preproc_reporter import (
+    generate_cv_tc_thumbnail,
+    generate_realignment_thumbnails,
+    generate_coregistration_thumbnails,
+    generate_normalization_thumbnails,
+    generate_segmentation_thumbnails,
+    make_nipype_execution_log_html,
+    )
 
 
 class SubjectData(object):
@@ -91,6 +99,11 @@ class SubjectData(object):
             self.anat = mem.cache(delete_orientation)(
                 self.anat, self.output_dir)
 
+    def _sanitize_output_dir(self):
+        assert not self.output_dir is None
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
+
     def sanitize(self, do_deleteorient=False, do_niigz2nii=False):
         """
         This method does basic sanitization of the `SubjectData` instance, like
@@ -109,9 +122,7 @@ class SubjectData(object):
         """
 
         # sanitize output_dir
-        assert not self.output_dir is None
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
+        self._sanitize_output_dir()
 
         # sanitize func
         if isinstance(self.func, basestring):
@@ -175,12 +186,29 @@ class SubjectData(object):
                     if final:
                         setattr(self, item, linked_filename)
 
-    def init_report(self, parent_results_gallery=None, last_stage=False,
+    def init_report(self, parent_results_gallery=None,
                     do_cv_tc=True, preproc_undergone=None):
+        """
+        This method is invoked to initialize the reports factory for the
+        subject. It configures everything necessary for latter reporting:
+        copies the custom .css, .js, etc. files, generates markup for
+        the report pages (report.html, report_log.html, report_preproc.html,
+        etc.), etc.
+
+        Parameters
+        ----------
+        do_cv_tc: bool (optional)
+            if set, a summarizing the time-course of the coefficient of
+            variation in the preprocessed fMRI time-series will be
+            generated
+
+        """
+
+        self._sanitize_output_dir()
+
         self.do_report = True
         self.results_gallery = None
         self.parent_results_gallery = parent_results_gallery
-        self.last_stage = last_stage
         self.do_cv_tc = do_cv_tc
 
         # report filenames
@@ -234,14 +262,17 @@ class SubjectData(object):
             fd.write(str(main_html))
             fd.close()
 
-    def _finalize_report(self):
+    def finalize_report(self, parent_results_gallery=None, last_stage=False):
         """
         Finalizes the business of reporting.
 
         """
 
-        if not self.do_report:
+        if not self.reporting_enabled():
             return
+
+        if parent_results_gallery is None:
+            parent_results_gallery = self.parent_results_gallery
 
         # generate failure thumbnail
         if self.failed:
@@ -259,14 +290,19 @@ class SubjectData(object):
                     results_gallery=self.results_gallery
                     )
 
-        if self.last_stage:
+        # shut down all watched report pages
+        self.progress_logger.finish_all()
+
+        # shut down everything in output_dir
+        if last_stage:
             self.progress_logger.finish_dir(self.output_dir)
 
-        if not self.parent_results_gallery is None:
+        # commit final thumbnail into parent's results gallery
+        if not parent_results_gallery is None:
             commit_subject_thumnbail_to_parent_gallery(
                 self.final_thumbnail,
                 self.subject_id,
-                self.parent_results_gallery)
+                parent_results_gallery)
 
         print ("\r\nPreproc report for subject %s written to %s"
                " .\r\n" % (self.subject_id,
@@ -274,3 +310,190 @@ class SubjectData(object):
 
     def __getitem__(self, key):
         return self.__dict__[key]
+
+    def reporting_enabled(self):
+        """
+        Determines whether reporting is enabled for this subject
+
+        """
+
+        return hasattr(self, 'results_gallery')
+
+    def generate_realignment_thumbnails(self):
+        """
+        Invoked to generate post-realignment thumbnails.
+
+        Notes
+        =====
+        init_report(...) method must have been invoked before this method,
+        else nothing nothing be done
+
+        """
+
+        if not hasattr(self, 'realignment_parameters'):
+            print(
+                "self has no field 'realignment_parameters'; nothing to do")
+            return
+
+        if not self.reporting_enabled():
+            self.init_report()
+
+        thumbs = generate_realignment_thumbnails(
+            getattr(self, 'realignment_parameters'),
+            self.output_dir,
+            sessions=self.session_id,
+            execution_log_html_filename=make_nipype_execution_log_html(
+                self.func, "Realign",
+                self.output_dir),
+            results_gallery=self.results_gallery
+            )
+
+        self.final_thumbnail.img.src = thumbs['rp_plot']
+
+    def generate_coregistration_thumbnails(self, coreg_func_to_anat=True):
+        """
+        Invoked to generate post-coregistration thumbnails.
+
+        Notes
+        =====
+        init_report(...) method must have been invoked before this method,
+        else nothing nothing be done
+
+        """
+
+        # subject has anat ?
+        if self.anat is None:
+            print("Subject 'anat' field is None; nothing to do")
+            return
+
+        # reporting enabled ?
+        if not self.reporting_enabled():
+            self.init_report()
+
+        src, ref = self.func, self.anat
+        src_brain, ref_brain = "func", "anat"
+        if not coreg_func_to_anat:
+            src, ref = ref, src
+            src_brain, ref_brain = ref_brain, src_brain
+
+        thumbs = generate_coregistration_thumbnails(
+            (ref, ref_brain),
+            (src, src_brain),
+            self.output_dir,
+            execution_log_html_filename=make_nipype_execution_log_html(
+                src, "Coregister",
+                self.output_dir),
+            results_gallery=self.results_gallery
+            )
+
+        self.final_thumbnail.img.src = thumbs['axial']
+
+    def generate_segmentation_thumbnails(self):
+        """
+        Invoked to generate post-segmentation thumbnails.
+
+        Notes
+        =====
+        init_report(...) method must have been invoked before this method,
+        else nothing nothing be done
+
+        """
+
+        # segmentation done ?
+        segmented = False
+        for item in ['gm', 'wm', 'csf']:
+            if hasattr(self, item):
+                segmented = True
+                break
+        if not segmented:
+            return
+
+        # reporting enabled ?
+        if not self.reporting_enabled():
+            self.init_report()
+
+        for brain_name, brain, cmap in zip(
+            ['anat', 'func'], [self.anat, self.func],
+            [cm.gray, cm.spectral]):
+            thumbs = generate_segmentation_thumbnails(
+                brain,
+                self.output_dir,
+                subject_gm_file=getattr(self, 'gm', None),
+                subject_wm_file=getattr(self, 'wm', None),
+                subject_csf_file=getattr(self, 'csf', None),
+                cmap=cmap,
+                brain=brain_name,
+                only_native=True,
+                execution_log_html_filename=make_nipype_execution_log_html(
+                    getattr(self, 'gm') or getattr(self, 'wm') or getattr(
+                        self, 'csf'), "Segment", self.output_dir),
+                results_gallery=self.results_gallery
+                )
+
+            if brain_name == 'func':
+                self.final_thumbnail.img.src = thumbs['axial']
+
+    def generate_normalization_thumbnails(self):
+        """
+        Invoked to generate post-normalization thumbnails.
+
+        Notes
+        =====
+        init_report(...) method must have been invoked before this method,
+        else nothing nothing be done
+
+        """
+
+        if not hasattr(self, 'results_gallery'):
+            print("init_report method not yet invoked; nothx to do")
+            return
+
+        # segmentation done ?
+        segmented = False
+        for item in ['wgm', 'wwm', 'wcsf']:
+            if hasattr(self, item):
+                segmented = True
+                break
+
+        for brain_name, brain, cmap in zip(
+            ['anat', 'func'], [self.anat, self.func],
+            [cm.gray, cm.spectral]):
+
+            if not hasattr(self, brain_name):
+                continue
+
+            # generate segmentation thumbs
+            if segmented:
+                thumbs = generate_segmentation_thumbnails(
+                    brain,
+                    self.output_dir,
+                    subject_gm_file=getattr(self, 'wgm', None),
+                    subject_wm_file=getattr(self, 'wwm', None),
+                    subject_csf_file=getattr(self, 'wcsf', None),
+                    cmap=cmap,
+                    brain=brain_name,
+                    comments="warped",
+                    execution_log_html_filename=make_nipype_execution_log_html(
+                        getattr(self, 'wgm') or getattr(
+                            self, 'wwm') or getattr(
+                            self, 'wcsf'), "Segment",
+                        self.output_dir),
+                    results_gallery=self.results_gallery
+                    )
+
+                if brain_name == 'func':
+                    self.final_thumbnail.img.src = thumbs['axial']
+
+            # generate normalization thumbs
+            thumbs = generate_normalization_thumbnails(
+                brain,
+                self.output_dir,
+                brain=brain_name,
+                execution_log_html_filename=make_nipype_execution_log_html(
+                    brain, "Normalize",
+                    self.output_dir),
+                results_gallery=self.results_gallery,
+                )
+
+            if not segmented and brain_name == 'func':
+                self.final_thumbnail.img.src = thumbs['axial']

@@ -44,17 +44,11 @@ from .reporting.base_reporter import (
     get_module_source_code,
     dict_to_html_ul,
     )
-
 from .reporting.preproc_reporter import (
-    make_nipype_execution_log_html,
     generate_preproc_undergone_docstring,
     get_dataset_report_log_html_template,
     get_dataset_report_preproc_html_template,
-    get_dataset_report_html_template,
-    generate_realignment_thumbnails,
-    generate_coregistration_thumbnails,
-    generate_normalization_thumbnails,
-    generate_segmentation_thumbnails
+    get_dataset_report_html_template
     )
 
 # configure MATLAB exec
@@ -166,20 +160,8 @@ def _do_subject_realign(subject_data, nipype_mem=None,
     subject_data.realignment_parameters = \
         realign_result.outputs.realignment_parameters
 
-    # generate report
-    if do_report:
-        # generate realignment thumbs
-        thumbs = generate_realignment_thumbnails(
-            subject_data.realignment_parameters,
-            subject_data.output_dir,
-            sessions=subject_data.session_id,
-            execution_log_html_filename=make_nipype_execution_log_html(
-                realign_result.outputs.realigned_files, "Realign",
-                subject_data.output_dir),
-            results_gallery=subject_data.results_gallery
-            )
-
-        subject_data.final_thumbnail.img.src = thumbs['rp_plot']
+    # generate realignment thumbs
+    subject_data.generate_realignment_thumbnails()
 
     return subject_data
 
@@ -297,19 +279,8 @@ def _do_subject_coregister(subject_data, coreg_anat_to_func=False,
         subject_data.func = unravel_filenames(
             coreg_result.outputs.coregistered_files, file_types)
 
-    # report coreg
-    if do_report:
-        thumbs = generate_coregistration_thumbnails(
-            (coreg_target, ref_brain),
-            (coreg_result.outputs.coregistered_source, src_brain),
-            subject_data.output_dir,
-            execution_log_html_filename=make_nipype_execution_log_html(
-                coreg_result.outputs.coregistered_source, "Coregister",
-                subject_data.output_dir),
-            results_gallery=subject_data.results_gallery
-            )
-
-        subject_data.final_thumbnail.img.src = thumbs['axial']
+    # generate coregistration thumbs
+    subject_data.generate_coregistration_thumbnails()
 
     return subject_data
 
@@ -426,28 +397,8 @@ def _do_subject_segment(subject_data, do_normalize=False, nipype_mem=None,
         subject_data.wwm = segment_result.outputs.normalized_wm_image
         subject_data.wcsf = segment_result.outputs.normalized_csf_image
 
-    # do report
-    if do_report:
-        for brain_name, brain, cmap in zip(
-            ['anat', 'func'], [subject_data.anat, subject_data.func],
-            [cm.gray, cm.spectral]):
-            thumbs = generate_segmentation_thumbnails(
-                brain,
-                subject_data.output_dir,
-                subject_gm_file=subject_data.gm,
-                subject_wm_file=subject_data.wm,
-                subject_csf_file=subject_data.csf,
-                cmap=cmap,
-                brain=brain_name,
-                only_native=True,
-                execution_log_html_filename=make_nipype_execution_log_html(
-                    segment_result.outputs.transformation_mat, "Segment",
-                    subject_data.output_dir),
-                results_gallery=subject_data.results_gallery
-                )
-
-            if brain_name == 'func':
-                subject_data.final_thumbnail.img.src = thumbs['axial']
+    # generate segmentation thumbs
+    subject_data.generate_segmentation_thumbnails()
 
     return subject_data
 
@@ -603,42 +554,8 @@ def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
         else:
             subject_data.anat = normalize_result.outputs.normalized_files
 
-        # do report
-        if do_report:
-            # generate segmentation thumbs
-            if segmented:
-                thumbs = generate_segmentation_thumbnails(
-                    normalize_result.outputs.normalized_files,
-                    subject_data.output_dir,
-                    subject_gm_file=subject_data.wgm,
-                    subject_wm_file=subject_data.wwm,
-                    subject_csf_file=subject_data.wcsf,
-                    cmap=cmap,
-                    brain=brain_name,
-                    comments="warped",
-                    execution_log_html_filename=make_nipype_execution_log_html(
-                        subject_data.nipype_results[
-                            "segment"].outputs.transformation_mat, "Segment",
-                        subject_data.output_dir),
-                    results_gallery=subject_data.results_gallery
-                    )
-
-                if brain_name == 'func':
-                    subject_data.final_thumbnail.img.src = thumbs['axial']
-
-            # generate normalization thumbs
-            generate_normalization_thumbnails(
-                normalize_result.outputs.normalized_files,
-                subject_data.output_dir,
-                brain=brain_name,
-                execution_log_html_filename=make_nipype_execution_log_html(
-                    normalize_result.outputs.normalized_files, "Normalize",
-                    subject_data.output_dir),
-                results_gallery=subject_data.results_gallery,
-                )
-
-            if not segmented and brain_name == 'func':
-                subject_data.final_thumbnail.img.src = thumbs['axial']
+    # generate thumbnails
+    subject_data.generate_normalization_thumbnails()
 
     return subject_data
 
@@ -770,42 +687,47 @@ def _do_subject_dartelnorm2mni(subject_data,
         )
     subject_data.anat = dartelnorm2mni_result.outputs.normalized_files
 
+    # generate normalization thumbnails
+    subject_data.generate_normalization_thumbnails()
+
     if do_report:
-        for brain_name, brain, cmap in zip(
-            ['anat', 'func'], [subject_data.anat, subject_data.func],
-            [cm.gray, cm.spectral]):
+    #     for brain_name, brain, cmap in zip(
+    #         ['anat', 'func'], [subject_data.anat, subject_data.func],
+    #         [cm.gray, cm.spectral]):
 
-            # generate segmentation thumbs
-            thumbs = generate_segmentation_thumbnails(
-                brain,
-                subject_data.output_dir,
-                subject_gm_file=subject_data.wgm,
-                subject_wm_file=subject_data.wwm,
-                # subject_csf_file=subject_data.wcsf,
-                cmap=cmap,
-                brain=brain_name,
-                comments="warped",
-                execution_log_html_filename=make_nipype_execution_log_html(
-                    subject_data.dartel_flow_fields, "NewSegment",
-                    subject_data.output_dir),
-                results_gallery=subject_data.results_gallery
-                )
+    #         # generate segmentation thumbs
+    #         thumbs = generate_segmentation_thumbnails(
+    #             brain,
+    #             subject_data.output_dir,
+    #             subject_gm_file=subject_data.wgm,
+    #             subject_wm_file=subject_data.wwm,
+    #             # subject_csf_file=subject_data.wcsf,
+    #             cmap=cmap,
+    #             brain=brain_name,
+    #             comments="warped",
+    #             execution_log_html_filename=make_nipype_execution_log_html(
+    #                 subject_data.dartel_flow_fields, "NewSegment",
+    #                 subject_data.output_dir),
+    #             results_gallery=subject_data.results_gallery
+    #             )
 
-            if brain_name == 'func':
-                subject_data.final_thumbnail.img.src = thumbs['axial']
+    #         if brain_name == 'func':
+    #             subject_data.final_thumbnail.img.src = thumbs['axial']
 
-            # generate normalization thumbs
-            generate_normalization_thumbnails(
-                brain,
-                subject_data.output_dir,
-                brain=brain_name,
-                execution_log_html_filename=make_nipype_execution_log_html(
-                    brain, "Normalize",
-                    subject_data.output_dir),
-                results_gallery=subject_data.results_gallery,
-                )
+    #         # generate normalization thumbs
+    #         generate_normalization_thumbnails(
+    #             brain,
+    #             subject_data.output_dir,
+    #             brain=brain_name,
+    #             execution_log_html_filename=make_nipype_execution_log_html(
+    #                 brain, "Normalize",
+    #                 subject_data.output_dir),
+    #             results_gallery=subject_data.results_gallery,
+    #             )
 
-        subject_data._finalize_report()
+        subject_data.finalize_report(
+            parent_results_gallery=parent_results_gallery,
+            last_stage=last_stage)
 
     return subject_data
 
@@ -956,8 +878,8 @@ def do_subject_preproc(
                 coreg_func_to_anat=not coreg_anat_to_func
                 )
 
+        # initialize reports factory
         subject_data.init_report(parent_results_gallery=parent_results_gallery,
-                                 last_stage=last_stage,
                                  preproc_undergone=preproc_undergone,
                                  do_cv_tc=do_cv_tc)
 
@@ -976,7 +898,7 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data._finalize_report()
+            subject_data.finalize_report(last_stage=last_stage)()
             return subject_data
 
     ##################################################################
@@ -996,7 +918,7 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data._finalize_report()
+            subject_data.finalize_report(last_stage=last_stage)()
             return subject_data
 
     #####################################
@@ -1015,7 +937,7 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data._finalize_report()
+            subject_data.finalize_report(last_stage=last_stage)
             return subject_data
 
     ##########################
@@ -1035,7 +957,7 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data._finalize_report()
+            subject_data.finalize_report(last_stage=last_stage)
             return subject_data
 
     #########################################
@@ -1048,10 +970,11 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data._finalize_report()
+            subject_data.finalize_report(last_stage=last_stage)
             return subject_data
 
-    subject_data._finalize_report()
+    if not do_dartel:
+        subject_data.finalize_report(last_stage=last_stage)
 
     # hard-link node output files
     if last_stage:
