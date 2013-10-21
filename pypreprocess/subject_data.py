@@ -33,6 +33,17 @@ from .reporting.preproc_reporter import (
     generate_segmentation_thumbnails,
     make_nipype_execution_log_html,
     )
+<<<<<<< HEAD
+=======
+from .reporting.preproc_reporter import (
+    generate_cv_tc_thumbnail,
+    generate_realignment_thumbnails,
+    generate_coregistration_thumbnails,
+    generate_normalization_thumbnails,
+    generate_segmentation_thumbnails,
+    make_nipype_execution_log_html,
+    )
+>>>>>>> 36dac43e3247aef988aaf8317621829c606913a8
 
 
 class SubjectData(object):
@@ -110,6 +121,11 @@ class SubjectData(object):
                                            "tmp")
         if not os.path.exists(self.tmp_output_dir):
             os.makedirs(self.tmp_output_dir)
+
+    def _sanitize_output_dir(self):
+        assert not self.output_dir is None
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
 
     def sanitize(self, do_deleteorient=False, do_niigz2nii=False):
         """
@@ -211,6 +227,7 @@ class SubjectData(object):
 
         """
 
+<<<<<<< HEAD
         # make sure output_dir is OK
         self._sanitize_output_dir()
 
@@ -219,6 +236,10 @@ class SubjectData(object):
         if not os.path.exists(self.reports_output_dir):
             os.makedirs(self.reports_output_dir)
 
+=======
+        self._sanitize_output_dir()
+
+>>>>>>> 36dac43e3247aef988aaf8317621829c606913a8
         self.do_report = True
         self.results_gallery = None
         self.parent_results_gallery = parent_results_gallery
@@ -306,11 +327,19 @@ class SubjectData(object):
 
         # shut down all watched report pages
         self.progress_logger.finish_all()
+<<<<<<< HEAD
 
         # shut down everything in reports_output_dir
         if last_stage:
             self.progress_logger.finish_dir(self.reports_output_dir)
 
+=======
+
+        # shut down everything in output_dir
+        if last_stage:
+            self.progress_logger.finish_dir(self.output_dir)
+
+>>>>>>> 36dac43e3247aef988aaf8317621829c606913a8
         # commit final thumbnail into parent's results gallery
         if not parent_results_gallery is None:
             commit_subject_thumnbail_to_parent_gallery(
@@ -354,11 +383,19 @@ class SubjectData(object):
 
         thumbs = generate_realignment_thumbnails(
             getattr(self, 'realignment_parameters'),
+<<<<<<< HEAD
             self.reports_output_dir,
             sessions=self.session_id,
             execution_log_html_filename=make_nipype_execution_log_html(
                 self.func, "Realign",
                 self.reports_output_dir),
+=======
+            self.output_dir,
+            sessions=self.session_id,
+            execution_log_html_filename=make_nipype_execution_log_html(
+                self.func, "Realign",
+                self.output_dir),
+>>>>>>> 36dac43e3247aef988aaf8317621829c606913a8
             results_gallery=self.results_gallery
             )
 
@@ -393,10 +430,17 @@ class SubjectData(object):
         thumbs = generate_coregistration_thumbnails(
             (ref, ref_brain),
             (src, src_brain),
+<<<<<<< HEAD
             self.reports_output_dir,
             execution_log_html_filename=make_nipype_execution_log_html(
                 src, "Coregister",
                 self.reports_output_dir),
+=======
+            self.output_dir,
+            execution_log_html_filename=make_nipype_execution_log_html(
+                src, "Coregister",
+                self.output_dir),
+>>>>>>> 36dac43e3247aef988aaf8317621829c606913a8
             results_gallery=self.results_gallery
             )
 
@@ -431,7 +475,11 @@ class SubjectData(object):
             [cm.gray, cm.spectral]):
             thumbs = generate_segmentation_thumbnails(
                 brain,
+<<<<<<< HEAD
                 self.reports_output_dir,
+=======
+                self.output_dir,
+>>>>>>> 36dac43e3247aef988aaf8317621829c606913a8
                 subject_gm_file=getattr(self, 'gm', None),
                 subject_wm_file=getattr(self, 'wm', None),
                 subject_csf_file=getattr(self, 'csf', None),
@@ -440,7 +488,11 @@ class SubjectData(object):
                 only_native=True,
                 execution_log_html_filename=make_nipype_execution_log_html(
                     getattr(self, 'gm') or getattr(self, 'wm') or getattr(
+<<<<<<< HEAD
                         self, 'csf'), "Segment", self.reports_output_dir),
+=======
+                        self, 'csf'), "Segment", self.output_dir),
+>>>>>>> 36dac43e3247aef988aaf8317621829c606913a8
                 results_gallery=self.results_gallery
                 )
 
@@ -480,7 +532,11 @@ class SubjectData(object):
             if segmented:
                 thumbs = generate_segmentation_thumbnails(
                     brain,
+<<<<<<< HEAD
                     self.reports_output_dir,
+=======
+                    self.output_dir,
+>>>>>>> 36dac43e3247aef988aaf8317621829c606913a8
                     subject_gm_file=getattr(self, 'wgm', None),
                     subject_wm_file=getattr(self, 'wwm', None),
                     subject_csf_file=getattr(self, 'wcsf', None),
@@ -491,7 +547,11 @@ class SubjectData(object):
                         getattr(self, 'wgm') or getattr(
                             self, 'wwm') or getattr(
                             self, 'wcsf'), "Segment",
+<<<<<<< HEAD
                         self.reports_output_dir),
+=======
+                        self.output_dir),
+>>>>>>> 36dac43e3247aef988aaf8317621829c606913a8
                     results_gallery=self.results_gallery
                     )
 
@@ -501,11 +561,19 @@ class SubjectData(object):
             # generate normalization thumbs
             thumbs = generate_normalization_thumbnails(
                 brain,
+<<<<<<< HEAD
                 self.reports_output_dir,
                 brain=brain_name,
                 execution_log_html_filename=make_nipype_execution_log_html(
                     brain, "Normalize",
                     self.reports_output_dir),
+=======
+                self.output_dir,
+                brain=brain_name,
+                execution_log_html_filename=make_nipype_execution_log_html(
+                    brain, "Normalize",
+                    self.output_dir),
+>>>>>>> 36dac43e3247aef988aaf8317621829c606913a8
                 results_gallery=self.results_gallery,
                 )
 
