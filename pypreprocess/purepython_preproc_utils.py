@@ -206,7 +206,6 @@ def do_subject_preproc(subject_data,
         subject_data.func = stc_output
 
         if do_report:
-            print subject_data.reports_output_dir
             # generate STC QA thumbs
             generate_stc_thumbnails(
                 original_bold,
