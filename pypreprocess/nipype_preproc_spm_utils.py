@@ -161,7 +161,8 @@ def _do_subject_realign(subject_data, nipype_mem=None,
         realign_result.outputs.realignment_parameters
 
     # generate realignment thumbs
-    subject_data.generate_realignment_thumbnails()
+    if do_report:
+        subject_data.generate_realignment_thumbnails()
 
     return subject_data
 
@@ -280,7 +281,8 @@ def _do_subject_coregister(subject_data, coreg_anat_to_func=False,
             coreg_result.outputs.coregistered_files, file_types)
 
     # generate coregistration thumbs
-    subject_data.generate_coregistration_thumbnails()
+    if do_report:
+        subject_data.generate_coregistration_thumbnails()
 
     return subject_data
 
@@ -398,7 +400,8 @@ def _do_subject_segment(subject_data, do_normalize=False, nipype_mem=None,
         subject_data.wcsf = segment_result.outputs.normalized_csf_image
 
     # generate segmentation thumbs
-    subject_data.generate_segmentation_thumbnails()
+    if do_report:
+        subject_data.generate_segmentation_thumbnails()
 
     return subject_data
 
@@ -549,7 +552,8 @@ def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
             subject_data.anat = normalize_result.outputs.normalized_files
 
     # generate thumbnails
-    subject_data.generate_normalization_thumbnails()
+    if do_report:
+        subject_data.generate_normalization_thumbnails()
 
     # explicit smoothing
     if np.sum(fwhm) > 0:
@@ -958,7 +962,7 @@ def do_subject_preproc(
             subject_data.finalize_report(last_stage=last_stage)
             return subject_data
 
-    if not do_dartel:
+    if do_report and not do_dartel:
         subject_data.finalize_report(last_stage=last_stage)
 
     # hard-link node output files

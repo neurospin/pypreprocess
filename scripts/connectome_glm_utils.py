@@ -4,6 +4,7 @@
 """
 
 import os
+import sys
 import glob
 import numpy as np
 import nibabel
@@ -31,6 +32,7 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
                           do_segment=False,
                           do_normalize=False,
                           fwhm=0.,
+                          do_report=False,
                           hrf_model="Canonical with Derivative",
                           drift_model="Cosine",
                           hfcut=100,
@@ -40,6 +42,8 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
                           threshold=3.,
                           cluster_th=15
                           ):
+
+    do_realign = do_realign or do_dc
 
     # sanitize subject data_dir
     subject_id = int(os.path.basename(subject_data_dir))
@@ -55,14 +59,13 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
         # glob fmri files
         fmri_files = [os.path.join(
                 subject_data_dir,
-                "/volatile/home/edohmato/datasets/100307/%s.nii.gz" % direction)
-                      for direction in ["LR", "RL"]]
-        
-                # ""
-                # "unprocessed/3T/tfMRI_%s_%s/%s_3T_tfMRI_%s_%s.nii.gz" % (
-                #     task_id, direction, subject_id,
-                #     task_id, direction))
-                #           for direction in ["LR", "RL"]]
+                # "/volatile/home/edohmato/datasets/100307/%s.nii.gz" % direction)
+                #       for direction in ["LR", "RL"]]
+                ""
+                "unprocessed/3T/tfMRI_%s_%s/%s_3T_tfMRI_%s_%s.nii.gz" % (
+                    task_id, direction, subject_id,
+                    task_id, direction))
+                          for direction in ["LR", "RL"]]
         assert len(fmri_files) == 2
 
         # glob anat file
@@ -77,7 +80,7 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
         # distortion correction ?
         ###########################
         if do_dc:
-            acq_params = [[-1, 0, 0, readout_time], [1, 0, 0, readout_time]]
+            acq_params = [[1, 0, 0, readout_time], [-1, 0, 0, readout_time]]
             acq_params_file = os.path.join(subject_output_dir,
                                            "b0_acquisition_params.txt")
             np.savetxt(acq_params_file, acq_params, fmt='%f')
@@ -106,7 +109,7 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
             merged_zeroth_fieldmap_file = os.path.join(
                 subject_output_dir, "merged_with_other_direction_%s" % (
                     os.path.basename(zeroth_fieldmap_files[0])))
-            fslmerge_cmd = "fslmerge -t %s %s %s" % (
+            fslmerge_cmd = "fsl5.0-fslmerge -t %s %s %s" % (
                 merged_zeroth_fieldmap_file, zeroth_fieldmap_files[0],
                 zeroth_fieldmap_files[1])
             print "\r\nExecuting %s ..." % fslmerge_cmd
@@ -124,19 +127,49 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
 
             # apply topup
             dc_fmri_files = []
+            sbref_files = [os.path.join(subject_data_dir,
+                                        ("unprocessed/3T/tfMRI_%s_%s/%s_"
+                                         "3T_tfMRI_%s_%s_SBRef.nii.gz") % (
+                        task_id, direction, subject_id, task_id, direction))
+                           for direction in ["LR", "RL"]]
             for index in xrange(2):
-                dc_fmri_file = os.path.join(
-                    subject_output_dir, "dc" + os.path.basename(
+                fourD_plus_sbref = os.path.join(
+                    subject_output_dir, "sbref_plus_" + os.path.basename(
                         fmri_files[index]))
+                fslmerge_cmd = "fsl5.0-fslmerge -t %s %s %s" % (
+                    fourD_plus_sbref, sbref_files[index], fmri_files[index])
+                print "\r\nExecuting %s ..." % fslmerge_cmd
+                print mem.cache(commands.getoutput)(fslmerge_cmd)
+
+                rfourD_plus_sbref = do_subject_preproc(
+                    SubjectData(func=fourD_plus_sbref,
+                                output_dir=subject_output_dir),
+                    do_coreg=False,
+                    do_segment=False,
+                    do_normalize=False,
+                    do_report=do_report).func
+
+                dc_rfourD_plus_sbref = os.path.join(
+                    subject_output_dir, "dc" + os.path.basename(
+                        rfourD_plus_sbref))
                 applytopup_cmd = (
                     "fsl5.0-applytopup --imain=%s --verbose --inindex=%i "
                     "--topup=%s --out=%s --datain=%s --method=jac" % (
-                        fmri_files[0], index + 1, topup_results_basename,
-                        dc_fmri_file, acq_params_file))
+                        rfourD_plus_sbref, index + 1, topup_results_basename,
+                        dc_rfourD_plus_sbref, acq_params_file))
                 print "\r\nExecuting %s ..." % applytopup_cmd
                 print mem.cache(commands.getoutput)(applytopup_cmd)
 
-                dc_fmri_files.append(dc_fmri_file)
+                dc_rfmri_file = dc_rfourD_plus_sbref.replace("sbref_plus_", "")
+                fslroi_cmd = "fsl5.0-fslroi %s %s 1 -1" % (
+                    dc_rfourD_plus_sbref, dc_rfmri_file)
+                print "\r\nExecuting %s ..." % fslroi_cmd
+                print mem.cache(commands.getoutput)(fslroi_cmd)
+
+                if dc_rfmri_file.endswith(".nii"):
+                    dc_rfmri_file = dc_rfmri_file + ".gz"
+
+                dc_fmri_files.append(dc_rfmri_file)
 
             fmri_files = dc_fmri_files
 
@@ -144,12 +177,12 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
         preproc_subject_data = do_subject_preproc(SubjectData(
                 func=fmri_files, anat=anat_file,
                 output_dir=subject_output_dir),
-                                                  do_realign=do_realign,
+                                                  do_realign=True,
                                                   do_coreg=do_coreg,
                                                   do_segment=do_segment,
-                                                  do_normalize=do_normalize,
+                                                  do_normalize=do_segment,
                                                   fwhm=fwhm,
-                                                  do_report=False
+                                                  do_report=do_report
                                                   )
         fmri_files = preproc_subject_data.func
         n_motion_regressions = 6
@@ -183,7 +216,7 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
                                             do_segment=True,
                                             do_normalize=False,
                                             fwhm=fwhm,
-                                            do_report=False
+                                            do_report=do_report
                                             ).func
             print "... done.\r\n"
 
@@ -233,13 +266,13 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
                 'Rotation along x axis',
                 'Rotation along y axis',
                 'Rotation along z axis',
-                'Zoom along x axis',
-                'Zoom along y axis',
-                'Zoom along z axis',
-                'Shear along x axis',
-                'Shear along y axis',
-                'Shear along z axis'][:n_motion_regressions
-                                       ] if not add_regs_files is None
+                'Differential Translation along x axis',
+                'Differential Translation along yaxis',
+                'Differential Translation along z axis',
+                'Differential Rotation along x axis',
+                'Differential Rotation along y axis',
+                'Differential Rotation along z axis'
+                ][:n_motion_regressions] if not add_regs_files is None
             else None,
             )
         print "... done."
@@ -368,7 +401,11 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
 
 if __name__ == '__main__':
     data_dir = "/media/HCP-Q1-Reproc/"
+
+    # set output_dir
     output_dir = "/mnt/3t/edohmato/connectome_output/hcp_preproc"
+    if len(sys.argv) > 1:
+        output_dir = sys.argv[1]
 
     n_jobs = int(os.environ['N_JOBS']) if 'N_JOBS' in os.environ else -1
     n_subjects = int(os.environ['N_SUBJECTS']
@@ -405,8 +442,8 @@ if __name__ == '__main__':
                 continue
 
             subject_id = os.path.basename(subject_data_dir)
-            if subject_id != "100307":
-                continue
+            # if subject_id != "100307":
+            #     continue
             subject_output_dir = os.path.join(task_output_dir, subject_id)
 
             yield subject_data_dir, subject_output_dir
@@ -415,7 +452,7 @@ if __name__ == '__main__':
     # and collect the results; this will be input for level 2 analysis
     slicer = 'z'
     cut_coords = 5
-    threshold = 2.3
+    threshold = 3.
     cluster_th = 15
     for task_id in [
         "MOTOR",
@@ -437,13 +474,13 @@ if __name__ == '__main__':
                 subject_data_dir,
                 subject_output_dir,
                 task_id=task_id,
-                do_dc=False,  # True,
-                do_realign=False,  # True,
+                do_dc=True,
+                do_realign=True,
                 do_coreg=True,
-                do_segment=True,
-                do_normalize=True,
+                # do_segment=True,
+                # do_normalize=True,
+                # fwhm=4.,
                 regress_motion=True,
-                fwhm=4.,
                 slicer=slicer,
                 cut_coords=cut_coords,
                 threshold=threshold,
@@ -452,70 +489,70 @@ if __name__ == '__main__':
             for subject_data_dir, subject_output_dir in _subject_factory(
                 task_output_dir, n_subjects=n_subjects))
 
-        # compute group mask
-        print "\r\nComputing group mask ..."
-        mask_images = [level1_result[3] for level1_result in level1_results]
-        grp_mask = nibabel.Nifti1Image(intersect_masks(mask_images
-                                                       ).astype(np.uint8),
-                                       nibabel.load(mask_images[0]
-                                                    ).get_affine())
-        print "... done.\r\n"
+        # # compute group mask
+        # print "\r\nComputing group mask ..."
+        # mask_images = [level1_result[3] for level1_result in level1_results]
+        # grp_mask = nibabel.Nifti1Image(intersect_masks(mask_images
+        #                                                ).astype(np.uint8),
+        #                                nibabel.load(mask_images[0]
+        #                                             ).get_affine())
+        # print "... done.\r\n"
 
-        print "Group GLM"
-        level1_contrasts = [level1_result[0]
-                            for level1_result in level1_results]
-        level1_contrasts = level1_results[0][0]
-        level1_effects_maps = [level1_result[1]
-                               for level1_result in level1_results]
-        second_level_z_maps = {}
-        design_matrix = np.ones(len(level1_effects_maps)
-                                )[:, np.newaxis]  # only the intercept
-        for contrast_id in level1_contrasts:
-            print "\tcontrast id: %s" % contrast_id
+        # print "Group GLM"
+        # level1_contrasts = [level1_result[0]
+        #                     for level1_result in level1_results]
+        # level1_contrasts = level1_results[0][0]
+        # level1_effects_maps = [level1_result[1]
+        #                        for level1_result in level1_results]
+        # second_level_z_maps = {}
+        # design_matrix = np.ones(len(level1_effects_maps)
+        #                         )[:, np.newaxis]  # only the intercept
+        # for contrast_id in level1_contrasts:
+        #     print "\tcontrast id: %s" % contrast_id
 
-            # effects maps will be the input to the second level GLM
-            first_level_image = nibabel.concat_images(
-                [x[contrast_id] for x in level1_effects_maps])
+        #     # effects maps will be the input to the second level GLM
+        #     first_level_image = nibabel.concat_images(
+        #         [x[contrast_id] for x in level1_effects_maps])
 
-            # fit 2nd level GLM for given contrast
-            grp_model = FMRILinearModel(first_level_image,
-                                        design_matrix, grp_mask)
-            grp_model.fit(do_scaling=False, model='ols')
+        #     # fit 2nd level GLM for given contrast
+        #     grp_model = FMRILinearModel(first_level_image,
+        #                                 design_matrix, grp_mask)
+        #     grp_model.fit(do_scaling=False, model='ols')
 
-            # specify and estimate the contrast
-            contrast_val = np.array(([[1.]]))  # the only possible contrast !
-            z_map, = grp_model.contrast(contrast_val,
-                                        con_id='one_sample %s' % contrast_id,
-                                        output_z=True)
+        #     # specify and estimate the contrast
+        #     contrast_val = np.array(([[1.]]))  # the only possible contrast !
+        #     z_map, = grp_model.contrast(contrast_val,
+        #                                 con_id='one_sample %s' % contrast_id,
+        #                                 output_z=True)
 
-            # save map
-            map_dir = os.path.join(task_output_dir, 'z_maps')
-            if not os.path.exists(map_dir):
-                os.makedirs(map_dir)
-            map_path = os.path.join(map_dir, '2nd_level_%s.nii.gz' % (
-                    contrast_id))
-            print "\t\tWriting %s ..." % map_path
-            nibabel.save(z_map, map_path)
+        #     # save map
+        #     map_dir = os.path.join(task_output_dir, 'z_maps')
+        #     if not os.path.exists(map_dir):
+        #         os.makedirs(map_dir)
+        #     map_path = os.path.join(map_dir, '2nd_level_%s.nii.gz' % (
+        #             contrast_id))
+        #     print "\t\tWriting %s ..." % map_path
+        #     nibabel.save(z_map, map_path)
 
-            second_level_z_maps[contrast_id] = map_path
+        #     second_level_z_maps[contrast_id] = map_path
 
-        # do stats report
-        stats_report_filename = os.path.join(task_output_dir,
-                                             "report_stats.html")
-        generate_subject_stats_report(
-            stats_report_filename,
-            level1_contrasts,
-            second_level_z_maps,
-            grp_mask,
-            threshold=threshold,
-            cluster_th=cluster_th,
-            design_matrices=[design_matrix],
-            subject_id="sub001",
-            start_time=stats_start_time,
-            title='Group GLM for HCP fMRI %s task' % task_id,
-            slicer=slicer,
-            cut_coords=cut_coords
-            )
+        # # do stats report
+        # stats_report_filename = os.path.join(task_output_dir,
+        #                                      "report_stats.html")
+        # generate_subject_stats_report(
+        #     stats_report_filename,
+        #     level1_contrasts,
+        #     second_level_z_maps,
+        #     grp_mask,
+        #     threshold=threshold,
+        #     cluster_th=cluster_th,
+        #     design_matrices=[design_matrix],
+        #     subject_id="sub001",
+        #     start_time=stats_start_time,
+        #     title='Group GLM for HCP fMRI %s task' % task_id,
+        #     slicer=slicer,
+        #     cut_coords=cut_coords
+        #     )
 
-        ProgressReport().finish_dir(task_output_dir)
-        print "\r\nStatistic report written to %s\r\n" % stats_report_filename
+        # ProgressReport().finish_dir(task_output_dir)
+        # print "\r\nStatistic report written to %s\r\n" % stats_report_filename

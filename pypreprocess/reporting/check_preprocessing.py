@@ -16,9 +16,9 @@ from nipy.labs import compute_mask_files
 from nipy.labs import viz
 import joblib
 from ..io_utils import (compute_mean_3D_image,
-                        load_vol,
                         load_4D_img,
-                        is_niimg
+                        is_niimg,
+                        load_specific_vol
                         )
 
 EPS = np.finfo(float).eps
@@ -248,7 +248,7 @@ def plot_registration(reference_img, coregistered_img,
 
     # plot the coregistered image
     if hasattr(coregistered_img, '__len__'):
-        coregistered_img = compute_mean_3D_image(coregistered_img)
+        coregistered_img = load_specific_vol(coregistered_img, 0)[0]
     # XXX else i'm assuming a nifi object ;)
     coregistered_data = coregistered_img.get_data()
     coregistered_affine = coregistered_img.get_affine()
@@ -263,10 +263,10 @@ def plot_registration(reference_img, coregistered_img,
 
     # overlap the reference image
     if hasattr(reference_img, '__len__'):
-        reference_img = compute_mean_3D_image(reference_img)
+        reference_img = load_specific_vol(reference_img, 0)[0]
 
-    coregistered_img = load_vol(coregistered_img)
-    reference_img = load_vol(reference_img)
+    # coregistered_img = load_vol(coregistered_img)
+    # reference_img = load_vol(reference_img)
 
     # XXX else i'm assuming a nifi object ;)
     reference_data = reference_img.get_data()
