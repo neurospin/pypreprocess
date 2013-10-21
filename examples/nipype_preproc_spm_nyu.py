@@ -38,8 +38,8 @@ DARTEL = True
 SESSIONS = [1, 2, 3]
 
 # bad subjects
-BAD_SUBJECTS = ["sub39529",  # in func, a couple of volumes are blank!
-                "sub45463",  # anat has bad header info
+BAD_SUBJECTS = [# "sub39529",  # in func, a couple of volumes are blank!
+                # "sub45463",  # anat has bad header info
                 ]
 
 # main code follows
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         os.makedirs(OUTPUT_DIR)
 
     # fetch data
-    nyu_data = fetch_nyu_rest(data_dir=sys.argv[1], sessions=[1], n_subjects=7)
+    nyu_data = fetch_nyu_rest(data_dir=sys.argv[1], sessions=[1])
 
     # subject data factory
     def subject_factory(session_output_dir, session):

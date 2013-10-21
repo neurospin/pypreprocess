@@ -407,7 +407,7 @@ class Coregister(object):
                   output_dir=None,
                   prefix="Coreg",
                   ext=".nii.gz",
-                  basenames=None
+                  basenames=None,
                   ):
         """
         Applies estimated co-registration parameter to the input volume
@@ -448,9 +448,11 @@ class Coregister(object):
                                                      ))
 
         if not output_dir is None:
+            concat = isinstance(basenames, basestring)
             coregistered_source = save_vols(coregistered_source,
                                             output_dir=output_dir,
                                             basenames=basenames,
-                                            ext=ext, prefix=prefix)
+                                            ext=ext, prefix=prefix,
+                                            concat=concat)
 
         return coregistered_source

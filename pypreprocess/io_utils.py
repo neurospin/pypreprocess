@@ -227,7 +227,8 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
                                          check_affines=False
                                          )
             if not basenames is None:
-                basenames = basenames[0]
+                if not isinstance(basenames, basestring):
+                    basenames = basenames[0]
         else:
             if not basenames is None:
                 if not isinstance(basenames, basestring):

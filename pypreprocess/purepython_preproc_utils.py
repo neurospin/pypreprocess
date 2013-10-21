@@ -121,10 +121,7 @@ def do_subject_preproc(subject_data,
     """
 
     # sanitize input args
-    for key in ["subject_id",
-                "func",
-                "n_sessions",
-                "output_dir"
+    for key in ["output_dir"
                 ]:
         assert key in subject_data, "subject_data must have '%s' key" % key
 
