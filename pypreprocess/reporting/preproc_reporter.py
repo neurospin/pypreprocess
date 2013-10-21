@@ -520,7 +520,7 @@ def generate_coregistration_thumbnails(target,
                                        output_dir,
                                        execution_log_html_filename=None,
                                        results_gallery=None,
-                                       progress_logger=None,
+                                       comment=True
                                        ):
     """
     Generates QA thumbnails post-coregistration.
@@ -543,10 +543,11 @@ def generate_coregistration_thumbnails(target,
 
     """
 
+    comments = " %s == > %s" % (source[1], target[1]) if comment else ""
     return generate_registration_thumbnails(
         target,
         source,
-        "Coregistration %s => %s" % (source[1], target[1]),
+        "Coregistration %s" % comments,
         output_dir,
         execution_log_html_filename=execution_log_html_filename,
         results_gallery=results_gallery,

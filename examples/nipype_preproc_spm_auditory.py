@@ -41,10 +41,16 @@ subject_data.output_dir = os.path.join(OUTPUT_DIR, subject_data.subject_id)
 results = do_subjects_preproc(
     [subject_data],
     output_dir=OUTPUT_DIR,
-    fwhm=0.,  # 8mm isotropic Gaussian kernel
+    fwhm=8.,  # smoothing guassian kernel
     dataset_id="SPM single-subject auditory",
     dataset_description=('<a href="http://www.fil.ion.ucl.ac.uk/spm/data'
                          '/auditory/">SPM auditory dataset</a>.</p>'),
     # do_normalize=False,
     last_stage=True
     )
+
+sd = results[0]
+sd = SubjectData(func=sd.func, anat=sd.anat,
+                 realignment_parameters=sd.realignment_parameters,
+                 output_dir="/tmp/coco"
+                 ).generate_report()

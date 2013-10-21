@@ -128,7 +128,7 @@ def execute_spm_auditory_glm(data, reg_motion=False):
         print
 
     # do stats report
-    stats_report_filename = os.path.join(data['output_dir'],
+    stats_report_filename = os.path.join(data['reports_output_dir'],
                                          "report_stats.html")
     contrasts = dict((contrast_id, contrasts[contrast_id])
                      for contrast_id in z_maps.keys())
@@ -272,7 +272,7 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
             print "\t\t%s map: %s" % (dtype, map_path)
 
     # do stats report
-    data['stats_report_filename'] = os.path.join(data['output_dir'],
+    data['stats_report_filename'] = os.path.join(data['reports_output_dir'],
                                                  "report_stats.html")
     contrasts = dict((contrast_id, contrasts[contrast_id])
                      for contrast_id in z_maps.keys())
@@ -298,7 +298,7 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
         hrf_model=hrf_model,
         )
 
-    ProgressReport().finish_dir(data['output_dir'])
+    ProgressReport().finish_dir(data['reports_output_dir'])
 
     print "\r\nStatistic report written to %s\r\n" % data[
         'stats_report_filename']

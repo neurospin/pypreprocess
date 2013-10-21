@@ -77,6 +77,9 @@ class SubjectData(object):
         self.output_dir = output_dir
         self.failed = False
 
+        self.set_items()
+
+    def set_items(self, **kwargs):
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
 
@@ -232,6 +235,11 @@ class SubjectData(object):
         self.report_filename = os.path.join(self.reports_output_dir,
                                                     'report.html')
 
+        # clean report files
+        open(self.report_log_filename, 'w').close()
+        open(self.report_preproc_filename, 'w').close()
+        open(self.report_filename, 'w').close()
+
         # initialize results gallery
         loader_filename = os.path.join(self.reports_output_dir,
                                        "results_loader.php")
@@ -333,14 +341,9 @@ class SubjectData(object):
 
         return hasattr(self, 'results_gallery')
 
-    def generate_realignment_thumbnails(self):
+    def generate_realignment_thumbnails(self, log=True):
         """
         Invoked to generate post-realignment thumbnails.
-
-        Notes
-        =====
-        init_report(...) method must have been invoked before this method,
-        else nothing nothing be done
 
         """
 
@@ -352,26 +355,31 @@ class SubjectData(object):
         if not self.reporting_enabled():
             self.init_report()
 
+        # log execution
+        if log:
+            execution_log_html = make_nipype_execution_log_html(
+                    self.func, "Motion Correction",
+                    self.reports_output_dir)
+            self.progress_logger.log(
+                "<b>Motion Correction</b><br/>")
+            self.progress_logger.log(open(execution_log_html).read())
+            self.progress_logger.log('<hr/>')
+
         thumbs = generate_realignment_thumbnails(
             getattr(self, 'realignment_parameters'),
             self.reports_output_dir,
             sessions=self.session_id,
-            execution_log_html_filename=make_nipype_execution_log_html(
-                self.func, "Realign",
-                self.reports_output_dir),
+            execution_log_html_filename=execution_log_html if log
+            else None,
             results_gallery=self.results_gallery
             )
 
         self.final_thumbnail.img.src = thumbs['rp_plot']
 
-    def generate_coregistration_thumbnails(self, coreg_func_to_anat=True):
+    def generate_coregistration_thumbnails(self, coreg_func_to_anat=True,
+                                           log=True, comment=True):
         """
         Invoked to generate post-coregistration thumbnails.
-
-        Notes
-        =====
-        init_report(...) method must have been invoked before this method,
-        else nothing nothing be done
 
         """
 
@@ -390,26 +398,32 @@ class SubjectData(object):
             src, ref = ref, src
             src_brain, ref_brain = ref_brain, src_brain
 
+        # log execution
+        if log:
+            execution_log_html = make_nipype_execution_log_html(
+                    src, "Coregister",
+                    self.reports_output_dir)
+            self.progress_logger.log(
+                "<b>Coregistration</b><br/>")
+            self.progress_logger.log(open(execution_log_html).read())
+            self.progress_logger.log('<hr/>')
+
+        # generate thumbs proper
         thumbs = generate_coregistration_thumbnails(
             (ref, ref_brain),
             (src, src_brain),
             self.reports_output_dir,
-            execution_log_html_filename=make_nipype_execution_log_html(
-                src, "Coregister",
-                self.reports_output_dir),
-            results_gallery=self.results_gallery
+            execution_log_html_filename=execution_log_html if log
+            else None,
+            results_gallery=self.results_gallery,
+            comment=comment
             )
 
         self.final_thumbnail.img.src = thumbs['axial']
 
-    def generate_segmentation_thumbnails(self):
+    def generate_segmentation_thumbnails(self, log=True):
         """
         Invoked to generate post-segmentation thumbnails.
-
-        Notes
-        =====
-        init_report(...) method must have been invoked before this method,
-        else nothing nothing be done
 
         """
 
@@ -426,6 +440,16 @@ class SubjectData(object):
         if not self.reporting_enabled():
             self.init_report()
 
+        # log execution
+        if log:
+            execution_log_html = make_nipype_execution_log_html(
+                getattr(self, 'gm') or getattr(self, 'wm') or getattr(
+                    self, 'csf'), "Segment", self.reports_output_dir)
+            self.progress_logger.log(
+                "<b>Segmentation</b><br/>")
+            self.progress_logger.log(open(execution_log_html).read())
+            self.progress_logger.log('<hr/>')
+
         for brain_name, brain, cmap in zip(
             ['anat', 'func'], [self.anat, self.func],
             [cm.gray, cm.spectral]):
@@ -438,29 +462,23 @@ class SubjectData(object):
                 cmap=cmap,
                 brain=brain_name,
                 only_native=True,
-                execution_log_html_filename=make_nipype_execution_log_html(
-                    getattr(self, 'gm') or getattr(self, 'wm') or getattr(
-                        self, 'csf'), "Segment", self.reports_output_dir),
+                execution_log_html_filename=execution_log_html if log
+                else None,
                 results_gallery=self.results_gallery
                 )
 
             if brain_name == 'func':
                 self.final_thumbnail.img.src = thumbs['axial']
 
-    def generate_normalization_thumbnails(self):
+    def generate_normalization_thumbnails(self, log=True):
         """
         Invoked to generate post-normalization thumbnails.
 
-        Notes
-        =====
-        init_report(...) method must have been invoked before this method,
-        else nothing nothing be done
-
         """
 
-        if not hasattr(self, 'results_gallery'):
-            print("init_report method not yet invoked; nothx to do")
-            return
+        # reporting enabled ?
+        if not self.reporting_enabled():
+            self.init_report()
 
         # segmentation done ?
         segmented = False
@@ -491,23 +509,77 @@ class SubjectData(object):
                         getattr(self, 'wgm') or getattr(
                             self, 'wwm') or getattr(
                             self, 'wcsf'), "Segment",
-                        self.reports_output_dir),
+                        self.reports_output_dir) if log else None,
                     results_gallery=self.results_gallery
                     )
 
                 if brain_name == 'func':
                     self.final_thumbnail.img.src = thumbs['axial']
 
-            # generate normalization thumbs
+            # log execution
+            if log:
+                execution_log_html = make_nipype_execution_log_html(
+                    brain, "Normalization", self.reports_output_dir)
+                self.progress_logger.log(
+                    "<b>Normalization of %s</b><br/>" % brain_name)
+                text = open(execution_log_html).read()
+                if "normalized_files" in text or "warped_files" in text:
+                    self.progress_logger.log(text)
+                self.progress_logger.log('<hr/>')
+
+            # generate normalization thumbs proper
             thumbs = generate_normalization_thumbnails(
                 brain,
                 self.reports_output_dir,
                 brain=brain_name,
-                execution_log_html_filename=make_nipype_execution_log_html(
-                    brain, "Normalize",
-                    self.reports_output_dir),
+                execution_log_html_filename=execution_log_html if log
+                else None,
                 results_gallery=self.results_gallery,
                 )
 
             if not segmented and brain_name == 'func':
                 self.final_thumbnail.img.src = thumbs['axial']
+
+    def generate_smooth_thumbnails(self):
+        """
+        Generate thumbnails post-smoothing.
+
+        """
+
+        # reporting enabled ?
+        if not self.reporting_enabled():
+            self.init_report()
+
+        # log execution
+        execution_log_html = make_nipype_execution_log_html(
+                self.func, "Smooth",
+                self.reports_output_dir)
+        self.progress_logger.log(
+            "<b>Smooth</b><br/>")
+        text = open(execution_log_html).read()
+        if "smoothed_files" in text:
+            self.progress_logger.log(text)
+        self.progress_logger.log('<hr/>')
+
+    def generate_report(self, **kwargs):
+        """
+        Method invoked to generate all reports in one-go. This is useful
+        for generating reports out-side the preproc logic: simply populate
+        the func, anat (optionally realignment_params, gm, wm, csf, etc.)
+        fields and then fire this method.
+
+        """
+
+        # set items
+        self.set_items()
+
+        # sanitiy
+        self.sanitize()
+
+        # report
+        self.generate_realignment_thumbnails(log=False)
+        self.generate_coregistration_thumbnails(log=False, comment=False)
+        self.generate_normalization_thumbnails(log=False)
+
+        # finalize the business
+        self.finalize_report(last_stage=True)

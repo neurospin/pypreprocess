@@ -549,7 +549,8 @@ def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
             # explicit smoothing
             if np.sum(fwhm) > 0:
                 subject_data = _do_subject_smooth(
-                    subject_data, fwhm, nipype_mem=nipype_mem
+                    subject_data, fwhm, nipype_mem=nipype_mem,
+                    do_report=do_report
                     )
         else:
             subject_data.anat = normalize_result.outputs.normalized_files
@@ -560,7 +561,7 @@ def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
     return subject_data
 
 
-def _do_subject_smooth(subject_data, fwhm, nipype_mem=None):
+def _do_subject_smooth(subject_data, fwhm, nipype_mem=None, do_report=True):
     """
     Wrapper for running spm.Smooth with optional reporting.
 
@@ -616,6 +617,10 @@ def _do_subject_smooth(subject_data, fwhm, nipype_mem=None):
     # collect results
     subject_data.func = unravel_filenames(
         smooth_result.outputs.smoothed_files, file_types)
+
+    # reporting
+    if do_report:
+        subject_data.generate_smooth_thumbnails()
 
     return subject_data
 
@@ -687,44 +692,14 @@ def _do_subject_dartelnorm2mni(subject_data,
         )
     subject_data.anat = dartelnorm2mni_result.outputs.normalized_files
 
-    # generate normalization thumbnails
-    subject_data.generate_normalization_thumbnails()
+    # hardlink output files
+    subject_data.hardlink_output_files()
 
     if do_report:
-    #     for brain_name, brain, cmap in zip(
-    #         ['anat', 'func'], [subject_data.anat, subject_data.func],
-    #         [cm.gray, cm.spectral]):
+        # generate normalization thumbnails
+        subject_data.generate_normalization_thumbnails()
 
-    #         # generate segmentation thumbs
-    #         thumbs = generate_segmentation_thumbnails(
-    #             brain,
-    #             subject_data.output_dir,
-    #             subject_gm_file=subject_data.wgm,
-    #             subject_wm_file=subject_data.wwm,
-    #             # subject_csf_file=subject_data.wcsf,
-    #             cmap=cmap,
-    #             brain=brain_name,
-    #             comments="warped",
-    #             execution_log_html_filename=make_nipype_execution_log_html(
-    #                 subject_data.dartel_flow_fields, "NewSegment",
-    #                 subject_data.output_dir),
-    #             results_gallery=subject_data.results_gallery
-    #             )
-
-    #         if brain_name == 'func':
-    #             subject_data.final_thumbnail.img.src = thumbs['axial']
-
-    #         # generate normalization thumbs
-    #         generate_normalization_thumbnails(
-    #             brain,
-    #             subject_data.output_dir,
-    #             brain=brain_name,
-    #             execution_log_html_filename=make_nipype_execution_log_html(
-    #                 brain, "Normalize",
-    #                 subject_data.output_dir),
-    #             results_gallery=subject_data.results_gallery,
-    #             )
-
+        # finalize
         subject_data.finalize_report(
             parent_results_gallery=parent_results_gallery,
             last_stage=last_stage)
@@ -748,6 +723,7 @@ def do_subject_preproc(
     parent_results_gallery=None,
     last_stage=True,
     preproc_undergone=None,
+    prepreproc_undergone="",
     ):
     """
     Function preprocessing data for a single subject.
@@ -805,6 +781,10 @@ def do_subject_preproc(
         and fwhm is not 0), then subject_data.nipype_results['smooth']
         will contain the result from the spm.Smooth node.
 
+    do_dartel: bool, optional (default False)
+        flag indicating whether DARTEL will be chained with the results
+        of this function
+
     do_deleteorient: bool (optional)
         if true, then orientation meta-data in all input image files for this
         subject will be stripped-off
@@ -817,6 +797,9 @@ def do_subject_preproc(
     do_cv_tc: bool (optional)
         if set, a summarizing the time-course of the coefficient of variation
         in the preprocessed fMRI time-series will be generated
+
+    do_report: bool, optional (default True)
+        if set, then HTML reports will be generated
 
     See also
     ========
@@ -875,7 +858,8 @@ def do_subject_preproc(
                 do_normalize=do_normalize,
                 fwhm=fwhm,
                 do_dartel=do_dartel,
-                coreg_func_to_anat=not coreg_anat_to_func
+                coreg_func_to_anat=not coreg_anat_to_func,
+                prepreproc_undergone=prepreproc_undergone
                 )
 
         # initialize reports factory
@@ -898,7 +882,7 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data.finalize_report(last_stage=last_stage)()
+            subject_data.finalize_report(last_stage=last_stage)
             return subject_data
 
     ##################################################################
@@ -918,7 +902,7 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data.finalize_report(last_stage=last_stage)()
+            subject_data.finalize_report(last_stage=last_stage)
             return subject_data
 
     #####################################
@@ -965,7 +949,8 @@ def do_subject_preproc(
     #########################################
     if not do_normalize and np.sum(fwhm) > 0:
         subject_data = _do_subject_smooth(subject_data, fwhm,
-                                          nipype_mem=nipype_mem
+                                          nipype_mem=nipype_mem,
+                                          do_report=do_report
                                           )
 
         # handle failed node
@@ -977,7 +962,7 @@ def do_subject_preproc(
         subject_data.finalize_report(last_stage=last_stage)
 
     # hard-link node output files
-    if last_stage:
+    if last_stage or not do_dartel:
         if hardlink_output:
             subject_data.hardlink_output_files(final=True)
 
@@ -1081,10 +1066,36 @@ def do_subjects_preproc(subject_factory,
     subject_factory: iterable of `SubjectData` objects
         data for the subjects to be preprocessed
 
+    output_dir: string, optional (default None)
+        output directory where all results will be written
+
     n_jobs: int, optional (default None)
         number of jobs to create; parameter passed to `joblib.Parallel`.
         if N_JOBS is defined in the shell environment, then its value
         is used instead.
+
+    do_dartel: bool, optional (default False)
+        flag indicating whether NewSegment + DARTEL should used for
+        normalization
+
+    do_report: bool, optional (default True)
+        if set, then HTML reports will be generated
+
+    dataset_id: string, optional (default None)
+        brief description of the dataset being preprocessed
+        (e.g "ABIDE", "NYU")
+
+    dataset_description: string, optional (default None)
+        longer description of what the dataset being preprocessed is
+        all about
+
+    prepreproc_undergone: string, optional (default None)
+        preprocessed already undergone by the dataset out-side this function
+
+    hardlink_output: bool, optional (default True)
+        indicates whether inter-mediate output files should be linked subjects'
+        output (immediate) directories (by default, only final output files
+        are linked)
 
     do_subject_preproc_kwargs: parameter-value dict
         optional parameters passed to the \do_subject_preproc` API. See
@@ -1100,6 +1111,8 @@ def do_subjects_preproc(subject_factory,
 
     do_subject_preproc_kwargs['do_report'] = do_report
     do_subject_preproc_kwargs["do_dartel"] = do_dartel
+    do_subject_preproc_kwargs['prepreproc_undergone'] = prepreproc_undergone
+    do_subject_preproc_kwargs['hardlink_output'] = hardlink_output
 
     # sanitize output_dir
     if output_dir is None:
