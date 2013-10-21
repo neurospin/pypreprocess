@@ -11,8 +11,8 @@ import os
 
 # import API for preprocessing business
 from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
-                                                       SubjectData
-                                                       )
+                                                   SubjectData
+                                                   )
 
 # input data-grabber for SPM Auditory (single-subject) data
 from pypreprocess.datasets import fetch_spm_auditory_data
@@ -48,9 +48,3 @@ results = do_subjects_preproc(
     # do_normalize=False,
     last_stage=True
     )
-
-sd = results[0]
-sd = SubjectData(func=sd.func, anat=sd.anat,
-                 realignment_parameters=sd.realignment_parameters,
-                 output_dir="/tmp/coco"
-                 ).generate_report()

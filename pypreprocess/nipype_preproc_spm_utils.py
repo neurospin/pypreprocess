@@ -545,18 +545,18 @@ def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
         if brain_name == 'func':
             subject_data.func = unravel_filenames(
                 normalize_result.outputs.normalized_files, file_types)
-
-            # explicit smoothing
-            if np.sum(fwhm) > 0:
-                subject_data = _do_subject_smooth(
-                    subject_data, fwhm, nipype_mem=nipype_mem,
-                    do_report=do_report
-                    )
         else:
             subject_data.anat = normalize_result.outputs.normalized_files
 
     # generate thumbnails
     subject_data.generate_normalization_thumbnails()
+
+    # explicit smoothing
+    if np.sum(fwhm) > 0:
+        subject_data = _do_subject_smooth(
+            subject_data, fwhm, nipype_mem=nipype_mem,
+            do_report=do_report
+            )
 
     return subject_data
 
