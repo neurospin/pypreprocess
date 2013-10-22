@@ -386,18 +386,17 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
     # compute effects
     for contrast_id, contrast_val in contrasts.iteritems():
         print "\tcontrast id: %s" % contrast_id
-        z_map, t_map, eff_map, var_map = fmri_glm.contrast(
+        z_map, eff_map = fmri_glm.contrast(
             contrast_val,
             con_id=contrast_id,
             output_z=True,
-            output_stat=True,
+            output_stat=False,
             output_effects=True,
-            output_variance=True
+            output_variance=False
             )
 
         # store stat maps to disk
-        for map_type, out_map in zip(['z', 't', 'effects', 'variance'],
-                                     [z_map, t_map, eff_map, var_map]):
+        for map_type, out_map in zip(['z', 'effects'], [z_map, eff_map]):
             map_dir = os.path.join(
                 subject_output_dir, '%s_maps' % map_type)
             if not os.path.exists(map_dir):
