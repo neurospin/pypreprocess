@@ -114,6 +114,16 @@ class SubjectData(object):
         if not os.path.exists(self.tmp_output_dir):
             os.makedirs(self.tmp_output_dir)
 
+    def niigz2nii(self):
+        cache_dir = os.path.join(self.output_dir, 'cache_dir')
+        mem = Memory(cache_dir, verbose=100)
+
+        self.func = mem.cache(niigz2nii)(self.func,
+                                         output_dir=self.output_dir)
+        if not self.anat is None:
+            self.anat = mem.cache(niigz2nii)(self.anat,
+                                             output_dir=self.output_dir)
+
     def sanitize(self, do_deleteorient=False, do_niigz2nii=False):
         """
         This method does basic sanitization of the `SubjectData` instance, like
@@ -144,14 +154,7 @@ class SubjectData(object):
 
         # .nii.gz -> .nii extraction for SPM & co.
         if do_niigz2nii:
-            cache_dir = os.path.join(self.output_dir, 'cache_dir')
-            mem = Memory(cache_dir, verbose=100)
-
-            self.func = mem.cache(niigz2nii)(self.func,
-                                             output_dir=self.output_dir)
-            if not self.anat is None:
-                self.anat = mem.cache(niigz2nii)(self.anat,
-                                                 output_dir=self.output_dir)
+            self.niigz2nii()
 
         # sanitize session_id
         if self.session_id is None:

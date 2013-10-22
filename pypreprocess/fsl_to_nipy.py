@@ -222,15 +222,17 @@ def make_dmtx_from_timing_files(timing_files, condition_ids=None,
 
     # load addition regressors from file
     if not add_regs_file is None:
-        assert os.path.isfile(add_regs_file), (
-            "add_regs_file %s doesn't exist")
-        add_regs = np.loadtxt(add_regs_file)
+        if isinstance(add_regs_file, np.ndarray):
+            add_regs = add_regs_file
+        else:
+            assert os.path.isfile(add_regs_file), (
+                "add_regs_file %s doesn't exist")
+            add_regs = np.loadtxt(add_regs_file)
         assert add_regs.ndim == 2, (
             "Bad add_regs_file: %s (must contain a 2D array, each column "
             "representing the values of a single regressor)" % add_regs_file)
         if add_reg_names is None:
-            add_reg_names = ["%s_column_%i" % (os.path.basename(
-                        add_regs_file), col + 1) for col in xrange(
+            add_reg_names = ["R%i" % (col + 1) for col in xrange(
                     add_regs.shape[-1])]
         else:
             assert len(add_reg_names) == add_regs.shape[1], (

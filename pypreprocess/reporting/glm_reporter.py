@@ -8,7 +8,6 @@ import nipy.labs.statistical_mapping as sm
 from nipy.labs.viz_tools.coord_tools import _maximally_separated_subset
 from nipy.modalities.fmri.design_matrix import DesignMatrix
 import base_reporter
-import time
 
 
 def generate_level1_stats_table(zmap, mask,
@@ -378,8 +377,6 @@ Z>%s voxel-level.
     _vmax = 0
     _vmin = threshold
     for contrast_id, contrast_val in contrasts.iteritems():
-        contrast_val = "[" + ", ".join([str(x)
-                                        for x in contrasts[contrast_id]]) + "]"
         z_map = z_maps[contrast_id]
 
         # load the map
@@ -455,7 +452,7 @@ Z>%s voxel-level.
         thumbnail.a = base_reporter.a(href=os.path.basename(stats_table))
         thumbnail.img = base_reporter.img(src=os.path.basename(z_map_plot),
                                           height="150px",)
-        thumbnail.description = "%s contrast: %s" % (contrast_id, contrast_val)
+        thumbnail.description = contrast_id
         activation_thumbs.commit_thumbnails(thumbnail)
 
     # make colorbar for activations

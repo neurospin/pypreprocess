@@ -129,6 +129,9 @@ def _do_subject_realign(subject_data, nipype_mem=None,
     if not hasattr(subject_data, 'nipype_results'):
         subject_data.nipype_results = {}
 
+    # .nii.gz -> .nii
+    subject_data.niigz2nii()
+
     # prepare for smart caching
     if nipype_mem is None:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
@@ -144,8 +147,6 @@ def _do_subject_realign(subject_data, nipype_mem=None,
     realign_result = realign(
         in_files=subject_data.func,
         jobtype="estwrite",
-        register_to_mean=True,
-        ignore_exception=True
         )
 
     subject_data.nipype_results['realign'] = realign_result
@@ -212,6 +213,9 @@ def _do_subject_coregister(subject_data, coreg_anat_to_func=False,
     Input subject_data is modified.
 
     """
+
+    # .nii.gz -> .nii
+    subject_data.niigz2nii()
 
     # prepare for smart caching
     if nipype_mem is None:
@@ -349,6 +353,9 @@ def _do_subject_segment(subject_data, do_normalize=False, nipype_mem=None,
 
     """
 
+    # .nii.gz -> .nii
+    subject_data.niigz2nii()
+
     # prepare for smart caching
     if nipype_mem is None:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
@@ -454,6 +461,9 @@ def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
     Input subject_data is modified
 
     """
+
+    # .nii.gz -> .nii
+    subject_data.niigz2nii()
 
     # prepare for smart caching
     if nipype_mem is None:
@@ -595,6 +605,9 @@ def _do_subject_smooth(subject_data, fwhm, nipype_mem=None, do_report=True):
 
     """
 
+    # .nii.gz -> .nii
+    subject_data.niigz2nii()
+
     # prepare for smart caching
     if nipype_mem is None:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
@@ -650,6 +663,9 @@ def _do_subject_dartelnorm2mni(subject_data,
         options to be passes to spm.DARTELNorm2MNI back-end
 
     """
+
+    # .nii.gz -> .nii
+    subject_data.niigz2nii()
 
     # prepare for smart caching
     if nipype_mem is None:
@@ -819,11 +835,12 @@ def do_subject_preproc(
             "subject_datta must be SubjectData instance or dict, "
             "got %s" % type(subject_data))
 
-    subject_data.do_report = do_report
-
     subject_data.sanitize(do_deleteorient=do_deleteorient, do_niigz2nii=True)
     subject_data.failed = False
 
+    # can't coreg without anat
+    do_coreg = do_coreg and not subject_data.anat is None
+ 
     # sanitize fwhm
     if not fwhm is None:
         if not np.shape(fwhm):
