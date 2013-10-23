@@ -77,7 +77,7 @@ class SubjectData(object):
         self.output_dir = output_dir
         self.failed = False
 
-        self.set_items()
+        self.set_items(**kwargs)
 
     def set_items(self, **kwargs):
         for k, v in kwargs.iteritems():
