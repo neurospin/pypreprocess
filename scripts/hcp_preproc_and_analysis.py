@@ -59,6 +59,7 @@ def _do_fmri_distortion_correction(fmri_files, subject_data_dir,
                       for direction in ["LR", "RL"]]
     assert len(fieldmap_files) == 2
 
+    tmp_files = []
     # fslroi
     zeroth_fieldmap_files = []
     for fieldmap_file in fieldmap_files:
@@ -73,11 +74,12 @@ def _do_fmri_distortion_correction(fmri_files, subject_data_dir,
                 fieldmap_file))
         fslroi_cmd = "fsl5.0-fslroi %s %s 0 1" % (
             fieldmap_file, zeroth_fieldmap_file)
-        print "\r\nExecuting %s ..." % fslroi_cmd
+        print "\r\nExecuting: %s ..." % fslroi_cmd
         print mem.cache(commands.getoutput)(fslroi_cmd)
 
         zeroth_fieldmap_files.append(zeroth_fieldmap_file)
 
+    tmp_files += zeroth_fieldmap_files
     # merge the 0th volume of each fieldmap
     merged_zeroth_fieldmap_file = os.path.join(
         subject_output_dir, "merged_with_other_direction_%s" % (
@@ -85,8 +87,9 @@ def _do_fmri_distortion_correction(fmri_files, subject_data_dir,
     fslmerge_cmd = "fsl5.0-fslmerge -t %s %s %s" % (
         merged_zeroth_fieldmap_file, zeroth_fieldmap_files[0],
         zeroth_fieldmap_files[1])
-    print "\r\nExecuting %s ..." % fslmerge_cmd
+    print "\r\nExecuting: %s ..." % fslmerge_cmd
     print mem.cache(commands.getoutput)(fslmerge_cmd)
+    tmp_files.append(merged_zeroth_fieldmap_file)
 
     # do topup (learn distortion model)
     topup_results_basename = os.path.join(subject_output_dir,
@@ -95,7 +98,7 @@ def _do_fmri_distortion_correction(fmri_files, subject_data_dir,
         "fsl5.0-topup --imain=%s --datain=%s --config=b02b0.cnf "
         "--out=%s" % (merged_zeroth_fieldmap_file, acq_params_file,
                       topup_results_basename))
-    print "\r\nExecuting %s ..." % topup_cmd
+    print "\r\nExecuting: %s ..." % topup_cmd
     print mem.cache(commands.getoutput)(topup_cmd)
 
     # apply learn deformations to absorb distortion
@@ -111,9 +114,10 @@ def _do_fmri_distortion_correction(fmri_files, subject_data_dir,
         fourD_plus_sbref = os.path.join(
             subject_output_dir, "sbref_plus_" + os.path.basename(
                 fmri_files[index]))
+        # tmp_files.append(fourD_plus_sbref)
         fslmerge_cmd = "fsl5.0-fslmerge -t %s %s %s" % (
             fourD_plus_sbref, sbref_files[index], fmri_files[index])
-        print "\r\nExecuting %s ..." % fslmerge_cmd
+        print "\r\nExecuting: %s ..." % fslmerge_cmd
         print mem.cache(commands.getoutput)(fslmerge_cmd)
 
         # realign task BOLD to SBRef
@@ -129,19 +133,20 @@ def _do_fmri_distortion_correction(fmri_files, subject_data_dir,
         dc_rfourD_plus_sbref = os.path.join(
             subject_output_dir, "dc" + os.path.basename(
                 rfourD_plus_sbref))
+        tmp_files.append(dc_rfourD_plus_sbref)
         applytopup_cmd = (
             "fsl5.0-applytopup --imain=%s --verbose --inindex=%i "
             "--topup=%s --out=%s --datain=%s --method=jac" % (
                 rfourD_plus_sbref, index + 1, topup_results_basename,
                 dc_rfourD_plus_sbref, acq_params_file))
-        print "\r\nExecuting %s ..." % applytopup_cmd
+        print "\r\nExecuting: %s ..." % applytopup_cmd
         print mem.cache(commands.getoutput)(applytopup_cmd)
 
         # recover undistored task BOLD
         dc_rfmri_file = dc_rfourD_plus_sbref.replace("sbref_plus_", "")
         fslroi_cmd = "fsl5.0-fslroi %s %s 1 -1" % (
             dc_rfourD_plus_sbref, dc_rfmri_file)
-        print "\r\nExecuting %s ..." % fslroi_cmd
+        print "\r\nExecuting: %s ..." % fslroi_cmd
         print mem.cache(commands.getoutput)(fslroi_cmd)
 
         # sanity tricks
@@ -149,6 +154,11 @@ def _do_fmri_distortion_correction(fmri_files, subject_data_dir,
             dc_rfmri_file = dc_rfmri_file + ".gz"
 
         dc_fmri_files.append(dc_rfmri_file)
+
+    # for tmp_file in tmp_files:
+    #     rm_cmd = "rm -f %s %s" % (tmp_file, tmp_file.replace('.gz', ''))
+    #     print "\r\nExecuting: %s ..." % rm_cmd
+    #     print commands.getoutput(rm_cmd)
 
     return dc_fmri_files, realignment_parameters
 
@@ -528,7 +538,7 @@ if __name__ == '__main__':
         # run intra-subject GLM and collect the results group-level GLM
         group_glm_inputs = [subject_glm_results
                                     for subject_glm_results in Parallel(
-                n_jobs=n_jobs, verbose=100)(delayed(_run_suject_level1_glm)(
+                n_jobs=n_jobs, verbose=100)(delayed(run_suject_level1_glm)(
                     subject_data_dir,
                     subject_output_dir,
                     task_id=task_id,
@@ -537,7 +547,7 @@ if __name__ == '__main__':
                     do_coreg=True,
                     # do_segment=True,
                     # do_normalize=True,
-                    fwhm=4.,
+                    # fwhm=4.,
                     regress_motion=True,
                     slicer=slicer,
                     cut_coords=cut_coords,
