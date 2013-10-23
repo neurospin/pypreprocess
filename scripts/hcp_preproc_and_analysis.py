@@ -390,13 +390,12 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
             contrast_val,
             con_id=contrast_id,
             output_z=True,
-            output_stat=False,
-            output_effects=True,
-            output_variance=False
+            output_effects=True
             )
 
         # store stat maps to disk
-        for map_type, out_map in zip(['z', 'effects'], [z_map, eff_map]):
+        for map_type, out_map in zip(['z', 'effects'],
+                                     [z_map, eff_map]):
             map_dir = os.path.join(
                 subject_output_dir, '%s_maps' % map_type)
             if not os.path.exists(map_dir):
@@ -473,6 +472,13 @@ if __name__ == '__main__':
                      ) if 'N_SUBJECTS' in os.environ else -1
     task_ids = os.environ.get('TASK_IDS', 'MOTOR').split(',')
 
+    def _run_suject_level1_glm(subject_data_dir, subject_output_dir,
+                               **kwargs):
+        mem = Memory(os.path.join(subject_output_dir, "cache_dir"))
+        return mem.cache(run_suject_level1_glm)(subject_data_dir,
+                                                subject_output_dir,
+                                                **kwargs)
+
     def _subject_factory(task_output_dir, n_subjects=-1):
         """
         Generator for subject data.
@@ -522,7 +528,7 @@ if __name__ == '__main__':
         # run intra-subject GLM and collect the results group-level GLM
         group_glm_inputs = [subject_glm_results
                                     for subject_glm_results in Parallel(
-                n_jobs=n_jobs, verbose=100)(delayed(run_suject_level1_glm)(
+                n_jobs=n_jobs, verbose=100)(delayed(_run_suject_level1_glm)(
                     subject_data_dir,
                     subject_output_dir,
                     task_id=task_id,
