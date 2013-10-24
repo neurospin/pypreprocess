@@ -264,7 +264,7 @@ if __name__ == '__main__':
             cut_coords=cut_coords,
             cluster_th=cluster_th
             ) for subject_id in range(
-            16))
+            16) if not subject_id + 1 == 2)
 
     # chronometry
     stats_start_time = pretty_time()
