@@ -414,6 +414,8 @@ def _do_subject_segment(subject_data, do_normalize=False, nipype_mem=None,
 
 
 def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
+                          func_write_voxel_sizes=None,
+                          anat_write_voxel_sizes=None,
                           do_report=True
                           ):
     """
@@ -498,7 +500,15 @@ def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
         if segmented:
             if brain_name == 'func':
                 apply_to_files, file_types = ravel_filenames(subject_data.func)
+                if func_write_voxel_sizes is None:
+                    write_voxel_sizes = get_vox_dims(apply_to_files)
+                else:
+                    write_voxel_sizes = func_write_voxel_sizes
             else:
+                if anat_write_voxel_sizes is None:
+                    write_voxel_sizes = get_vox_dims(apply_to_files)
+                else:
+                    write_voxel_sizes = anat_write_voxel_sizes
                 apply_to_files = subject_data.anat
 
             # run node
@@ -506,7 +516,7 @@ def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
                 parameter_file=parameter_file,
                 apply_to_files=apply_to_files,
                 write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-                write_voxel_sizes=get_vox_dims(apply_to_files),
+                write_voxel_sizes=write_voxel_sizes,
                 write_interp=1,
                 jobtype='write',
                 ignore_exception=True
@@ -522,15 +532,25 @@ def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
             if brain_name == 'func':
                 apply_to_files, file_types = ravel_filenames(
                     subject_data.func)
+                apply_to_files, file_types = ravel_filenames(subject_data.func)
+                if func_write_voxel_sizes is None:
+                    write_voxel_sizes = get_vox_dims(apply_to_files)
+                else:
+                    write_voxel_sizes = func_write_voxel_sizes
             else:
                 apply_to_files = subject_data.anat
+                apply_to_files, file_types = ravel_filenames(subject_data.func)
+                if anat_write_voxel_sizes is None:
+                    write_voxel_sizes = get_vox_dims(apply_to_files)
+                else:
+                    write_voxel_sizes = anat_write_voxel_sizes
 
             # run node
             normalize_result = normalize(
                 parameter_file=parameter_file,
                 apply_to_files=apply_to_files,
                 write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-                write_voxel_sizes=get_vox_dims(apply_to_files),
+                write_voxel_sizes=write_voxel_sizes,
                 write_wrap=[0, 0, 0],
                 write_interp=1,
                 jobtype='write',
@@ -737,6 +757,8 @@ def do_subject_preproc(
     do_dartel=False,
     do_cv_tc=True,
     fwhm=0.,
+    func_write_voxel_sizes=None,
+    anat_write_voxel_sizes=None,
     do_deleteorient=False,
     hardlink_output=True,
     do_report=True,
@@ -868,7 +890,6 @@ def do_subject_preproc(
     joblib_mem = JoblibMemory(cache_dir, verbose=100)
 
     # get ready for reporting
-    subject_data.results_gallery = None
     if do_report:
         # generate explanation of preproc steps undergone by subject
         if preproc_undergone is None:
@@ -952,6 +973,8 @@ def do_subject_preproc(
         subject_data = _do_subject_normalize(
             subject_data,
             fwhm,  # smooth func after normalization
+            func_write_voxel_sizes=func_write_voxel_sizes,
+            anat_write_voxel_sizes=anat_write_voxel_sizes,
             nipype_mem=nipype_mem,
             do_report=do_report
             )

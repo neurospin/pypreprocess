@@ -1,10 +1,9 @@
 """
-:Synopsis: br41nh4ck!
+:Synopsis: br41nh4ck d4t4 gr4bB3r!
 :Author: d0hm4t06 3Lv15 <gmdopp@gmail.com> <elvis.dohmatob@inria.fr>
 
 """
 
-import urllib2
 import os
 import re
 import glob
@@ -15,9 +14,10 @@ import nibabel
 # global constants
 DATA_DIR = os.path.join(os.getcwd(), "BrainHack_data")
 BOLD_URL_PATTERN = ("ftp://ftp.mrc-cbu.cam.ac.uk/personal/"
-                    "rik.henson/wakemandg_hensonrn/Sub%02i/BOLD/Run_%02i")
+                    "rik.henson/wakemandg_hensonrn/Sub%02i/BOLD/Run_%02i/")
 ANAT_URL_PATTERN = ("ftp://ftp.mrc-cbu.cam.ac.uk/personal/rik.henson"
                     "/wakemandg_hensonrn/Sub%02i/T1")
+DONE_URLS = []
 
 
 def _file_exists(url, output_dir):
@@ -26,6 +26,9 @@ def _file_exists(url, output_dir):
 
     """
 
+    if url in DONE_URLS:
+        return True
+
     output_filename = os.path.join(output_dir, os.path.basename(url))
     if not os.path.exists(output_filename):
         return False
@@ -33,18 +36,22 @@ def _file_exists(url, output_dir):
     for ext in ['.txt', '.mat']:
         if output_filename.endswith(ext):
             if os.path.isfile(output_filename):
-                print "Skipping existing file: %s" % output_filename
+                # print "Skipping existing file: %s" % output_filename
+                DONE_URLS.append(url)
                 return True
 
     if output_filename.endswith(".nii"):
         try:
             nibabel.load(output_filename)
-            print "Skipping existing file: %s" % output_filename
+            nibabel.concat_images([output_filename])
+            # print "Skipping existing file: %s" % output_filename
+            DONE_URLS.append(url)
             return True
         except Exception, e:
             print "nibabel.load(...) error:", e
             print
             print "Corrupt image %s; redownloading" % output_filename
+            print commands.getoutput("rm -f %s*" % output_filename)
             return False
 
 
@@ -76,7 +83,7 @@ def _url_factory():
 
     """
 
-    for subject_id in range(5, 16):
+    for subject_id in range(16):
         # anat nifti URLs
         anat_url = ANAT_URL_PATTERN % (subject_id + 1)
         anat_dir = os.path.join(DATA_DIR, "Sub%02i/T1" % (
@@ -95,13 +102,22 @@ def _url_factory():
         for run_id in xrange(9):
             # fMRI nifti URLs
             bold_url = BOLD_URL_PATTERN % (subject_id + 1, run_id + 1)
-            req = urllib2.urlopen(bold_url)
+            # req = urllib2.urlopen(bold_url)
             run_dir = os.path.join(DATA_DIR, "Sub%02i/Run_%02i" % (
                     subject_id + 1, run_id + 1))
-            dump = req.read()
-            for item in re.finditer(" (?P<basename>fMR.+?\.nii)", dump):
-                item_url = os.path.join(bold_url, item.group("basename")
-                                        )
+            # dump = req.read()
+            if not os.path.exists(run_dir):
+                os.makedirs(run_dir)
+            tmp = os.path.join(run_dir, "index.html*")
+            commands.getoutput("rm -f %s" % tmp)
+            old_cwd = os.getcwd()
+            os.chdir(run_dir)
+            commands.getoutput("wget %s" % bold_url)
+            dump = open(os.path.join(run_dir, "index.html")).read()
+            os.chdir(old_cwd)
+            for item in re.finditer('<a href="(?P<url>.+?\.nii)">', dump):
+                item_url = item.group("url")
+
                 if _file_exists(item_url, run_dir):
                     continue
 
@@ -130,7 +146,7 @@ def get_subject_data_from_disk(subject_id):
         subject_id=subject_id,
 
         # run IDs
-        session_id=["Run_0%2i" % (run_id + 1) for run_id in xrange(9)],
+        session_id=["Run_%02i" % (run_id + 1) for run_id in xrange(9)],
 
         # functional data fMR*.nii
         func=[sorted(glob.glob(os.path.join(DATA_DIR, subject_id,
@@ -152,7 +168,7 @@ def download_all():
 
     """
 
-    Parallel(n_jobs=4, verbose=100)(delayed(_download_url)(
+    Parallel(n_jobs=-1, verbose=100)(delayed(_download_url)(
             url, output_dir) for url, output_dir in _url_factory())
 
 
