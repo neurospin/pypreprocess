@@ -3,7 +3,8 @@ import re
 import numpy as np
 import nibabel
 from joblib import Parallel, delayed
-from pypreprocess.nipype_preproc_spm_utils import do_subject_preproc
+from pypreprocess.purepython_preproc_utils import (do_subject_preproc,
+                                                   SubjectData)
 from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
@@ -67,6 +68,7 @@ def _preprocess_and_analysis_subject(subject_data,
             output_dir, subject_data['subject_id'])
 
     # preprocess the data
+    subject_data = SubjectData(**subject_data)
     subject_data = do_subject_preproc(subject_data,
                                       **preproc_params
                                       )
@@ -250,12 +252,12 @@ if __name__ == '__main__':
             get_subject_data_from_disk("Sub%02i" % (subject_id + 1)),
             do_realign=True,
             do_coreg=True,
-            do_segment=False,
-            do_normalize=False,
+            # do_segment=True,
+            # do_normalize=True,
             # fwhm=8.,
             # func_write_voxel_sizes=[3, 3, 3],
             # anat_write_voxel_sizes=[2, 2, 2],
-            hardlink_output=False,
+            # hardlink_output=False,
             do_report=False,
             threshold=threshold,
             slicer=slicer,

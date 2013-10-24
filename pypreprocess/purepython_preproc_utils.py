@@ -15,8 +15,6 @@ import inspect
 from joblib import Memory
 from reporting.preproc_reporter import (
     generate_stc_thumbnails,
-    generate_coregistration_thumbnails,
-    generate_realignment_thumbnails,
     generate_preproc_undergone_docstring
     )
 from .io_utils import (get_basenames,
@@ -120,10 +118,10 @@ def do_subject_preproc(subject_data,
 
     """
 
-    # sanitize input args
-    for key in ["output_dir"
-                ]:
-        assert key in subject_data, "subject_data must have '%s' key" % key
+    # # sanitize input args
+    # for key in ["output_dir"
+    #             ]:
+    #     assert key in subject_data, "subject_data must have '%s' key" % key
 
     dict_input = isinstance(subject_data, dict)
 
@@ -135,7 +133,11 @@ def do_subject_preproc(subject_data,
         print "\t %s=%s" % (i, values[i])
     print "\r\n"
 
-    subject_data = SubjectData(**subject_data).sanitize()
+    if isinstance(subject_data, SubjectData):
+        subject_data = subject_data.sanitize()
+    else:
+        subject_data = SubjectData(**subject_data).sanitize()
+
     n_sessions = len(subject_data.session_id)
     do_coreg = do_coreg and not subject_data.anat is None
 
