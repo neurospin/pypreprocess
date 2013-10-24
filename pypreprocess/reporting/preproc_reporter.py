@@ -42,13 +42,13 @@ from .base_reporter import (Thumbnail,
                             get_dataset_report_log_html_template
                             )
 
-# set templates
-SPM_DIR = '/i2bm/local/spm8'
-if 'SPM_DIR' in os.environ:
-    SPM_DIR = os.environ['SPM_DIR']
-assert os.path.exists(SPM_DIR), \
-    "nipype_preproc_smp_utils: SPM_DIR: %s,\
- doesn't exist; you need to export SPM_DIR" % SPM_DIR
+# # set templates
+# SPM_DIR = '/i2bm/local/spm8'
+# if 'SPM_DIR' in os.environ:
+#     SPM_DIR = os.environ['SPM_DIR']
+# assert os.path.exists(SPM_DIR), \
+#     "nipype_preproc_smp_utils: SPM_DIR: %s,\
+#  doesn't exist; you need to export SPM_DIR" % SPM_DIR
 EPI_TEMPLATE = os.path.join(SPM_DIR, 'templates/EPI.nii')
 T1_TEMPLATE = "/usr/share/data/fsl-mni152-templates/avg152T1.nii"
 if not os.path.isfile(T1_TEMPLATE):
