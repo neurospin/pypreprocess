@@ -468,8 +468,8 @@ if __name__ == '__main__':
 
     # set some config variables
     n_jobs = int(os.environ.get('N_JOBS', -1))
-    n_subjects = int(os.environ['N_SUBJECTS']
-                     ) if 'N_SUBJECTS' in os.environ else -1
+    n_subjects = int(os.environ.get('N_SUBJECTS', -1))
+    subject_ids = os.environ.get('SUBJECT_IDS', None)
     task_ids = os.environ.get('TASK_IDS', 'MOTOR').split(',')
 
     def _run_suject_level1_glm(subject_data_dir, subject_output_dir,
@@ -505,6 +505,11 @@ if __name__ == '__main__':
                 continue
 
             subject_id = os.path.basename(subject_data_dir)
+
+            # exclude this subject ?
+            if not subject_ids is None and not subject_id in subject_ids:
+                continue
+
             subject_output_dir = os.path.join(task_output_dir, subject_id)
 
             yield subject_data_dir, subject_output_dir

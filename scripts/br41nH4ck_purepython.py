@@ -199,40 +199,42 @@ def _preprocess_and_analysis_subject(subject_data,
     # remove repeated contrasts
     contrasts = dict((cid, cval[0]) for cid, cval in contrasts.iteritems())
 
-    # do stats report
-    stats_report_filename = os.path.join(getattr(subject_data,
-                                                 'reports_output_dir',
-                                                 subject_data.output_dir),
-                                         "report_stats.html")
-    generate_subject_stats_report(
-        stats_report_filename,
-        contrasts,
-        z_maps,
-        fmri_glm.mask,
-        threshold=threshold,
-        cluster_th=cluster_th,
-        slicer=slicer,
-        cut_coords=cut_coords,
-        design_matrices=design_matrices,
-        subject_id=subject_data.subject_id,
-        start_time=stats_start_time,
-        title="GLM for subject %s" % subject_data.subject_id,
+    # # do stats report
+    # stats_report_filename = os.path.join(getattr(subject_data,
+    #                                              'reports_output_dir',
+    #                                              subject_data.output_dir),
+    #                                      "report_stats.html")
+    # generate_subject_stats_report(
+    #     stats_report_filename,
+    #     contrasts,
+    #     z_maps,
+    #     fmri_glm.mask,
+    #     threshold=threshold,
+    #     cluster_th=cluster_th,
+    #     slicer=slicer,
+    #     cut_coords=cut_coords,
+    #     anat=nibabel.load(subject_data.anat).get_data(),
+    #     anat_affine=nibabel.load(subject_data.anat).get_affine(),
+    #     design_matrices=design_matrices,
+    #     subject_id=subject_data.subject_id,
+    #     start_time=stats_start_time,
+    #     title="GLM for subject %s" % subject_data.subject_id,
 
-        # additional ``kwargs`` for more informative report
-        TR=tr,
-        n_scans=n_scans,
-        hfcut=hfcut,
-        drift_model=drift_model,
-        hrf_model=hrf_model,
-        paradigm=dict(("Run_%02i" % (run_id + 1), paradigms[run_id])
-                      for run_id in run_ids),
-        frametimes=dict(("Run_%02i" % (run_id + 1), frametimes_list[run_id])
-                        for run_id in run_ids),
-        # fwhm=fwhm
-        )
+    #     # additional ``kwargs`` for more informative report
+    #     TR=tr,
+    #     n_scans=n_scans,
+    #     hfcut=hfcut,
+    #     drift_model=drift_model,
+    #     hrf_model=hrf_model,
+    #     paradigm=dict(("Run_%02i" % (run_id + 1), paradigms[run_id].__dict__)
+    #                   for run_id in run_ids),
+    #     frametimes=dict(("Run_%02i" % (run_id + 1), frametimes_list[run_id])
+    #                     for run_id in run_ids),
+    #     # fwhm=fwhm
+    #     )
 
-    ProgressReport().finish_dir(subject_data.output_dir)
-    print "\r\nStatistic report written to %s\r\n" % stats_report_filename
+    # ProgressReport().finish_dir(subject_data.output_dir)
+    # print "\r\nStatistic report written to %s\r\n" % stats_report_filename
 
     return contrasts, effects_maps, z_maps, mask_path
 
@@ -263,77 +265,77 @@ if __name__ == '__main__':
             slicer=slicer,
             cut_coords=cut_coords,
             cluster_th=cluster_th
-            ) for subject_id in range(
+            ) for subject_id in range(6,
             16) if not subject_id + 1 == 2)
 
-    # chronometry
-    stats_start_time = pretty_time()
+    # # chronometry
+    # stats_start_time = pretty_time()
 
-    # compute group mask
-    print "\r\nComputing group mask ..."
-    mask_images = [subject_glm_results[3]
-                   for subject_glm_results in group_glm_inputs]
-    group_mask = nibabel.Nifti1Image(intersect_masks(mask_images
-                                                   ).astype(np.uint8),
-                                   nibabel.load(mask_images[0]
-                                                ).get_affine())
-    print "... done.\r\n"
-    print "Group GLM"
-    contrasts = [
-        subject_glm_results
-        for subject_glm_results in group_glm_inputs]
-    contrasts = group_glm_inputs[0][0]
-    sujects_effects_maps = [subject_glm_results[1]
-                           for subject_glm_results in group_glm_inputs]
-    group_level_z_maps = {}
-    design_matrix = np.ones(len(sujects_effects_maps)
-                            )[:, np.newaxis]  # only the intercept
-    for contrast_id in contrasts:
-        print "\tcontrast id: %s" % contrast_id
+    # # compute group mask
+    # print "\r\nComputing group mask ..."
+    # mask_images = [subject_glm_results[3]
+    #                for subject_glm_results in group_glm_inputs]
+    # group_mask = nibabel.Nifti1Image(intersect_masks(mask_images
+    #                                                ).astype(np.uint8),
+    #                                nibabel.load(mask_images[0]
+    #                                             ).get_affine())
+    # print "... done.\r\n"
+    # print "Group GLM"
+    # contrasts = [
+    #     subject_glm_results
+    #     for subject_glm_results in group_glm_inputs]
+    # contrasts = group_glm_inputs[0][0]
+    # sujects_effects_maps = [subject_glm_results[1]
+    #                        for subject_glm_results in group_glm_inputs]
+    # group_level_z_maps = {}
+    # design_matrix = np.ones(len(sujects_effects_maps)
+    #                         )[:, np.newaxis]  # only the intercept
+    # for contrast_id in contrasts:
+    #     print "\tcontrast id: %s" % contrast_id
 
-        # effects maps will be the input to the second level GLM
-        first_level_image = nibabel.concat_images(
-            [x[contrast_id] for x in sujects_effects_maps])
+    #     # effects maps will be the input to the second level GLM
+    #     first_level_image = nibabel.concat_images(
+    #         [x[contrast_id] for x in sujects_effects_maps])
 
-        # fit 2nd level GLM for given contrast
-        group_model = FMRILinearModel(first_level_image,
-                                    design_matrix, group_mask)
-        group_model.fit(do_scaling=False, model='ols')
+    #     # fit 2nd level GLM for given contrast
+    #     group_model = FMRILinearModel(first_level_image,
+    #                                 design_matrix, group_mask)
+    #     group_model.fit(do_scaling=False, model='ols')
 
-        # specify and estimate the contrast
-        contrast_val = np.array(([[1.]]))  # the only possible contrast !
-        z_map, = group_model.contrast(contrast_val,
-                                    con_id='one_sample %s' % contrast_id,
-                                    output_z=True)
+    #     # specify and estimate the contrast
+    #     contrast_val = np.array(([[1.]]))  # the only possible contrast !
+    #     z_map, = group_model.contrast(contrast_val,
+    #                                 con_id='one_sample %s' % contrast_id,
+    #                                 output_z=True)
 
-        # save map
-        map_dir = os.path.join(output_dir, 'z_maps')
-        if not os.path.exists(map_dir):
-            os.makedirs(map_dir)
-        map_path = os.path.join(map_dir, '2nd_level_%s.nii.gz' % (
-                contrast_id))
-        print "\t\tWriting %s ..." % map_path
-        nibabel.save(z_map, map_path)
+    #     # save map
+    #     map_dir = os.path.join(output_dir, 'z_maps')
+    #     if not os.path.exists(map_dir):
+    #         os.makedirs(map_dir)
+    #     map_path = os.path.join(map_dir, '2nd_level_%s.nii.gz' % (
+    #             contrast_id))
+    #     print "\t\tWriting %s ..." % map_path
+    #     nibabel.save(z_map, map_path)
 
-        group_level_z_maps[contrast_id] = map_path
+    #     group_level_z_maps[contrast_id] = map_path
 
-    # do stats report
-    stats_report_filename = os.path.join(output_dir,
-                                         "report_stats.html")
-    generate_subject_stats_report(
-        stats_report_filename,
-        contrasts,
-        group_level_z_maps,
-        group_mask,
-        threshold=threshold,
-        cluster_th=cluster_th,
-        design_matrices=[design_matrix],
-        subject_id="sub001",
-        start_time=stats_start_time,
-        title='Group GLM for br41nh4ck',
-        slicer=slicer,
-        cut_coords=cut_coords
-        )
+    # # do stats report
+    # stats_report_filename = os.path.join(output_dir,
+    #                                      "report_stats.html")
+    # generate_subject_stats_report(
+    #     stats_report_filename,
+    #     contrasts,
+    #     group_level_z_maps,
+    #     group_mask,
+    #     threshold=threshold,
+    #     cluster_th=cluster_th,
+    #     design_matrices=[design_matrix],
+    #     subject_id="sub001",
+    #     start_time=stats_start_time,
+    #     title='Group GLM for br41nh4ck',
+    #     slicer=slicer,
+    #     cut_coords=cut_coords
+    #     )
 
-    ProgressReport().finish_dir(output_dir)
-    print "\r\nStatistic report written to %s\r\n" % stats_report_filename
+    # ProgressReport().finish_dir(output_dir)
+    # print "\r\nStatistic report written to %s\r\n" % stats_report_filename
