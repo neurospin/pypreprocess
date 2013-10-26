@@ -8,10 +8,14 @@ from pypreprocess.purepython_preproc_utils import (do_subject_preproc,
 from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
-from nipy.labs.mask import intersect_masks
 from fetch_brainhack_data import get_subject_data_from_disk
-from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
-from pypreprocess.reporting.base_reporter import ProgressReport, pretty_time
+# from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
+from pypreprocess.reporting.base_reporter import (ProgressReport,
+                                                  # pretty_time
+                                                  )
+
+# from nipy.labs.mask import intersect_masks
+
 output_dir = os.path.join(os.getcwd(), "BrainHack_results")
 
 
@@ -46,7 +50,7 @@ def _preprocess_and_analysis_subject(subject_data,
                                      cluster_th=15,
                                      **preproc_params):
     """
-    Preprocesses the subject and then fits (mass-univariate) GLM thereup.
+    Preprocesses the subject and then fits (mass-univariate) GLM thereupon.
 
     """
 
@@ -72,8 +76,8 @@ def _preprocess_and_analysis_subject(subject_data,
     subject_data = do_subject_preproc(subject_data,
                                       **preproc_params
                                       )
-    # chronometry
-    stats_start_time = pretty_time()
+    # # chronometry
+    # stats_start_time = pretty_time()
 
     # to-be merged lists, one item per run
     paradigms = []
@@ -256,17 +260,17 @@ if __name__ == '__main__':
             do_coreg=True,
             # do_segment=True,
             # do_normalize=True,
-            # fwhm=8.,
+            fwhm=[4., 4., 4.],
             # func_write_voxel_sizes=[3, 3, 3],
             # anat_write_voxel_sizes=[2, 2, 2],
             # hardlink_output=False,
-            do_report=False,
+            do_report=True,
             threshold=threshold,
             slicer=slicer,
             cut_coords=cut_coords,
             cluster_th=cluster_th
-            ) for subject_id in range(6,
-            16) if not subject_id + 1 == 2)
+            ) for subject_id in range(
+            16) if not subject_id + 1 == 10)
 
     # # chronometry
     # stats_start_time = pretty_time()
