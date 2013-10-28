@@ -109,7 +109,7 @@ def _do_subject_realign(subject_data, nipype_mem=None,
         subject_data.nipype_results = {}
 
     # .nii.gz -> .nii
-    subject_data.niigz2nii()
+    subject_dz2nii()
 
     # prepare for smart caching
     if nipype_mem is None:
@@ -858,9 +858,6 @@ def do_subject_preproc(
     # the EPI template to MNI
     do_segment = (not subject_data.anat is None) and do_segment
     do_normalize = (not subject_data.anat is None) and do_normalize
-
-    # nipype outputs
-    subject_data.nipype_results = {}
 
     # prepare for smart caching
     cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
