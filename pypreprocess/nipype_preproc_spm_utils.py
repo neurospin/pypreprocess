@@ -11,7 +11,6 @@ import numpy as np
 import nibabel
 import os
 import sys
-import glob
 import time
 from matplotlib.pyplot import cm
 import inspect
@@ -25,7 +24,6 @@ from joblib import (Parallel,
 # import nipype API
 import nipype.interfaces.spm as spm
 from nipype.caching import Memory as NipypeMemory
-import nipype.interfaces.matlab as matlab
 
 # import API for i/o
 from .io_utils import (load_specific_vol,
@@ -51,27 +49,8 @@ from .reporting.preproc_reporter import (
     get_dataset_report_html_template
     )
 
-# configure MATLAB exec
-MATLAB_EXEC = "/neurospin/local/matlab/bin/matlab"
-if not os.path.exists(MATLAB_EXEC):
-    m_choices = glob.glob("/neurospin/local/matlab/R*/bin/matlab")
-    if m_choices:
-        MATLAB_EXEC = m_choices[0]
-if 'MATLAB_EXEC' in os.environ:
-    MATLAB_EXEC = os.environ['MATLAB_EXEC']
-assert os.path.exists(MATLAB_EXEC), \
-    "nipype_preproc_smp_utils: MATLAB_EXEC: %s, \
-doesn't exist; you need to export MATLAB_EXEC" % MATLAB_EXEC
-matlab.MatlabCommand.set_default_matlab_cmd(MATLAB_EXEC)
-
-# configure matlab SPM
-SPM_DIR = '/i2bm/local/spm8'
-if 'SPM_DIR' in os.environ:
-    SPM_DIR = os.environ['SPM_DIR']
-assert os.path.exists(SPM_DIR), \
-    "nipype_preproc_smp_utils: SPM_DIR: %s,\
- doesn't exist; you need to export SPM_DIR" % SPM_DIR
-matlab.MatlabCommand.set_default_paths(SPM_DIR)
+# configure SPM
+from .configure_spm import SPM_DIR
 
 # configure template images
 EPI_TEMPLATE = os.path.join(SPM_DIR, 'templates/EPI.nii')
@@ -130,7 +109,7 @@ def _do_subject_realign(subject_data, nipype_mem=None,
         subject_data.nipype_results = {}
 
     # .nii.gz -> .nii
-    subject_data.niigz2nii()
+    subject_dz2nii()
 
     # prepare for smart caching
     if nipype_mem is None:
@@ -168,7 +147,8 @@ def _do_subject_realign(subject_data, nipype_mem=None,
     return subject_data
 
 
-def _do_subject_coregister(subject_data, coreg_anat_to_func=False,
+def _do_subject_coregister(subject_data, jobtype="estimate",
+                           coreg_anat_to_func=False,
                            nipype_mem=None, joblib_mem=None,
                            do_report=True
                            ):
@@ -230,14 +210,13 @@ def _do_subject_coregister(subject_data, coreg_anat_to_func=False,
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
 
-            nipype_mem = NipypeMemory(base_dir=cache_dir)
+            joblib_mem = JoblibMemory(base_dir=cache_dir)
 
     def _save_vol(data, affine, output_filename):
         nibabel.save(nibabel.Nifti1Image(data, affine), output_filename)
 
     # config node
     coreg = nipype_mem.cache(spm.Coregister)
-    coreg_jobtype = 'estimate'
     apply_to_files = []
     ref_brain = 'anat'
     src_brain = 'func'
@@ -267,7 +246,7 @@ def _do_subject_coregister(subject_data, coreg_anat_to_func=False,
     coreg_result = coreg(target=coreg_target,
                          source=coreg_source,
                          apply_to_files=apply_to_files,
-                         jobtype=coreg_jobtype,
+                         jobtype=jobtype,
                          ignore_exception=True
                          )
     # failed node ?
@@ -505,6 +484,7 @@ def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
                 else:
                     write_voxel_sizes = func_write_voxel_sizes
             else:
+                apply_to_files = subject_data.anat
                 if anat_write_voxel_sizes is None:
                     write_voxel_sizes = get_vox_dims(apply_to_files)
                 else:
@@ -878,9 +858,6 @@ def do_subject_preproc(
     # the EPI template to MNI
     do_segment = (not subject_data.anat is None) and do_segment
     do_normalize = (not subject_data.anat is None) and do_normalize
-
-    # nipype outputs
-    subject_data.nipype_results = {}
 
     # prepare for smart caching
     cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')

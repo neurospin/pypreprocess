@@ -165,7 +165,7 @@ def generate_subject_stats_report(
     anat_affine=None,
     slicer="z",
     cut_coords=None,
-    statistical_mapping_trick=True,
+    statistical_mapping_trick=False,
     threshold=2.3,
     cluster_th=0,
     cmap=viz.cm.cold_hot,

@@ -533,6 +533,9 @@ def compute_mean_image(images, output_filename=None, threeD=False):
     images: string/image object, or list (-like) of
         image(s) whose mean we seek
 
+    output_filename: string, optional (default None)
+        output file where computed mean image will be written
+
     Returns
     -------
     mean nifti image object

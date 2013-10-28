@@ -77,6 +77,9 @@ class SubjectData(object):
         self.output_dir = output_dir
         self.failed = False
 
+        # nipype outputs
+        self.nipype_results = {}
+
         self.set_items(**kwargs)
 
     def set_items(self, **kwargs):
