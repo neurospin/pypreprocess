@@ -105,11 +105,11 @@ def _do_subject_realign(subject_data, nipype_mem=None,
 
     """
 
+    # .nii.gz -> .nii
+    subject_data.niigz2nii()
+
     if not hasattr(subject_data, 'nipype_results'):
         subject_data.nipype_results = {}
-
-    # .nii.gz -> .nii
-    subject_dz2nii()
 
     # prepare for smart caching
     if nipype_mem is None:

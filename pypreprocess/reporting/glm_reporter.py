@@ -165,7 +165,7 @@ def generate_subject_stats_report(
     anat_affine=None,
     slicer="z",
     cut_coords=None,
-    statistical_mapping_trick=False,
+    statistical_mapping_trick=True,
     threshold=2.3,
     cluster_th=0,
     cmap=viz.cm.cold_hot,
@@ -247,6 +247,8 @@ def generate_subject_stats_report(
         progress_logger = base_reporter.ProgressReport()
 
     output_dir = os.path.dirname(stats_report_filename)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     # copy css and js stuff to output dir
     base_reporter.copy_web_conf_files(output_dir)
