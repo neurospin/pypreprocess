@@ -452,13 +452,14 @@ if __name__ == '__main__':
     n_subjects = int(os.environ.get('N_SUBJECTS', -1))
     subject_ids = os.environ.get('SUBJECT_IDS', None)
     subject_ids = subject_ids.split(",") if not subject_ids is None else None
-    task_ids = os.environ.get('TASK_IDS', ('WM',
-                                           'MOTOR,'
-                                           'LANGUAGE,'
-                                           'EMOTION,'
-                                           'GAMBLING,'
-                                           'RELATIONAL,'
-                                           'SOCIAL')).split(',')
+    task_ids = os.environ.get('TASK_IDS', ",".join(('WM',
+                                                    'MOTOR,'
+                                                    'LANGUAGE,'
+                                                    'EMOTION,'
+                                                    'GAMBLING,'
+                                                    'RELATIONAL,'
+                                                    'SOCIAL'
+                                                    ))).split(',')
     do_preproc = os.environ.get("PREPROC", False)
     do_normalize = os.environ.get("NORMALIZE", False) and do_preproc
     fwhm = np.fromstring(os.environ.get("fwhm", "0."), sep=",")
