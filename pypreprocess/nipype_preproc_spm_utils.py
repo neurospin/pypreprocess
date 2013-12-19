@@ -15,6 +15,9 @@ import time
 from matplotlib.pyplot import cm
 import inspect
 
+from slice_timing import get_slice_indices
+from conf_parser import _generate_preproc_pipeline
+
 # import joblib API
 from joblib import (Parallel,
                     delayed,
@@ -46,7 +49,8 @@ from .reporting.preproc_reporter import (
     generate_preproc_undergone_docstring,
     get_dataset_report_log_html_template,
     get_dataset_report_preproc_html_template,
-    get_dataset_report_html_template
+    get_dataset_report_html_template,
+    generate_stc_thumbnails
     )
 
 # configure SPM
@@ -65,8 +69,72 @@ WM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/white.nii')
 CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
 
 
-def _do_subject_realign(subject_data, nipype_mem=None,
-                        do_report=True):
+def _do_subject_slice_timing(subject_data, TR, nslices=None, TA=None,
+                             refslice=0, slice_order="ascending",
+                             interleaved=False, caching=True, do_report=True,
+                             software="spm"):
+    """
+    Slice-Timing Correction
+
+    """
+
+    # sanitize software choice
+    software = software.lower()
+    if software != "spm":
+        raise NotImplementedError("Only SPM is supported; got '%s'" % software)
+
+    # compute nslices
+    _nslices = load_specific_vol(subject_data.func[0], 0)[0].shape[2]
+    if not nslices is None:
+        assert nslices == _nslices
+    else:
+        nslices = _nslices
+
+    # compute TA (possibly from formula specified as a string)
+    if isinstance(TA, basestring):
+        TA = eval(TA)
+
+    # compute time of acqusition
+    if TA is None:
+        TA = TR * (1. - 1. / nslices)
+
+    # compute slice indices / order
+    slice_order = get_slice_indices(nslices, slice_order=slice_order,
+                                    interleaved=interleaved)
+
+   # run pipeline
+    if caching:
+        cache_dir = cache_dir = os.path.join(subject_data.output_dir,
+                                             'cache_dir')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        mem = NipypeMemory(base_dir=cache_dir)
+        stc = mem.cache(spm.SliceTiming)
+    else:
+        stc = spm.SliceTiming().run
+
+    stc_result = stc(in_files=subject_data.func, time_repetition=TR,
+                     time_acquisition=TA, num_slices=nslices,
+                     ref_slice=refslice + 1,
+                     slice_order=list(slice_order + 1))
+
+    # generate STC QA thumbs
+    if do_report:
+        generate_stc_thumbnails(
+            subject_data.func,
+            stc_result.outputs.timecorrected_files,
+            subject_data.reports_output_dir,
+            sessions=subject_data.session_id,
+            results_gallery=subject_data.results_gallery
+            )
+
+    subject_data.func = stc_result.outputs.timecorrected_files
+
+    return subject_data
+
+
+def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
+                        caching=True, do_report=True, software="spm"):
     """
     Wrapper for running spm.Realign with optional reporting.
 
@@ -79,8 +147,8 @@ def _do_subject_realign(subject_data, nipype_mem=None,
         subject data whose functional images (subject_data.func) are to be
         realigned.
 
-    nipype_mem: `nipype.caching.Memory` object
-        Wrapper for running node with nipype.caching.Memory
+    caching: bool, optional (default True)
+        if true, then caching will be enabled
 
     do_report: bool, optional (default True)
        flag controlling whether post-preprocessing reports should be generated
@@ -105,22 +173,26 @@ def _do_subject_realign(subject_data, nipype_mem=None,
 
     """
 
+    # sanitize software choice
+    software = software.lower()
+    if software != "spm":
+        raise NotImplementedError("Only SPM is supported; got '%s'" % software)
+
     if not hasattr(subject_data, 'nipype_results'):
         subject_data.nipype_results = {}
 
     # .nii.gz -> .nii
-    subject_dz2nii()
+    subject_data.niigz2nii()
 
-    # prepare for smart caching
-    if nipype_mem is None:
+    # create node
+    if caching:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-
-        nipype_mem = NipypeMemory(base_dir=cache_dir)
-
-    # configure node
-    realign = nipype_mem.cache(spm.Realign)
+        mem = NipypeMemory(base_dir=cache_dir)
+        realign = mem.cache(spm.Realign)
+    else:
+        realign = spm.Realign().run
 
     # run node
     realign_result = realign(
@@ -147,11 +219,9 @@ def _do_subject_realign(subject_data, nipype_mem=None,
     return subject_data
 
 
-def _do_subject_coregister(subject_data, jobtype="estimate",
-                           coreg_anat_to_func=False,
-                           nipype_mem=None, joblib_mem=None,
-                           do_report=True
-                           ):
+def _do_subject_coregister(subject_data, reslice=False,
+                           coreg_anat_to_func=False, caching=True,
+                           joblib_mem=None, do_report=True, software="spm"):
     """
     Wrapper for running spm.Coregister with optional reporting.
 
@@ -164,8 +234,8 @@ def _do_subject_coregister(subject_data, jobtype="estimate",
         subject data whose functional and anatomical images (subject_data.func
         and subject_data.anat) are to be coregistered
 
-    nipype_cached: nipype memroy cache
-        Wrapper for running node with nipype.caching.Memory
+    caching: bool, optional (default True)
+        if true, then caching will be enabled
 
     coreg_anat_to_func: bool, optional (default False)
        if set, then functional data (subject_data.func) will be the reference
@@ -194,29 +264,39 @@ def _do_subject_coregister(subject_data, jobtype="estimate",
 
     """
 
+    # sanitize software choice
+    software = software.lower()
+    if software != "spm":
+        raise NotImplementedError("Only SPM is supported; got '%s'" % software)
+
+    # sanitize software choice
+    software = software.lower()
+    if software != "spm":
+        raise NotImplementedError("Only SPM is supported; got '%s'" % software)
+
+    jobtype = "estwrite" if reslice else "estimate"
+
     # .nii.gz -> .nii
     subject_data.niigz2nii()
 
-    # prepare for smart caching
-    if nipype_mem is None:
+    # create node
+    if caching:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
+        coreg = NipypeMemory(base_dir=cache_dir).cache(spm.Coregister)
+    else:
+        coreg = spm.Coregister().run
 
-        nipype_mem = NipypeMemory(base_dir=cache_dir)
-
-    if joblib_mem is None:
-        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
-
-            joblib_mem = JoblibMemory(base_dir=cache_dir)
+    cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    joblib_mem = JoblibMemory(cache_dir)
 
     def _save_vol(data, affine, output_filename):
         nibabel.save(nibabel.Nifti1Image(data, affine), output_filename)
 
     # config node
-    coreg = nipype_mem.cache(spm.Coregister)
     apply_to_files = []
     ref_brain = 'anat'
     src_brain = 'func'
@@ -270,8 +350,8 @@ def _do_subject_coregister(subject_data, jobtype="estimate",
     return subject_data
 
 
-def _do_subject_segment(subject_data, do_normalize=False, nipype_mem=None,
-                        do_report=True):
+def _do_subject_segment(subject_data, do_normalize=False, caching=True,
+                        do_report=True, software="spm"):
     """
     Wrapper for running spm.Segment with optional reporting.
 
@@ -284,8 +364,8 @@ def _do_subject_segment(subject_data, do_normalize=False, nipype_mem=None,
         subject data whose anatomical image (subject_data.anat) is to be
         segmented
 
-    nipype_mem: `nipype.caching.Memory` object
-        Wrapper for running node with nipype.caching.Memory
+    caching: bool, optional (default True)
+        if true, then caching will be enabled
 
     do_normalize: bool, optional (default False)
         flag indicating whether warped brain compartments (gm, wm, csf) are to
@@ -332,19 +412,24 @@ def _do_subject_segment(subject_data, do_normalize=False, nipype_mem=None,
 
     """
 
+    # sanitize software choice
+    software = software.lower()
+    if software != "spm":
+        raise NotImplementedError("Only SPM is supported; got '%s'" % software)
+
     # .nii.gz -> .nii
     subject_data.niigz2nii()
 
     # prepare for smart caching
-    if nipype_mem is None:
+    if caching:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-
-        nipype_mem = NipypeMemory(base_dir=cache_dir)
+        segment = NipypeMemory(base_dir=cache_dir).cache(spm.Segment)
+    else:
+        segment = spm.Segment().run
 
     # configure node
-    segment = nipype_mem.cache(spm.Segment)
     if not do_normalize:
         gm_output_type = [False, False, True]
         wm_output_type = [False, False, True]
@@ -392,10 +477,10 @@ def _do_subject_segment(subject_data, do_normalize=False, nipype_mem=None,
     return subject_data
 
 
-def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
+def _do_subject_normalize(subject_data, fwhm=0., caching=True,
                           func_write_voxel_sizes=None,
                           anat_write_voxel_sizes=None,
-                          do_report=True
+                          do_report=True, software="spm"
                           ):
     """
     Wrapper for running spm.Segment with optional reporting.
@@ -410,8 +495,8 @@ def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
         and subject_data.anat) are to be normalized (warped into standard
         spac)
 
-    nipype_cached: nipype memroy cache
-        Wrapper for running node with nipype.caching.Memory
+    caching: bool, optional (default True)
+        if true, then caching will be enabled
 
     fwhm: float or list of 3 floats, optional (default 0)
         FWHM for smoothing the functional data (subject_data.func).
@@ -443,16 +528,22 @@ def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
 
     """
 
+    # sanitize software choice
+    software = software.lower()
+    if software != "spm":
+        raise NotImplementedError("Only SPM is supported; got '%s'" % software)
+
     # .nii.gz -> .nii
     subject_data.niigz2nii()
 
     # prepare for smart caching
-    if nipype_mem is None:
+    if caching:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-
-        nipype_mem = NipypeMemory(base_dir=cache_dir)
+        normalize = NipypeMemory(base_dir=cache_dir).cache(spm.Normalize)
+    else:
+        normalize = spm.Normalize().run
 
     segmented = 'segment' in subject_data.nipype_results
 
@@ -461,14 +552,11 @@ def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
         # learn T1 deformation without segmentation
         t1_template = niigz2nii(SPM_T1_TEMPLATE,
                                 output_dir=subject_data.output_dir)
-        normalize = nipype_mem.cache(spm.Normalize)
         normalize_result = normalize(source=subject_data.anat,
                                      template=t1_template,
                                      )
         parameter_file = normalize_result.outputs.normalization_parameters
-        normalize = nipype_mem.cache(spm.Normalize)
     else:
-        normalize = nipype_mem.cache(spm.Normalize)
         parameter_file = subject_data.nipype_results[
             'segment'].outputs.transformation_mat
 
@@ -568,14 +656,14 @@ def _do_subject_normalize(subject_data, fwhm=0., nipype_mem=None,
     # explicit smoothing
     if np.sum(fwhm) > 0:
         subject_data = _do_subject_smooth(
-            subject_data, fwhm, nipype_mem=nipype_mem,
+            subject_data, fwhm, caching=caching,
             do_report=do_report
             )
 
     return subject_data
 
 
-def _do_subject_smooth(subject_data, fwhm, nipype_mem=None, do_report=True):
+def _do_subject_smooth(subject_data, fwhm, caching=True, do_report=True):
     """
     Wrapper for running spm.Smooth with optional reporting.
 
@@ -585,8 +673,8 @@ def _do_subject_smooth(subject_data, fwhm, nipype_mem=None, do_report=True):
         subject data whose functional images (subject_data.func) are to be
         smoothed
 
-    nipype_mem: `nipype.caching.Memory` object
-        Wrapper for running node with nipype.caching.Memory
+    caching: bool, optional (default True)
+        if true, then caching will be enabled
 
     Returns
     -------
@@ -609,15 +697,15 @@ def _do_subject_smooth(subject_data, fwhm, nipype_mem=None, do_report=True):
     subject_data.niigz2nii()
 
     # prepare for smart caching
-    if nipype_mem is None:
+    if caching:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-
-        nipype_mem = NipypeMemory(base_dir=cache_dir)
+        smooth = NipypeMemory(base_dir=cache_dir).cache(spm.Smooth)
+    else:
+        smooth = spm.Smooth().run
 
     # configure node
-    smooth = nipype_mem.cache(spm.Smooth)
     in_files, file_types = ravel_filenames(subject_data.func)
 
     # run node
@@ -645,7 +733,7 @@ def _do_subject_smooth(subject_data, fwhm, nipype_mem=None, do_report=True):
 def _do_subject_dartelnorm2mni(subject_data,
                                template_file,
                                fwhm=0,
-                               nipype_mem=None,
+                               caching=True,
                                do_report=True,
                                parent_results_gallery=None,
                                do_cv_tc=True,
@@ -658,6 +746,9 @@ def _do_subject_dartelnorm2mni(subject_data,
     ----------
     output_dir: string
         existing directory; results will be cache here
+
+    caching: bool, optional (default True)
+        if true, then caching will be enabled
 
     **dartelnorm2mni_kargs: parameter-value list
         options to be passes to spm.DARTELNorm2MNI back-end
@@ -729,6 +820,7 @@ def _do_subject_dartelnorm2mni(subject_data,
 
 def do_subject_preproc(
     subject_data,
+    do_slice_timing=False,
     do_realign=True,
     do_coreg=True,
     coreg_anat_to_func=False,
@@ -737,6 +829,14 @@ def do_subject_preproc(
     do_dartel=False,
     do_cv_tc=True,
     fwhm=0.,
+    TR=None,
+    TA=None,
+    slice_order="ascending",
+    interleaved=False,
+    realign_reslice=False,
+    register_to_mean=True,
+    coreg_reslice=False,
+    refslice=1,
     func_write_voxel_sizes=None,
     anat_write_voxel_sizes=None,
     do_deleteorient=False,
@@ -746,6 +846,7 @@ def do_subject_preproc(
     last_stage=True,
     preproc_undergone=None,
     prepreproc_undergone="",
+    caching=True
     ):
     """
     Function preprocessing data for a single subject.
@@ -842,7 +943,10 @@ def do_subject_preproc(
 
     # can't coreg without anat
     do_coreg = do_coreg and not subject_data.anat is None
- 
+
+    # can't do STC without TR
+    do_slice_timing = do_slice_timing and not TR is None
+
     # sanitize fwhm
     if not fwhm is None:
         if not np.shape(fwhm):
@@ -858,13 +962,6 @@ def do_subject_preproc(
     # the EPI template to MNI
     do_segment = (not subject_data.anat is None) and do_segment
     do_normalize = (not subject_data.anat is None) and do_normalize
-
-    # prepare for smart caching
-    cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    nipype_mem = NipypeMemory(base_dir=cache_dir)
-    joblib_mem = JoblibMemory(cache_dir, verbose=100)
 
     # get ready for reporting
     if do_report:
@@ -886,12 +983,24 @@ def do_subject_preproc(
                                  preproc_undergone=preproc_undergone,
                                  do_cv_tc=do_cv_tc)
 
+    #############################
+    # Slice-Timing Correction
+    #############################
+    if do_slice_timing:
+        subject_data = _do_subject_slice_timing(
+            subject_data, TR, refslice=refslice,
+            TA=TA, slice_order=slice_order, interleaved=interleaved,
+            do_report=False  # post-stc reporting bugs like hell!
+            )
+
     #######################
     #  motion correction
     #######################
     if do_realign:
         subject_data = _do_subject_realign(
-            subject_data, nipype_mem=nipype_mem,
+            subject_data, caching=caching,
+            reslice=realign_reslice,
+            register_to_mean=register_to_mean,
             do_report=do_report
             )
 
@@ -909,9 +1018,9 @@ def do_subject_preproc(
     ##################################################################
     if do_coreg:
         subject_data = _do_subject_coregister(
-            subject_data, nipype_mem=nipype_mem,
-            joblib_mem=joblib_mem,
+            subject_data, caching=caching,
             coreg_anat_to_func=coreg_anat_to_func,
+            reslice=coreg_reslice,
             do_report=do_report
             )
 
@@ -929,7 +1038,7 @@ def do_subject_preproc(
     #####################################
     if do_segment:
         subject_data = _do_subject_segment(
-            subject_data, nipype_mem=nipype_mem,
+            subject_data, caching=caching,
             do_normalize=do_normalize,
             do_report=do_report
             )
@@ -952,7 +1061,7 @@ def do_subject_preproc(
             fwhm,  # smooth func after normalization
             func_write_voxel_sizes=func_write_voxel_sizes,
             anat_write_voxel_sizes=anat_write_voxel_sizes,
-            nipype_mem=nipype_mem,
+            caching=caching,
             do_report=do_report
             )
 
@@ -970,7 +1079,7 @@ def do_subject_preproc(
     #########################################
     if not do_normalize and np.sum(fwhm) > 0:
         subject_data = _do_subject_smooth(subject_data, fwhm,
-                                          nipype_mem=nipype_mem,
+                                          caching=caching,
                                           do_report=do_report
                                           )
 
@@ -1071,13 +1180,14 @@ def do_subjects_preproc(subject_factory,
                         output_dir=None,
                         hardlink_output=True,
                         n_jobs=None,
+                        caching=True,
                         do_dartel=False,
                         do_report=True,
-                        dataset_id="UNKNOWN!",
+                        dataset_id=None,
                         dataset_description="",
                         prepreproc_undergone="",
                         shutdown_reloaders=True,
-                        **do_subject_preproc_kwargs
+                        **preproc_params
                         ):
     """
     This function does intra-subject preprocessing on a group of subjects.
@@ -1118,7 +1228,7 @@ def do_subjects_preproc(subject_factory,
         output (immediate) directories (by default, only final output files
         are linked)
 
-    do_subject_preproc_kwargs: parameter-value dict
+    preproc_params: parameter-value dict
         optional parameters passed to the \do_subject_preproc` API. See
         the API documentation for details
 
@@ -1130,18 +1240,33 @@ def do_subjects_preproc(subject_factory,
 
     """
 
-    do_subject_preproc_kwargs['do_report'] = do_report
-    do_subject_preproc_kwargs["do_dartel"] = do_dartel
-    do_subject_preproc_kwargs['prepreproc_undergone'] = prepreproc_undergone
-    do_subject_preproc_kwargs['hardlink_output'] = hardlink_output
+    from_jobfile = False
+    if isinstance(subject_factory, basestring):
+        from_jobfile = True
+        subject_factory, preproc_params = _generate_preproc_pipeline(
+            subject_factory)
+        if "dataset_id" in preproc_params:
+            dataset_id = preproc_params["dataset_id"]
+            del preproc_params["dataset_id"]
+
+    if from_jobfile:
+        preproc_params['do_report'] = do_report
+        preproc_params["do_dartel"] = do_dartel
+        preproc_params[
+            'prepreproc_undergone'] = prepreproc_undergone
+        preproc_params['hardlink_output'] = hardlink_output
+        preproc_params["caching"] = caching
 
     # sanitize output_dir
     if output_dir is None:
-        output_dir = os.path.join(os.getcwd(), "pypreproc_results")
+        if "output_dir" in preproc_params:
+            output_dir = preproc_params["output_dir"]
+            del preproc_params['output_dir']
+        else:
+            output_dir = os.path.join(os.getcwd(), "pypreprocess_results")
 
-    if not output_dir is None:
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     # generate list of subjects
     subjects = [subject_data for subject_data in subject_factory]
@@ -1188,17 +1313,18 @@ def do_subjects_preproc(subject_factory,
             command_line=command_line,
             # prepreproc_undergone=prepreproc_undergone,
             # do_dartel=do_dartel,
-            # **do_subject_preproc_kwargs
+            # **preproc_params
             )
 
         # scrape this function's arguments
-        preproc_params = ""
+        preproc_params_text = ""
         frame = inspect.currentframe()
         args, _, _, values = inspect.getargvalues(frame)
         preproc_func_name = inspect.getframeinfo(frame)[2]
-        preproc_params += ("Function <i>%s(...)</i> was invoked by the script"
-                           " <i>%s</i> with the following arguments:"
-                           ) % (preproc_func_name, user_script_name)
+        preproc_params_text += ("Function <i>%s(...)</i> was invoked by "
+                                "the script"
+                                " <i>%s</i> with the following arguments:"
+                                ) % (preproc_func_name, user_script_name)
         args_dict = dict((arg, values[arg]) for arg in args if not arg in [
                 "dataset_description",
                 "report_filename",
@@ -1209,9 +1335,7 @@ def do_subjects_preproc(subject_factory,
                 # add other args to exclude below
                 ])
         args_dict['output_dir'] = output_dir
-        preproc_params += dict_to_html_ul(
-            args_dict
-            )
+        preproc_params_text += dict_to_html_ul(args_dict)
 
         # initialize results gallery
         loader_filename = os.path.join(
@@ -1241,7 +1365,7 @@ def do_subjects_preproc(subject_factory,
             dataset_description=dataset_description,
             source_code=user_source_code,
             source_script_name=user_script_name,
-            preproc_params=preproc_params
+            preproc_params=preproc_params_text
             )
 
         main_html = get_dataset_report_html_template(
@@ -1262,7 +1386,7 @@ def do_subjects_preproc(subject_factory,
             fd.close()
 
         if not do_dartel:
-            do_subject_preproc_kwargs['parent_results_gallery'
+            preproc_params['parent_results_gallery'
                                       ] = parent_results_gallery
 
         # log command line
@@ -1291,16 +1415,16 @@ def do_subjects_preproc(subject_factory,
 
     # preprocess subject's separately
     if do_dartel:
-        fwhm = do_subject_preproc_kwargs.get("fwhm", 0.)
-        do_subject_preproc_kwargs["fwhm"] = 0.
-        do_cv_tc = do_subject_preproc_kwargs.get("do_cv_tc", True)
+        fwhm = preproc_params.get("fwhm", 0.)
+        preproc_params["fwhm"] = 0.
+        do_cv_tc = preproc_params.get("do_cv_tc", True)
         for item in ["do_segment", "do_normalize", "do_cv_tc",
                      "last_stage"]:
-            do_subject_preproc_kwargs[item] = False
+            preproc_params[item] = False
 
     preproc_subject_data = Parallel(n_jobs=n_jobs)(
         delayed(do_subject_preproc)(
-            subject_data, **do_subject_preproc_kwargs
+            subject_data, **preproc_params
             ) for subject_data in subjects)
 
     # DARTEL
@@ -1309,7 +1433,7 @@ def do_subjects_preproc(subject_factory,
             preproc_subject_data, output_dir,
             n_jobs=n_jobs,
             fwhm=fwhm,
-            do_report=do_subject_preproc_kwargs.get("do_report", True),
+            do_report=preproc_params.get("do_report", True),
             do_cv_tc=do_cv_tc,
             parent_results_gallery=parent_results_gallery
             )

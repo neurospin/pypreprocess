@@ -101,7 +101,7 @@ def dict_to_html_ul(mydict):
         elif isinstance(stuff, tuple):
             return '<ul type="none"><li>%s</li></ul>' % tuple(stuff)
         # handle array-like type type
-        elif isinstance(stuff, list) or hasattr(stuff, "tolist"):
+        elif isinstance(stuff, list) or hasattr(stuff, "__iter__"):
             return '<ul type="none"><li>%s</li></ul>' % list(stuff)
         else:
             # XXX handle other bundled types which are not necessarily

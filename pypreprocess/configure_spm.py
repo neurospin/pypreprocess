@@ -1,6 +1,7 @@
 import os
 import glob
 import nipype.interfaces.matlab as matlab
+from nipype.interfaces import spm
 
 # configure MATLAB exec
 MATLAB_EXEC = "/neurospin/local/matlab/bin/matlab"
