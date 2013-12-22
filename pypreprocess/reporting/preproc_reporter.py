@@ -80,16 +80,17 @@ def get_nipype_report_filename(
 def generate_preproc_undergone_docstring(
     prepreproc_undergone="",
     tools_used=None,
-    do_deleteorient=False,
+    dcm2nii=False,
+    deleteorient=False,
     fwhm=None,
-    do_bet=False,
-    do_slicetiming=False,
-    do_realign=False,
-    do_coreg=False,
+    bet=False,
+    slicetiming=False,
+    realign=False,
+    coregister=False,
     coreg_func_to_anat=False,
-    do_segment=False,
-    do_normalize=False,
-    do_dartel=False,
+    segment=False,
+    normalize=False,
+    dartel=False,
     additional_preproc_undergone="",
     command_line=None
     ):
@@ -121,14 +122,20 @@ def generate_preproc_undergone_docstring(
     if prepreproc_undergone:
         preproc_undergone += "<li>%s</li>" % prepreproc_undergone
 
-    if do_deleteorient:
+    if dcm2nii:
+        preproc_undergone += (
+            "<li>"
+            "dcm2nii has been used to convert input images from DICOM to nifti"
+            " format"
+            "</li>")
+    if deleteorient:
         preproc_undergone += (
             "<li>"
             "Orientation-specific meta-data in the image headers have "
             "been suspected as garbage and stripped-off to prevent severe "
             "mis-registration problems."
             "</li>")
-    if do_bet:
+    if bet:
         preproc_undergone += (
             "<li>"
             "Brain extraction has been applied to strip-off the skull"
@@ -136,7 +143,7 @@ def generate_preproc_undergone_docstring(
             "registration problems like the skull been (mis-)aligned "
             "unto the cortical surface, "
             "etc.</li>")
-    if do_slicetiming:
+    if slicetiming:
         preproc_undergone += (
             "<li>"
             "Slice-Timing Correction (STC) has been done to interpolate the "
@@ -146,14 +153,14 @@ def generate_preproc_undergone_docstring(
             "analysis of the data (GLM, ICA, etc.). "
             "</li>"
             )
-    if do_realign:
+    if realign:
         preproc_undergone += (
             "<li>"
             "Motion correction has been done so as to estimate, and then "
             "correct for, subject's head motion."
             "</li>"
             )
-    if do_coreg:
+    if coregister:
         preproc_undergone += "<li>"
         if coreg_func_to_anat:
             preproc_undergone += (
@@ -174,14 +181,14 @@ def generate_preproc_undergone_docstring(
             "possible for activation maps to be projected and appreciated"
             " thereupon."
             "</li>")
-    if do_segment:
+    if segment:
         preproc_undergone += (
             "<li>"
             "Tissue Segmentation has been employed to segment the "
             "anatomical image into GM, WM, and CSF compartments, using "
             "template TPMs (Tissue Probability Maps).</li>")
-    if do_normalize:
-        if do_segment:
+    if normalize:
+        if segment:
             preproc_undergone += (
                 "<li>"
                 "The segmented anatomical image has been warped "
@@ -189,7 +196,7 @@ def generate_preproc_undergone_docstring(
                 "learnt during segmentation. The same deformations have been"
                 " applied to the functional images.</li>")
         else:
-            if do_coreg:
+            if coregister:
                 preproc_undergone += (
                     "<li>"
                     "Deformations from native to standard space have been "
@@ -201,7 +208,7 @@ def generate_preproc_undergone_docstring(
                 "<li>"
                 "The functional images have been warped from native to "
                 "standard space via classical normalization.</li>")
-    if do_dartel:
+    if dartel:
         preproc_undergone += (
             "<li>"
             "Group/Inter-subject Normalization has been done using the "
@@ -931,7 +938,7 @@ def generate_subject_preproc_report(
     func_to_anat=False,
     did_segment=True,
     did_normalize=True,
-    do_cv_tc=True,
+    cv_tc=True,
     additional_preproc_undergone=None,
     parent_results_gallery=None,
     subject_progress_logger=None,
@@ -961,15 +968,15 @@ def generate_subject_preproc_report(
     # generate explanation of preproc steps undergone by subject
     preproc_undergone = generate_preproc_undergone_docstring(
         tools_used=tools_used,
-        do_deleteorient=did_deleteorient,
+        deleteorient=did_deleteorient,
         fwhm=fwhm,
-        do_bet=did_bet,
-        do_slicetiming=did_slicetiming,
-        do_realign=did_realign,
-        do_coreg=did_coreg,
+        bet=did_bet,
+        slicetiming=did_slicetiming,
+        realign=did_realign,
+        coreg=did_coreg,
         coreg_func_to_anat=func_to_anat,
-        do_segment=did_segment,
-        do_normalize=did_normalize,
+        segment=did_segment,
+        normalize=did_normalize,
         additional_preproc_undergone=additional_preproc_undergone,
         )
 
@@ -1111,7 +1118,7 @@ def generate_subject_preproc_report(
                 )
 
     # generate cv tc plots
-    if do_cv_tc:
+    if cv_tc:
         generate_cv_tc_thumbnail(
             func,
             sessions,

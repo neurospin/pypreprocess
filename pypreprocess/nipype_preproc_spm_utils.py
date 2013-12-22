@@ -71,7 +71,7 @@ CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
 
 def _do_subject_slice_timing(subject_data, TR, nslices=None, TA=None,
                              refslice=0, slice_order="ascending",
-                             interleaved=False, caching=True, do_report=True,
+                             interleaved=False, caching=True, report=True,
                              software="spm"):
     """
     Slice-Timing Correction
@@ -119,7 +119,7 @@ def _do_subject_slice_timing(subject_data, TR, nslices=None, TA=None,
                      slice_order=list(slice_order + 1))
 
     # generate STC QA thumbs
-    if do_report:
+    if report:
         generate_stc_thumbnails(
             subject_data.func,
             stc_result.outputs.timecorrected_files,
@@ -134,7 +134,7 @@ def _do_subject_slice_timing(subject_data, TR, nslices=None, TA=None,
 
 
 def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
-                        caching=True, do_report=True, software="spm"):
+                        caching=True, report=True, software="spm"):
     """
     Wrapper for running spm.Realign with optional reporting.
 
@@ -150,7 +150,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
     caching: bool, optional (default True)
         if true, then caching will be enabled
 
-    do_report: bool, optional (default True)
+    report: bool, optional (default True)
        flag controlling whether post-preprocessing reports should be generated
 
     Returns
@@ -181,9 +181,6 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
     if not hasattr(subject_data, 'nipype_results'):
         subject_data.nipype_results = {}
 
-    # .nii.gz -> .nii
-    subject_data.niigz2nii()
-
     # create node
     if caching:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
@@ -209,11 +206,15 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     # collect output
     subject_data.func = realign_result.outputs.realigned_files
+    if isinstance(subject_data.func, basestring):
+        assert subject_data.n_sessions == 1
+        subject_data.func = [subject_data.func]
+
     subject_data.realignment_parameters = \
         realign_result.outputs.realignment_parameters
 
     # generate realignment thumbs
-    if do_report:
+    if report:
         subject_data.generate_realignment_thumbnails()
 
     return subject_data
@@ -221,7 +222,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
 def _do_subject_coregister(subject_data, reslice=False,
                            coreg_anat_to_func=False, caching=True,
-                           joblib_mem=None, do_report=True, software="spm"):
+                           joblib_mem=None, report=True, software="spm"):
     """
     Wrapper for running spm.Coregister with optional reporting.
 
@@ -243,7 +244,7 @@ def _do_subject_coregister(subject_data, reslice=False,
        (subject_data.anat) if the reference, to ensure a precise registration
        (since anatomical data has finer resolution)
 
-    do_report: bool, optional (default True)
+    report: bool, optional (default True)
        flag controlling whether post-preprocessing reports should be generated
 
     Returns
@@ -275,9 +276,6 @@ def _do_subject_coregister(subject_data, reslice=False,
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     jobtype = "estwrite" if reslice else "estimate"
-
-    # .nii.gz -> .nii
-    subject_data.niigz2nii()
 
     # create node
     if caching:
@@ -315,10 +313,12 @@ def _do_subject_coregister(subject_data, reslice=False,
             subject_data.func if isinstance(subject_data.func, basestring)
             else subject_data.func[0], 0)[0]
         coreg_source = os.path.join(subject_data.tmp_output_dir,
-                                "_coreg_first_func_vol.nii")
-        joblib_mem.cache(_save_vol)(ref_func.get_data(),
-                                    ref_func.get_affine(),
-                                    coreg_source)
+                                    "_coreg_first_func_vol.nii")
+
+        # XXX without the following NOP, joblib will try to re-compute stuff!
+        ref_func.get_data()
+
+        joblib_mem.cache(nibabel.save)(ref_func, coreg_source)
 
         apply_to_files, file_types = ravel_filenames(subject_data.func)
 
@@ -327,8 +327,9 @@ def _do_subject_coregister(subject_data, reslice=False,
                          source=coreg_source,
                          apply_to_files=apply_to_files,
                          jobtype=jobtype,
-                         ignore_exception=True
+                         ignore_exception=False
                          )
+
     # failed node ?
     if coreg_result.outputs is None:
         subject_data.nipype_results['coreg'] = coreg_result
@@ -340,18 +341,21 @@ def _do_subject_coregister(subject_data, reslice=False,
     if coreg_anat_to_func:
         subject_data.anat = coreg_result.outputs.coregistered_source
     else:
+        coregistered_files = coreg_result.outputs.coregistered_files
+        if isinstance(coregistered_files, basestring):
+            coregistered_files = [coregistered_files]
         subject_data.func = unravel_filenames(
-            coreg_result.outputs.coregistered_files, file_types)
+            coregistered_files, file_types)
 
     # generate coregistration thumbs
-    if do_report:
+    if report:
         subject_data.generate_coregistration_thumbnails()
 
     return subject_data
 
 
-def _do_subject_segment(subject_data, do_normalize=False, caching=True,
-                        do_report=True, software="spm"):
+def _do_subject_segment(subject_data, normalize=False, caching=True,
+                        report=True, software="spm"):
     """
     Wrapper for running spm.Segment with optional reporting.
 
@@ -367,11 +371,11 @@ def _do_subject_segment(subject_data, do_normalize=False, caching=True,
     caching: bool, optional (default True)
         if true, then caching will be enabled
 
-    do_normalize: bool, optional (default False)
+    normalize: bool, optional (default False)
         flag indicating whether warped brain compartments (gm, wm, csf) are to
         be generated (necessary if the caller wishes the brain later)
 
-    do_report: bool, optional (default True)
+    report: bool, optional (default True)
        flag controlling whether post-preprocessing reports should be generated
 
     Returns
@@ -393,7 +397,7 @@ def _do_subject_segment(subject_data, do_normalize=False, caching=True,
         subject_data.csf: string
             path to subject's CSF image in native space
 
-        if do_normalize then the following additional data fiels are
+        if normalize then the following additional data fiels are
         populated:
 
         subject_data.wgm: string
@@ -430,7 +434,7 @@ def _do_subject_segment(subject_data, do_normalize=False, caching=True,
         segment = spm.Segment().run
 
     # configure node
-    if not do_normalize:
+    if not normalize:
         gm_output_type = [False, False, True]
         wm_output_type = [False, False, True]
         csf_output_type = [False, False, True]
@@ -451,7 +455,7 @@ def _do_subject_segment(subject_data, do_normalize=False, caching=True,
         bias_regularization=0.0001,
         bias_fwhm=60,
         warping_regularization=1,
-        ignore_exception=True
+        ignore_exception=False
         )
 
     # failed node
@@ -465,13 +469,13 @@ def _do_subject_segment(subject_data, do_normalize=False, caching=True,
     subject_data.gm = segment_result.outputs.native_gm_image
     subject_data.wm = segment_result.outputs.native_wm_image
     subject_data.csf = segment_result.outputs.native_csf_image
-    if do_normalize:
+    if normalize:
         subject_data.wgm = segment_result.outputs.normalized_gm_image
         subject_data.wwm = segment_result.outputs.normalized_wm_image
         subject_data.wcsf = segment_result.outputs.normalized_csf_image
 
     # generate segmentation thumbs
-    if do_report:
+    if report:
         subject_data.generate_segmentation_thumbnails()
 
     return subject_data
@@ -480,7 +484,7 @@ def _do_subject_segment(subject_data, do_normalize=False, caching=True,
 def _do_subject_normalize(subject_data, fwhm=0., caching=True,
                           func_write_voxel_sizes=None,
                           anat_write_voxel_sizes=None,
-                          do_report=True, software="spm"
+                          report=True, software="spm"
                           ):
     """
     Wrapper for running spm.Segment with optional reporting.
@@ -500,14 +504,14 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
 
     fwhm: float or list of 3 floats, optional (default 0)
         FWHM for smoothing the functional data (subject_data.func).
-        If do_normalize is set, then this parameter is based to spm.Normalize,
+        If normalize is set, then this parameter is based to spm.Normalize,
         else spm.Smooth is used to explicitly smooth the functional data.
 
-        If spm.Smooth is used for smoothing (i.e if do_normalize if False
+        If spm.Smooth is used for smoothing (i.e if normalize if False
         and fwhm is not 0), then subject_data.nipype_results['smooth']
         will contain the result from the spm.Smooth node.
 
-    do_report: bool, optional (default True)
+    report: bool, optional (default True)
        flag controlling whether post-preprocessing reports should be generated
 
     Returns
@@ -587,7 +591,7 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
                 write_voxel_sizes=write_voxel_sizes,
                 write_interp=1,
                 jobtype='write',
-                ignore_exception=True
+                ignore_exception=False
                 )
 
             # failed node ?
@@ -622,7 +626,7 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
                 write_wrap=[0, 0, 0],
                 write_interp=1,
                 jobtype='write',
-                ignore_exception=True
+                ignore_exception=False
                 )
 
             # failed node
@@ -650,20 +654,20 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
             subject_data.anat = normalize_result.outputs.normalized_files
 
     # generate thumbnails
-    if do_report:
+    if report:
         subject_data.generate_normalization_thumbnails()
 
     # explicit smoothing
     if np.sum(fwhm) > 0:
         subject_data = _do_subject_smooth(
             subject_data, fwhm, caching=caching,
-            do_report=do_report
+            report=report
             )
 
     return subject_data
 
 
-def _do_subject_smooth(subject_data, fwhm, caching=True, do_report=True):
+def _do_subject_smooth(subject_data, fwhm, caching=True, report=True):
     """
     Wrapper for running spm.Smooth with optional reporting.
 
@@ -724,7 +728,7 @@ def _do_subject_smooth(subject_data, fwhm, caching=True, do_report=True):
         smooth_result.outputs.smoothed_files, file_types)
 
     # reporting
-    if do_report:
+    if report:
         subject_data.generate_smooth_thumbnails()
 
     return subject_data
@@ -734,9 +738,9 @@ def _do_subject_dartelnorm2mni(subject_data,
                                template_file,
                                fwhm=0,
                                caching=True,
-                               do_report=True,
+                               report=True,
                                parent_results_gallery=None,
-                               do_cv_tc=True,
+                               cv_tc=True,
                                last_stage=True
                                ):
     """
@@ -797,7 +801,7 @@ def _do_subject_dartelnorm2mni(subject_data,
         apply_to_files=subject_data.anat,
         flowfield_files=subject_data.dartel_flow_fields,
         template_file=template_file,
-        ignore_exception=True,
+        ignore_exception=False,
         modulate=False,  # don't modulate
         fwhm=0.  # don't smooth
         )
@@ -806,7 +810,7 @@ def _do_subject_dartelnorm2mni(subject_data,
     # hardlink output files
     subject_data.hardlink_output_files()
 
-    if do_report:
+    if report:
         # generate normalization thumbnails
         subject_data.generate_normalization_thumbnails()
 
@@ -820,28 +824,34 @@ def _do_subject_dartelnorm2mni(subject_data,
 
 def do_subject_preproc(
     subject_data,
-    do_slice_timing=False,
-    do_realign=True,
-    do_coreg=True,
-    coreg_anat_to_func=False,
-    do_segment=True,
-    do_normalize=True,
-    do_dartel=False,
-    do_cv_tc=True,
-    fwhm=0.,
-    TR=None,
-    TA=None,
+    deleteorient=False,
+
+    slice_timing=False,
     slice_order="ascending",
     interleaved=False,
+    refslice=1,
+    TR=None,
+    TA=None,
+
+    realign=True,
     realign_reslice=False,
     register_to_mean=True,
-    coreg_reslice=False,
-    refslice=1,
+
+    coregister=True,
+    coregister_reslice=False,
+    coreg_anat_to_func=False,
+
+    segment=True,
+
+    normalize=True,
+    dartel=False,
+    fwhm=0.,
     func_write_voxel_sizes=None,
     anat_write_voxel_sizes=None,
-    do_deleteorient=False,
+
     hardlink_output=True,
-    do_report=True,
+    report=True,
+    cv_tc=True,
     parent_results_gallery=None,
     last_stage=True,
     preproc_undergone=None,
@@ -858,14 +868,14 @@ def do_subject_preproc(
         (path to anat image, func image(s), output directory, etc.). Refer
         to documentation of `SubjectData` class
 
-    do_realign: bool, optional (default True)
+    realign: bool, optional (default True)
         if set, then the functional data will be realigned to correct for
         head-motion.
 
         subject_data.nipype_results['realign'] will contain the result from
         the spm.Realign node.
 
-    do_coreg: bool, optional (default True)
+    coreg: bool, optional (default True)
         if set, the functional (subject_data.func) and anatomical
         (subject_data.anat) images will be corregistered. If this
         not set, and subject_data.anat is not None, the it is assumed that
@@ -880,7 +890,7 @@ def do_subject_preproc(
        (subject_data.anat) if the reference, to ensure a precise registration
        (since anatomical data has finer resolution)
 
-    do_segment: bool, optional (default True)
+    segment: bool, optional (default True)
         if set, then the subject's anatomical (subject_data.anat) image will be
         segmented to produce GM, WM, and CSF compartments (useful for both
         indirect normalization (intra-subject) or DARTEL (inter-subject) alike
@@ -888,7 +898,7 @@ def do_subject_preproc(
         subject_data.nipype_results['segment'] will contain the result from
         the spm.Segment node.
 
-    do_normalize: bool, optional (default True)
+    normalize: bool, optional (default True)
        if set, then the subject_data (subject_data.func and subject_data.anat)
        will will be warped into MNI space
 
@@ -897,18 +907,18 @@ def do_subject_preproc(
 
     fwhm: float or list of 3 floats, optional (default 0)
         FWHM for smoothing the functional data (subject_data.func).
-        If do_normalize is set, then this parameter is based to spm.Normalize,
+        If normalize is set, then this parameter is based to spm.Normalize,
         else spm.Smooth is used to explicitly smooth the functional data.
 
-        If spm.Smooth is used for smoothing (i.e if do_normalize if False
+        If spm.Smooth is used for smoothing (i.e if normalize if False
         and fwhm is not 0), then subject_data.nipype_results['smooth']
         will contain the result from the spm.Smooth node.
 
-    do_dartel: bool, optional (default False)
+    dartel: bool, optional (default False)
         flag indicating whether DARTEL will be chained with the results
         of this function
 
-    do_deleteorient: bool (optional)
+    deleteorient: bool (optional)
         if true, then orientation meta-data in all input image files for this
         subject will be stripped-off
 
@@ -917,11 +927,11 @@ def do_subject_preproc(
         nipype cache directories, to the subject's immediate output directory
         (subject_data.output_dir)
 
-    do_cv_tc: bool (optional)
+    cv_tc: bool (optional)
         if set, a summarizing the time-course of the coefficient of variation
         in the preprocessed fMRI time-series will be generated
 
-    do_report: bool, optional (default True)
+    report: bool, optional (default True)
         if set, then HTML reports will be generated
 
     See also
@@ -938,14 +948,18 @@ def do_subject_preproc(
             "subject_datta must be SubjectData instance or dict, "
             "got %s" % type(subject_data))
 
-    subject_data.sanitize(do_deleteorient=do_deleteorient, do_niigz2nii=True)
+    subject_data.sanitize(deleteorient=deleteorient, niigz2nii=True)
     subject_data.failed = False
 
-    # can't coreg without anat
-    do_coreg = do_coreg and not subject_data.anat is None
+    # use EPI template for anat if anat is None
+    if subject_data.anat is None:
+        coregister = True
+        segment = False
+        subject_data.anat = EPI_TEMPLATE
+        coreg_anat_to_func = False
 
     # can't do STC without TR
-    do_slice_timing = do_slice_timing and not TR is None
+    slice_timing = slice_timing and not TR is None
 
     # sanitize fwhm
     if not fwhm is None:
@@ -960,20 +974,21 @@ def do_subject_preproc(
     # XXX For the moment, we can neither segment nor normalize without anat.
     # A trick would be to register the func with an EPI template and then
     # the EPI template to MNI
-    do_segment = (not subject_data.anat is None) and do_segment
-    do_normalize = (not subject_data.anat is None) and do_normalize
+    segment = (not subject_data.anat is None) and segment
 
     # get ready for reporting
-    if do_report:
+    if report:
         # generate explanation of preproc steps undergone by subject
         if preproc_undergone is None:
             preproc_undergone = generate_preproc_undergone_docstring(
-                do_realign=do_realign,
-                do_coreg=do_coreg,
-                do_segment=do_segment,
-                do_normalize=do_normalize,
+                dcm2nii=subject_data.isdicom,
+                deleteorient=deleteorient,
+                realign=realign,
+                coregister=coregister,
+                segment=segment,
+                normalize=normalize,
                 fwhm=fwhm,
-                do_dartel=do_dartel,
+                dartel=dartel,
                 coreg_func_to_anat=not coreg_anat_to_func,
                 prepreproc_undergone=prepreproc_undergone
                 )
@@ -981,27 +996,27 @@ def do_subject_preproc(
         # initialize reports factory
         subject_data.init_report(parent_results_gallery=parent_results_gallery,
                                  preproc_undergone=preproc_undergone,
-                                 do_cv_tc=do_cv_tc)
+                                 cv_tc=cv_tc)
 
     #############################
     # Slice-Timing Correction
     #############################
-    if do_slice_timing:
+    if slice_timing:
         subject_data = _do_subject_slice_timing(
             subject_data, TR, refslice=refslice,
             TA=TA, slice_order=slice_order, interleaved=interleaved,
-            do_report=False  # post-stc reporting bugs like hell!
+            report=False  # post-stc reporting bugs like hell!
             )
 
     #######################
     #  motion correction
     #######################
-    if do_realign:
+    if realign:
         subject_data = _do_subject_realign(
             subject_data, caching=caching,
             reslice=realign_reslice,
             register_to_mean=register_to_mean,
-            do_report=do_report
+            report=report
             )
 
         # hard-link node output files
@@ -1016,12 +1031,13 @@ def do_subject_preproc(
     ##################################################################
     # co-registration of structural (anatomical) against functional
     ##################################################################
-    if do_coreg:
+    if coregister:
+        print subject_data.func
         subject_data = _do_subject_coregister(
             subject_data, caching=caching,
             coreg_anat_to_func=coreg_anat_to_func,
-            reslice=coreg_reslice,
-            do_report=do_report
+            reslice=coregister_reslice,
+            report=report
             )
 
         # hard-link node output files
@@ -1036,11 +1052,11 @@ def do_subject_preproc(
     #####################################
     # segmentation of anatomical image
     #####################################
-    if do_segment:
+    if segment:
         subject_data = _do_subject_segment(
             subject_data, caching=caching,
-            do_normalize=do_normalize,
-            do_report=do_report
+            normalize=normalize,
+            report=report
             )
 
         # hard-link node output files
@@ -1055,14 +1071,14 @@ def do_subject_preproc(
     ##########################
     # Spatial Normalization
     ##########################
-    if do_normalize:
+    if normalize:
         subject_data = _do_subject_normalize(
             subject_data,
             fwhm,  # smooth func after normalization
             func_write_voxel_sizes=func_write_voxel_sizes,
             anat_write_voxel_sizes=anat_write_voxel_sizes,
             caching=caching,
-            do_report=do_report
+            report=report
             )
 
         # hard-link node output files
@@ -1077,10 +1093,10 @@ def do_subject_preproc(
     #########################################
     # Smooth without Spatial Normalization
     #########################################
-    if not do_normalize and np.sum(fwhm) > 0:
+    if not normalize and np.sum(fwhm) > 0:
         subject_data = _do_subject_smooth(subject_data, fwhm,
                                           caching=caching,
-                                          do_report=do_report
+                                          report=report
                                           )
 
         # handle failed node
@@ -1088,11 +1104,11 @@ def do_subject_preproc(
             subject_data.finalize_report(last_stage=last_stage)
             return subject_data
 
-    if do_report and not do_dartel:
+    if report and not dartel:
         subject_data.finalize_report(last_stage=last_stage)
 
     # hard-link node output files
-    if last_stage or not do_dartel:
+    if last_stage or not dartel:
         if hardlink_output:
             subject_data.hardlink_output_files(final=True)
 
@@ -1104,8 +1120,8 @@ def _do_subjects_dartel(subjects,
                         output_dir,
                         fwhm=0,
                         n_jobs=-1,
-                        do_report=True,
-                        do_cv_tc=True,
+                        report=True,
+                        cv_tc=True,
                         parent_results_gallery=None
                         ):
     """
@@ -1136,7 +1152,7 @@ def _do_subjects_dartel(subjects,
     newsegment_result = newsegment(
         channel_files=[subject_data.anat for subject_data in subjects],
         tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6],
-        ignore_exception=True
+        ignore_exception=False
         )
 
     if newsegment_result.outputs is None:
@@ -1165,8 +1181,8 @@ def _do_subjects_dartel(subjects,
         )(delayed(
             _do_subject_dartelnorm2mni)(
                 subject_data,
-                do_report=do_report,
-                do_cv_tc=do_cv_tc,
+                report=report,
+                cv_tc=cv_tc,
                 parent_results_gallery=parent_results_gallery,
                 fwhm=fwhm,
                 template_file=dartel_result.outputs.final_template_file,
@@ -1181,8 +1197,8 @@ def do_subjects_preproc(subject_factory,
                         hardlink_output=True,
                         n_jobs=None,
                         caching=True,
-                        do_dartel=False,
-                        do_report=True,
+                        dartel=False,
+                        report=True,
                         dataset_id=None,
                         dataset_description="",
                         prepreproc_undergone="",
@@ -1205,11 +1221,11 @@ def do_subjects_preproc(subject_factory,
         if N_JOBS is defined in the shell environment, then its value
         is used instead.
 
-    do_dartel: bool, optional (default False)
+    dartel: bool, optional (default False)
         flag indicating whether NewSegment + DARTEL should used for
         normalization
 
-    do_report: bool, optional (default True)
+    report: bool, optional (default True)
         if set, then HTML reports will be generated
 
     dataset_id: string, optional (default None)
@@ -1240,22 +1256,36 @@ def do_subjects_preproc(subject_factory,
 
     """
 
-    from_jobfile = False
     if isinstance(subject_factory, basestring):
-        from_jobfile = True
         subject_factory, preproc_params = _generate_preproc_pipeline(
             subject_factory)
+        report = preproc_params["report"]
         if "dataset_id" in preproc_params:
             dataset_id = preproc_params["dataset_id"]
             del preproc_params["dataset_id"]
+        if "dartel" in preproc_params:
+            dartel = preproc_params["dartel"]
+        if "caching" in preproc_params:
+            caching = preproc_params["caching"]
+        if "report" in preproc_params:
+            report = preproc_params["report"]
 
-    if from_jobfile:
-        preproc_params['do_report'] = do_report
-        preproc_params["do_dartel"] = do_dartel
-        preproc_params[
-            'prepreproc_undergone'] = prepreproc_undergone
-        preproc_params['hardlink_output'] = hardlink_output
-        preproc_params["caching"] = caching
+    preproc_params['report'] = report
+    preproc_params["dartel"] = dartel
+    preproc_params[
+        'prepreproc_undergone'] = prepreproc_undergone
+    preproc_params['hardlink_output'] = hardlink_output
+    preproc_params["caching"] = caching
+
+    # configure number of jobs
+    n_jobs = int(os.environ['N_JOBS']) if 'N_JOBS' in os.environ else (
+        -1 if n_jobs is None else n_jobs)
+
+    _n_jobs = None
+    if "n_jobs" in preproc_params:
+        _n_jobs = preproc_params["n_jobs"]
+        del preproc_params["n_jobs"]
+    n_jobs = _n_jobs if not _n_jobs is None else n_jobs
 
     # sanitize output_dir
     if output_dir is None:
@@ -1282,13 +1312,9 @@ def do_subjects_preproc(subject_factory,
             subject_data.output_dir = os.path.join(output_dir,
                                                    subject_data.subject_id)
 
-    # configure number of jobs
-    n_jobs = int(os.environ['N_JOBS']) if 'N_JOBS' in os.environ else (
-        -1 if n_jobs is None else n_jobs)
-
     # generate html report (for QA) as desired
     parent_results_gallery = None
-    if do_report:
+    if report:
         # what exactly was typed at the command-line (terminal) ?
         command_line = "python %s" % " ".join(sys.argv)
 
@@ -1312,7 +1338,7 @@ def do_subjects_preproc(subject_factory,
         preproc_undergone += generate_preproc_undergone_docstring(
             command_line=command_line,
             # prepreproc_undergone=prepreproc_undergone,
-            # do_dartel=do_dartel,
+            # dartel=dartel,
             # **preproc_params
             )
 
@@ -1328,9 +1354,9 @@ def do_subjects_preproc(subject_factory,
         args_dict = dict((arg, values[arg]) for arg in args if not arg in [
                 "dataset_description",
                 "report_filename",
-                "do_report",
-                "do_cv_tc",
-                "do_shutdown_reloaders",
+                "report",
+                "cv_tc",
+                "shutdown_reloaders",
                 "subjects",
                 # add other args to exclude below
                 ])
@@ -1385,7 +1411,7 @@ def do_subjects_preproc(subject_factory,
             fd.write(str(main_html))
             fd.close()
 
-        if not do_dartel:
+        if not dartel:
             preproc_params['parent_results_gallery'
                                       ] = parent_results_gallery
 
@@ -1402,7 +1428,7 @@ def do_subjects_preproc(subject_factory,
             + "</ul><hr/>")
 
     def finalize_report():
-        if not do_report:
+        if not report:
             return
 
         progress_logger.finish(report_preproc_filename)
@@ -1414,27 +1440,33 @@ def do_subjects_preproc(subject_factory,
         print "\r\n\tHTML report written to %s" % report_preproc_filename
 
     # preprocess subject's separately
-    if do_dartel:
+    if dartel:
         fwhm = preproc_params.get("fwhm", 0.)
         preproc_params["fwhm"] = 0.
-        do_cv_tc = preproc_params.get("do_cv_tc", True)
-        for item in ["do_segment", "do_normalize", "do_cv_tc",
+        cv_tc = preproc_params.get("cv_tc", True)
+        for item in ["segment", "normalize", "cv_tc",
                      "last_stage"]:
             preproc_params[item] = False
 
-    preproc_subject_data = Parallel(n_jobs=n_jobs)(
-        delayed(do_subject_preproc)(
-            subject_data, **preproc_params
-            ) for subject_data in subjects)
+    if n_jobs > 1:
+        preproc_subject_data = Parallel(n_jobs=n_jobs)(
+            delayed(do_subject_preproc)(
+                subject_data, **preproc_params
+                ) for subject_data in subjects)
+
+    else:
+        preproc_subject_data = [do_subject_preproc(subject_data,
+                                                   **preproc_params)
+                                for subject_data in subjects]
 
     # DARTEL
-    if do_dartel:
+    if dartel:
         preproc_subject_data = _do_subjects_dartel(
             preproc_subject_data, output_dir,
             n_jobs=n_jobs,
             fwhm=fwhm,
-            do_report=preproc_params.get("do_report", True),
-            do_cv_tc=do_cv_tc,
+            report=preproc_params.get("report", True),
+            cv_tc=cv_tc,
             parent_results_gallery=parent_results_gallery
             )
 

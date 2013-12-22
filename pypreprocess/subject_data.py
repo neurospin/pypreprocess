@@ -10,7 +10,9 @@ import os
 import time
 from joblib import Memory
 from matplotlib.pyplot import cm
-from .io_utils import (niigz2nii,
+from .io_utils import (niigz2nii as do_niigz2nii,
+                       dcm2nii as do_dcm2nii,
+                       isdicom,
                        delete_orientation,
                        hard_link)
 from .reporting.base_reporter import (
@@ -49,7 +51,7 @@ class SubjectData(object):
         ---------------------------------------------------------------
         list of strings            | one session, multiple 3D image
                                    | filenames (one per scan)
-                                   | OR multiple sessions, multiple 4D
+                                  | OR multiple sessions, multiple 4D
                                    | image filenames (one per session)
         ---------------------------------------------------------------
         list of list of strings    | multiiple sessions, one list of
@@ -87,6 +89,12 @@ class SubjectData(object):
             setattr(self, k, v)
 
     def delete_orientation(self):
+        """
+        Delete orientation metadata. Garbage orientation metadata can lead to
+        severe mis-registration trouble.
+
+        """
+
         # prepare for smart caching
         cache_dir = os.path.join(self.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
@@ -101,7 +109,6 @@ class SubjectData(object):
                      for j in xrange(len(self.session_id))]
 
         # deleteorient for anat
-        print self.anat
         if not self.anat is None:
             self.anat = mem.cache(delete_orientation)(
                 self.anat, self.tmp_output_dir)
@@ -118,16 +125,34 @@ class SubjectData(object):
             os.makedirs(self.tmp_output_dir)
 
     def niigz2nii(self):
+        """
+        Convert .nii.gz to .nii (crucial for SPM).
+
+        """
+
         cache_dir = os.path.join(self.output_dir, 'cache_dir')
         mem = Memory(cache_dir, verbose=100)
 
-        self.func = mem.cache(niigz2nii)(self.func,
-                                         output_dir=self.output_dir)
+        self.func = mem.cache(do_niigz2nii)(self.func,
+                                            output_dir=self.output_dir)
         if not self.anat is None:
-            self.anat = mem.cache(niigz2nii)(self.anat,
-                                             output_dir=self.output_dir)
+            self.anat = mem.cache(do_niigz2nii)(self.anat,
+                                                output_dir=self.output_dir)
 
-    def sanitize(self, do_deleteorient=False, do_niigz2nii=False):
+    def dcm2nii(self):
+        """
+        Convert DICOM to nifti.
+
+        """
+
+        self.isdicom = isdicom(self.func[0][0])
+        self.func = [do_dcm2nii(sess_func, output_dir=self.output_dir)[0]
+                     for sess_func in self.func]
+
+        if not self.anat is None:
+            self.anat = do_dcm2nii(self.anat, output_dir=self.output_dir)[0]
+
+    def sanitize(self, deleteorient=False, niigz2nii=False):
         """
         This method does basic sanitization of the `SubjectData` instance, like
         extracting .nii.gz -> .nii (crusial for SPM), ensuring that functional
@@ -135,11 +160,11 @@ class SubjectData(object):
 
         Parameters
         ----------
-        do_deleteorient: bool (optional)
+        deleteorient: bool (optional)
             if true, then orientation meta-data in all input image files
             for this subject will be stripped-off
 
-        do_niigz2nii: bool, optional (default False)
+        niigz2nii: bool, optional (default False)
             convert func and ant .nii.gz images to .nii
 
         """
@@ -154,10 +179,6 @@ class SubjectData(object):
         # sanitize anat
         if not self.anat is None:
             assert os.path.isfile(self.anat)
-
-        # .nii.gz -> .nii extraction for SPM & co.
-        if do_niigz2nii:
-            self.niigz2nii()
 
         # sanitize session_id
         if self.session_id is None:
@@ -175,8 +196,15 @@ class SubjectData(object):
                     self.session_id, len(self.func))
         self.n_sessions = len(self.session_id)
 
-        if do_deleteorient:
+        # .dcm, .ima -> .nii
+        self.dcm2nii()
+
+        if deleteorient:
             self.delete_orientation()
+
+        # .nii.gz -> .nii extraction for SPM & co.
+        if niigz2nii:
+            self.niigz2nii()
 
         return self
 
@@ -204,7 +232,7 @@ class SubjectData(object):
                         setattr(self, item, linked_filename)
 
     def init_report(self, parent_results_gallery=None,
-                    do_cv_tc=True, preproc_undergone=None):
+                    cv_tc=True, preproc_undergone=None):
         """
         This method is invoked to initialize the reports factory for the
         subject. It configures everything necessary for latter reporting:
@@ -214,7 +242,7 @@ class SubjectData(object):
 
         Parameters
         ----------
-        do_cv_tc: bool (optional)
+        cv_tc: bool (optional)
             if set, a summarizing the time-course of the coefficient of
             variation in the preprocessed fMRI time-series will be
             generated
@@ -229,10 +257,10 @@ class SubjectData(object):
         if not os.path.exists(self.reports_output_dir):
             os.makedirs(self.reports_output_dir)
 
-        self.do_report = True
+        self.report = True
         self.results_gallery = None
         self.parent_results_gallery = parent_results_gallery
-        self.do_cv_tc = do_cv_tc
+        self.cv_tc = cv_tc
 
         # report filenames
         self.report_log_filename = os.path.join(
@@ -310,7 +338,7 @@ class SubjectData(object):
                 ' (failed realignment)')
         else:
             # geneate cv_tc plots
-            if self.do_cv_tc:
+            if self.cv_tc:
                 generate_cv_tc_thumbnail(
                     self.func,
                     self.session_id,
@@ -365,7 +393,7 @@ class SubjectData(object):
         # log execution
         if log:
             execution_log_html = make_nipype_execution_log_html(
-                    self.func, "Motion Correction",
+                    self.func, "Motion_Correction",
                     self.reports_output_dir)
             self.progress_logger.log(
                 "<b>Motion Correction</b><br/>")

@@ -13,6 +13,8 @@ import commands
 import tempfile
 import numpy as np
 import nibabel
+from nipype.interfaces.dcm2nii import Dcm2nii
+from nipype.caching import Memory
 
 
 def is_niimg(img):
@@ -63,10 +65,7 @@ def load_vol(x):
         if vol.shape[-1] == 1:
             vol = nibabel.Nifti1Image(vol.get_data()[..., 0],
                                       vol.get_affine())
-        else:
-            raise ValueError(
-                "Each volume must be 3D; got shape %s" % str(vol.shape))
-    elif len(vol.shape) != 3:
+    elif len(vol.shape) > 4:
             raise ValueError(
                 "Each volume must be 3D; got %iD" % len(vol.shape))
 
@@ -110,7 +109,7 @@ def load_specific_vol(vols, t, strict=False):
     # delete trivial dimension
     if len(vol.shape) == 4:
         vol = nibabel.Nifti1Image(vol.get_data()[..., ..., ..., 0],
-                                  vol.get_afffine())
+                                  vol.get_affine())
 
     assert is_niimg(vol)
     assert is_3D(vol)
@@ -402,7 +401,7 @@ def delete_orientation(imgs, output_dir, output_tag=''):
 
     output_imgs = []
     not_list = False
-    if not type(imgs) is list:
+    if isinstance(imgs, basestring):
         not_list = True
         imgs = [imgs]
 
@@ -494,8 +493,7 @@ def do_3Dto4D_merge(
 #     output_img_filename: string (optional)
 #         where output image will be written
 
-#     Returns
-#     -------
+#     Returns  -------
 #     output_img_filename: string
 #         where the resampled img has been written
 
@@ -865,9 +863,55 @@ def niigz2nii(ifilename, output_dir=None):
     if not output_dir is None:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-
         ofilename = os.path.join(output_dir, os.path.basename(ofilename))
 
     nibabel.save(nibabel.load(ifilename), ofilename)
 
     return ofilename
+
+
+def isdicom(source_name):
+    assert isinstance(source_name, basestring)
+    assert len(source_name) > 4
+    return source_name.lower()[-4:] in [".dcm", ".ima"]
+
+
+def dcm2nii(source_names, terminal_output="allatonce", gzip_output=False,
+            anonymize=True, output_dir=None, caching=True,
+            **other_dcm2nii_kwargs):
+    """
+    Converts DICOM (dcm) images to Nifti.
+
+    """
+
+    # all input files must be DICOM
+    for source_name in [source_names] if isinstance(
+        source_names, basestring) else source_names:
+        if not isdicom(source_name):
+            return source_names, None  # not (all) DICOM; nothx to do
+
+    # sanitize output dir
+    if output_dir is None:
+        output_dir = os.path.dirname(source_names if isinstance(
+                source_names, basestring) else source_names[0])
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # prepare node
+    if caching:
+        cache_dir = os.path.join(output_dir, "cache_dir")
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        dcm2nii_node = Memory(cache_dir).cache(Dcm2nii)
+    else:
+        dcm2nii_node = Dcm2nii.run
+
+    # run node and collect results
+    dcm2nii_result = dcm2nii_node(source_names=source_names,
+                                  terminal_output=terminal_output,
+                                  anonymize=anonymize,
+                                  gzip_output=gzip_output,
+                                  output_dir=output_dir,
+                                  **other_dcm2nii_kwargs)
+
+    return dcm2nii_result.outputs.converted_files, dcm2nii_result
