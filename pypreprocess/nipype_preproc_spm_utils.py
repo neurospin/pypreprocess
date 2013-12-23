@@ -178,6 +178,17 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
     if software != "spm":
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
+    # .nii.gz -> .nii
+    subject_data._niigz2nii()
+
+    # jobtype
+    jobtype = "estwrite" if reslice else "estimate"
+
+    # XXX with nipype.caching, jobtype="estimate" modifies not even the input
+    # file headers!
+    if caching:
+        jobtype = "estwrite"
+
     if not hasattr(subject_data, 'nipype_results'):
         subject_data.nipype_results = {}
 
@@ -194,7 +205,8 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
     # run node
     realign_result = realign(
         in_files=subject_data.func,
-        jobtype="estwrite",
+        register_to_mean=register_to_mean,
+        jobtype=jobtype,
         )
 
     subject_data.nipype_results['realign'] = realign_result
@@ -212,6 +224,9 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     subject_data.realignment_parameters = \
         realign_result.outputs.realignment_parameters
+
+    if register_to_mean and jobtype == "estwrite":
+        subject_data.mean_realigned_file = realign_result.outputs.mean_image
 
     # generate realignment thumbs
     if report:
@@ -270,29 +285,27 @@ def _do_subject_coregister(subject_data, reslice=False,
     if software != "spm":
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
+    # .nii.gz -> .nii
+    subject_data._niigz2nii()
+
     # sanitize software choice
     software = software.lower()
     if software != "spm":
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
+    # jobtype
     jobtype = "estwrite" if reslice else "estimate"
-
-    # create node
-    if caching:
-        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
-        coreg = NipypeMemory(base_dir=cache_dir).cache(spm.Coregister)
-    else:
-        coreg = spm.Coregister().run
 
     cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
     joblib_mem = JoblibMemory(cache_dir)
 
-    def _save_vol(data, affine, output_filename):
-        nibabel.save(nibabel.Nifti1Image(data, affine), output_filename)
+    # create node
+    if caching:
+        coreg = NipypeMemory(base_dir=cache_dir).cache(spm.Coregister)
+    else:
+        coreg = spm.Coregister().run
 
     # config node
     apply_to_files = []
@@ -301,7 +314,10 @@ def _do_subject_coregister(subject_data, reslice=False,
 
     if coreg_anat_to_func:
         ref_brain, src_brain = src_brain, ref_brain
-        coreg_target = subject_data.func[0]
+        if hasattr(subject_data, "mean_realigned_file"):
+            coreg_target = subject_data.mean_realigned_file
+        else:
+            coreg_target = subject_data.func[0]
         if subject_data.anat is None:
             if not subject_data.hires is None:
                 coreg_source = subject_data.hires
@@ -309,16 +325,16 @@ def _do_subject_coregister(subject_data, reslice=False,
             coreg_source = subject_data.anat
     else:
         coreg_target = subject_data.anat
-        ref_func = joblib_mem.cache(load_specific_vol)(
-            subject_data.func if isinstance(subject_data.func, basestring)
-            else subject_data.func[0], 0)[0]
-        coreg_source = os.path.join(subject_data.tmp_output_dir,
-                                    "_coreg_first_func_vol.nii")
+        if hasattr(subject_data, "mean_realigned_file"):
+            coreg_source = subject_data.mean_realigned_file
+        else:
+            ref_func = joblib_mem.cache(load_specific_vol)(
+                subject_data.func if isinstance(subject_data.func, basestring)
+                else subject_data.func[0], 0)[0]
+            coreg_source = os.path.join(subject_data.tmp_output_dir,
+                                        "_coreg_first_func_vol.nii")
 
-        # XXX without the following NOP, joblib will try to re-compute stuff!
-        ref_func.get_data()
-
-        joblib_mem.cache(nibabel.save)(ref_func, coreg_source)
+            joblib_mem.cache(nibabel.save)(ref_func, coreg_source)
 
         apply_to_files, file_types = ravel_filenames(subject_data.func)
 
@@ -422,7 +438,7 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # .nii.gz -> .nii
-    subject_data.niigz2nii()
+    subject_data._niigz2nii()
 
     # prepare for smart caching
     if caching:
@@ -538,7 +554,7 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # .nii.gz -> .nii
-    subject_data.niigz2nii()
+    subject_data._niigz2nii()
 
     # prepare for smart caching
     if caching:
@@ -698,7 +714,7 @@ def _do_subject_smooth(subject_data, fwhm, caching=True, report=True):
     """
 
     # .nii.gz -> .nii
-    subject_data.niigz2nii()
+    subject_data._niigz2nii()
 
     # prepare for smart caching
     if caching:
@@ -760,7 +776,7 @@ def _do_subject_dartelnorm2mni(subject_data,
     """
 
     # .nii.gz -> .nii
-    subject_data.niigz2nii()
+    subject_data._niigz2nii()
 
     # prepare for smart caching
     if nipype_mem is None:
@@ -955,7 +971,7 @@ def do_subject_preproc(
     if subject_data.anat is None:
         coregister = True
         segment = False
-        subject_data.anat = EPI_TEMPLATE
+        subject_data.hires = EPI_TEMPLATE
         coreg_anat_to_func = False
 
     # can't do STC without TR

@@ -5,7 +5,7 @@ import os
 import tempfile
 import inspect
 import nose
-import nose.tools
+from nose.tools import assert_equal, assert_true, assert_false
 
 # import the APIIS to be tested
 from ..io_utils import (
@@ -20,7 +20,9 @@ from ..io_utils import (
     is_niimg,
     is_4D,
     get_vox_dims,
-    niigz2nii
+    niigz2nii,
+    _expand_path,
+    isdicom
     )
 
 # global setup
@@ -63,8 +65,8 @@ def test_load_vol():
 
     # test loading vol from nibabel object
     _vol = load_vol(vol)
-    nose.tools.assert_true(isinstance(_vol, type(vol)))
-    nose.tools.assert_equal(_vol.shape, vol.shape)
+    assert_true(isinstance(_vol, type(vol)))
+    assert_equal(_vol.shape, vol.shape)
     numpy.testing.assert_array_equal(_vol.get_data(), vol.get_data())
 
     # test loading vol by filename
@@ -78,8 +80,8 @@ def test_load_vol():
 
         # load the vol by filename
         _vol = load_vol(vol_filename)
-        nose.tools.assert_true(isinstance(_vol, vol_type))
-        nose.tools.assert_equal(_vol.shape, vol.shape)
+        assert_true(isinstance(_vol, vol_type))
+        assert_equal(_vol.shape, vol.shape)
         numpy.testing.assert_array_equal(_vol.get_data(), vol.get_data())
 
 
@@ -96,9 +98,9 @@ def test_load_specific_vol():
     # test loading vol from nibabel image object
     for t in xrange(n_scans):
         _vol, _n_scans = load_specific_vol(film, t)
-        nose.tools.assert_equal(_n_scans, n_scans)
-        nose.tools.assert_true(isinstance(_vol, type(film)))
-        nose.tools.assert_equal(_vol.shape, film.shape[:-1])
+        assert_equal(_n_scans, n_scans)
+        assert_true(isinstance(_vol, type(film)))
+        assert_equal(_vol.shape, film.shape[:-1])
         numpy.testing.assert_array_equal(_vol.get_data(),
                                          film.get_data()[..., t])
 
@@ -127,9 +129,9 @@ def test_load_specific_vol():
 
                 # load specific 3D vol from 4D film by filename
                 _vol, _n_scans = load_specific_vol(film_filename, t)
-                nose.tools.assert_equal(_n_scans, n_scans)
-                nose.tools.assert_true(isinstance(_vol, vol_type))
-                nose.tools.assert_equal(_vol.shape, film.shape[:-1])
+                assert_equal(_n_scans, n_scans)
+                assert_true(isinstance(_vol, vol_type))
+                assert_equal(_vol.shape, film.shape[:-1])
                 numpy.testing.assert_array_equal(_vol.get_data(),
                                               film.get_data()[..., t])
 
@@ -142,12 +144,12 @@ def test_save_vol():
     vol = create_random_image(ndim=3)
 
     output_filename = save_vol(vol, output_dir=output_dir, basename='123')
-    nose.tools.assert_equal(os.path.basename(output_filename),
+    assert_equal(os.path.basename(output_filename),
                             '123.nii.gz')
 
     output_filename = save_vol(vol, output_dir=output_dir, basename='123',
                                 prefix='s')
-    nose.tools.assert_equal(os.path.basename(output_filename),
+    assert_equal(os.path.basename(output_filename),
                             's123.nii.gz')
 
 
@@ -183,17 +185,17 @@ def test_save_vols():
                                                  basenames=basenames
                                                  )
                 if not concat and isinstance(stuff, list):
-                        nose.tools.assert_true(isinstance(
+                        assert_true(isinstance(
                                 saved_vols_filenames, list))
-                        nose.tools.assert_equal(len(saved_vols_filenames),
+                        assert_equal(len(saved_vols_filenames),
                                                 n_scans)
 
-                        nose.tools.assert_equal(os.path.basename(saved_vols_filenames[7]),
+                        assert_equal(os.path.basename(saved_vols_filenames[7]),
                                                 'fMETHODS-000007.nii.gz')
                 else:
-                    nose.tools.assert_true(isinstance(saved_vols_filenames, basestring))
-                    nose.tools.assert_true(saved_vols_filenames.endswith('.nii.gz'))
-                    nose.tools.assert_true(is_4D(load_4D_img(
+                    assert_true(isinstance(saved_vols_filenames, basestring))
+                    assert_true(saved_vols_filenames.endswith('.nii.gz'))
+                    assert_true(is_4D(load_4D_img(
                                 saved_vols_filenames)))
 
 
@@ -219,12 +221,12 @@ def test_save_vols_from_ndarray_with_affine():
                                                   concat=concat
                                                   )
                 if not concat and isinstance(stuff, list):
-                        nose.tools.assert_true(isinstance(
+                        assert_true(isinstance(
                                 saved_vols_filenames, list))
-                        nose.tools.assert_equal(len(saved_vols_filenames),
+                        assert_equal(len(saved_vols_filenames),
                                                 n_scans)
                 else:
-                    nose.tools.assert_true(isinstance(saved_vols_filenames, basestring))
+                    assert_true(isinstance(saved_vols_filenames, basestring))
 
 
 def test_do_3Dto4D_merge():
@@ -240,7 +242,7 @@ def test_do_3Dto4D_merge():
 
     _film = do_3Dto4D_merge(threeD_vols)
 
-    nose.tools.assert_equal(_film.shape, film.shape)
+    assert_equal(_film.shape, film.shape)
 
     save_vols(threeD_vols, output_dir, ext='.nii.gz')
 
@@ -285,9 +287,9 @@ def test_hardlink():
     def _check_ok(x, y):
         if isinstance(x, basestring):
             # check that hardlink was actually made
-            nose.tools.assert_true(os.path.exists(x))
+            assert_true(os.path.exists(x))
             if x.endswith('.img'):
-                nose.tools.assert_true(os.path.exists(x.replace(".img", ".hdr")))
+                assert_true(os.path.exists(x.replace(".img", ".hdr")))
 
             # cleanup
             os.unlink(x)
@@ -297,8 +299,8 @@ def test_hardlink():
                 os.unlink(y.replace(".img", ".hdr"))
         else:
             # assuming list_like; recursely do this check
-            nose.tools.assert_true(isinstance(x, list))
-            nose.tools.assert_true(isinstance(y, list))
+            assert_true(isinstance(x, list))
+            assert_true(isinstance(y, list))
 
             for _x, _y in zip(x, y):
                 _check_ok(_x, _y)
@@ -307,10 +309,10 @@ def test_hardlink():
 
 
 def test_get_basenames():
-    nose.tools.assert_equal(get_basenames("/path/to/file/file.nii.gz"),
+    assert_equal(get_basenames("/path/to/file/file.nii.gz"),
                             "file")
 
-    nose.tools.assert_equal(get_basenames(["/path/to/file/file-%04i.nii.gz" % i
+    assert_equal(get_basenames(["/path/to/file/file-%04i.nii.gz" % i
                                            for i in xrange(10)])[3],
                             "file-0003")
 
@@ -324,22 +326,22 @@ def test_load_4D_img():
     # try loading from 4D niimg
     film = create_random_image(n_scans=10)
     loaded_4D_img = load_4D_img(film)
-    nose.tools.assert_true(is_niimg(loaded_4D_img))
-    nose.tools.assert_equal(loaded_4D_img.shape, film.shape)
+    assert_true(is_niimg(loaded_4D_img))
+    assert_equal(loaded_4D_img.shape, film.shape)
 
     # try loading from 4D image file
     film = create_random_image(n_scans=10)
     saved_img_filename = os.path.join(output_dir, "4D.nii.gz")
     nibabel.save(film, saved_img_filename)
     loaded_4D_img = load_4D_img(saved_img_filename)
-    nose.tools.assert_true(is_niimg(loaded_4D_img))
-    nose.tools.assert_equal(loaded_4D_img.shape, film.shape)
+    assert_true(is_niimg(loaded_4D_img))
+    assert_equal(loaded_4D_img.shape, film.shape)
 
     # try loading from list of 3D niimgs
     film = create_random_image(n_scans=10)
     loaded_4D_img = load_4D_img(nibabel.four_to_three(film))
-    nose.tools.assert_true(is_niimg(loaded_4D_img))
-    nose.tools.assert_equal(loaded_4D_img.shape, film.shape)
+    assert_true(is_niimg(loaded_4D_img))
+    assert_equal(loaded_4D_img.shape, film.shape)
 
     # try loading from list of 3D image files
     film = create_random_image(n_scans=10)
@@ -348,8 +350,8 @@ def test_load_4D_img():
                                      ext='.nii.gz',
                                      )
     loaded_4D_img = load_4D_img(saved_vols_filenames)
-    nose.tools.assert_true(is_niimg(loaded_4D_img))
-    nose.tools.assert_equal(loaded_4D_img.shape, film.shape)
+    assert_true(is_niimg(loaded_4D_img))
+    assert_equal(loaded_4D_img.shape, film.shape)
 
 
 def test_get_vox_dims():
@@ -389,14 +391,14 @@ def test_is_niimg():
 
     # 4D niimg
     film = create_random_image(n_scans=10)
-    nose.tools.assert_true(is_niimg(film))
+    assert_true(is_niimg(film))
 
     # 3D niimg
     vol = create_random_image()
-    nose.tools.assert_true(is_niimg(vol))
+    assert_true(is_niimg(vol))
 
     # filename is not niimg
-    nose.tools.assert_false(is_niimg("/path/to/some/nii.gz"))
+    assert_false(is_niimg("/path/to/some/nii.gz"))
 
 
 def test_niigz2nii_with_filename():
@@ -409,7 +411,7 @@ def test_niigz2nii_with_filename():
     ofilename = niigz2nii(ifilename, output_dir='/tmp/titi')
 
     # checks
-    nose.tools.assert_equal(ofilename, '/tmp/titi/toto.nii')
+    assert_equal(ofilename, '/tmp/titi/toto.nii')
     nibabel.load(ofilename)
 
 
@@ -426,7 +428,7 @@ def test_niigz2nii_with_list_of_filenames():
     ofilenames = niigz2nii(ifilenames, output_dir='/tmp/titi')
 
     # checks
-    nose.tools.assert_equal(len(ifilenames), len(ofilenames))
+    assert_equal(len(ifilenames), len(ofilenames))
     for x in xrange(len(ifilenames)):
         nibabel.load(ofilenames[x])
 
@@ -444,10 +446,33 @@ def test_niigz2nii_with_list_of_lists_of_filenames():
     ofilenames = niigz2nii([ifilenames], output_dir='/tmp/titi')
 
     # checks
-    nose.tools.assert_equal(1, len(ofilenames))
+    assert_equal(1, len(ofilenames))
     for x in xrange(len(ofilenames[0])):
         nibabel.load(ofilenames[0][x])
 
+
+def test_expand_path():
+    assert_equal(_expand_path("./my/funky/brakes",
+                                         relative_to="/tmp"),
+                            "/tmp/my/funky/brakes")
+    assert_equal(_expand_path("../my/funky/brakes",
+                                         relative_to="/tmp"),
+                            "/my/funky/brakes")
+    assert_equal(_expand_path(".../my/funky/brakes",
+                                         relative_to="/tmp"),
+                            None)
+
+
+def test_isdicom():
+    assert_true(isdicom("/toto/titi.dcm"))
+    assert_true(isdicom("/toto/titi.DCM"))
+    assert_true(isdicom("/toto/titi.ima"))
+    assert_true(isdicom("/toto/titi.IMA"))
+    assert_false(isdicom("/toto/titi.nii.gz"))
+    assert_false(isdicom("/toto/titi.nii"))
+    assert_false(isdicom("/toto/titi.img"))
+    assert_false(isdicom("/toto/titi.hdr"))
+    assert_false(isdicom("bad"))
 
 # run all tests
 nose.runmodule(config=nose.config.Config(

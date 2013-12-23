@@ -71,24 +71,27 @@ class SubjectData(object):
     """
 
     def __init__(self, func=None, anat=None, subject_id="sub001",
-                 session_id=None, output_dir=None, **kwargs):
+                 session_id=None, output_dir=None, session_output_dirs=None,
+                 anat_output_dir=None, **kwargs):
         self.func = func
         self.anat = anat
         self.subject_id = subject_id
         self.session_id = session_id
         self.output_dir = output_dir
+        self.anat_output_dir = anat_output_dir
+        self.session_output_dirs = session_output_dirs
         self.failed = False
 
         # nipype outputs
         self.nipype_results = {}
 
-        self.set_items(**kwargs)
+        self._set_items(**kwargs)
 
-    def set_items(self, **kwargs):
+    def _set_items(self, **kwargs):
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
 
-    def delete_orientation(self):
+    def _delete_orientation(self):
         """
         Delete orientation metadata. Garbage orientation metadata can lead to
         severe mis-registration trouble.
@@ -114,9 +117,24 @@ class SubjectData(object):
                 self.anat, self.tmp_output_dir)
 
     def _sanitize_output_dir(self):
+
+        # output dir
         assert not self.output_dir is None
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
+
+        # anat output dir
+        if self.anat_output_dir is None:
+            self.anat_output_dir = self.output_dir
+        if not os.path.exists(self.anat_output_dir):
+            os.makedirs(self.anat_output_dir)
+
+        # func output dirs (one per session)
+        if self.session_output_dirs is None:
+            self.session_output_dirs = self.output_dir * self.n_sessions
+        for sess_output_dir in self.session_output_dirs:
+            if not os.path.exists(sess_output_dir):
+                os.makedirs(sess_output_dir)
 
         # make tmp output dir
         self.tmp_output_dir = os.path.join(self.output_dir,
@@ -124,7 +142,7 @@ class SubjectData(object):
         if not os.path.exists(self.tmp_output_dir):
             os.makedirs(self.tmp_output_dir)
 
-    def niigz2nii(self):
+    def _niigz2nii(self):
         """
         Convert .nii.gz to .nii (crucial for SPM).
 
@@ -139,13 +157,15 @@ class SubjectData(object):
             self.anat = mem.cache(do_niigz2nii)(self.anat,
                                                 output_dir=self.output_dir)
 
-    def dcm2nii(self):
+    def _dcm2nii(self):
         """
         Convert DICOM to nifti.
 
         """
 
-        self.isdicom = isdicom(self.func[0][0])
+        self.isdicom = False
+        if not isinstance(self.func[0], basestring):
+            self.isdicom = isdicom(self.func[0][0])
         self.func = [do_dcm2nii(sess_func, output_dir=self.output_dir)[0]
                      for sess_func in self.func]
 
@@ -168,9 +188,6 @@ class SubjectData(object):
             convert func and ant .nii.gz images to .nii
 
         """
-
-        # sanitize output_dir
-        self._sanitize_output_dir()
 
         # sanitize func
         if isinstance(self.func, basestring):
@@ -196,15 +213,18 @@ class SubjectData(object):
                     self.session_id, len(self.func))
         self.n_sessions = len(self.session_id)
 
+        # sanitize output_dir
+        self._sanitize_output_dir()
+
         # .dcm, .ima -> .nii
-        self.dcm2nii()
+        self._dcm2nii()
 
         if deleteorient:
-            self.delete_orientation()
+            self._delete_orientation()
 
         # .nii.gz -> .nii extraction for SPM & co.
         if niigz2nii:
-            self.niigz2nii()
+            self._niigz2nii()
 
         return self
 
@@ -220,16 +240,34 @@ class SubjectData(object):
 
         """
 
-        for item in ['func', 'anat', 'realignment_parameters',
+        # anat stuff
+        for item in ["anat",
                      'gm', 'wm', 'csf',  # native
                      'wgm', 'wwm', 'wcsf'  # warped/normalized
                      ]:
             if hasattr(self, item):
                 filename = getattr(self, item)
                 if not filename is None:
-                    linked_filename = hard_link(filename, self.output_dir)
+                    linked_filename = hard_link(filename, self.anat_output_dir)
                     if final:
                         setattr(self, item, linked_filename)
+
+        # func stuff
+        for item in ['func', 'realignment_parameters']:
+            tmp = []
+            if hasattr(self, item):
+                filenames = getattr(self, item)
+                if isinstance(filenames, basestring):
+                    assert self.n_sessions == 1
+                    filenames = [filenames]
+                for sess in xrange(self.n_sessions):
+                    filename = filenames[sess]
+                    if not filename is None:
+                        linked_filename = hard_link(
+                            filename, self.session_output_dirs[sess])
+                        tmp.append(linked_filename)
+            if final:
+                setattr(self, item, tmp)
 
     def init_report(self, parent_results_gallery=None,
                     cv_tc=True, preproc_undergone=None):

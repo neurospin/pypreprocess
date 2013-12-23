@@ -7,6 +7,7 @@
 
 import os
 import sys
+import re
 import shutil
 import joblib
 import commands
@@ -15,6 +16,8 @@ import numpy as np
 import nibabel
 from nipype.interfaces.dcm2nii import Dcm2nii
 from nipype.caching import Memory
+
+DICOM_EXTENSIONS = [".dcm", ".ima", ".dicom"]
 
 
 def is_niimg(img):
@@ -871,9 +874,21 @@ def niigz2nii(ifilename, output_dir=None):
 
 
 def isdicom(source_name):
-    assert isinstance(source_name, basestring)
-    assert len(source_name) > 4
-    return source_name.lower()[-4:] in [".dcm", ".ima"]
+    """
+    Determines, by filename extension, whether `source_name` is a DICOM file
+    or not.
+
+    Returns
+    -------
+    True if `source_name` is a DICOM file, False otherwise.
+
+    """
+
+    for ext in DICOM_EXTENSIONS:
+        if source_name.lower().endswith(ext):
+            return True
+
+    return False
 
 
 def dcm2nii(source_names, terminal_output="allatonce", gzip_output=False,
@@ -915,3 +930,56 @@ def dcm2nii(source_names, terminal_output="allatonce", gzip_output=False,
                                   **other_dcm2nii_kwargs)
 
     return dcm2nii_result.outputs.converted_files, dcm2nii_result
+
+
+def _expand_path(path, relative_to=None):
+    """
+    Expands a path, doing replacements like ~ -> $HOME, . -> cwd, etc.
+
+    Returns
+    -------
+    _path: string
+        expanded path, or None if path doesn't exist
+
+    """
+
+    # cd to reference directory
+    if relative_to is None:
+        relative_to = os.getcwd()
+    else:
+        assert os.path.exists(relative_to), (
+            "Reference path %s doesn't exist" % relative_to)
+
+    old_cwd = os.getcwd()
+    os.chdir(relative_to)
+
+    _path = path
+    if _path.startswith(".."):
+        if _path == "..":
+            _path = os.path.dirname(os.getcwd())
+        else:
+            match = re.match("(?P<head>(?:\.{2}\/)+)(?P<tail>.*)", _path)
+            if match:
+                _path = os.getcwd()
+                for _ in xrange(len(match.group("head")) // 3):
+                    _path = os.path.dirname(_path)
+                _path = os.path.join(_path, match.group("tail"))
+            else:
+                _path = None
+    elif _path.startswith("./"):
+        _path = _path[2:]
+    elif _path.startswith("."):
+        _path = _path[1:]
+    elif _path.startswith("~"):
+        if _path == "~":
+            _path = os.environ["HOME"]
+        else:
+            _path = os.path.join(os.environ["HOME"], _path[2:])
+
+    if not _path is None:
+        _path = os.path.abspath(_path)
+
+    # restore cwd
+    os.chdir(old_cwd)
+
+    return _path

@@ -1,8 +1,10 @@
 import os
 import glob
+import re
 from configobj import ConfigObj
 import numpy as np
 from subject_data import SubjectData
+from io_utils import _expand_path
 
 
 def _del_nones_from_dict(some_dict):
@@ -14,6 +16,17 @@ def _del_nones_from_dict(some_dict):
                 _del_nones_from_dict(v)
 
     return some_dict
+
+
+def _path_diff(parent, child):
+    """
+    For example _path_diff("/family/johndoe", "/family/johndoe/bob/pet")
+    evalues to "bob/pet".
+
+    """
+
+    match = re.match("%s/(.*)" % parent, child)
+    return match.group(1) if match else None
 
 
 def _parse_job(jobfile):
@@ -73,16 +86,15 @@ def _generate_preproc_pipeline(jobfile):
     # generate subject conf
     subjects = []
     acquisition_dir = os.path.abspath(os.path.dirname(jobfile))
-    old_cwd = os.getcwd()
-    os.chdir(acquisition_dir)
 
     # output dir
-    output_dir = options["output_dir"]
-    if output_dir.startswith("./"):
-        output_dir = output_dir[2:]
-    elif output_dir.startswith("."):
-        output_dir = output_dir[1:]
-    output_dir = os.path.abspath(output_dir)
+    output_dir = _expand_path(options["output_dir"],
+                              relative_to=acquisition_dir)
+    if output_dir is None:
+        raise RuntimeError(
+            ("Could not expand 'output_dir' specified in %s: invalid"
+             " path %s (relative to directory %s)") % (
+                jobfile, options["output_dir"], acquisition_dir))
 
     # how many subjects ?
     subject_count = 0
@@ -108,7 +120,7 @@ def _generate_preproc_pipeline(jobfile):
 
     # subject data factory
     func_dir = options.get('func_dir', '')
-    nsessions = options.get('nsessions', 1)
+    nsessions = options.get('nsessions', None)
     subject_dir_wildcard = os.path.join(acquisition_dir,
                                         options.get("subject_dir_wildcard",
                                                     "*"))
@@ -129,6 +141,8 @@ def _generate_preproc_pipeline(jobfile):
         func = []
         sess_dir_wildcard = os.path.join(subject_data_dir, func_dir,
                                          sess_dir_wildcard)
+        subject_output_dir = os.path.join(output_dir, subject_id)
+        sess_output_dirs = []
         for sess_dir in sorted(glob.glob(sess_dir_wildcard)):
             sess_func_wild_card = os.path.join(sess_dir, options.get(
                     "func_basename_wildcard", "*"))
@@ -138,11 +152,20 @@ def _generate_preproc_pipeline(jobfile):
                     subject_id, sess_func_wild_card))
             func.append(sess_func)
 
+            # session output dir
+            sess_output_dir = os.path.join(subject_output_dir,
+                                           _path_diff(subject_data_dir,
+                                                      sess_dir))
+            if not os.path.exists(sess_output_dir):
+                os.makedirs(sess_output_dir)
+            sess_output_dirs.append(sess_output_dir)
+
         assert len(func), ("subject %s: No func images found for "
                            "wildcard: %s !") % (subject_id, sess_dir_wildcard)
-        assert len(func) == nsessions, ("subject %s: Expecting func data "
-                                        "for %i sessions; got %i" % (
-                subject_id, nsessions, len(func)))
+        if not nsessions is None:
+            assert len(func) == nsessions, ("subject %s: Expecting func data "
+                                            "for %i sessions; got %i" % (
+                    subject_id, nsessions, len(func)))
 
         # grab anat
         anat = None
@@ -150,17 +173,26 @@ def _generate_preproc_pipeline(jobfile):
             anat_dir = options.get("anat_dir", None)
             if anat_dir in [".", None]:
                 anat_dir = ""
-            anat = glob.glob(os.path.join(subject_data_dir,
-                                          anat_dir,
-                                          options["anat_basename"]
-                                          ))
-            assert len(anat) > 0, "Anatomical image not found!"
-            anat = anat[0]
+
+            anat = os.path.join(subject_data_dir, anat_dir,
+                                options['anat_basename'])
+            assert os.path.isfile(anat), "Anatomical image %s not found!" % (
+                anat)
+        else:
+            anat = None
+            anat_dir = ""
+
+        # anat output dir
+        anat_output_dir = os.path.join(subject_output_dir, anat_dir)
+
+        if not os.path.exists(anat_output_dir):
+            os.makedirs(anat_output_dir)
 
         # make subject data
         subject_data = SubjectData(subject_id=subject_id, func=func, anat=anat,
-                                   output_dir=os.path.join(output_dir,
-                                                           subject_id))
+                                   output_dir=subject_output_dir,
+                                   session_output_dirs=sess_output_dirs,
+                                   anat_output_dir=anat_output_dir)
 
         subjects.append(subject_data)
 
@@ -220,8 +252,6 @@ def _generate_preproc_pipeline(jobfile):
 
     # configure smoothing node
     preproc_params["fwhm"] = options.get("fwhm", 0.)
-
-    os.chdir(old_cwd)
 
     return subjects, preproc_params
 
