@@ -167,6 +167,8 @@ def make_paradigm_from_timing_files(timing_files, condition_ids=None):
     count = 0
     for timing_file in timing_files:
         timing = np.loadtxt(timing_file)
+        if timing.ndim == 1:
+            timing = timing[np.newaxis, :]
 
         if condition_ids is None:
             condition_id = os.path.basename(timing_file).lower(
@@ -178,21 +180,24 @@ def make_paradigm_from_timing_files(timing_files, condition_ids=None):
 
         count += 1
 
-        if timing.ndim  == 2:
-            assert timing.shape[1] == 3
+        if timing.shape[1]  == 3:
             onsets = onsets + list(timing[..., 0])
             durations = durations + list(timing[..., 1])
             amplitudes = amplitudes + list(timing[..., 2])
-        elif timing.ndim == 1:
-            onsets = onsets + list(timing)
-            durations = np.zeros(len(timing))
-            amplitudes = np.ones(len(timing))
+        elif timing.shape[1]  == 2:
+            onsets = onsets + list(timing[..., 0])
+            durations = durations + list(timing[..., 1])
+            amplitudes = durations + list(np.ones(len(timing)))
+        elif timing.shape[1] == 1:
+            onsets = onsets + list(timing[..., 0])
+            durations = durations + list(np.zeros(len(timing)))
+            amplitudes = durations + list(np.ones(len(timing)))
         else:
             raise TypeError(
                 "Timing info must either be 1D array of onsets of 2D "
                 "array with 2 or 3 columns: the first column is for "
                 "the onsets, the second for the durations, and the "
-                "third --if present-- if for the amplitudes")
+                "third --if present-- if for the amplitudes; got %s" % timing)
 
     return BlockParadigm(con_id=_condition_ids, onset=onsets,
                          duration=durations, amplitude=amplitudes)

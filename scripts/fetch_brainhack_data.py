@@ -5,6 +5,7 @@
 """
 
 import os
+import sys
 import re
 import glob
 import commands
@@ -113,7 +114,10 @@ def _url_factory():
             old_cwd = os.getcwd()
             os.chdir(run_dir)
             commands.getoutput("wget %s" % bold_url)
-            dump = open(os.path.join(run_dir, "index.html")).read()
+            index_file = os.path.join(run_dir, "index.html")
+            if not os.path.isfile(index_file):
+                continue
+            dump = open(index_file, 'r').read()
             os.chdir(old_cwd)
             for item in re.finditer('<a href="(?P<url>.+?\.nii)">', dump):
                 item_url = item.group("url")
@@ -168,9 +172,13 @@ def download_all():
 
     """
 
-    Parallel(n_jobs=-1, verbose=100)(delayed(_download_url)(
-            url, output_dir) for url, output_dir in _url_factory())
+    Parallel(n_jobs=int(os.environ.get('N_JOBS', -1)), verbose=100)(
+        delayed(_download_url)(url, output_dir)
+        for url, output_dir in _url_factory())
 
 
 if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        DATA_DIR = os.path.abspath(sys.argv[1])
+
     download_all()
