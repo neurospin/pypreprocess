@@ -337,14 +337,12 @@ class SubjectData(object):
 
         # html markup
         preproc = get_subject_report_preproc_html_template(
-            ).substitute(
             results=self.results_gallery,
             start_time=time.ctime(),
             preproc_undergone=preproc_undergone,
             subject_id=self.subject_id,
             )
         main_html = get_subject_report_html_template(
-            ).substitute(
             start_time=time.ctime(),
             subject_id=self.subject_id
             )

@@ -452,22 +452,32 @@ def test_niigz2nii_with_list_of_lists_of_filenames():
 
 
 def test_expand_path():
-    assert_equal(_expand_path("./my/funky/brakes",
-                                         relative_to="/tmp"),
-                            "/tmp/my/funky/brakes")
+    # paths with . (current directory)
+    assert_equal(_expand_path("./my/funky/brakes", relative_to="/tmp"),
+                 "/tmp/my/funky/brakes")
+
+    # paths with .. (parent directory)
     assert_equal(_expand_path("../my/funky/brakes",
                                          relative_to="/tmp"),
                             "/my/funky/brakes")
-    assert_equal(_expand_path(".../my/funky/brakes",
-                                         relative_to="/tmp"),
-                            None)
+    assert_equal(_expand_path(".../my/funky/brakes", relative_to="/tmp"),
+                 None)
+
+    # paths with tilde
+    assert_equal(_expand_path("~/my/funky/brakes"),
+                 os.path.join(os.environ['HOME'], "my/funky/brakes"))
+    assert_equal(_expand_path("my/funky/brakes", relative_to="~"),
+                 os.path.join(os.environ['HOME'], "my/funky/brakes"))
 
 
 def test_isdicom():
+    # +ve
     assert_true(isdicom("/toto/titi.dcm"))
     assert_true(isdicom("/toto/titi.DCM"))
     assert_true(isdicom("/toto/titi.ima"))
     assert_true(isdicom("/toto/titi.IMA"))
+
+    # -ve
     assert_false(isdicom("/toto/titi.nii.gz"))
     assert_false(isdicom("/toto/titi.nii"))
     assert_false(isdicom("/toto/titi.img"))

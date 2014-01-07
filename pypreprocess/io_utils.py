@@ -947,6 +947,7 @@ def _expand_path(path, relative_to=None):
     if relative_to is None:
         relative_to = os.getcwd()
     else:
+        relative_to = _expand_path(relative_to)
         assert os.path.exists(relative_to), (
             "Reference path %s doesn't exist" % relative_to)
 

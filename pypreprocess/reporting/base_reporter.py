@@ -588,110 +588,110 @@ def compute_vmin_vmax(map3d):
     return vmin, vmax
 
 
-def get_subject_report_log_html_template():
+def _get_template(template_file, **kwargs):
+    with open(template_file) as fd:
+        _text = fd.read()
+        fd.close()
+
+        return HTMLTemplate(_text).substitute(**kwargs)
+
+
+def get_subject_report_log_html_template(**kwargs):
     """Returns html template (string) for subject log report
 
     """
 
-    with open(os.path.join(
+    return _get_template(os.path.join(
             ROOT_DIR, 'template_reports',
-            'subject_report_log_template.tmpl.html')) as fd:
-        _text = fd.read()
-        return HTMLTemplate(_text)
+            'subject_report_log_template.tmpl.html'),
+                         **kwargs)
 
 
-def get_subject_report_html_template():
+def get_subject_report_html_template(**kwargs):
     """Returns html tamplate (string) for subject report (page de garde)
 
     """
 
-    with open(os.path.join(
+    return _get_template(os.path.join(
             ROOT_DIR, 'template_reports',
-                           'subject_report_template.tmpl.html')) as fd:
-        _text = fd.read()
-        return HTMLTemplate(_text)
+            'subject_report_template.tmpl.html'),
+                         **kwargs)
 
 
-def get_subject_report_preproc_html_template():
+def get_subject_report_preproc_html_template(**kwargs):
     """Returns html template (string) for subject preproc report page
 
     """
 
-    with open(os.path.join(
+    return _get_template(os.path.join(
             ROOT_DIR, 'template_reports',
-            'subject_report_preproc_template.tmpl.html')) as fd:
-        _text = fd.read()
-        return HTMLTemplate(_text)
+            'subject_report_preproc_template.tmpl.html'),
+                         **kwargs)
 
 
-def get_subject_report_stats_html_template():
+def get_subject_report_stats_html_template(**kwargs):
     """Returns html template (string) for subject stats report page
 
     """
-    with open(os.path.join(
-            ROOT_DIR, 'template_reports',
-            'subject_report_stats_template.tmpl.html')) as fd:
-        _text = fd.read()
-        return HTMLTemplate(_text)
+
+    return _get_template(os.path.join(
+                ROOT_DIR, 'template_reports',
+                'subject_report_stats_template.tmpl.html'),
+                         **kwargs)
 
 
-def get_ica_html_template():
+def get_ica_html_template(**kwargs):
     """Returns html template (string) for subject stats report page
 
     """
-    with open(os.path.join(
-            ROOT_DIR, 'template_reports',
-            'ica_report_template.tmpl.html')) as fd:
-        _text = fd.read()
-        return HTMLTemplate(_text)
+
+    return _get_template(os.path.join(
+                ROOT_DIR, 'template_reports',
+                'ica_report_template.tmpl.html'),
+                         **kwargs)
 
 
-def get_dataset_report_html_template():
+def get_dataset_report_html_template(**kwargs):
     """Returns html template (string) for dataset report page (page de garde)
 
     """
 
-    with open(os.path.join(
-            ROOT_DIR, 'template_reports',
-                           'dataset_report_template.tmpl.html')) as fd:
-        _text = fd.read()
-        return HTMLTemplate(_text)
+    return _get_template(os.path.join(ROOT_DIR, 'template_reports',
+                                      'dataset_report_template.tmpl.html'),
+                         **kwargs)
 
 
-def get_dataset_report_preproc_html_template():
+def get_dataset_report_preproc_html_template(**kwargs):
     """Returns html template (string) for dataset preproc report page
 
     """
 
-    with open(os.path.join(
+    return _get_template(os.path.join(
             ROOT_DIR, 'template_reports',
-            'dataset_report_preproc_template.tmpl.html')) as fd:
-        _text = fd.read()
-        return HTMLTemplate(_text)
+            'dataset_report_preproc_template.tmpl.html'),
+                         **kwargs)
 
 
-def get_dataset_report_stats_html_template():
+def get_dataset_report_stats_html_template(**kwargs):
     """Returns html template (string) for dataset stats report page
 
     """
 
-    with open(os.path.join(
+    return _get_template(os.path.join(
             ROOT_DIR, 'template_reports',
-            'dataset_report_stats_template.tmpl.html')) as fd:
-        _text = fd.read()
-        return HTMLTemplate(_text)
+            'dataset_report_stats_template.tmpl.html'),
+                         **kwargs)
 
 
-def get_dataset_report_log_html_template():
+def get_dataset_report_log_html_template(**kwargs):
     """Returns html template (string) for dataset log report page
 
     """
 
-    with open(os.path.join(
+    return _get_template(os.path.join(
             ROOT_DIR, 'template_reports',
-            'dataset_report_log_template.tmpl.html')) as fd:
-        _text = fd.read()
-        return HTMLTemplate(_text)
+            'dataset_report_log_template.tmpl.html'),
+                         **kwargs)
 
 
 def copy_failed_png(output_dir):

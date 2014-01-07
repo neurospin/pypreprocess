@@ -46,7 +46,7 @@ def _parse_job(jobfile):
                 val = False
             elif key == "slice_order":
                 val = val.lower()
-            elif val.lower() in ["none", "auto"]:
+            elif val.lower() in ["none", "auto", "unspecified", "unknown"]:
                 val = None
 
         if key in ["TR", "nslices", "refslice", "nsubjects", "nsessions",
@@ -71,7 +71,7 @@ def _parse_job(jobfile):
     return cobj['config']
 
 
-def _generate_preproc_pipeline(jobfile):
+def _generate_preproc_pipeline(jobfile, dataset_dir=None):
     """
     Generate pipeline (i.e subject factor + preproc params) from
     config file.
@@ -84,19 +84,34 @@ def _generate_preproc_pipeline(jobfile):
     options = _del_nones_from_dict(options)
 
     # generate subject conf
-    subjects = []
-    acquisition_dir = os.path.abspath(os.path.dirname(jobfile))
+    if dataset_dir is None:
+        assert "dataset_dir" in options, (
+            "dataset_dir not specified (neither in jobfile"
+            " nor in this function call)")
+        dataset_dir = options["dataset_dir"]
+    else:
+        assert not dataset_dir is None, (
+            "dataset_dir not specified (neither in jobfile"
+            " nor in this function call")
+
+    dataset_dir = _expand_path(dataset_dir)
+    assert os.path.isdir(dataset_dir), (
+        "dataset_dir %s doesn't exist" % dataset_dir)
 
     # output dir
     output_dir = _expand_path(options["output_dir"],
-                              relative_to=acquisition_dir)
+                              relative_to=dataset_dir)
     if output_dir is None:
         raise RuntimeError(
             ("Could not expand 'output_dir' specified in %s: invalid"
              " path %s (relative to directory %s)") % (
-                jobfile, options["output_dir"], acquisition_dir))
+                jobfile, options["output_dir"], dataset_dir))
+
+    # dataset description
+    dataset_description = options.get("dataset_description", None)
 
     # how many subjects ?
+    subjects = []
     subject_count = 0
     nsubjects = options.get('nsubjects', np.inf)
     exclude_these_subject_ids = options.get(
@@ -119,11 +134,13 @@ def _generate_preproc_pipeline(jobfile):
             return False
 
     # subject data factory
-    func_dir = options.get('func_dir', '')
-    nsessions = options.get('nsessions', None)
-    subject_dir_wildcard = os.path.join(acquisition_dir,
-                                        options.get("subject_dir_wildcard",
+    subject_dir_wildcard = os.path.join(dataset_dir,
+                                        options.get("subject_dirs",
                                                     "*"))
+    sessions = [k for k in options.keys() if re.match("session_.+_func", k)]
+    session_ids = [re.match("session_(.+)_func", session).group(1)
+                   for session in sessions]
+    assert len(sessions) > 0
     for subject_data_dir in sorted(glob.glob(subject_dir_wildcard)):
         if subject_count == nsubjects:
             break
@@ -134,50 +151,44 @@ def _generate_preproc_pipeline(jobfile):
         else:
             subject_count += 1
 
-        # grab functional data
-        sess_dir_wildcard = options.get("session_dir_wildcard", "")
-        if sess_dir_wildcard in [".", None]:
-            sess_dir_wildcard = ""
-        func = []
-        sess_dir_wildcard = os.path.join(subject_data_dir, func_dir,
-                                         sess_dir_wildcard)
         subject_output_dir = os.path.join(output_dir, subject_id)
+
+        # grab functional data
+        func = []
         sess_output_dirs = []
-        for sess_dir in sorted(glob.glob(sess_dir_wildcard)):
-            sess_func_wild_card = os.path.join(sess_dir, options.get(
-                    "func_basename_wildcard", "*"))
-            sess_func = sorted(glob.glob(sess_func_wild_card))
+        for session in sessions:
+            session = options[session]
+            sess_func_wildcard = os.path.join(subject_data_dir, session)
+            sess_func = sorted(glob.glob(sess_func_wildcard))
             assert len(sess_func), ("subject %s: No func images found for"
                                     " wildcard %s" % (
-                    subject_id, sess_func_wild_card))
+                    subject_id, sess_func_wildcard))
+            sess_dir = os.path.dirname(sess_func[0])
+            if len(sess_func) == 1:
+                sess_func = sess_func[0]
             func.append(sess_func)
 
             # session output dir
-            sess_output_dir = os.path.join(subject_output_dir,
-                                           _path_diff(subject_data_dir,
-                                                      sess_dir))
+            if os.path.basename(sess_dir) != os.path.basename(
+                subject_output_dir):
+                sess_output_dir = os.path.join(subject_output_dir,
+                                               os.path.basename(sess_dir))
+            else:
+                sess_output_dir = subject_output_dir
             if not os.path.exists(sess_output_dir):
                 os.makedirs(sess_output_dir)
             sess_output_dirs.append(sess_output_dir)
 
         assert len(func), ("subject %s: No func images found for "
-                           "wildcard: %s !") % (subject_id, sess_dir_wildcard)
-        if not nsessions is None:
-            assert len(func) == nsessions, ("subject %s: Expecting func data "
-                                            "for %i sessions; got %i" % (
-                    subject_id, nsessions, len(func)))
+                           "wildcard: %s !") % (subject_id, sess_func_wildcard)
 
         # grab anat
         anat = None
-        if not options.get("anat_basename", None) is None:
-            anat_dir = options.get("anat_dir", None)
-            if anat_dir in [".", None]:
-                anat_dir = ""
-
-            anat = os.path.join(subject_data_dir, anat_dir,
-                                options['anat_basename'])
+        if not options.get("anat", None) is None:
+            anat = os.path.join(subject_data_dir, options['anat'])
             assert os.path.isfile(anat), "Anatomical image %s not found!" % (
                 anat)
+            anat_dir = os.path.dirname(anat)
         else:
             anat = None
             anat_dir = ""
@@ -192,7 +203,8 @@ def _generate_preproc_pipeline(jobfile):
         subject_data = SubjectData(subject_id=subject_id, func=func, anat=anat,
                                    output_dir=subject_output_dir,
                                    session_output_dirs=sess_output_dirs,
-                                   anat_output_dir=anat_output_dir)
+                                   anat_output_dir=anat_output_dir,
+                                   session_id=session_ids)
 
         subjects.append(subject_data)
 
@@ -200,12 +212,15 @@ def _generate_preproc_pipeline(jobfile):
         subject_dir_wildcard)
 
     # preproc parameters
-    preproc_params = {"report": options.get("report", True),
+    preproc_params = {"spm_dir": options.get("spm_dir", None),
+                      "matlab_exec": options.get("matlab_exec", None),
+                      "report": options.get("report", True),
                       "output_dir": output_dir,
-                      "dataset_id": options.get("dataset_id", acquisition_dir),
+                      "dataset_id": options.get("dataset_id", dataset_dir),
                       "n_jobs": options.get("n_jobs", None),
                       "caching": options.get("caching", True),
-                      "cv_tc": options.get("cv_tc", True)}
+                      "cv_tc": options.get("cv_tc", True),
+                      "dataset_description": dataset_description}
 
     # delete orientation meta-data ?
     preproc_params['deleteorient'] = options.get(
@@ -214,10 +229,13 @@ def _generate_preproc_pipeline(jobfile):
     # configure slice-timing correction node
     preproc_params["slice_timing"] = not options.get(
         "disable_slice_timing", False)
-    if not preproc_params["slice_timing"]:
+    # can't do STC without TR
+    if preproc_params["slice_timing"]:
         preproc_params.update(dict((k, options.get(k, None))
                                    for k in ["TR", "TA", "slice_order",
                                              "interleaved"]))
+        if preproc_params["TR"] is None:
+            preproc_params["slice_timing"] = False
 
     # configure motion correction node
     preproc_params["realign"] = not options.get("disable_realign", False)

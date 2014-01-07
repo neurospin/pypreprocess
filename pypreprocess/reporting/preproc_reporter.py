@@ -23,7 +23,8 @@ from .check_preprocessing import (plot_registration,
                                   )
 from ..io_utils import (compute_mean_3D_image,
                         is_3D,
-                        is_niimg
+                        is_niimg,
+                        load_vols
                         )
 from .base_reporter import (Thumbnail,
                             ResultsGallery,
@@ -43,17 +44,31 @@ from .base_reporter import (Thumbnail,
                             copy_web_conf_files
                             )
 
-# # set templates
-SPM_DIR = os.environ.get('SPM_DIR', '/i2bm/local/spm8')
-EPI_TEMPLATE = os.path.join(SPM_DIR, 'templates/EPI.nii')
-T1_TEMPLATE = "/usr/share/data/fsl-mni152-templates/avg152T1.nii"
-if not os.path.isfile(T1_TEMPLATE):
-    T1_TEMPLATE += '.gz'
-    if not os.path.exists(T1_TEMPLATE):
-        T1_TEMPLATE = os.path.join(SPM_DIR, "templates/T1.nii")
-GM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/grey.nii')
-WM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/white.nii')
-CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
+
+SPM_DIR = '/i2bm/local/spm8'
+EPI_TEMPLATE = GM_TEMPLATE = T1_TEMPLATE = WM_TEMPLATE = CSF_TEMPLATE = None
+
+
+def _set_templates(spm_dir=SPM_DIR):
+    """
+    Sets paths of templates (T1, GM, WM, etc.), so that post-segmenation,
+    etc. reporting works well.
+
+    """
+
+    global EPI_TEMPLATE, T1_TEMPLATE, GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE
+
+    # set templates
+    EPI_TEMPLATE = os.path.join(spm_dir, 'templates/EPI.nii')
+    T1_TEMPLATE = "/usr/share/data/fsl-mni152-templates/avg152T1.nii"
+    if not os.path.isfile(T1_TEMPLATE):
+        T1_TEMPLATE += '.gz'
+        if not os.path.exists(T1_TEMPLATE):
+            T1_TEMPLATE = os.path.join(spm_dir, "templates/T1.nii")
+
+    GM_TEMPLATE = os.path.join(spm_dir, 'tpm/grey.nii')
+    WM_TEMPLATE = os.path.join(spm_dir, 'tpm/white.nii')
+    CSF_TEMPLATE = os.path.join(spm_dir, 'tpm/csf.nii')
 
 # extention of web-related files (increment this as we support more
 # and more file extensions for web business)
@@ -84,15 +99,18 @@ def generate_preproc_undergone_docstring(
     deleteorient=False,
     fwhm=None,
     bet=False,
-    slicetiming=False,
+    slice_timing=False,
     realign=False,
     coregister=False,
     coreg_func_to_anat=False,
     segment=False,
     normalize=False,
+    func_write_voxel_sizes=None,
+    anat_write_voxel_sizes=None,
     dartel=False,
     additional_preproc_undergone="",
-    command_line=None
+    command_line=None,
+    details_filename=None
     ):
     """
     Generates a brief description of the pipeline used in the preprocessing.
@@ -104,6 +122,11 @@ def generate_preproc_undergone_docstring(
         preprocessing (useful if someone were to reproduce your results)
 
     """
+
+    if normalize:
+        dartel = False
+    if dartel:
+        normalize = False
 
     # which tools were used ?
     if tools_used is None:
@@ -118,10 +141,13 @@ def generate_preproc_undergone_docstring(
     if not command_line is None:
         preproc_undergone += "Command-line: <i>%s</i><br/>" % command_line
 
+    preproc_undergone += (
+        "<br>For each subject, the following preprocessing steps have "
+        "been done:")
+
     preproc_undergone += "<ul>"
     if prepreproc_undergone:
         preproc_undergone += "<li>%s</li>" % prepreproc_undergone
-
     if dcm2nii:
         preproc_undergone += (
             "<li>"
@@ -143,7 +169,7 @@ def generate_preproc_undergone_docstring(
             "registration problems like the skull been (mis-)aligned "
             "unto the cortical surface, "
             "etc.</li>")
-    if slicetiming:
+    if slice_timing:
         preproc_undergone += (
             "<li>"
             "Slice-Timing Correction (STC) has been done to interpolate the "
@@ -239,6 +265,24 @@ def generate_preproc_undergone_docstring(
             "versions of the images (or other images that are in "
             "alignment with them) can be generated. "
             "</li>") % DARTEL_URL
+    if normalize or dartel:
+        if (not func_write_voxel_sizes is None or
+            not anat_write_voxel_sizes is None):
+            preproc_undergone += "<li>"
+            sep = ""
+            if not func_write_voxel_sizes is None:
+                preproc_undergone += (
+                    "Output functional images have been re-written with voxel "
+                    "size %smm x %smm x %smm.") % tuple(
+                    func_write_voxel_sizes)
+                sep = " "
+            if not anat_write_voxel_sizes is None:
+                preproc_undergone += (
+                    "%sThe output anatomical image has been re-written with "
+                    "voxel "
+                    "size %smm x %smm x %smm.") % tuple([sep] + list(
+                    anat_write_voxel_sizes))
+            preproc_undergone += "</li>"
 
     if additional_preproc_undergone:
         preproc_undergone += additional_preproc_undergone
@@ -252,6 +296,11 @@ def generate_preproc_undergone_docstring(
                 "The resulting functional images have been "
                 "smoothed with a %smm x %smm x %smm "
                 "Gaussian kernel.</li>") % tuple(fwhm)
+
+    if not details_filename is None:
+        preproc_undergone += (
+            " <a href=%s>See complete configuration used for preprocessing"
+            " here</a>") % details_filename
 
     preproc_undergone += "</ul>"
 
@@ -864,14 +913,24 @@ def generate_stc_thumbnails(
 
         return data
 
-    original_bold = np.rollaxis(_sanitize_data(original_bold), 1, 5)
-    st_corrected_bold = np.rollaxis(_sanitize_data(st_corrected_bold), 1, 5)
+    def _load_session(x):
+        if isinstance(x, basestring):
+            x = nibabel.load(x).get_data()
+        else:
+            x = nibabel.concat_images(x).get_data()
 
-    assert st_corrected_bold.shape == original_bold.shape, "%ss != %s" % (
-        str(st_corrected_bold.shape), str(original_bold.shape))
+        if x.ndim == 5:
+            x = x[:, :, :, 0, :]
+        else:
+            assert x.ndim == 4, x.shape
+
+        return x
+
+    original_bold = [_load_session(x) for x in original_bold]
+    st_corrected_bold = [_load_session(x) for x in st_corrected_bold]
 
     if voxel is None:
-        voxel = np.array(original_bold.shape[1:-1]) // 2
+        voxel = np.array(original_bold[0].shape[:-1]) // 2
 
     output = {}
 
@@ -898,9 +957,7 @@ def generate_stc_thumbnails(
             thumbnail.a = a(href=os.path.basename(
                     output_filename))
             thumbnail.img = img(src=os.path.basename(
-                    output_filename),
-                                              height="250px",
-                                              width="600px")
+                    output_filename), height="250px", width="600px")
             thumbnail.description = "Slice-Timing Correction"
             if not execution_log_html_filename is None:
                 thumbnail.description += (" (<a href=%s>see execution "
@@ -929,7 +986,7 @@ def generate_subject_preproc_report(
     tools_used=None,
     fwhm=None,
     did_bet=False,
-    did_slicetiming=False,
+    did_slice_timing=False,
     slice_order='ascending',
     interleaved=False,
     did_deleteorient=False,
@@ -971,7 +1028,7 @@ def generate_subject_preproc_report(
         deleteorient=did_deleteorient,
         fwhm=fwhm,
         bet=did_bet,
-        slicetiming=did_slicetiming,
+        slice_timing=did_slice_timing,
         realign=did_realign,
         coreg=did_coreg,
         coreg_func_to_anat=func_to_anat,
@@ -1049,7 +1106,7 @@ def generate_subject_preproc_report(
         fd.close()
 
     # generate stc thumbs
-    if did_slicetiming and not original_bold is None and not \
+    if did_slice_timing and not original_bold is None and not \
             st_corrected_bold is None:
         generate_stc_thumbnails(original_bold,
                                 st_corrected_bold,
@@ -1140,6 +1197,7 @@ def generate_dataset_preproc_report(
     n_jobs=None,
     preproc_undergone=None,
     last_stage=True,
+    dataset_description=None
     ):
     """Generates post-preproc reports for a dataset
 
@@ -1206,6 +1264,7 @@ def generate_dataset_preproc_report(
         results=parent_results_gallery,
         start_time=time.ctime(),
         preproc_undergone=preproc_undergone,
+        dataset_description=dataset_description
         )
     main_html = get_dataset_report_html_template(
         ).substitute(

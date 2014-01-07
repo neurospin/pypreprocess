@@ -27,6 +27,7 @@ from joblib import (Parallel,
 # import nipype API
 import nipype.interfaces.spm as spm
 from nipype.caching import Memory as NipypeMemory
+from configure_spm import configure_spm
 
 # import API for i/o
 from .io_utils import (load_specific_vol,
@@ -43,9 +44,10 @@ from .reporting.base_reporter import (
     ProgressReport,
     copy_web_conf_files,
     get_module_source_code,
-    dict_to_html_ul,
+    dict_to_html_ul
     )
 from .reporting.preproc_reporter import (
+    _set_templates,
     generate_preproc_undergone_docstring,
     get_dataset_report_log_html_template,
     get_dataset_report_preproc_html_template,
@@ -54,25 +56,40 @@ from .reporting.preproc_reporter import (
     )
 
 # configure SPM
-from .configure_spm import SPM_DIR
+EPI_TEMPLATE = SPM_DIR = SPM_T1_TEMPLATE = T1_TEMPLATE = None
+GM_TEMPLATE = WM_TEMPLATE = CSF_TEMPLATE = None
 
-# configure template images
-EPI_TEMPLATE = os.path.join(SPM_DIR, 'templates/EPI.nii')
-SPM_T1_TEMPLATE = os.path.join(SPM_DIR, "templates/T1.nii")
-T1_TEMPLATE = "/usr/share/data/fsl-mni152-templates/avg152T1.nii"
-if not os.path.isfile(T1_TEMPLATE):
-    T1_TEMPLATE += '.gz'
-    if not os.path.exists(T1_TEMPLATE):
-        T1_TEMPLATE = SPM_T1_TEMPLATE
-GM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/grey.nii')
-WM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/white.nii')
-CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
+
+def _configure_backends(spm_dir=None, matlab_exec=None):
+    global SPM_DIR, EPI_TEMPLATE, SPM_T1_TEMPLATE, T1_TEMPLATE
+    global GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE
+
+    SPM_DIR, _ = configure_spm(spm_dir=spm_dir, matlab_exec=matlab_exec)
+
+    # configure template images
+    EPI_TEMPLATE = os.path.join(SPM_DIR, 'templates/EPI.nii')
+    SPM_T1_TEMPLATE = os.path.join(SPM_DIR, "templates/T1.nii")
+    T1_TEMPLATE = "/usr/share/data/fsl-mni152-templates/avg152T1.nii"
+    if not os.path.isfile(T1_TEMPLATE):
+        T1_TEMPLATE += '.gz'
+        if not os.path.exists(T1_TEMPLATE):
+            T1_TEMPLATE = SPM_T1_TEMPLATE
+    GM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/grey.nii')
+    WM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/white.nii')
+    CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
+
+    _set_templates(spm_dir=SPM_DIR)
+
+try:
+    _configure_backends()
+except AssertionError:
+    pass
 
 
 def _do_subject_slice_timing(subject_data, TR, nslices=None, TA=None,
                              refslice=0, slice_order="ascending",
                              interleaved=False, caching=True, report=True,
-                             software="spm"):
+                             indexing="matlab", software="spm"):
     """
     Slice-Timing Correction
 
@@ -84,6 +101,9 @@ def _do_subject_slice_timing(subject_data, TR, nslices=None, TA=None,
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # compute nslices
+    assert isinstance(indexing, basestring)
+    indexing = indexing.lower()
+    assert indexing in ['matlab', 'python']
     _nslices = load_specific_vol(subject_data.func[0], 0)[0].shape[2]
     if not nslices is None:
         assert nslices == _nslices
@@ -92,6 +112,7 @@ def _do_subject_slice_timing(subject_data, TR, nslices=None, TA=None,
 
     # compute TA (possibly from formula specified as a string)
     if isinstance(TA, basestring):
+        TA = TA.replace("/", "* 1. /")
         TA = eval(TA)
 
     # compute time of acqusition
@@ -99,6 +120,12 @@ def _do_subject_slice_timing(subject_data, TR, nslices=None, TA=None,
         TA = TR * (1. - 1. / nslices)
 
     # compute slice indices / order
+    if indexing == "matlab":
+        if not isinstance(slice_order, basestring):
+            refslice -= 1
+            slice_order = np.array(slice_order) - 1
+    elif indexing == "python":
+        refslice += 1
     slice_order = get_slice_indices(nslices, slice_order=slice_order,
                                     interleaved=interleaved)
 
@@ -113,22 +140,33 @@ def _do_subject_slice_timing(subject_data, TR, nslices=None, TA=None,
     else:
         stc = spm.SliceTiming().run
 
-    stc_result = stc(in_files=subject_data.func, time_repetition=TR,
-                     time_acquisition=TA, num_slices=nslices,
-                     ref_slice=refslice + 1,
-                     slice_order=list(slice_order + 1))
+    stc_func = []
+    subject_data.nipype_results['slice_timing'] = []
+    for sess_func in subject_data.func:
+        stc_result = stc(in_files=sess_func, time_repetition=TR,
+                         time_acquisition=TA, num_slices=nslices,
+                         ref_slice=refslice,
+                         slice_order=list(slice_order + 1),  # SPM
+                         ignore_exception=False
+                         )
+        if stc_result.outputs is None:
+            subject_data.failed = True
+            return subject_data
+        else:
+            subject_data.nipype_results['slice_timing'].append(stc_result)
+            stc_func.append(stc_result.outputs.timecorrected_files)
 
     # generate STC QA thumbs
     if report:
         generate_stc_thumbnails(
             subject_data.func,
-            stc_result.outputs.timecorrected_files,
+            stc_func,
             subject_data.reports_output_dir,
             sessions=subject_data.session_id,
             results_gallery=subject_data.results_gallery
             )
 
-    subject_data.func = stc_result.outputs.timecorrected_files
+    subject_data.func = stc_func
 
     return subject_data
 
@@ -872,6 +910,7 @@ def do_subject_preproc(
     last_stage=True,
     preproc_undergone=None,
     prepreproc_undergone="",
+    generate_preproc_undergone=True,
     caching=True
     ):
     """
@@ -974,9 +1013,6 @@ def do_subject_preproc(
         subject_data.hires = EPI_TEMPLATE
         coreg_anat_to_func = False
 
-    # can't do STC without TR
-    slice_timing = slice_timing and not TR is None
-
     # sanitize fwhm
     if not fwhm is None:
         if not np.shape(fwhm):
@@ -995,21 +1031,25 @@ def do_subject_preproc(
     # get ready for reporting
     if report:
         # generate explanation of preproc steps undergone by subject
-        if preproc_undergone is None:
-            preproc_undergone = generate_preproc_undergone_docstring(
-                dcm2nii=subject_data.isdicom,
-                deleteorient=deleteorient,
-                realign=realign,
-                coregister=coregister,
-                segment=segment,
-                normalize=normalize,
-                fwhm=fwhm,
-                dartel=dartel,
-                coreg_func_to_anat=not coreg_anat_to_func,
-                prepreproc_undergone=prepreproc_undergone
-                )
+        if generate_preproc_undergone:
+            if preproc_undergone is None:
+                preproc_undergone = generate_preproc_undergone_docstring(
+                    dcm2nii=subject_data.isdicom,
+                    deleteorient=deleteorient,
+                    slice_timing=slice_timing,
+                    realign=realign,
+                    coregister=coregister,
+                    segment=segment,
+                    normalize=normalize,
+                    fwhm=fwhm,
+                    dartel=dartel,
+                    coreg_func_to_anat=not coreg_anat_to_func,
+                    prepreproc_undergone=prepreproc_undergone
+                    )
+        else:
+            preproc_undergone = None
 
-        # initialize reports factory
+        # initialize report factory
         subject_data.init_report(parent_results_gallery=parent_results_gallery,
                                  preproc_undergone=preproc_undergone,
                                  cv_tc=cv_tc)
@@ -1021,7 +1061,7 @@ def do_subject_preproc(
         subject_data = _do_subject_slice_timing(
             subject_data, TR, refslice=refslice,
             TA=TA, slice_order=slice_order, interleaved=interleaved,
-            report=False  # post-stc reporting bugs like hell!
+            report=report  # post-stc reporting bugs like hell!
             )
 
     #######################
@@ -1219,6 +1259,9 @@ def do_subjects_preproc(subject_factory,
                         dataset_description="",
                         prepreproc_undergone="",
                         shutdown_reloaders=True,
+                        dataset_dir=None,
+                        spm_dir=None,
+                        matlab_exec=None,
                         **preproc_params
                         ):
     """
@@ -1272,19 +1315,39 @@ def do_subjects_preproc(subject_factory,
 
     """
 
+    preproc_details = None
     if isinstance(subject_factory, basestring):
+        preproc_details = open(subject_factory, "r").read()
         subject_factory, preproc_params = _generate_preproc_pipeline(
-            subject_factory)
+            subject_factory, dataset_dir=dataset_dir)
         report = preproc_params["report"]
+
+        if "matlab_exec" in preproc_params:
+            matlab_exec = preproc_params["matlab_exec"]
+            del preproc_params["matlab_exec"]
+
+        if "spm_dir" in preproc_params:
+            spm_dir = preproc_params["spm_dir"]
+            del preproc_params["spm_dir"]
+
         if "dataset_id" in preproc_params:
             dataset_id = preproc_params["dataset_id"]
             del preproc_params["dataset_id"]
+
         if "dartel" in preproc_params:
             dartel = preproc_params["dartel"]
+
         if "caching" in preproc_params:
             caching = preproc_params["caching"]
+
         if "report" in preproc_params:
             report = preproc_params["report"]
+
+        if not preproc_params.get("dataset_description", None) is None:
+            dataset_description = preproc_params["dataset_description"]
+            del preproc_params["dataset_description"]
+
+    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
 
     preproc_params['report'] = report
     preproc_params["dartel"] = dartel
@@ -1349,35 +1412,52 @@ def do_subjects_preproc(subject_factory,
         user_source_code = get_module_source_code(
             user_script_name)
 
+        # scrape complete configuration used for preprocessing
+        if preproc_details is None:
+            preproc_details = ""
+            frame = inspect.currentframe()
+            args, _, _, values = inspect.getargvalues(frame)
+            preproc_func_name = inspect.getframeinfo(frame)[2]
+            preproc_details += ("Function <i>%s(...)</i> was invoked by "
+                                    "the script"
+                                    " <i>%s</i> with the following arguments:"
+                                    ) % (preproc_func_name, user_script_name)
+            args_dict = dict((arg, values[arg]) for arg in args if not arg in [
+                    "dataset_description",
+                    "report_filename",
+                    "report",
+                    "cv_tc",
+                    "shutdown_reloaders",
+                    "subjects",
+                    # add other args to exclude below
+                    ])
+            args_dict['output_dir'] = output_dir
+            preproc_details += dict_to_html_ul(args_dict)
+        else:
+            details_filename = os.path.join(output_dir, "preproc_details.html")
+        open(details_filename, "w").write("<pre>%s</pre>" % preproc_details)
+
         # generate docstring for preproc tobe undergone
+        preproc_params["generate_preproc_undergone"] = False
         preproc_undergone = ""
         preproc_undergone += generate_preproc_undergone_docstring(
             command_line=command_line,
-            # prepreproc_undergone=prepreproc_undergone,
-            # dartel=dartel,
-            # **preproc_params
+            prepreproc_undergone=prepreproc_undergone,
+            deleteorient=preproc_params.get("deleteorient", False),
+            slice_timing=preproc_params.get('slice_timing', False),
+            realign=preproc_params.get("realign", False),
+            coregister=preproc_params.get("coregister", False),
+            segment=preproc_params.get("segment", False),
+            normalize=preproc_params.get("normalize", False),
+            fwhm=preproc_params.get("fwhm", 0),
+            dartel=dartel,
+            func_write_voxel_sizes=preproc_params.get(
+                "func_write_voxel_sizes", None),
+            anat_write_voxel_sizes=preproc_params.get(
+                "anat_write_voxel_sizes", None),
+            coreg_func_to_anat=preproc_params.get("coreg_func_to_anat", False),
+            details_filename=details_filename
             )
-
-        # scrape this function's arguments
-        preproc_params_text = ""
-        frame = inspect.currentframe()
-        args, _, _, values = inspect.getargvalues(frame)
-        preproc_func_name = inspect.getframeinfo(frame)[2]
-        preproc_params_text += ("Function <i>%s(...)</i> was invoked by "
-                                "the script"
-                                " <i>%s</i> with the following arguments:"
-                                ) % (preproc_func_name, user_script_name)
-        args_dict = dict((arg, values[arg]) for arg in args if not arg in [
-                "dataset_description",
-                "report_filename",
-                "report",
-                "cv_tc",
-                "shutdown_reloaders",
-                "subjects",
-                # add other args to exclude below
-                ])
-        args_dict['output_dir'] = output_dir
-        preproc_params_text += dict_to_html_ul(args_dict)
 
         # initialize results gallery
         loader_filename = os.path.join(
@@ -1395,26 +1475,21 @@ def do_subjects_preproc(subject_factory,
 
         # html markup
         log = get_dataset_report_log_html_template(
-            ).substitute(
-            start_time=time.ctime(),
-            )
+            start_time=time.ctime())
 
         preproc = get_dataset_report_preproc_html_template(
-            ).substitute(
             results=parent_results_gallery,
             start_time=time.ctime(),
             preproc_undergone=preproc_undergone,
             dataset_description=dataset_description,
             source_code=user_source_code,
             source_script_name=user_script_name,
-            preproc_params=preproc_params_text
             )
 
         main_html = get_dataset_report_html_template(
-            ).substitute(
             results=parent_results_gallery,
             start_time=time.ctime(),
-            dataset_id=dataset_id,
+            dataset_id=dataset_id
             )
 
         with open(report_log_filename, 'w') as fd:
@@ -1467,7 +1542,8 @@ def do_subjects_preproc(subject_factory,
     if n_jobs > 1:
         preproc_subject_data = Parallel(n_jobs=n_jobs)(
             delayed(do_subject_preproc)(
-                subject_data, **preproc_params
+                subject_data,
+                **preproc_params
                 ) for subject_data in subjects)
 
     else:

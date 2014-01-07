@@ -20,8 +20,11 @@ import glob
 import numpy as np
 from scipy import ndimage
 from nipype.interfaces.base import Bunch
-
 import nibabel
+
+SPM_AUDITORY_DATA_FILES = ["fM00223/fM00223_%03i.img" % index
+                           for index in xrange(4, 100)]
+SPM_AUDITORY_DATA_FILES.append("sM00223/sM00223_002.img")
 
 
 def _format_time(t):
@@ -1214,7 +1217,7 @@ def load_harvard_oxford(atlas_name,
     return nibabel.Nifti1Image(regions, regions_img.get_affine())
 
 
-def fetch_spm_auditory_data(data_dir):
+def fetch_spm_auditory_data(data_dir, subject_id="sub001"):
     """Function to fetch SPM auditory single-subject data.
 
     Parameters
@@ -1238,12 +1241,9 @@ def fetch_spm_auditory_data(data_dir):
 
     """
 
-    # definition of consituent files of the dataset
-    SPM_AUDITORY_DATA_FILES = ["fM00223/fM00223_%03i.img" % index
-                               for index in xrange(4, 100)]
-    SPM_AUDITORY_DATA_FILES.append("sM00223/sM00223_002.img")
+    subject_dir = os.path.join(data_dir, subject_id)
 
-    def _glob_spm_auditory_data(subject_dir):
+    def _glob_spm_auditory_data():
         """glob data from subject_dir.
 
         """
@@ -1273,22 +1273,22 @@ def fetch_spm_auditory_data(data_dir):
         return Bunch(**_subject_data)
 
     # maybe data_dir already contains the data ?
-    data = _glob_spm_auditory_data(data_dir)
+    data = _glob_spm_auditory_data()
     if not data is None:
         return data
 
     # No. Download the data
     print("Data absent, downloading...")
     url = "ftp://ftp.fil.ion.ucl.ac.uk/spm/data/MoAEpilot/MoAEpilot.zip"
-    archive_path = os.path.join(data_dir, os.path.basename(url))
-    _fetch_file(url, data_dir)
+    archive_path = os.path.join(subject_dir, os.path.basename(url))
+    _fetch_file(url, subject_dir)
     try:
         _uncompress_file(archive_path)
     except:
         print("Archive corrupted, trying to download it again.")
-        return fetch_spm_auditory_data(data_dir)
+        return fetch_spm_auditory_data(subject_dir)
 
-    return _glob_spm_auditory_data(data_dir)
+    return _glob_spm_auditory_data()
 
 
 def fetch_fsl_feeds_data(data_dir):

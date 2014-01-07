@@ -10,41 +10,26 @@ import sys
 import os
 
 # import API for preprocessing business
-from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
-                                                   SubjectData
-                                                   )
+from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
 
 # input data-grabber for SPM Auditory (single-subject) data
 from pypreprocess.datasets import fetch_spm_auditory_data
 
-# sanitize command-line
-if len(sys.argv)  < 3:
-    print ("\r\nUsage: python %s <spm_auditory_MoAEpilot_dir>"
-           " <output_dir>\r\n") % sys.argv[0]
-    sys.exit(1)
+# file containing configuration for preprocessing the data
+this_dir = os.path.dirname(sys.argv[0])
+jobfile = os.path.join(os.path.dirname(sys.argv[0]),
+                       "spm_auditory_preproc.conf")
 
-# set i/o directories
-DATA_DIR = os.path.abspath(sys.argv[1])
-OUTPUT_DIR = os.path.abspath(sys.argv[2])
+# set dataset dir
+if len(sys.argv) > 1:
+    dataset_dir = sys.argv[1]
+else:
+    dataset_dir = os.path.join(this_dir, "spm_auditory")
+
 
 # fetch spm auditory data
-sd = fetch_spm_auditory_data(DATA_DIR)
-
-# make subject data
-subject_data = SubjectData()
-subject_data.func = sd.func
-subject_data.anat = sd.anat
-subject_data.subject_id = "sub001"
-subject_data.output_dir = os.path.join(OUTPUT_DIR, subject_data.subject_id)
+fetch_spm_auditory_data(dataset_dir)
 
 # preprocess the data
-results = do_subjects_preproc(
-    [subject_data],
-    output_dir=OUTPUT_DIR,
-    fwhm=8.,  # smoothing guassian kernel
-    dataset_id="SPM single-subject auditory",
-    dataset_description=('<a href="http://www.fil.ion.ucl.ac.uk/spm/data'
-                         '/auditory/">SPM auditory dataset</a>.</p>'),
-    # do_normalize=False,
-    last_stage=True
-    )
+results = do_subjects_preproc(jobfile, dataset_dir=dataset_dir)
+assert len(results) == 1

@@ -119,7 +119,7 @@ def _do_fmri_distortion_correction(fmri_files, subject_data_dir,
         # realign task BOLD to SBRef
         subject_data = _do_subject_realign(SubjectData(
                 func=fourD_plus_sbref, output_dir=subject_output_dir),
-                                           do_report=do_report
+                                           report=report
                                            )
         rfourD_plus_sbref = subject_data.func
         realignment_parameters.append(np.loadtxt(
@@ -137,7 +137,7 @@ def _do_fmri_distortion_correction(fmri_files, subject_data_dir,
         print "\r\nExecuting %s ..." % applytopup_cmd
         print mem.cache(commands.getoutput)(applytopup_cmd)
 
-        # recover undistored task BOLD
+        # recover undistorted task BOLD
         dc_rfmri_file = dc_rfourD_plus_sbref.replace("sbref_plus_", "")
         fslroi_cmd = "fsl5.0-fslroi %s %s 1 -1" % (
             dc_rfourD_plus_sbref, dc_rfmri_file)
@@ -160,7 +160,7 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
                           do_realign=False,
                           do_normalize=False,
                           fwhm=0.,
-                          do_report=False,
+                          report=False,
                           hrf_model="Canonical with Derivative",
                           drift_model="Cosine",
                           hfcut=100,
@@ -209,7 +209,7 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
             subject_output_dir,
             subject_id, task_id,
             readout_time=readout_time,
-            do_report=do_report
+            report=report
             )
         if dc_output is None:
             return
@@ -223,7 +223,7 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
                                                   do_realign=True,
                                                   do_normalize=do_normalize,
                                                   fwhm=fwhm,
-                                                  do_report=do_report
+                                                  report=report
                                                   )
         fmri_files = preproc_subject_data.func
         n_motion_regressions = 6
@@ -259,7 +259,7 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
             fmri_files = _do_subject_smooth(SubjectData(
                     func=fmri_files, output_dir=subject_output_dir),
                                             fwhm=fwhm,
-                                            do_report=False
+                                            report=False
                                             ).func
             print "... done.\r\n"
 
@@ -301,11 +301,12 @@ def run_suject_level1_glm(subject_data_dir, subject_output_dir, task_id,
         print "Constructing design matrix for direction %s ..." % direction
         _n_scans = nibabel.load(fmri_files[direction_index]).shape[-1]
         n_scans.append(_n_scans)
+        add_regs_file = add_regs_files[
+            direction_index] if not add_regs_files is None else None,
         design_matrix, paradigm, frametimes = make_dmtx_from_timing_files(
             timing_files, fsl_condition_ids, n_scans=_n_scans, tr=tr,
             hrf_model=hrf_model, drift_model=drift_model, hfcut=hfcut,
-            add_regs_file=add_regs_files[
-                direction_index] if not add_regs_files is None else None,
+            add_regs_file=add_regs_file,
             add_reg_names=[
                 'Translation along x axis',
                 'Translation along yaxis',
