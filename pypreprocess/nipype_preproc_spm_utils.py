@@ -795,7 +795,8 @@ def _do_subject_dartelnorm2mni(subject_data,
                                report=True,
                                parent_results_gallery=None,
                                cv_tc=True,
-                               last_stage=True
+                               last_stage=True,
+                               nipype_mem=None
                                ):
     """
     Uses spm.DARTELNorm2MNI to warp subject brain into MNI space.
