@@ -133,6 +133,7 @@ class SubjectData(object):
         if self.session_output_dirs is None:
             self.session_output_dirs = [None] * self.n_sessions
 
+        # session-wise output directories
         for sess, sess_output_dir in enumerate(self.session_output_dirs):
             if sess_output_dir is None:
                 if self.n_sessions > 1:
