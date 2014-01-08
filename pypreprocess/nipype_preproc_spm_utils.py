@@ -259,6 +259,8 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
     if isinstance(subject_data.func, basestring):
         assert subject_data.n_sessions == 1
         subject_data.func = [subject_data.func]
+    if subject_data.n_sessions == 1 and len(subject_data.func) > 1:
+        subject_data.func = [subject_data.func]
 
     subject_data.realignment_parameters = \
         realign_result.outputs.realignment_parameters

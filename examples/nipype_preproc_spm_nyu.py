@@ -16,7 +16,7 @@ from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
 from pypreprocess.datasets import fetch_nyu_rest
 
 # file containing configuration for preprocessing the data
-this_dir = os.path.dirname(sys.argv[0])
+this_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
 jobfile = os.path.join(os.path.dirname(sys.argv[0]),
                        "nyu_rest_preproc.conf")
 
@@ -27,9 +27,10 @@ else:
     dataset_dir = os.path.join(this_dir, "nyu_rest")
 
 
-# # fetch spm auditory data
-# fetch_nyu_rest(data_dir=dataset_dir)
+# fetch spm auditory data
+fetch_nyu_rest(data_dir=dataset_dir)
 
 # preprocess the data
-results = do_subjects_preproc(jobfile, dataset_dir=dataset_dir)
+results = do_subjects_preproc(jobfile, dataset_dir=os.path.join(
+        dataset_dir, "nyu_rest"))
 assert len(results) == 1

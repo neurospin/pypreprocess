@@ -240,12 +240,6 @@ class SubjectData(object):
         if niigz2nii:
             self._niigz2nii()
 
-        # XXX issue #40
-        if len(set(self.func)) < len(self.func):
-            raise RuntimeError(
-                "Session func images must have unique abspaths; got %s" % (
-                    self.func))
-
         return self
 
     def hardlink_output_files(self, final=False):
