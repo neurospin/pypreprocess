@@ -131,10 +131,17 @@ class SubjectData(object):
 
         # func output dirs (one per session)
         if self.session_output_dirs is None:
-            self.session_output_dirs = self.output_dir * self.n_sessions
-        for sess_output_dir in self.session_output_dirs:
+            self.session_output_dirs = [None] * self.n_sessions
+
+        for sess, sess_output_dir in enumerate(self.session_output_dirs):
+            if sess_output_dir is None:
+                sess_output_dir = os.path.join(
+                    self.output_dir, self.session_id[sess])
+
             if not os.path.exists(sess_output_dir):
                 os.makedirs(sess_output_dir)
+
+            self.session_output_dirs[sess] = sess_output_dir
 
         # make tmp output dir
         self.tmp_output_dir = os.path.join(self.output_dir,
@@ -151,8 +158,11 @@ class SubjectData(object):
         cache_dir = os.path.join(self.output_dir, 'cache_dir')
         mem = Memory(cache_dir, verbose=100)
 
-        self.func = mem.cache(do_niigz2nii)(self.func,
-                                            output_dir=self.output_dir)
+        self.func = [mem.cache(do_niigz2nii)(
+                self.func[sess],
+                output_dir=self.session_output_dirs[sess])
+                     for sess in xrange(self.n_sessions)]
+
         if not self.anat is None:
             self.anat = mem.cache(do_niigz2nii)(self.anat,
                                                 output_dir=self.output_dir)
@@ -225,6 +235,12 @@ class SubjectData(object):
         # .nii.gz -> .nii extraction for SPM & co.
         if niigz2nii:
             self._niigz2nii()
+
+        # XXX issue #40
+        if len(set(self.func)) < len(self.func):
+            raise RuntimeError(
+                "Session func images must have unique abspaths; got %s" % (
+                    self.func))
 
         return self
 

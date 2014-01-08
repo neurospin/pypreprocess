@@ -275,7 +275,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
 def _do_subject_coregister(subject_data, reslice=False,
                            coreg_anat_to_func=False, caching=True,
-                           joblib_mem=None, report=True, software="spm"):
+                           report=True, software="spm"):
     """
     Wrapper for running spm.Coregister with optional reporting.
 
@@ -817,15 +817,17 @@ def _do_subject_dartelnorm2mni(subject_data,
     subject_data._niigz2nii()
 
     # prepare for smart caching
-    if nipype_mem is None:
+    if caching:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-
-        nipype_mem = NipypeMemory(base_dir=cache_dir)
-
-    # configure node
-    dartelnorm2mni = nipype_mem.cache(spm.DARTELNorm2MNI)
+        dartelnorm2mni = NipypeMemory(base_dir=cache_dir).cache(
+            spm.DARTELNorm2MNI)
+        createwarped = NipypeMemory(base_dir=cache_dir).cache(
+            spm.CreateWarped)
+    else:
+        dartelnorm2mni = spm.DARTELNorm2MNI().run
+        createwarped = spm.CreateWarped().run
 
     # warp subject tissue class image (produced by Segment or NewSegment)
     # into MNI space
@@ -842,7 +844,6 @@ def _do_subject_dartelnorm2mni(subject_data,
 
     # warp functional image into MNI space
     # functional_file = do_3Dto4D_merge(functional_file)
-    createwarped = nipype_mem.cache(spm.CreateWarped)
     createwarped_result = createwarped(
         image_files=subject_data.func,
         flowfield_files=subject_data.dartel_flow_fields,
