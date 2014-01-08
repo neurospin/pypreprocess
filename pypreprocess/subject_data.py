@@ -135,8 +135,11 @@ class SubjectData(object):
 
         for sess, sess_output_dir in enumerate(self.session_output_dirs):
             if sess_output_dir is None:
-                sess_output_dir = os.path.join(
-                    self.output_dir, self.session_id[sess])
+                if self.n_sessions > 1:
+                    sess_output_dir = os.path.join(
+                        self.output_dir, self.session_id[sess])
+                else:
+                    sess_output_dir = self.output_dir
 
             if not os.path.exists(sess_output_dir):
                 os.makedirs(sess_output_dir)
