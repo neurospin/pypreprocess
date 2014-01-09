@@ -34,49 +34,112 @@ def _make_sd(ext=".nii.gz", n_sessions=1, make_sess_dirs=False,
     return sd
 
 
-def test_sujectdata_init():
-    sd = SubjectData(anat='/tmp/anat.nii.gz', func='/tmp/func.nii.gz')
-    assert_equal(sd.anat, "/tmp/anat.nii.gz")
-    assert_equal(sd.func, "/tmp/func.nii.gz")
+# def test_sujectdata_init():
+#     sd = SubjectData(anat='/tmp/anat.nii.gz', func='/tmp/func.nii.gz')
+#     assert_equal(sd.anat, "/tmp/anat.nii.gz")
+#     assert_equal(sd.func, "/tmp/func.nii.gz")
 
 
-def test_sujectdata_sanitize():
+# def test_sujectdata_sanitize():
 
-    sd = _make_sd(ext=".nii.gz")
+#     sd = _make_sd(ext=".nii.gz")
+#     sd.sanitize()
+#     assert_equal(os.path.basename(sd.func[0]), "func.nii.gz")
+#     assert_equal(os.path.basename(sd.anat), "anat.nii.gz")
+
+#     sd = _make_sd(ext=".nii.gz")
+#     sd.sanitize(niigz2nii=True)
+#     assert_equal(os.path.basename(sd.func[0]), "func.nii")
+#     assert_equal(os.path.basename(sd.anat), "anat.nii")
+
+#     sd = _make_sd(ext=".nii")
+#     sd.sanitize()
+#     assert_equal(os.path.basename(sd.func[0]), "func.nii")
+#     assert_equal(os.path.basename(sd.anat), "anat.nii")
+
+#     sd = _make_sd(ext=".nii")
+#     sd.sanitize(niigz2nii=True)
+#     assert_equal(os.path.basename(sd.func[0]), "func.nii")
+#     assert_equal(os.path.basename(sd.anat), "anat.nii")
+
+
+# def test_unique_func_filenames():
+#     # XXX against issue 40
+#     for ext in [".nii", ".nii.gz"]:
+#         for make_sess_dirs in [False, True]:
+#             for n_sessions in [1, 2]:
+#                 for niigz2nii in [False, True]:
+#                     sd = _make_sd(ext=ext, n_sessions=n_sessions,
+#                                   make_sess_dirs=make_sess_dirs,
+#                                   unique_func_names=not make_sess_dirs)
+#                     sd.sanitize(niigz2nii=niigz2nii)
+
+#                     assert_equal(len(sd.func), len(set(sd.func)))
+
+#     return sd
+
+
+def test_not_unique_func_filenames_exception_thrown():
+    sd = SubjectData(func=["/tmp/titi/func1.nii", "/tmp/titi/func2.nii"],
+                     output_dir="/tmp")
+    try:
+        sd.sanitize()
+        raise RuntimeError("Check failed!")
+    except RuntimeError:
+        pass
+
+    sd = SubjectData(func=["/tmp/titi/session1/func.nii",
+                           "/tmp/titi/session1/func.nii"],
+                     output_dir="/tmp")
+    try:
+        sd.sanitize()
+        raise RuntimeError("Check failed!")
+    except RuntimeError:
+        pass
+
+    sd = SubjectData(func=[["/tmp/titi/func/1.img", "/tmp/titi/func/2.img"],
+                           ["/tmp/titi/func/1.img", "/tmp/titi/func/3.img"]],
+                     output_dir="/tmp")
+    try:
+        sd.sanitize()
+        raise RuntimeError("Check failed!")
+    except RuntimeError:
+        pass
+
+    sd = SubjectData(func=["/tmp/titi/func/1.img",
+                           ["/tmp/titi/func/1.img", "/tmp/titi/func/3.img"]],
+                     output_dir="/tmp")
+    try:
+        sd.sanitize()
+        raise RuntimeError("Check failed!")
+    except RuntimeError:
+        pass
+
+    sd = SubjectData(func=[["/tmp/titi/func/1.img", "/tmp/titi/func/2.img"],
+                           ["/tmp/titi/func/3.img", "/tmp/titi/func/4.img"]],
+                     output_dir="/tmp")
     sd.sanitize()
-    assert_equal(os.path.basename(sd.func[0]), "func.nii.gz")
-    assert_equal(os.path.basename(sd.anat), "anat.nii.gz")
 
-    sd = _make_sd(ext=".nii.gz")
-    sd.sanitize(niigz2nii=True)
-    assert_equal(os.path.basename(sd.func[0]), "func.nii")
-    assert_equal(os.path.basename(sd.anat), "anat.nii")
+    # abspaths of func images should be different with a session
+    sd = SubjectData(func=[["/tmp/titi/func/1.img",
+                            "/tmp/titi/func/1.img"],
+                           ["/tmp/titi/func/3.img",
+                            "/tmp/titi/func/4.img"]],
+                     output_dir="/tmp")
+    try:
+        sd.sanitize()
+        raise RuntimeError("Check failed!")
+    except RuntimeError:
+        pass
 
-    sd = _make_sd(ext=".nii")
-    sd.sanitize()
-    assert_equal(os.path.basename(sd.func[0]), "func.nii")
-    assert_equal(os.path.basename(sd.anat), "anat.nii")
-
-    sd = _make_sd(ext=".nii")
-    sd.sanitize(niigz2nii=True)
-    assert_equal(os.path.basename(sd.func[0]), "func.nii")
-    assert_equal(os.path.basename(sd.anat), "anat.nii")
-
-
-def test_unique_func_filenames():
-    # XXX against issue 40
-    for ext in [".nii", ".nii.gz"]:
-        for make_sess_dirs in [False, True]:
-            for n_sessions in [1, 2]:
-                for niigz2nii in [False, True]:
-                    sd = _make_sd(ext=ext, n_sessions=n_sessions,
-                                  make_sess_dirs=make_sess_dirs,
-                                  unique_func_names=not make_sess_dirs)
-                    sd.sanitize(niigz2nii=niigz2nii)
-
-                    assert_equal(len(sd.func), len(set(sd.func)))
-
-    return sd
+def test_issue_40():
+    sd = SubjectData(func=[['/Volumes/Omerta/ds005/pypreprocess_output/sub001/task001_run001/deleteorient_1_bold.nii', '/Volumes/Omerta/ds005/pypreprocess_output/sub001/task001_run001/deleteorient_1_bold.nii', '/Volumes/Omerta/ds005/pypreprocess_output/sub001/task001_run001/deleteorient_1_bold.nii']],
+                     output_dir="/tmp")
+    try:
+        sd.sanitize()
+        raise RuntimeError("Check failed!")
+    except RuntimeError:
+        pass
 
 # run all tests
 nose.runmodule(config=nose.config.Config(

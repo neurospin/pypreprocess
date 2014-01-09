@@ -36,6 +36,8 @@ PREPROC_OUTPUT_IMAGE_PREFICES = {'STC': 'a',
                                  }
 
 
+def _do_subject_coreg(subject_data, coreg_anat_to_func=False, caching=True,
+                      verbose=True):
 def do_subject_preproc(subject_data,
                        verbose=True,
                        do_caching=True,

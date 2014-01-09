@@ -5,10 +5,10 @@
 
 """
 
-import scipy.ndimage
-import scipy.optimize
+from scipy.ndimage import gaussian_filter
+from scipy.optimize import fmin_powell
 import scipy.special
-import scipy.signal
+from scipy.signal import sepfir2d
 import numpy as np
 import nibabel
 from .affine_transformations import (spm_matrix,
@@ -79,12 +79,10 @@ def compute_similarity_from_jhist(jh, fwhm=[7, 7], cost_fun='nmi'):
         krn2 = krn2 / np.sum(krn2)
 
         # smooth the histogram with kern1 x kern2
-        jh = scipy.signal.sepfir2d(jh, krn1, krn2)
+        jh = sepfir2d(jh, krn1, krn2)
     else:
         # smooth the jh with a gaussian filter of given fwhm
-        jh = scipy.ndimage.gaussian_filter(jh, sigma=fwhm2sigma(fwhm[:2]),
-                                           mode='wrap'
-                                           )
+        jh = gaussian_filter(jh, sigma=fwhm2sigma(fwhm[:2]), mode='wrap')
 
     # compute marginal histograms
     jh = jh + EPS
@@ -228,10 +226,10 @@ def _run_powell(params, direct, tolsc, *otherargs):
         return output
 
     # fire!
-    return scipy.optimize.fmin_powell(_compute_similarity, params,
-                                      direc=direct,
-                                      xtol=min(np.min(tolsc), 1e-3),
-                                      )
+    return fmin_powell(_compute_similarity, params,
+                       direc=direct,
+                       xtol=min(np.min(tolsc), 1e-3),
+                       )
 
 
 class Coregister(object):
@@ -318,7 +316,7 @@ class Coregister(object):
     def __repr__(self):
         return str(self.__dict__)
 
-    def fit(self, ref, src):
+    def fit(self, target, source):
         """
         Estimates the co-registration parameters for rigidly registering
         vol to vol, which can be of different modality
@@ -349,35 +347,35 @@ class Coregister(object):
         self.search_direction_ = np.diag(self.sc_ * 20)
 
         # load vols
-        ref = loaduint8(ref)
-        src = loaduint8(src)
+        target = loaduint8(target)
+        source = loaduint8(source)
 
         # tweak affines so we can play SPM games everafter
-        ref = nibabel.Nifti1Image(ref.get_data(),
-                                  nibabel2spm_affine(ref.get_affine()))
-        src = nibabel.Nifti1Image(src.get_data(),
-                                  nibabel2spm_affine(src.get_affine()))
+        target = nibabel.Nifti1Image(target.get_data(),
+                                  nibabel2spm_affine(target.get_affine()))
+        source = nibabel.Nifti1Image(source.get_data(),
+                                  nibabel2spm_affine(source.get_affine()))
 
         # smooth images according to pyramidal sep
         if self.smooth_vols:
-            # ref
-            vxg = np.sqrt(np.sum(ref.get_affine()[:3, :3] ** 2, axis=0))
+            # target
+            vxg = np.sqrt(np.sum(target.get_affine()[:3, :3] ** 2, axis=0))
             fwhmg = np.sqrt(np.maximum(
                     np.ones(3) * self.sep[-1] ** 2 - vxg ** 2,
                     [0, 0, 0])) / vxg
-            ref = nibabel.Nifti1Image(
-                scipy.ndimage.gaussian_filter(ref.get_data(),
+            target = nibabel.Nifti1Image(
+                gaussian_filter(target.get_data(),
                                               fwhm2sigma(fwhmg)),
-                ref.get_affine())
+                target.get_affine())
 
-            # src
-            vxf = np.sqrt(np.sum(src.get_affine()[:3, :3] ** 2, axis=0))
+            # source
+            vxf = np.sqrt(np.sum(source.get_affine()[:3, :3] ** 2, axis=0))
             fwhmf = np.sqrt(np.maximum(
                     np.ones(3) * self.sep[-1] ** 2 - vxf ** 2,
                     [0, 0, 0])) / vxf
-            src = nibabel.Nifti1Image(scipy.ndimage.gaussian_filter(
-                src.get_data(), fwhm2sigma(fwhmf)),
-                                      src.get_affine())
+            source = nibabel.Nifti1Image(gaussian_filter(
+                source.get_data(), fwhm2sigma(fwhmf)),
+                                      source.get_affine())
 
         # pyramidal loop
         self.params_ = np.array(self.params_init)
@@ -385,25 +383,26 @@ class Coregister(object):
             print ("\r\nRunning Powell gradient-less local optimization "
                    "(pyramidal level = %smm)...") % samp
 
-            # create sampled grid for ref img
-            grid = make_sampled_grid(ref.shape, samp=_correct_voxel_samp(
-                    ref.get_affine(), samp))
+            # create sampled grid for target img
+            grid = make_sampled_grid(target.shape, samp=_correct_voxel_samp(
+                    target.get_affine(), samp))
 
-            # interpolate ref on sampled grid
-            sampled_ref = trilinear_interp(ref.get_data().ravel(order='F'),
-                                           ref.shape, *grid)
+            # interpolate target on sampled grid
+            sampled_target = trilinear_interp(
+                target.get_data().ravel(order='F'),
+                target.shape, *grid)
 
             # find optimal realignment parameters
-            self.params_ = _run_powell(self.params_,
-                                       self.search_direction_, self.sc_,
-                                       sampled_ref, src, ref.get_affine(),
-                                       src.get_affine(), grid, self.cost_fun,
-                                       self.fwhm, self.bins)
+            self.params_ = _run_powell(
+                self.params_, self.search_direction_, self.sc_,
+                sampled_target, source, target.get_affine(),
+                source.get_affine(), grid, self.cost_fun,
+                self.fwhm, self.bins)
 
         return self
 
     def transform(self,
-                  src,
+                  source,
                   output_dir=None,
                   prefix="Coreg",
                   ext=".nii.gz",
@@ -411,11 +410,11 @@ class Coregister(object):
                   ):
         """
         Applies estimated co-registration parameter to the input volume
-        (src).
+        (source).
 
         Parameters
         ----------
-        src: string (existing filename) or 3D nibabel image object
+        source: string (existing filename) or 3D nibabel image object
             source image (image that is jiggled about to fit the
             reference image)
 
@@ -439,11 +438,11 @@ class Coregister(object):
         # save output unto disk
         if not output_dir is None:
             if basenames is None:
-                basenames = get_basenames(src)
+                basenames = get_basenames(source)
 
         # apply coreg
         # XXX backend should handle nasty i/o logic!!
-        coregistered_source = list(apply_realignment(src, self.params_,
+        coregistered_source = list(apply_realignment(source, self.params_,
                                                      inverse=True
                                                      ))
 

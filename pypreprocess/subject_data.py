@@ -186,6 +186,63 @@ class SubjectData(object):
         if not self.anat is None:
             self.anat = do_dcm2nii(self.anat, output_dir=self.output_dir)[0]
 
+    def _check_unique_func_filenames(self):
+        """
+        Checks that abspaths of func imagesare distinct with and across
+        sessions.
+
+        """
+
+        # check that functional image abspaths are distinct across sessions
+        for sess1 in xrange(self.n_sessions):
+            # functional images for this session must all be distinct abspaths
+            if not isinstance(self.func[sess1], basestring):
+                if len(self.func[sess1]) != len(set(self.func[sess1])):
+                    # Oops! there must be a repetition somewhere
+                    for x in self.func[sess1]:
+                        count = self.func[sess1].count(x)
+                        if count > 1:
+                            rep = x
+                            break
+                    raise RuntimeError(
+                        "List of functional images for session number %i"
+                        " has the file %s repeated %s times" % (
+                            sess1 + 1, rep, count))
+
+            # functional images for sess1 shouldn't concide with any functional
+            # image of any other session
+            for sess2 in xrange(sess1 + 1, self.n_sessions):
+                if self.func[sess1] == self.func[sess2]:
+                    raise RuntimeError(
+                        ('The same image %s specified for sessions %i '
+                         'and %i' % (self.func[sess1], sess1 + 1,
+                                     sess2 + 1)))
+
+                if isinstance(self.func[sess1], basestring):
+                    if self.func[sess1] == self.func[sess2]:
+                        raise RuntimeError(
+                            ('The same image %s specified for session '
+                             "number %i and %i" % (
+                                    self.func[sess1], sess1 + 1,
+                                    sess2 + 1)))
+                else:
+                    if not isinstance(self.func[sess2], basestring):
+                        if self.func[sess2] in self.func[sess1]:
+                            raise RuntimeError(
+                                ('The same image %s specified for session'
+                                 ' number %i and %i' % (
+                                        self.func[sess1], sess1 + 1,
+                                        sess2 + 1)))
+                        else:
+                            for x in self.func[sess1]:
+                                for y in self.func[sess2]:
+                                    if x == y:
+                                        raise RuntimeError(
+                                            ('The same image %s specified for '
+                                             'in both session number %i '
+                                             'and %i' % (x, sess1 + 1,
+                                                         sess2 + 1)))
+
     def sanitize(self, deleteorient=False, niigz2nii=False):
         """
         This method does basic sanitization of the `SubjectData` instance, like
@@ -239,6 +296,8 @@ class SubjectData(object):
         # .nii.gz -> .nii extraction for SPM & co.
         if niigz2nii:
             self._niigz2nii()
+
+        self._check_unique_func_filenames()
 
         return self
 

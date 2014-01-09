@@ -343,7 +343,10 @@ def _do_subject_coregister(subject_data, reslice=False,
 
     # create node
     if caching:
-        coreg = NipypeMemory(base_dir=cache_dir).cache(spm.Coregister)
+        if software == "spm":
+            coreg = NipypeMemory(base_dir=cache_dir).cache(spm.Coregister)
+        elif software == "python":
+            coreg = JoblibMemory(cache_dir)
     else:
         coreg = spm.Coregister().run
 
