@@ -69,7 +69,7 @@ SPM auditory (single-subject)
 -----------------------------
 cd to the pypreprocess/examples directory, and run the following command:
 
-       python nipy_glm_spm_auditory.py spm_auditory spm_auditory_runs/ 
+       python nipype_preproc_spm_auditory.py 
 
 Now open the file spm_auditory_runs/sub001/report.html in your browser (firefox), to see
 the generate report (QA).
