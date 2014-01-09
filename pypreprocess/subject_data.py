@@ -214,7 +214,7 @@ class SubjectData(object):
             for sess2 in xrange(sess1 + 1, self.n_sessions):
                 if self.func[sess1] == self.func[sess2]:
                     raise RuntimeError(
-                        ('The same image %s specified for sessions %i '
+                        ('The same image %s specified for session number %i '
                          'and %i' % (self.func[sess1], sess1 + 1,
                                      sess2 + 1)))
 
