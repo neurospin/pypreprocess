@@ -18,11 +18,13 @@ from ..io_utils import (
     get_basenames,
     load_4D_img,
     is_niimg,
-    is_4D,
+    is_4D, is_3D,
     get_vox_dims,
     niigz2nii,
     _expand_path,
-    isdicom
+    isdicom,
+    get_shape,
+    get_relative_path
     )
 
 # global setup
@@ -483,6 +485,46 @@ def test_isdicom():
     assert_false(isdicom("/toto/titi.img"))
     assert_false(isdicom("/toto/titi.hdr"))
     assert_false(isdicom("bad"))
+
+
+def test_is_3D():
+    vol = create_random_image(ndim=3)
+    assert_true(is_3D(vol))
+    assert_false(is_4D(vol))
+    assert_false(is_3D(create_random_image(shape=(64, 64, 64, 1))))
+
+
+def test_is_4d():
+    film = create_random_image(ndim=4)
+    assert_true(is_4D(film))
+    assert_false(is_3D(film))
+    assert_true(is_4D(create_random_image(shape=(64, 64, 64, 1))))
+
+
+def test_get_shape():
+    shape = (61, 62, 63, 64)
+    img = create_random_image(shape)
+    assert_equal(get_shape(img), shape)
+
+    shape = (34, 45, 65)
+    n_scans = 10
+    img = [create_random_image(shape) for _ in xrange(n_scans)]
+    assert_equal(get_shape(img), tuple(list(shape) + [n_scans]))
+
+
+def test_get_relative_path():
+    assert_equal(get_relative_path("dop/", "dop/rob"), "rob")
+
+    assert_equal(get_relative_path("/toto/titi",
+                                   "/toto/titi/tata/test.txt"),
+                 "tata/test.txt")
+    assert_equal(get_relative_path("/toto/titi",
+                                   "/toto/titi/tata/"),
+                 "tata")
+    assert_equal(get_relative_path("/toto/titi",
+                                   "/toto/titI/tato/dada"),
+                 None)
+
 
 # run all tests
 nose.runmodule(config=nose.config.Config(

@@ -334,10 +334,7 @@ def is_3D(image):
                                       check_affines=False
                                       )
 
-    if len(image.shape) == 3:
-        return True
-    else:
-        return len(image.shape) == 4 and image.shape[-1] == 1
+    return len(image.shape) == 3
 
 
 def is_4D(image):
@@ -347,10 +344,7 @@ def is_4D(image):
     if isinstance(image, basestring):
         image = nibabel.load(image)
 
-    if len(image.shape) == 4:
-        return True
-    else:
-        return len(image.shape) == 5 and image.shape[-1] == 1
+    return len(image.shape) == 4
 
 
 def get_vox_dims(volume):
@@ -411,7 +405,8 @@ def delete_orientation(imgs, output_dir, output_tag=''):
     for img in imgs:
         output_img = os.path.join(
             output_dir,
-            "deleteorient_%s_" % (output_tag) + os.path.basename(img))
+            "deleteorient%s" % ("_%s_" if output_tag else "_"
+                                ) + os.path.basename(img))
         nibabel.save(nibabel.load(img), output_img)
         commands_output = commands.getoutput(
             "fslorient -deleteorient %s" % output_img)
@@ -481,49 +476,57 @@ def do_3Dto4D_merge(
     return fourD_img
 
 
-# def resample_img(input_img_filename,
-#                  new_vox_dims, output_img_filename=None):
-#     """Resamples an image to a new resolution
+def resample_img(input_img_filename,
+                 new_vox_dims, output_filename=None):
+    """
+    Resamples an image to a new resolution
 
-#     Parameters
-#     ----------
-#     input_img_filename: string
-#         path to image to be resampled
+    Parameters
+    ----------
+    input_img_filename: string
+        path to image to be resampled
 
-#     new_vox_dims: list or tuple of +ve floats
-#         new vox dimensions to which the image is to be resampled
+    new_vox_dims: list or tuple of +ve floats
+        new vox dimensions to which the image is to be resampled
 
-#     output_img_filename: string (optional)
-#         where output image will be written
+    output_filename: string (optional)
+        where output image will be written
 
-#     Returns  -------
-#     output_img_filename: string
-#         where the resampled img has been written
+    Returns
+    -------
+    output_filename: string
+        where the resampled img has been written
 
-#     """
+    """
 
-#     # sanity
-#     if output_img_filename is None:
-#         output_img_filename = os.path.join(
-#             os.path.dirname(input_img_filename),
-#             "resample_" + os.path.basename(input_img_filename))
+    try:
+        from nilearn.image import resample_img as ni_resample_img
+    except ImportError:
+        raise RuntimeError(
+            "nilearn not found on your system; can't do resampling!")
 
-#     # prepare for smart-caching
-#     output_dir = os.path.dirname(output_img_filename)
-#     cache_dir = os.path.join(output_dir, "resample_img_cache")
-#     if not os.path.exists(cache_dir):
-#         os.makedirs(cache_dir)
-#     mem = joblib.Memory(cachedir=cache_dir, verbose=5)
+    # sanity
+    if output_filename is None:
+        output_filename = os.path.join(
+            os.path.dirname(input_img_filename),
+            "resample_" + os.path.basename(input_img_filename))
 
-#     # resample input img to new resolution
-#     resampled_img = mem.cache(resampling.resample_img)(
-#         input_img_filename,
-#         target_affine=np.diag(new_vox_dims))
+    # prepare for smart-caching
+    output_dir = os.path.dirname(output_filename)
+    cache_dir = os.path.join(output_dir, "resample_img_cache")
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    mem = joblib.Memory(cachedir=cache_dir, verbose=5)
 
-#     # save resampled img
-#     nibabel.save(resampled_img, output_img_filename)
+    # resample input img to new resolution
+    resampled_img = mem.cache(ni_resample_img)(
+        input_img_filename,
+        target_affine=np.diag(new_vox_dims))
 
-#     return output_img_filename
+    # save resampled img
+    nibabel.save(resampled_img, output_filename)
+
+    return output_filename
 
 
 def compute_mean_image(images, output_filename=None, threeD=False):
@@ -984,3 +987,62 @@ def _expand_path(path, relative_to=None):
     os.chdir(old_cwd)
 
     return _path
+
+
+def get_relative_path(ancestor, descendant):
+    """
+    Get's path of a file or directory (descendant) relative to another
+    directory (ancestor). For example get_relative_path("/toto/titi",
+    "/toto/titi/tata/test.txt") should return "tata/test.txt"
+
+    """
+
+    ancestor = ancestor.rstrip("/")
+    descendant = descendant.rstrip("/")
+    match = re.match(r'%s\/(.*)' % ancestor, descendant)
+    if match is None:
+        return None
+    else:
+        return match.group(1)
+
+
+def get_shape(img):
+    """
+    Computes shape of an image.
+
+    Parameters
+    ----------
+    img: niim, string, or list of such
+        img whose shape is sought-for
+
+    Returns
+    -------
+    shape: tuple
+        shape of image
+
+
+    """
+
+    if isinstance(img, basestring):
+        return nibabel.load(img).shape
+    elif is_niimg(img):
+        return img.shape
+    else:
+        return tuple(list(get_shape(img[0])) + [len(img)])
+
+
+def compute_output_voxel_size(img, voxel_size):
+    """
+    Computes desired output voxel size of an img.
+
+    """
+
+    if voxel_size in ['original', 'auto']:
+        # write original voxel size
+        return get_vox_dims(img)
+    elif not voxel_size is None:
+        # set output voxel size to specified value
+        return voxel_size
+    else:
+        # donno
+        return None

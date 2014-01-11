@@ -4,7 +4,7 @@ import re
 from configobj import ConfigObj
 import numpy as np
 from subject_data import SubjectData
-from io_utils import _expand_path
+from io_utils import _expand_path, get_relative_path
 
 
 def _del_nones_from_dict(some_dict):
@@ -16,17 +16,6 @@ def _del_nones_from_dict(some_dict):
                 _del_nones_from_dict(v)
 
     return some_dict
-
-
-def _path_diff(parent, child):
-    """
-    For example _path_diff("/family/johndoe", "/family/johndoe/bob/pet")
-    evalues to "bob/pet".
-
-    """
-
-    match = re.match("%s/(.*)" % parent, child)
-    return match.group(1) if match else None
 
 
 def _parse_job(jobfile):
@@ -171,8 +160,9 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None):
             # session output dir
             if os.path.basename(sess_dir) != os.path.basename(
                 subject_output_dir):
-                sess_output_dir = os.path.join(subject_output_dir,
-                                               os.path.basename(sess_dir))
+                sess_output_dir = os.path.join(
+                    subject_output_dir, get_relative_path(subject_data_dir,
+                                                          sess_dir))
             else:
                 sess_output_dir = subject_output_dir
             if not os.path.exists(sess_output_dir):
@@ -194,7 +184,9 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None):
             anat_dir = ""
 
         # anat output dir
-        anat_output_dir = os.path.join(subject_output_dir, anat_dir)
+        anat_output_dir = os.path.join(subject_output_dir,
+                                       get_relative_path(subject_data_dir,
+                                                         anat_dir))
 
         if not os.path.exists(anat_output_dir):
             os.makedirs(anat_output_dir)

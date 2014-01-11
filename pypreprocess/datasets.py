@@ -1266,9 +1266,24 @@ def fetch_spm_auditory_data(data_dir, subject_id="sub001"):
                                         if re.match("^fM00223_0\d\d\.img$",
                                                     os.path.basename(x))])
 
+        # volumes for this dataset of shape (64, 64, 64, 1); let's fix this
+        for x in _subject_data["func"]:
+            vol = nibabel.load(x)
+            if len(vol.shape) == 4:
+                vol = nibabel.Nifti1Image(vol.get_data()[:, :, :, 0],
+                                          vol.get_affine())
+                nibabel.save(vol, x)
+
         _subject_data["anat"] = [subject_data[x] for x in subject_data.keys()
                                  if re.match("^sM00223_002\.img$",
                                              os.path.basename(x))][0]
+
+        # ... same thing for anat
+        vol = nibabel.load(_subject_data["anat"])
+        if len(vol.shape) == 4:
+            vol = nibabel.Nifti1Image(vol.get_data()[:, :, :, 0],
+                                      vol.get_affine())
+            nibabel.save(vol, _subject_data["anat"])
 
         return Bunch(**_subject_data)
 

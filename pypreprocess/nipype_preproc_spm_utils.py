@@ -34,7 +34,9 @@ from .io_utils import (load_specific_vol,
                        ravel_filenames,
                        unravel_filenames,
                        get_vox_dims,
-                       niigz2nii
+                       niigz2nii,
+                       resample_img,
+                       compute_output_voxel_size
                        )
 from subject_data import SubjectData
 
@@ -801,7 +803,8 @@ def _do_subject_dartelnorm2mni(subject_data,
                                parent_results_gallery=None,
                                cv_tc=True,
                                last_stage=True,
-                               nipype_mem=None
+                               func_write_voxel_sizes=None,
+                               anat_write_voxel_sizes=None
                                ):
     """
     Uses spm.DARTELNorm2MNI to warp subject brain into MNI space.
@@ -837,25 +840,22 @@ def _do_subject_dartelnorm2mni(subject_data,
 
     # warp subject tissue class image (produced by Segment or NewSegment)
     # into MNI space
+    tricky_kwargs = {}
+    if not anat_write_voxel_sizes is None:
+        tricky_kwargs['voxel_size'] = compute_output_voxel_size(
+           subject_data.anat, anat_write_voxel_sizes)
     for tissue in ['gm', 'wm']:
         if hasattr(subject_data, tissue):
             dartelnorm2mni_result = dartelnorm2mni(
                 apply_to_files=getattr(subject_data, tissue),
                 flowfield_files=subject_data.dartel_flow_fields,
                 template_file=template_file,
-                modulate=False  # don't modulate
+                modulate=False,  # don't modulate
+                fwhm=0.,  # don't smooth
+                **tricky_kwargs
                 )
             setattr(subject_data, "w" + tissue,
                     dartelnorm2mni_result.outputs.normalized_files)
-
-    # warp functional image into MNI space
-    # functional_file = do_3Dto4D_merge(functional_file)
-    createwarped_result = createwarped(
-        image_files=subject_data.func,
-        flowfield_files=subject_data.dartel_flow_fields,
-        ignore_exception=False
-        )
-    subject_data.func = createwarped_result.outputs.warped_files
 
     # warp anat into MNI space
     dartelnorm2mni_result = dartelnorm2mni(
@@ -864,9 +864,46 @@ def _do_subject_dartelnorm2mni(subject_data,
         template_file=template_file,
         ignore_exception=False,
         modulate=False,  # don't modulate
-        fwhm=0.  # don't smooth
+        fwhm=0.,  # don't smooth
+        **tricky_kwargs
         )
     subject_data.anat = dartelnorm2mni_result.outputs.normalized_files
+
+    # warp functional image into MNI space
+    # functional_file = do_3Dto4D_merge(functional_file)
+    func_write_voxel_sizes = compute_output_voxel_size(
+        subject_data.func, func_write_voxel_sizes)
+    createwarped_result = createwarped(
+        image_files=subject_data.func,
+        flowfield_files=subject_data.dartel_flow_fields,
+        ignore_exception=False
+        )
+    subject_data.func = createwarped_result.outputs.warped_files
+
+    # resample func if necessary
+    if not func_write_voxel_sizes is None:
+        vox_dims = get_vox_dims(subject_data.func[0])
+        if func_write_voxel_sizes != vox_dims:
+            _resample_img = lambda input_filename: resample_img(
+                input_filename, func_write_voxel_sizes,
+                output_filename=os.path.join(
+                    os.path.dirname(input_filename),
+                    "resampled_" + os.path.basename(input_filename)))
+
+            func = []
+            for sess_func in subject_data.func:
+                assert get_vox_dims(sess_func) == vox_dims
+                func.append(_resample_img(sess_func) if isinstance(
+                        sess_func, basestring) else [_resample_img(x)
+                                                     for x in sess_func])
+            subject_data.func = func
+
+    # smooth func
+    if np.sum(fwhm) > 0:
+        subject_data = _do_subject_smooth(subject_data, fwhm,
+                                          caching=caching,
+                                          report=report
+                                          )
 
     # hardlink output files
     subject_data.hardlink_output_files()
@@ -1182,6 +1219,8 @@ def do_subject_preproc(
 def _do_subjects_dartel(subjects,
                         output_dir,
                         fwhm=0,
+                        func_write_voxel_sizes=None,
+                        anat_write_voxel_sizes=None,
                         n_jobs=-1,
                         report=True,
                         cv_tc=True,
@@ -1248,6 +1287,8 @@ def _do_subjects_dartel(subjects,
                 cv_tc=cv_tc,
                 parent_results_gallery=parent_results_gallery,
                 fwhm=fwhm,
+                func_write_voxel_sizes=func_write_voxel_sizes,
+                anat_write_voxel_sizes=anat_write_voxel_sizes,
                 template_file=dartel_result.outputs.final_template_file,
                 )
           for subject_data in subjects)
@@ -1261,6 +1302,8 @@ def do_subjects_preproc(subject_factory,
                         n_jobs=None,
                         caching=True,
                         dartel=False,
+                        func_write_voxel_sizes=None,
+                        anat_write_voxel_sizes=None,
                         report=True,
                         dataset_id=None,
                         dataset_description="",
@@ -1540,6 +1583,8 @@ def do_subjects_preproc(subject_factory,
     # preprocess subject's separately
     if dartel:
         fwhm = preproc_params.get("fwhm", 0.)
+        func_write_voxel_sizes = preproc_params.get(
+            "func_write_voxel_sizes", None)
         preproc_params["fwhm"] = 0.
         cv_tc = preproc_params.get("cv_tc", True)
         for item in ["segment", "normalize", "cv_tc",
@@ -1564,6 +1609,7 @@ def do_subjects_preproc(subject_factory,
             preproc_subject_data, output_dir,
             n_jobs=n_jobs,
             fwhm=fwhm,
+            func_write_voxel_sizes=func_write_voxel_sizes,
             report=preproc_params.get("report", True),
             cv_tc=cv_tc,
             parent_results_gallery=parent_results_gallery

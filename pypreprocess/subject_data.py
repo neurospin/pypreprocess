@@ -14,7 +14,9 @@ from .io_utils import (niigz2nii as do_niigz2nii,
                        dcm2nii as do_dcm2nii,
                        isdicom,
                        delete_orientation,
-                       hard_link)
+                       hard_link,
+                       get_shape,
+                       is_4D, is_3D)
 from .reporting.base_reporter import (
     commit_subject_thumnbail_to_parent_gallery,
     ResultsGallery,
@@ -51,7 +53,7 @@ class SubjectData(object):
         ---------------------------------------------------------------
         list of strings            | one session, multiple 3D image
                                    | filenames (one per scan)
-                                  | OR multiple sessions, multiple 4D
+                                   | OR multiple sessions, multiple 4D
                                    | image filenames (one per session)
         ---------------------------------------------------------------
         list of list of strings    | multiiple sessions, one list of
@@ -68,11 +70,28 @@ class SubjectData(object):
     session_id: string or list of strings, optional (default None):
         session ids for all sessions (i.e runs)
 
+    output_dir: string, optional (default None)
+        output directory for this subject; will be create if doesn't exist
+
+    session_output_dirs: list of strings, optional (default None):
+        list of output directories, one for each session
+
+    anat_output_dir: string, optional (default None)
+        output directory of anatomical data
+
+    scratch: string, optional (default None)
+        root directory for scratch data (temp files, cache, etc.) for this
+        subject; thus we can push all scratch data unto a dedicated device
+
+    **kwargs: param-value dict_like
+        additional optional parameters
+
     """
 
     def __init__(self, func=None, anat=None, subject_id="sub001",
                  session_id=None, output_dir=None, session_output_dirs=None,
-                 anat_output_dir=None, **kwargs):
+                 anat_output_dir=None, scratch=None, **kwargs):
+
         self.func = func
         self.anat = anat
         self.subject_id = subject_id
@@ -80,6 +99,7 @@ class SubjectData(object):
         self.output_dir = output_dir
         self.anat_output_dir = anat_output_dir
         self.session_output_dirs = session_output_dirs
+        self.scratch = scratch if not scratch is None else output_dir
         self.failed = False
 
         # nipype outputs
@@ -106,15 +126,14 @@ class SubjectData(object):
 
         # deleteorient for func
         self.func = [mem.cache(delete_orientation)(
-                self.func[j],
-                self.tmp_output_dir,
-                output_tag=self.session_id[j])
-                     for j in xrange(len(self.session_id))]
+                self.func[sess],
+                self.session_output_dirs[sess])
+                     for sess in xrange(self.n_sessions)]
 
         # deleteorient for anat
         if not self.anat is None:
             self.anat = mem.cache(delete_orientation)(
-                self.anat, self.tmp_output_dir)
+                self.anat, self.anat_output_dir)
 
     def _sanitize_output_dir(self):
 
@@ -148,8 +167,7 @@ class SubjectData(object):
             self.session_output_dirs[sess] = sess_output_dir
 
         # make tmp output dir
-        self.tmp_output_dir = os.path.join(self.output_dir,
-                                           "tmp")
+        self.tmp_output_dir = os.path.join(self.scratch, "tmp")
         if not os.path.exists(self.tmp_output_dir):
             os.makedirs(self.tmp_output_dir)
 
@@ -159,7 +177,7 @@ class SubjectData(object):
 
         """
 
-        cache_dir = os.path.join(self.output_dir, 'cache_dir')
+        cache_dir = os.path.join(self.scratch, 'cache_dir')
         mem = Memory(cache_dir, verbose=100)
 
         self.func = [mem.cache(do_niigz2nii)(
@@ -168,8 +186,8 @@ class SubjectData(object):
                      for sess in xrange(self.n_sessions)]
 
         if not self.anat is None:
-            self.anat = mem.cache(do_niigz2nii)(self.anat,
-                                                output_dir=self.output_dir)
+            self.anat = mem.cache(do_niigz2nii)(
+                self.anat, output_dir=self.anat_output_dir)
 
     def _dcm2nii(self):
         """
@@ -186,10 +204,11 @@ class SubjectData(object):
         if not self.anat is None:
             self.anat = do_dcm2nii(self.anat, output_dir=self.output_dir)[0]
 
-    def _check_unique_func_filenames(self):
+    def _check_func_names_and_shapes(self):
         """
         Checks that abspaths of func imagesare distinct with and across
-        sessions.
+        sessions, and each session should constitute a 4D film (as a
+        string or list of)
 
         """
 
@@ -209,6 +228,20 @@ class SubjectData(object):
                         " has the file %s repeated %s times" % (
                             sess1 + 1, rep, count))
 
+            # all functional data for this session should constitute a 4D film
+            if isinstance(self.func[sess1], basestring):
+                if not is_4D(self.func[sess1]):
+                    raise RuntimeError(
+                        "Functional images for session number %i"
+                        " doesn't constitute a 4D film; the shape of the"
+                        " session is %s" % get_shape(self.func[sess1]))
+            else:
+                for x in self.func[sess1]:
+                    if not is_3D(x):
+                        raise RuntimeError(
+                            "Image %s of session number %i is not 3D; it "
+                            "has shape %s." % (x, sess1 + 1, get_shape(x)))
+
             # functional images for sess1 shouldn't concide with any functional
             # image of any other session
             for sess2 in xrange(sess1 + 1, self.n_sessions):
@@ -221,27 +254,25 @@ class SubjectData(object):
                 if isinstance(self.func[sess1], basestring):
                     if self.func[sess1] == self.func[sess2]:
                         raise RuntimeError(
-                            ('The same image %s specified for session '
-                             "number %i and %i" % (
-                                    self.func[sess1], sess1 + 1,
-                                    sess2 + 1)))
+                            'The same image %s specified for session '
+                            "number %i and %i" % (
+                                self.func[sess1], sess1 + 1, sess2 + 1))
                 else:
                     if not isinstance(self.func[sess2], basestring):
                         if self.func[sess2] in self.func[sess1]:
                             raise RuntimeError(
-                                ('The same image %s specified for session'
-                                 ' number %i and %i' % (
-                                        self.func[sess1], sess1 + 1,
-                                        sess2 + 1)))
+                                'The same image %s specified for session'
+                                ' number %i and %i' % (
+                                    self.func[sess1], sess1 + 1, sess2 + 1))
                         else:
                             for x in self.func[sess1]:
                                 for y in self.func[sess2]:
                                     if x == y:
                                         raise RuntimeError(
-                                            ('The same image %s specified for '
-                                             'in both session number %i '
-                                             'and %i' % (x, sess1 + 1,
-                                                         sess2 + 1)))
+                                            'The same image %s specified for '
+                                            'in both session number %i '
+                                            'and %i' % (x, sess1 + 1,
+                                                        sess2 + 1))
 
     def sanitize(self, deleteorient=False, niigz2nii=False):
         """
@@ -297,7 +328,7 @@ class SubjectData(object):
         if niigz2nii:
             self._niigz2nii()
 
-        self._check_unique_func_filenames()
+        self._check_func_names_and_shapes()
 
         return self
 
@@ -715,7 +746,7 @@ class SubjectData(object):
         """
 
         # set items
-        self.set_items()
+        self._set_items()
 
         # sanitiy
         self.sanitize()
