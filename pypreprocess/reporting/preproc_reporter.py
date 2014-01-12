@@ -123,10 +123,9 @@ def generate_preproc_undergone_docstring(
 
     """
 
-    if normalize:
-        dartel = False
     if dartel:
         normalize = False
+        segment = False
 
     # which tools were used ?
     if tools_used is None:

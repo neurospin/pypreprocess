@@ -1397,6 +1397,15 @@ def do_subjects_preproc(subject_factory,
             dataset_description = preproc_params["dataset_description"]
             del preproc_params["dataset_description"]
 
+    # generate subjects (if generator)
+    subject_factory = [subject_data
+                       for subject_data in subject_factory]
+
+    # DARTEL on 1 subject is senseless
+    dartel = dartel and (len(subject_factory) > 1
+                         )
+
+    # configure SPM back-end
     _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
 
     preproc_params['report'] = report

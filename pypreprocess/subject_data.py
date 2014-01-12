@@ -139,12 +139,15 @@ class SubjectData(object):
 
         # output dir
         assert not self.output_dir is None
+        self.output_dir = os.path.abspath(self.output_dir)
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
         # anat output dir
         if self.anat_output_dir is None:
             self.anat_output_dir = self.output_dir
+        else:
+            self.anat_output_dir = os.path.abspath(self.anat_output_dir)
         if not os.path.exists(self.anat_output_dir):
             os.makedirs(self.anat_output_dir)
 
@@ -160,6 +163,8 @@ class SubjectData(object):
                         self.output_dir, self.session_id[sess])
                 else:
                     sess_output_dir = self.output_dir
+            else:
+                sess_output_dir = os.path.abspath(sess_output_dir)
 
             if not os.path.exists(sess_output_dir):
                 os.makedirs(sess_output_dir)
@@ -234,7 +239,9 @@ class SubjectData(object):
                     raise RuntimeError(
                         "Functional images for session number %i"
                         " doesn't constitute a 4D film; the shape of the"
-                        " session is %s" % get_shape(self.func[sess1]))
+                        " session is %s; the images for this session are "
+                        "%s" % (sess1 + 1, get_shape(self.func[sess1]),
+                                self.func[sess1]))
             else:
                 for x in self.func[sess1]:
                     if not is_3D(x):
@@ -758,3 +765,6 @@ class SubjectData(object):
 
         # finalize the business
         self.finalize_report(last_stage=True)
+
+    def __repr__(self):
+        return repr(self.__dict__)
