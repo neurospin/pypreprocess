@@ -997,6 +997,9 @@ def get_relative_path(ancestor, descendant):
 
     """
 
+    if ancestor == descendant:
+        return ""
+
     ancestor = ancestor.rstrip("/")
     descendant = descendant.rstrip("/")
     match = re.match(r'%s\/(.*)' % ancestor, descendant)

@@ -526,6 +526,11 @@ def test_get_relative_path():
                  None)
 
 
+    assert_equal(get_relative_path("/toto/titi",
+                                   "/toto/titi"),
+                 "")
+
+
 # run all tests
 nose.runmodule(config=nose.config.Config(
         verbose=2,

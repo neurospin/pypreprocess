@@ -26,6 +26,7 @@ from joblib import (Parallel,
 
 # import nipype API
 import nipype.interfaces.spm as spm
+import nipype.interfaces.fsl as fsl
 from nipype.caching import Memory as NipypeMemory
 from configure_spm import configure_spm
 
@@ -88,12 +89,24 @@ except AssertionError:
     pass
 
 
-def _do_subject_slice_timing(subject_data, TR, nslices=None, TA=None,
+def _do_subject_slice_timing(subject_data, TR, TA=None,
                              refslice=0, slice_order="ascending",
                              interleaved=False, caching=True, report=True,
                              indexing="matlab", software="spm"):
     """
-    Slice-Timing Correction
+    Slice-Timing Correction.
+
+    Parameters
+    ----------
+    subject_data: `SubjectData` instance
+       object that encapsulates the date for the subject (should have fields
+       like func, anat, output_dir, etc.)
+
+    TR: float
+        Repetition time for the fMRI acquisition
+
+    TA: float, optional (default None)
+       Time of Acaquisition
 
     """
 
@@ -106,11 +119,7 @@ def _do_subject_slice_timing(subject_data, TR, nslices=None, TA=None,
     assert isinstance(indexing, basestring)
     indexing = indexing.lower()
     assert indexing in ['matlab', 'python']
-    _nslices = load_specific_vol(subject_data.func[0], 0)[0].shape[2]
-    if not nslices is None:
-        assert nslices == _nslices
-    else:
-        nslices = _nslices
+    nslices = load_specific_vol(subject_data.func[0], 0)[0].shape[2]
 
     # compute TA (possibly from formula specified as a string)
     if isinstance(TA, basestring):
@@ -174,7 +183,8 @@ def _do_subject_slice_timing(subject_data, TR, nslices=None, TA=None,
 
 
 def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
-                        caching=True, report=True, software="spm"):
+                        caching=True, report=True, software="spm",
+                        cmd_prefix=""):
     """
     Wrapper for running spm.Realign with optional reporting.
 
@@ -249,6 +259,15 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
         jobtype=jobtype,
         )
 
+    subject_data.func = realign_result.outputs.realigned_files
+
+    subject_data.realignment_parameters = \
+        realign_result.outputs.realignment_parameters
+
+    if register_to_mean and jobtype == "estwrite":
+        subject_data.mean_realigned_file = \
+            realign_result.outputs.mean_image
+
     subject_data.nipype_results['realign'] = realign_result
 
     # failed node
@@ -257,18 +276,11 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
         return subject_data
 
     # collect output
-    subject_data.func = realign_result.outputs.realigned_files
     if isinstance(subject_data.func, basestring):
         assert subject_data.n_sessions == 1
         subject_data.func = [subject_data.func]
     if subject_data.n_sessions == 1 and len(subject_data.func) > 1:
         subject_data.func = [subject_data.func]
-
-    subject_data.realignment_parameters = \
-        realign_result.outputs.realignment_parameters
-
-    if register_to_mean and jobtype == "estwrite":
-        subject_data.mean_realigned_file = realign_result.outputs.mean_image
 
     # generate realignment thumbs
     if report:
@@ -324,8 +336,9 @@ def _do_subject_coregister(subject_data, reslice=False,
 
     # sanitize software choice
     software = software.lower()
-    if software != "spm":
-        raise NotImplementedError("Only SPM is supported; got '%s'" % software)
+    if not software in ["spm", "fsl"]:
+        raise NotImplementedError(
+            "Only SPM is supported; got '%s'" % software)
 
     # .nii.gz -> .nii
     subject_data._niigz2nii()
@@ -930,14 +943,17 @@ def do_subject_preproc(
     refslice=1,
     TR=None,
     TA=None,
+    slice_timing_software="spm",
 
     realign=True,
     realign_reslice=False,
     register_to_mean=True,
+    realign_software="spm",
 
     coregister=True,
     coregister_reslice=False,
     coreg_anat_to_func=False,
+    coregister_software="spm",
 
     segment=True,
 
@@ -1116,7 +1132,8 @@ def do_subject_preproc(
             subject_data, caching=caching,
             reslice=realign_reslice,
             register_to_mean=register_to_mean,
-            report=report
+            report=report,
+            software=realign_software
             )
 
         # hard-link node output files

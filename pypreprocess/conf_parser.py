@@ -65,6 +65,14 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None):
     Generate pipeline (i.e subject factor + preproc params) from
     config file.
 
+    Returns
+    -------
+    subjects: list of `SubjectData` objects
+        subject list
+
+    preproc_params: dict
+        preproc parameters
+
     """
 
     # read config file
@@ -204,15 +212,20 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None):
         subject_dir_wildcard)
 
     # preproc parameters
-    preproc_params = {"spm_dir": options.get("spm_dir", None),
-                      "matlab_exec": options.get("matlab_exec", None),
-                      "report": options.get("report", True),
-                      "output_dir": output_dir,
-                      "dataset_id": options.get("dataset_id", dataset_dir),
-                      "n_jobs": options.get("n_jobs", None),
-                      "caching": options.get("caching", True),
-                      "cv_tc": options.get("cv_tc", True),
-                      "dataset_description": dataset_description}
+    preproc_params = {
+        "spm_dir": options.get("spm_dir", None),
+        "matlab_exec": options.get("matlab_exec", None),
+        "report": options.get("report", True),
+        "output_dir": output_dir,
+        "dataset_id": options.get("dataset_id", dataset_dir),
+        "n_jobs": options.get("n_jobs", None),
+        "caching": options.get("caching", True),
+        "cv_tc": options.get("cv_tc", True),
+        "dataset_description": dataset_description,
+        "slice_timing_software": options.get("slice_timing_software", "spm"),
+        "realign_software": options.get("realign_software", "spm"),
+        "coregister_software": options.get("coregister_software", "spm"),
+        }
 
     # delete orientation meta-data ?
     preproc_params['deleteorient'] = options.get(

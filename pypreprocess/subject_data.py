@@ -320,6 +320,7 @@ class SubjectData(object):
             else:
                 assert len(self.session_id) == len(self.func), "%s != %s" % (
                     self.session_id, len(self.func))
+
         self.n_sessions = len(self.session_id)
 
         # sanitize output_dir

@@ -5,7 +5,7 @@ from nipy.labs import viz
 import nibabel
 import numpy as np
 import nipy.labs.statistical_mapping as sm
-from nipy.labs.viz_tools.coord_tools import _maximally_separated_subset
+# from nipy.labs.viz_tools.coord_tools import _maximally_separated_subset
 from nipy.modalities.fmri.design_matrix import DesignMatrix
 import base_reporter
 
@@ -31,6 +31,8 @@ def generate_level1_stats_table(zmap, mask,
         z-map data image
 
     mask: image object or string
+
+
         brain mask defining ROI
 
     output_html_path: string,
@@ -426,8 +428,8 @@ Z>%s voxel-level.
                     cut_coords = min(5, len(z_clusters))
                 _cut_coords = [x for zc in z_clusters for x in list(
                         set(zc['maxima'][..., axis]))]
-                _cut_coords = _maximally_separated_subset(
-                    _cut_coords, cut_coords)
+                # _cut_coords = _maximally_separated_subset(
+                #     _cut_coords, cut_coords)
 
                 assert len(_cut_coords) == cut_coords
                 cut_coords = _cut_coords
