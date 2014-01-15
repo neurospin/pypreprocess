@@ -9,13 +9,16 @@ import os
 import glob
 import re
 import shutil
-import numpy as np
 import commands
 import time
-import joblib
-import pylab as pl
 import json
+
+import numpy as np
+import pylab as pl
+
 import nibabel
+
+from ..external import joblib
 from .check_preprocessing import (plot_registration,
                                   plot_cv_tc,
                                   plot_segmentation,
@@ -24,7 +27,6 @@ from .check_preprocessing import (plot_registration,
 from ..io_utils import (compute_mean_3D_image,
                         is_3D,
                         is_niimg,
-                        load_vols
                         )
 from .base_reporter import (Thumbnail,
                             ResultsGallery,

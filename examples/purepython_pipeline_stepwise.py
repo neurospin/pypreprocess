@@ -8,7 +8,7 @@ from pypreprocess.datasets import fetch_spm_auditory_data
 from pypreprocess.slice_timing import fMRISTC
 from pypreprocess.realign import MRIMotionCorrection
 from pypreprocess.coreg import Coregister
-from joblib import Memory
+from pypreprocess.external.joblib import Memory
 import os
 
 # create cache

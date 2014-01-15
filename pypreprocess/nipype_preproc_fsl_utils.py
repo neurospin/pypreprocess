@@ -4,11 +4,12 @@ Author: Bertrand Thirion, Alexandre Abraham, DOHMATOB Elvis Dopgima
 """
 
 import os
-import shutil
-from nipype.caching import Memory as NipypeMemory
-from joblib import Memory  as JoblibMemory
-import nipype.interfaces.fsl as fsl
 import commands
+
+import nipype.interfaces.fsl as fsl
+from nipype.caching import Memory as NipypeMemory
+
+from pypreprocess.external.joblib import Memory  as JoblibMemory
 
 fsl.FSLCommand.set_default_output_type('NIFTI_GZ')
 FSL_T1_TEMPLATE = "/usr/share/fsl/data/standard/MNI152_T1_1mm_brain.nii.gz"

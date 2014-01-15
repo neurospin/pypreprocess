@@ -9,11 +9,13 @@ import os
 import sys
 import re
 import shutil
-import joblib
 import commands
 import tempfile
 import numpy as np
+
 import nibabel
+
+from .external import joblib
 from nipype.interfaces.dcm2nii import Dcm2nii
 from nipype.caching import Memory
 

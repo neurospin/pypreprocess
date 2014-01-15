@@ -8,8 +8,9 @@ teardown for reports, etc., general sanitization, etc.
 
 import os
 import time
-from joblib import Memory
 from matplotlib.pyplot import cm
+
+from pypreprocess.external.joblib import Memory
 from .io_utils import (niigz2nii as do_niigz2nii,
                        dcm2nii as do_dcm2nii,
                        isdicom,

@@ -29,15 +29,23 @@ SPM auditory dataset</a>.</p>
 """
 
 if len(sys.argv)  < 3:
-    print ("\r\nUsage: python %s <spm_auditory_MoAEpilot_dir>"
-           " <output_dir>\r\n") % sys.argv[0]
-    sys.exit(1)
+    print("\r\nUsage: python %s <spm_auditory_MoAEpilot_dir>"
+          " <output_dir>\r\n") % sys.argv[0]
+    print("Defaulting to current dir")
+    # set data dir
+    DATA_DIR = os.path.abspath('spm_auditory')
 
-# set data dir
-DATA_DIR = os.path.abspath(sys.argv[1])
+    # set output dir
+    OUTPUT_DIR = os.path.abspath('spm_auditory_output')
 
-# set output dir
-OUTPUT_DIR = os.path.abspath(sys.argv[2])
+
+else:
+    # set data dir
+    DATA_DIR = os.path.abspath(sys.argv[1])
+
+    # set output dir
+    OUTPUT_DIR = os.path.abspath(sys.argv[2])
+
 if not os.path.isdir(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 

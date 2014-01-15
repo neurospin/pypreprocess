@@ -10,8 +10,8 @@ from pypreprocess.purepython_preproc_utils import do_subject_preproc
 from pypreprocess._spike.pipeline_comparisons import execute_spm_auditory_glm
 
 # fetch data
-sd = fetch_spm_auditory_data(os.path.join(os.environ['HOME'],
-                                          "CODE/datasets/spm_auditory"))
+sd = fetch_spm_auditory_data(os.path.join(os.path.abspath('.'),
+                                          "spm_auditory"))
 
 # pack data into dict, the format understood by the pipeleine
 subject_data = {'n_sessions': 1,  # number of sessions

@@ -1,25 +1,19 @@
 import os
+import time
+
 import numpy as np
 import pylab as pl
-import time
 import nibabel
 import scipy.io
-import joblib
+
 from nipy.modalities.fmri.experimental_paradigm import (
-    BlockParadigm,
-    EventRelatedParadigm)
+                BlockParadigm, EventRelatedParadigm)
 from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
 
-from ..io_utils import (load_4D_img,
-                        load_vol
-                        )
-from ..datasets import (fetch_spm_auditory_data,
-                       fetch_spm_multimodal_fmri_data
-                       )
+from ..io_utils import load_4D_img, load_vol
 from ..reporting.glm_reporter import generate_subject_stats_report
 from ..reporting.base_reporter import ProgressReport
-from ..purepython_preproc_utils import do_subject_preproc
 
 
 def execute_spm_auditory_glm(data, reg_motion=False):
@@ -305,100 +299,3 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
 
     return data
 
-# if __name__ == '__main__':
-#     sd1 = fetch_spm_auditory_data(os.path.join(os.environ['HOME'],
-#                                               "CODE/datasets/spm_auditory"))
-#     spm_auditory_subject_data = {'subject_id': 'sub001', 'func': [sd1.func],
-#                                  'anat': sd1.anat,
-#                                  'n_sessions': 1}
-
-#     sd2 = fetch_spm_multimodal_fmri_data(os.path.join(
-#             os.environ['HOME'],
-#             "CODE/datasets/spm_multimodal_fmri"))
-#     spm_multimodal_fmri_data = sd2.dictcopy()
-#     spm_multimodal_fmri_data.update({'subject_id': 'sub001',
-#                                     'func': [sd2.func1, sd2.func2],
-#                                     'anat': sd2.anat,
-#                                      'n_sessions': 2})
-#     del spm_multimodal_fmri_data['func1']
-#     del spm_multimodal_fmri_data['func2']
-
-#     # run pipeline
-#     _output_dir = os.path.abspath("single_subject_pipeline_runs")
-
-#     def pipeline_factory(subject_data, output_dir):
-#         """
-#         Generates different pipelines.
-
-#         """
-
-#         for do_stc in [True, False]:
-#             for do_realign in [True, False]:
-#                 for reg_motion in [False, True]:
-#                     if reg_motion and not do_realign:
-#                         continue
-#                     for fwhm in [None, [5., 5., 5.]]:
-#                         pipeline_remark = ""
-#                         pipeline_remark = "_with_stc" if do_stc else \
-#                             "_without_stc"
-#                         pipeline_remark += (
-#                             ("_with_mc" + ("_with_reg_motion" if reg_motion \
-#                                                else "_without_reg_motion"))
-#                             ) if do_realign else "_without_mc"
-#                         pipeline_remark += "_without_smoothing" if fwhm is \
-#                             None else "_with_smoothing"
-
-#                         subject_data['output_dir'] = os.path.join(
-#                             _output_dir,
-#                             output_dir,
-#                             subject_data['subject_id']
-#                             )
-
-#                         print "\t\t\tpipeline: %s (output_dir = %s)" % (
-#                             pipeline_remark, subject_data['output_dir'])
-
-#                         yield (subject_data, do_stc, do_realign,
-
-
-#                                reg_motion, fwhm,
-#                                pipeline_remark)
-
-#     def _pipeline_runner(subject_data, output_dir, execute_glm):
-#         """
-#         Runs a pipeline.
-
-#         """
-
-#         for (subject_data, do_stc, do_realign, reg_motion, fwhm,
-#              stats_output_dir_basename) in pipeline_factory(subject_data,
-#                                                             output_dir):
-#             preproc_output = do_subject_preproc(
-#                 subject_data,
-#                 do_stc=do_stc,
-#                 do_realign=do_realign,
-#                 fwhm=fwhm,
-#                 )
-
-#             ########
-#             # GLM
-#             ########
-#             preproc_output['output_dir'] = os.path.join(
-#                 preproc_output['output_dir'], stats_output_dir_basename)
-#             if not os.path.exists(preproc_output['output_dir']):
-#                 os.makedirs(preproc_output['output_dir'])
-#             return execute_glm(preproc_output, reg_motion=reg_motion)
-
-#     # run pipelines
-#     n_jobs = int(os.environ['N_JOBS']) if 'N_JOBS' in os.environ else -1
-#     joblib.Parallel(n_jobs=n_jobs, verbose=100)(joblib.delayed(
-#             _pipeline_runner)(subject_data, output_dir, execute_glm) for (
-#             subject_data, output_dir, execute_glm) in zip(
-#             [spm_multimodal_fmri_data,
-#              spm_auditory_subject_data
-#              ],
-#             ['spm_multimodal_fmri',
-#              'spm_auditory'
-#              ],
-#             [execute_spm_multimodal_fmri_glm,
-#              execute_spm_auditory_glm
-#              ]))
