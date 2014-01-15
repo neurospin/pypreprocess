@@ -172,7 +172,7 @@ def do_subject_preproc(subject_data,
         # initialize reports factory
         subject_data.init_report(parent_results_gallery=parent_results_gallery,
                                  preproc_undergone=preproc_undergone,
-                                 do_cv_tc=do_cv_tc)
+                                 cv_tc=do_cv_tc)
 
     ############################
     # Slice-Timing Correction
