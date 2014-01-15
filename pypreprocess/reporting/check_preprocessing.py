@@ -14,7 +14,8 @@ import pylab as pl
 import nibabel
 from nipy.labs import compute_mask_files
 from nipy.labs import viz
-import joblib
+
+from ..external import joblib
 from ..io_utils import (compute_mean_3D_image,
                         load_4D_img,
                         is_niimg,

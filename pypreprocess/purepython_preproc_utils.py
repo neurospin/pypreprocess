@@ -8,11 +8,12 @@
 
 import os
 import inspect
-from joblib import Memory
 from reporting.preproc_reporter import (
     generate_stc_thumbnails,
     generate_preproc_undergone_docstring
     )
+
+from .external.joblib import Memory
 from .io_utils import (get_basenames,
                        save_vols,
                        load_specific_vol,
