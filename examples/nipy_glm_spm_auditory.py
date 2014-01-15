@@ -33,10 +33,10 @@ if len(sys.argv)  < 3:
           " <output_dir>\r\n") % sys.argv[0]
     print("Defaulting to current dir")
     # set data dir
-    DATA_DIR = os.path.abspath('spm_auditory_MoAEpilot_data')
+    DATA_DIR = os.path.abspath('spm_auditory')
 
     # set output dir
-    OUTPUT_DIR = os.path.abspath('spm_auditory_MoAEpilot_output')
+    OUTPUT_DIR = os.path.abspath('spm_auditory_output')
 
 
 else:

@@ -8,10 +8,6 @@
 
 import os
 import inspect
-import time
-import numpy as np
-import nibabel
-import inspect
 from joblib import Memory
 from reporting.preproc_reporter import (
     generate_stc_thumbnails,
@@ -36,8 +32,6 @@ PREPROC_OUTPUT_IMAGE_PREFICES = {'STC': 'a',
                                  }
 
 
-def _do_subject_coreg(subject_data, coreg_anat_to_func=False, caching=True,
-                      verbose=True):
 def do_subject_preproc(subject_data,
                        verbose=True,
                        do_caching=True,
