@@ -183,7 +183,9 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None):
         # grab anat
         anat = None
         if not options.get("anat", None) is None:
-            anat = os.path.join(subject_data_dir, options['anat'])
+            anat = glob.glob(os.path.join(subject_data_dir, options['anat']))
+            assert len(anat) == 1
+            anat = anat[0]
             assert os.path.isfile(anat), "Anatomical image %s not found!" % (
                 anat)
             anat_dir = os.path.dirname(anat)
