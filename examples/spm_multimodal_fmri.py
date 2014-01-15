@@ -50,7 +50,7 @@ subject_data = SubjectData(subject_id=subject_id,
                            )
 
 # preprocess the data
-subject_data = do_subject_preproc(subject_data, do_normalize=False, fwhm=[8.])
+subject_data = do_subject_preproc(subject_data, normalize=False, fwhm=[8.])
 
 # collect preprocessed data
 anat_img = nibabel.load(subject_data.anat)

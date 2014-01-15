@@ -8,6 +8,7 @@ Author: dohmatob elvis dopgima elvis[dot]dohmatob[at]inria[dot]fr
 # standard imports
 import sys
 import os
+import time
 
 # import API for preprocessing business
 from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
@@ -32,3 +33,5 @@ fetch_spm_multimodal_fmri_data(dataset_dir)
 # preprocess the data
 results = do_subjects_preproc(jobfile, dataset_dir=dataset_dir)
 assert len(results) == 1
+
+
