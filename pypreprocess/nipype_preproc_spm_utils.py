@@ -26,7 +26,6 @@ from joblib import (Parallel,
 
 # import nipype API
 import nipype.interfaces.spm as spm
-import nipype.interfaces.fsl as fsl
 from nipype.caching import Memory as NipypeMemory
 from configure_spm import configure_spm
 
@@ -1347,9 +1346,19 @@ def do_subjects_preproc(subject_factory,
         if N_JOBS is defined in the shell environment, then its value
         is used instead.
 
+    caching: bool, optional (default True)
+       if set then caching (joblib, nipype, etc.), will by used where ever
+       useful
+
     dartel: bool, optional (default False)
         flag indicating whether NewSegment + DARTEL should used for
         normalization
+
+    func_write_voxel_sizes: triplet of floats, optional (default None)
+        final voxel size of all functional images after normalization
+
+    anat_wrirt_voxel_sizes: triple of floats, optional (default None)
+        final voxel size for all anatomical images after normalization
 
     report: bool, optional (default True)
         if set, then HTML reports will be generated
@@ -1373,6 +1382,12 @@ def do_subjects_preproc(subject_factory,
     preproc_params: parameter-value dict
         optional parameters passed to the \do_subject_preproc` API. See
         the API documentation for details
+
+    matlab_exec: string, optional (default None)
+        full path to the MATLAB executable to be used with SPM
+
+    spm_dir: string, optional (default None)
+        full path to the SPM installation directory to be used
 
     Returns
     -------
@@ -1611,6 +1626,8 @@ def do_subjects_preproc(subject_factory,
         fwhm = preproc_params.get("fwhm", 0.)
         func_write_voxel_sizes = preproc_params.get(
             "func_write_voxel_sizes", None)
+        func_write_voxel_sizes = preproc_params.get(
+            "func_write_voxel_sizes", None)
         preproc_params["fwhm"] = 0.
         cv_tc = preproc_params.get("cv_tc", True)
         for item in ["segment", "normalize", "cv_tc",
@@ -1636,6 +1653,7 @@ def do_subjects_preproc(subject_factory,
             n_jobs=n_jobs,
             fwhm=fwhm,
             func_write_voxel_sizes=func_write_voxel_sizes,
+            anat_write_voxel_sizes=anat_write_voxel_sizes,
             report=preproc_params.get("report", True),
             cv_tc=cv_tc,
             parent_results_gallery=parent_results_gallery
