@@ -37,6 +37,7 @@ print
 
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
+
 # fetch the data
 sd = fetch_spm_multimodal_fmri_data(DATA_DIR)
 subject_id = "sub001"
@@ -91,8 +92,8 @@ for x in xrange(2):
         frametimes,
         paradigm, hrf_model=hrf_model,
         drift_model=drift_model, hfcut=hfcut,
-        add_reg_names=['tx', 'ty', 'tz', 'rx', 'ry', 'rz'],
-        add_regs=np.loadtxt(subject_data.realignment_parameters[x])
+        # add_reg_names=['tx', 'ty', 'tz', 'rx', 'ry', 'rz'],
+        # add_regs=np.loadtxt(subject_data.realignment_parameters[x])
         )
 
     # specify contrasts

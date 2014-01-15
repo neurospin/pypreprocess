@@ -36,8 +36,6 @@ PREPROC_OUTPUT_IMAGE_PREFICES = {'STC': 'a',
                                  }
 
 
-def _do_subject_coreg(subject_data, coreg_anat_to_func=False, caching=True,
-                      verbose=True):
 def do_subject_preproc(subject_data,
                        verbose=True,
                        do_caching=True,
@@ -169,16 +167,16 @@ def do_subject_preproc(subject_data,
         # generate explanation of preproc steps undergone by subject
         preproc_undergone = generate_preproc_undergone_docstring(
             fwhm=fwhm,
-            do_slicetiming=do_stc,
-            do_realign=do_realign,
-            do_coreg=do_coreg,
+            slice_timing=do_stc,
+            realign=do_realign,
+            coregister=do_coreg,
             coreg_func_to_anat=coreg_func_to_anat
             )
 
         # initialize reports factory
         subject_data.init_report(parent_results_gallery=parent_results_gallery,
                                  preproc_undergone=preproc_undergone,
-                                 do_cv_tc=do_cv_tc)
+                                 cv_tc=do_cv_tc)
 
     ############################
     # Slice-Timing Correction
@@ -206,18 +204,18 @@ def do_subject_preproc(subject_data,
 
         subject_data.func = stc_output
 
-        if do_report:
-            # generate STC QA thumbs
-            generate_stc_thumbnails(
-                original_bold,
-                stc_output,
-                subject_data.reports_output_dir,
-                sessions=xrange(n_sessions),
-                results_gallery=subject_data.results_gallery
-                )
+        # if do_report:
+        #     # generate STC QA thumbs
+        #     generate_stc_thumbnails(
+        #         original_bold,
+        #         stc_output,
+        #         subject_data.reports_output_dir,
+        #         sessions=xrange(n_sessions),
+        #         results_gallery=subject_data.results_gallery
+        #         )
 
-            # gc
-            del original_bold
+        # gc
+        del original_bold
 
         # garbage collection
         del fmristc

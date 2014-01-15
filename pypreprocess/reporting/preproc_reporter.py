@@ -915,6 +915,8 @@ def generate_stc_thumbnails(
     def _load_session(x):
         if isinstance(x, basestring):
             x = nibabel.load(x).get_data()
+        elif is_niimg(x):
+            return x
         else:
             x = nibabel.concat_images(x).get_data()
 
