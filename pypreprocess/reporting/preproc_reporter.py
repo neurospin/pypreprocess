@@ -24,7 +24,6 @@ from .check_preprocessing import (plot_registration,
 from ..io_utils import (compute_mean_3D_image,
                         is_3D,
                         is_niimg,
-                        load_vols
                         )
 from .base_reporter import (Thumbnail,
                             ResultsGallery,

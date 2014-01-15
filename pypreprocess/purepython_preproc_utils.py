@@ -163,9 +163,9 @@ def do_subject_preproc(subject_data,
         # generate explanation of preproc steps undergone by subject
         preproc_undergone = generate_preproc_undergone_docstring(
             fwhm=fwhm,
-            do_slicetiming=do_stc,
-            do_realign=do_realign,
-            do_coreg=do_coreg,
+            slice_timing=do_stc,
+            realign=do_realign,
+            coregister=do_coreg,
             coreg_func_to_anat=coreg_func_to_anat
             )
 
