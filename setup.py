@@ -40,8 +40,9 @@ def configuration(parent_package='', top_path=None):
     # spm loader
     config.add_subpackage('pypreprocess/spm_loader')
 
-    # template engine
-    config.add_subpackage('pypreprocess/tempita')
+    # extrenal dependecies
+    config.add_subpackage('pypreprocess/external')
+    config.add_subpackage('pypreprocess/external/joblib')
 
     # experimental modules
     config.add_subpackage('pypreprocess/_spike')
