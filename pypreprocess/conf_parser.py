@@ -204,7 +204,8 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None):
                                    output_dir=subject_output_dir,
                                    session_output_dirs=sess_output_dirs,
                                    anat_output_dir=anat_output_dir,
-                                   session_id=session_ids)
+                                   session_id=session_ids,
+                                   data_dir=subject_data_dir)
 
         subjects.append(subject_data)
 
