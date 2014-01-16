@@ -298,7 +298,6 @@ Z>%s voxel-level.
             title += " for subject %s" % subject_id
 
     level1_html_markup = base_reporter.get_subject_report_stats_html_template(
-        ).substitute(
         title=title,
         start_time=start_time,
         subject_id=subject_id,
@@ -428,10 +427,10 @@ Z>%s voxel-level.
                     cut_coords = min(5, len(z_clusters))
                 _cut_coords = [x for zc in z_clusters for x in list(
                         set(zc['maxima'][..., axis]))]
-                # _cut_coords = _maximally_separated_subset(
-                #     _cut_coords, cut_coords)
+                # # _cut_coords = _maximally_separated_subset(
+                # #     _cut_coords, cut_coords)
 
-                assert len(_cut_coords) == cut_coords
+                # assert len(_cut_coords) == cut_coords
                 cut_coords = _cut_coords
 
         # plot activation proper

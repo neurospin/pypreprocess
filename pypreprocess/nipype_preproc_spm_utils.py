@@ -1054,6 +1054,9 @@ def do_subject_preproc(
 
     """
 
+    assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
+        "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
+
     # sanitze subject data
     if isinstance(subject_data, dict):
         subject_data = SubjectData(**subject_data)
@@ -1439,6 +1442,8 @@ def do_subjects_preproc(subject_factory,
 
     # configure SPM back-end
     _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
+    assert not spm_dir is None and os.path.isdir(spm_dir), (
+        "spm_dir '%s' doesn't exist; you need to export it!" % spm_dir)
 
     preproc_params['report'] = report
     preproc_params["dartel"] = dartel

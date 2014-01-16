@@ -44,9 +44,6 @@ def configuration(parent_package='', top_path=None):
     config.add_subpackage('pypreprocess/external')
     config.add_subpackage('pypreprocess/external/joblib')
 
-    # experimental modules
-    config.add_subpackage('pypreprocess/_spike')
-
     # reporting plugin
     config.add_subpackage('pypreprocess/reporting')
     config.add_data_dir("pypreprocess/reporting/template_reports")
