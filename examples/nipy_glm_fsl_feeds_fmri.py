@@ -20,7 +20,6 @@ from pypreprocess.nipype_preproc_spm_utils import SubjectData, do_subjects_prepr
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
 from pypreprocess.reporting.base_reporter import ProgressReport
 from pypreprocess.datasets import fetch_fsl_feeds_data
-from pypreprocess.datasets_extras import unzip_nii_gz
 from pypreprocess.io_utils import compute_mean_3D_image
 
 """MISC"""
@@ -32,13 +31,14 @@ if len(sys.argv)  < 3:
            " <output_dir>\r\n") % sys.argv[0]
     print ("Example:\r\npython %s /usr/share/fsl-feeds/data/"
            " fsl_feeds_fmri_runs") % sys.argv[0]
-    sys.exit(1)
+    data_dir = os.path.join(os.getcwd(), "spm_auditory")
+    output_dir = os.path.join(os.getcwd(), "spm_auditory_%s" % sys.argv[0])
+else:
+    """set data dir"""
+    data_dir = os.path.abspath(sys.argv[1])
 
-"""set data dir"""
-data_dir = os.path.abspath(sys.argv[1])
-
-"""set output dir"""
-output_dir = os.path.abspath(sys.argv[2])
+    """set output dir"""
+    output_dir = os.path.abspath(sys.argv[2])
 
 """experimental setup"""
 stats_start_time = time.ctime()
