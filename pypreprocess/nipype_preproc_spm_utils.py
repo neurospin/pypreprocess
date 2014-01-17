@@ -66,21 +66,25 @@ def _configure_backends(spm_dir=None, matlab_exec=None):
     global SPM_DIR, EPI_TEMPLATE, SPM_T1_TEMPLATE, T1_TEMPLATE
     global GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE
 
-    SPM_DIR, _ = configure_spm(spm_dir=spm_dir, matlab_exec=matlab_exec)
+    _ = configure_spm(spm_dir=spm_dir, matlab_exec=matlab_exec)
 
-    # configure template images
-    EPI_TEMPLATE = os.path.join(SPM_DIR, 'templates/EPI.nii')
-    SPM_T1_TEMPLATE = os.path.join(SPM_DIR, "templates/T1.nii")
-    T1_TEMPLATE = "/usr/share/data/fsl-mni152-templates/avg152T1.nii"
-    if not os.path.isfile(T1_TEMPLATE):
-        T1_TEMPLATE += '.gz'
-        if not os.path.exists(T1_TEMPLATE):
-            T1_TEMPLATE = SPM_T1_TEMPLATE
-    GM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/grey.nii')
-    WM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/white.nii')
-    CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
+    if _[0]:
+        if os.path.isdir(_[0]):
+            SPM_DIR = _[0]
 
-    _set_templates(spm_dir=SPM_DIR)
+            # configure template images
+            EPI_TEMPLATE = os.path.join(SPM_DIR, 'templates/EPI.nii')
+            SPM_T1_TEMPLATE = os.path.join(SPM_DIR, "templates/T1.nii")
+            T1_TEMPLATE = "/usr/share/data/fsl-mni152-templates/avg152T1.nii"
+            if not os.path.isfile(T1_TEMPLATE):
+                T1_TEMPLATE += '.gz'
+                if not os.path.exists(T1_TEMPLATE):
+                    T1_TEMPLATE = SPM_T1_TEMPLATE
+            GM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/grey.nii')
+            WM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/white.nii')
+            CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
+
+            _set_templates(spm_dir=SPM_DIR)
 
 try:
     _configure_backends()
@@ -1432,6 +1436,16 @@ def do_subjects_preproc(subject_factory,
             dataset_description = preproc_params["dataset_description"]
             del preproc_params["dataset_description"]
 
+        if "spm_dir" in preproc_params:
+            if preproc_params["spm_dir"]:
+                spm_dir = preproc_params["spm_dir"]
+            del preproc_params["spm_dir"]
+
+        if "matlab_exec" in preproc_params:
+            if preproc_params["matlab_exec"]:
+                matlab_exec = preproc_params["matlab_exec"]
+            del preproc_params["matlab_exec"]
+
     # generate subjects (if generator)
     subject_factory = [subject_data
                        for subject_data in subject_factory]
@@ -1442,8 +1456,8 @@ def do_subjects_preproc(subject_factory,
 
     # configure SPM back-end
     _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
-    assert not spm_dir is None and os.path.isdir(spm_dir), (
-        "spm_dir '%s' doesn't exist; you need to export it!" % spm_dir)
+    assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
+        "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
     preproc_params['report'] = report
     preproc_params["dartel"] = dartel

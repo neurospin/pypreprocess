@@ -915,25 +915,20 @@ def generate_stc_thumbnails(
         return data
 
     def _load_session(x):
-        if isinstance(x, basestring):
-            x = nibabel.load(x).get_data()
-        elif is_niimg(x):
+        if isinstance(x, np.ndarray):
             return x
+        elif isinstance(x, basestring):
+            return nibabel.load(x).get_data()
+        elif is_niimg(x):
+            return x.get_data()
         else:
-            x = nibabel.concat_images(x).get_data()
+            return [np.array(_load_session(y)) for y in x]
 
-        if x.ndim == 5:
-            x = x[:, :, :, 0, :]
-        else:
-            assert x.ndim == 4, x.shape
-
-        return x
-
-    original_bold = [_load_session(x) for x in original_bold]
-    st_corrected_bold = [_load_session(x) for x in st_corrected_bold]
+    original_bold = _load_session(original_bold)
+    st_corrected_bold = _load_session(st_corrected_bold)
 
     if voxel is None:
-        voxel = np.array(original_bold[0].shape[:-1]) // 2
+        voxel = np.array(original_bold[0].shape[1:]) // 2
 
     output = {}
 

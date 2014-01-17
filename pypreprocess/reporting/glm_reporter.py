@@ -167,7 +167,7 @@ def generate_subject_stats_report(
     anat_affine=None,
     slicer="z",
     cut_coords=None,
-    statistical_mapping_trick=True,
+    statistical_mapping_trick=False,
     threshold=2.3,
     cluster_th=0,
     cmap=viz.cm.cold_hot,
@@ -244,6 +244,12 @@ def generate_subject_stats_report(
 
     """
 
+    if slicer == "ortho":
+        statistical_mapping_trick = False
+
+        if not hasattr(cut_coords, "__iter__"):
+            cut_coords = None
+    
     # prepare for stats reporting
     if progress_logger is None:
         progress_logger = base_reporter.ProgressReport()

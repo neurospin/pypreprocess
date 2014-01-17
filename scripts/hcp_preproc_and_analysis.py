@@ -1,7 +1,3 @@
-
-
-
-
 """
 :Synopsis: preprocessing and/or analysis of HCP task fMRI data
 :Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com> <elvis.dohmatob@inria.fr>
@@ -37,7 +33,8 @@ def _do_fmri_distortion_correction(subject_data,
                                    # directions and so can be scaled to 1
                                    # (or any other nonzero float)
                                    readout_time=.01392,
-                                   fwhm=[5, 5, 5],
+                                   fwhm=0.,
+                                   coreg_anat_to_func=True,
                                    report=False
                                    ):
     """
@@ -131,7 +128,7 @@ def _do_fmri_distortion_correction(subject_data,
         rfourD_plus_sbref = _do_subject_realign(SubjectData(
                 func=[fourD_plus_sbref], output_dir=subject_data.output_dir,
                 n_sessions=1, session_output_dirs=[sess_output_dir]),
-                                           report=report).func[0]
+                                           report=False).func[0]
 
         # apply topup to realigned images
         dc_rfourD_plus_sbref = os.path.join(
@@ -163,6 +160,7 @@ def _do_fmri_distortion_correction(subject_data,
         subject_data.func = [subject_data.func]
 
     subject_data = do_subject_preproc(subject_data, report=report,
+                                      coreg_anat_to_func=coreg_anat_to_func,
                                       segment=False, normalize=False,
                                       fwhm=fwhm)
 
@@ -181,10 +179,11 @@ def run_suject_level1_glm(subject_data,
                           drift_model="Cosine",
                           hfcut=100,
                           regress_motion=True,
-                          slicer='y',
+                          slicer='ortho',
                           cut_coords=6,
                           threshold=3.,
-                          cluster_th=15
+                          cluster_th=15,
+                          fwhm=0.
                           ):
     """
     Function to do preproc + analysis for a single HCP subject (task fMRI)
@@ -439,8 +438,8 @@ def run_suject_level1_glm(subject_data,
     contrasts = dict((cid, cval[0]) for cid, cval in contrasts.iteritems())
 
     # do stats report
-    if 0x0:
-        anat_img = load_specific_vol(subject_data.func[0], 0)[0]
+    if 0x1:
+        anat_img = nibabel.load(subject_data.anat)
         stats_report_filename = os.path.join(subject_data.output_dir,
                                              "reports",
                                              "report_stats.html")
@@ -505,13 +504,18 @@ if __name__ == '__main__':
     from pypreprocess.conf_parser import _generate_preproc_pipeline
     conf_file = sys.argv[1]
     subjects, preproc_params = _generate_preproc_pipeline(conf_file)
+
+    # GO!
+    fwhm = [5, 5, 5]
     if n_jobs > 1:
         subjects = Parallel(
             n_jobs=n_jobs, verbose=100)(delayed(
-                _do_fmri_distortion_correction)(subject_data)
+                _do_fmri_distortion_correction)(subject_data, fwhm=fwhm,
+                                                coreg_anat_to_func=True)
                                         for subject_data in subjects)
     else:
-        subjects = [_do_fmri_distortion_correction(subject_data)
+        subjects = [_do_fmri_distortion_correction(subject_data, fwhm=fwhm,
+                                                   coreg_anat_to_func=True)
                                 for subject_data in subjects]
 
     # assert 0, subjects
@@ -616,9 +620,9 @@ if __name__ == '__main__':
                         subject_data,
                         # do_preproc=do_preproc,
                         # do_normalize=do_normalize,
-                        # fwhm=fwhm,
+                        fwhm=fwhm,
                         regress_motion=True,
-                        slicer=slicer,
+                        slicer="ortho",  # slicer,
                         cut_coords=cut_coords,
                         threshold=threshold,
 
