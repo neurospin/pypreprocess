@@ -7,8 +7,12 @@
 
 import os
 import glob
+import distutils
+
+
 import nipype.interfaces.matlab as matlab
 from nipype.interfaces import spm
+import nipype
 
 from io_utils import _expand_path
 
@@ -36,7 +40,10 @@ def configure_spm(matlab_exec=None, spm_dir=None):
         "Can't find SPM path '%s'! You should export SPM_DIR=/path/to/"
         "your/SPM/root/dir" % spm_dir)
 
-    if os.path.exists('/i2bm/local/bin/spm8') and origin_spm_dir is None:
+    if (distutils.version.LooseVersion(nipype.__version__).version
+                > [0, 9] and
+            os.path.exists('/i2bm/local/bin/spm8')
+            and origin_spm_dir is None):
         matlab.MatlabCommand.set_default_paths(spm_dir)
         matlab_cmd = ('/i2bm/local/bin/spm8 '
                     'run script')
