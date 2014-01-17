@@ -12,8 +12,8 @@ import tempfile
 import numpy as np
 import pylab as pl
 import nibabel
-from nipy.labs import compute_mask_files
-from nipy.labs import viz
+from ..external.nipy_labs import viz
+from ..external.nipy_labs import compute_mask_files
 
 from ..external import joblib
 from ..io_utils import (compute_mean_3D_image,

@@ -10,12 +10,12 @@ import numpy as np
 from nipy.modalities.fmri.experimental_paradigm import EventRelatedParadigm
 from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
-from nipy.labs.mask import intersect_masks
 import nibabel
 import scipy.io
 import time
 import sys
 import os
+
 from pypreprocess.reporting.base_reporter import ProgressReport
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
 from pypreprocess.datasets import fetch_spm_multimodal_fmri_data

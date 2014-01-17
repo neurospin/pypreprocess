@@ -1,12 +1,9 @@
 import os
 import sys
 import pylab as pl
-from nipy.labs import viz
+from ..external.nipy_labs import viz
 import nibabel
 import numpy as np
-import nipy.labs.statistical_mapping as sm
-# from nipy.labs.viz_tools.coord_tools import _maximally_separated_subset
-from nipy.modalities.fmri.design_matrix import DesignMatrix
 import base_reporter
 
 
@@ -63,6 +60,8 @@ def generate_level1_stats_table(zmap, mask,
         title of generated stats table
 
     """
+    # Delayed import of nipy for more robustness when it is not present
+    import nipy.labs.statistical_mapping as sm
 
     # sanity
     if isinstance(zmap, basestring):
@@ -243,6 +242,8 @@ def generate_subject_stats_report(
         experimental paradigm and the GLM
 
     """
+    # Delayed import of nipy for more robustness when it is not present
+    from nipy.modalities.fmri.design_matrix import DesignMatrix
 
     if slicer == "ortho":
         statistical_mapping_trick = False

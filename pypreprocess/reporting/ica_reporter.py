@@ -8,7 +8,7 @@
 import os
 import sys
 import pylab as pl
-from nipy.labs import viz
+from ..external.nipy_labs import viz
 import nibabel
 import base_reporter
 import time

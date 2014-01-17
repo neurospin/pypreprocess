@@ -7,11 +7,7 @@
 
 import os
 import sys
-import pylab as pl
-from nipy.labs import viz
-import nibabel
 import base_reporter
-import time
 
 # root dir
 PYPREPROCESS_DIR = os.path.dirname(
