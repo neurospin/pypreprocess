@@ -189,9 +189,6 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None):
             print "Skipping subject %s" % subject_id
             continue
 
-        assert len(subjects), (
-            "All subjects skipped, due to various problems!")
-
         # grab anat
         anat = None
         if not options.get("anat", None) is None:
@@ -222,6 +219,9 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None):
                                    data_dir=subject_data_dir)
 
         subjects.append(subject_data)
+
+    assert len(subjects), (
+        "All subjects skipped, due to various problems!")
 
     # preproc parameters
     preproc_params = {
