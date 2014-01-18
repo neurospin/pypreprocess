@@ -15,7 +15,7 @@ import time
 import matplotlib as mpl
 import pylab as pl
 import numpy as np
-from ..tempita import (HTMLTemplate,
+from ..external.tempita import (HTMLTemplate,
                         bunch
                         )
 
