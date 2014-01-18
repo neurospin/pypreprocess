@@ -4,14 +4,17 @@ import os
 from distutils import log
 
 # Global variables
-LIBS = os.path.realpath('libcstat')
+THIS_DIR = os.path.dirname(__file__)
+LIBS = os.path.realpath(os.path.join(THIS_DIR, 'libcstat'))
 
 
 def configuration(parent_package='',top_path=None):
     from numpy.distutils.misc_util import Configuration, get_numpy_include_dirs
     from numpy.distutils.system_info import get_info
 
-    config = Configuration('labs', parent_package, top_path)
+
+    # config = Configuration('nipy_labs', parent_package, top_path)
+    config = Configuration(THIS_DIR, parent_package, top_path)
 
     # cstat library
     config.add_include_dirs(os.path.join(LIBS,'fff'))
@@ -71,14 +74,14 @@ def configuration(parent_package='',top_path=None):
                        extra_info=lapack_info)
 
     # Subpackages
-    config.add_subpackage('bindings')
-    config.add_subpackage('glm')
-    config.add_subpackage('group')
-    config.add_subpackage('spatial_models')
+    # config.add_subpackage('bindings')
+    # config.add_subpackage('glm')
+    # config.add_subpackage('group')
+    # config.add_subpackage('spatial_models')
     config.add_subpackage('utils')
     config.add_subpackage('viz_tools')
     config.add_subpackage('datasets')
-    config.add_subpackage('tests')
+    # config.add_subpackage('tests')
 
     config.make_config_py() # installs __config__.py
 
