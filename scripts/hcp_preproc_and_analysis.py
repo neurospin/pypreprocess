@@ -183,7 +183,8 @@ def run_suject_level1_glm(subject_data,
                           cut_coords=6,
                           threshold=3.,
                           cluster_th=15,
-                          fwhm=0.
+                          fwhm=0.,
+                          **other_preproc_kwargs
                           ):
     """
     Function to do preproc + analysis for a single HCP subject (task fMRI)
@@ -195,6 +196,8 @@ def run_suject_level1_glm(subject_data,
     if not os.path.exists(subject_data.output_dir):
         os.makedirs(subject_data.output_dir)
 
+    subject_data = _do_fmri_distortion_correction(subject_data, fwhm=fwhm,
+                                                  **other_preproc_kwargs)
     # # glob fmri files
     # fmri_files = [os.path.join(
     #         subject_data_dir,
@@ -508,15 +511,26 @@ if __name__ == '__main__':
     # GO!
     fwhm = [5, 5, 5]
     if n_jobs > 1:
-        subjects = Parallel(
+        group_glm_results = Parallel(
             n_jobs=n_jobs, verbose=100)(delayed(
-                _do_fmri_distortion_correction)(subject_data, fwhm=fwhm,
-                                                coreg_anat_to_func=True)
+                run_suject_level1_glm)(subject_data, fwhm=fwhm,
+                                       coreg_anat_to_func=True,
+                                       regress_motion=True,
+                                       slicer="ortho",  # slicer,
+                                       cut_coords=cut_coords,
+                                       threshold=threshold,
+                                       cluster_th=cluster_th
+                                       )
                                         for subject_data in subjects)
     else:
-        subjects = [_do_fmri_distortion_correction(subject_data, fwhm=fwhm,
-                                                   coreg_anat_to_func=True)
-                                for subject_data in subjects]
+        group_glm_results = [run_suject_level1_glm(subject_data, fwhm=fwhm,
+                                                   coreg_anat_to_func=True,
+                                                   regress_motion=True,
+                                                   slicer="ortho",  # slicer,
+                                                   cut_coords=cut_coords,
+                                                   threshold=threshold,
+                                                   cluster_th=cluster_th)
+                             for subject_data in subjects]
 
     # assert 0, subjects
 
@@ -613,22 +627,22 @@ if __name__ == '__main__':
             # chronometry
             stats_start_time = pretty_time()
 
-            # run intra-subject GLM and collect the results group-level GLM
-            group_glm_inputs = [subject_glm_results
-                                        for subject_glm_results in Parallel(
-                    n_jobs=n_jobs, verbose=100)(delayed(run_suject_level1_glm)(
-                        subject_data,
-                        # do_preproc=do_preproc,
-                        # do_normalize=do_normalize,
-                        fwhm=fwhm,
-                        regress_motion=True,
-                        slicer="ortho",  # slicer,
-                        cut_coords=cut_coords,
-                        threshold=threshold,
+            # # run intra-subject GLM and collect the results group-level GLM
+            # group_glm_inputs = [subject_glm_results
+            #                             for subject_glm_results in Parallel(
+            #         n_jobs=n_jobs, verbose=100)(delayed(run_suject_level1_glm)(
+            #             subject_data,
+            #             # do_preproc=do_preproc,
+            #             # do_normalize=do_normalize,
+            #             fwhm=fwhm,
+            #             regress_motion=True,
+            #             slicer="ortho",  # slicer,
+            #             cut_coords=cut_coords,
+            #             threshold=threshold,
 
-                        cluster_th=cluster_th
-                        ) for subject_data in subjects)
-                                if not subject_glm_results is None]
+            #             cluster_th=cluster_th
+            #             ) for subject_data in subjects)
+            #                     if not subject_glm_results is None]
 
             ###################################################################
             # GROUP ANALYSIS BEGINS
