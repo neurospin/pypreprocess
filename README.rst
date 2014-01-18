@@ -25,33 +25,22 @@ Important links
 Dependencies
 ============
 
-First of all, you will need to have the following installed:
+First of all, you will need to have the following installed (in that order):
         * Python >= 2.6
         * Numpy >= 1.3
         * SciPy >= 0.7
-        * nipype >= 0.8.0
-        * nipy >= 0.3.0
-        * traits >= 4.3.0
-        * joblib >= 0.7.0
+        * matplotlib >= 0.99.1
         * nibabel >= 1.3.0
         * networkx >= 1.7
+        * traits >= 4.3.0
         * sympy >= 0.7.1
-        * matplotlib >= 0.99.1
-        
-
-The requirements/dependencies (nipy, nipype, traits, nibabel, etc.) 
-are documented in the *dependencies.txt files.
-
-To install these dependencies in one go, simply chdir to the directory 
-containing this README and then type (in your terminal):
-
-        python install_depenencies.py
+        * nipype >= 0.8.0
+        * nipy >= 0.3.0	
         
 Install
 =======
 
-This package uses distutils, which is the default way of installing
-python modules. To install in your home directory, use::
+Ensure that you have the above dependencies installed. Then run:
 
   python setup.py install --user
 
