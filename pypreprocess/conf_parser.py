@@ -138,7 +138,11 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None):
     session_ids = [re.match("session_(.+)_func", session).group(1)
                    for session in sessions]
     assert len(sessions) > 0
-    for subject_data_dir in sorted(glob.glob(subject_dir_wildcard)):
+    subject_data_dirs = sorted(glob.glob(subject_dir_wildcard))
+    assert subject_data_dirs, (
+        "No subject directories found for wildcard: %s" % (
+            subject_dir_wildcard))
+    for subject_data_dir in subject_data_dirs:
         if subject_count == nsubjects:
             break
 
@@ -153,13 +157,17 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None):
         # grab functional data
         func = []
         sess_output_dirs = []
+        skip_subject = False
         for session in sessions:
             session = options[session]
             sess_func_wildcard = os.path.join(subject_data_dir, session)
             sess_func = sorted(glob.glob(sess_func_wildcard))
-            assert len(sess_func), ("subject %s: No func images found for"
-                                    " wildcard %s" % (
-                    subject_id, sess_func_wildcard))
+            if not sess_func:
+                Warning("subject %s: No func images found for"
+                        " wildcard %s" % (
+                        subject_id, sess_func_wildcard))
+                skip_subject = True
+                break
             sess_dir = os.path.dirname(sess_func[0])
             if len(sess_func) == 1:
                 sess_func = sess_func[0]
@@ -177,8 +185,12 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None):
                 os.makedirs(sess_output_dir)
             sess_output_dirs.append(sess_output_dir)
 
-        assert len(func), ("subject %s: No func images found for "
-                           "wildcard: %s !") % (subject_id, sess_func_wildcard)
+        if skip_subject:
+            print "Skipping subject %s" % subject_id
+            continue
+
+        assert len(subjects), (
+            "All subjects skipped, due to various problems!")
 
         # grab anat
         anat = None
@@ -210,9 +222,6 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None):
                                    data_dir=subject_data_dir)
 
         subjects.append(subject_data)
-
-    assert subjects, "No subject directories found for wildcard: %s" % (
-        subject_dir_wildcard)
 
     # preproc parameters
     preproc_params = {
