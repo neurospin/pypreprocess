@@ -95,7 +95,8 @@ except AssertionError:
 def _do_subject_slice_timing(subject_data, TR, TA=None,
                              refslice=0, slice_order="ascending",
                              interleaved=False, caching=True, report=True,
-                             indexing="matlab", software="spm"):
+                             indexing="matlab", software="spm",
+                             hardlink_output=True):
     """
     Slice-Timing Correction.
 
@@ -170,6 +171,10 @@ def _do_subject_slice_timing(subject_data, TR, TA=None,
             subject_data.nipype_results['slice_timing'].append(stc_result)
             stc_func.append(stc_result.outputs.timecorrected_files)
 
+    # commit output files
+    if hardlink_output:
+        subject_data.hardlink_output_files()
+
     # generate STC QA thumbs
     if report:
         generate_stc_thumbnails(
@@ -187,7 +192,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None,
 
 def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
                         caching=True, report=True, software="spm",
-                        cmd_prefix=""):
+                        hardlink_output=True):
     """
     Wrapper for running spm.Realign with optional reporting.
 
@@ -285,6 +290,10 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
     if subject_data.n_sessions == 1 and len(subject_data.func) > 1:
         subject_data.func = [subject_data.func]
 
+    # commit output files
+    if hardlink_output:
+        subject_data.hardlink_output_files()
+
     # generate realignment thumbs
     if report:
         subject_data.generate_realignment_thumbnails()
@@ -294,7 +303,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
 def _do_subject_coregister(subject_data, reslice=False,
                            coreg_anat_to_func=False, caching=True,
-                           report=True, software="spm"):
+                           report=True, software="spm", hardlink_output=True):
     """
     Wrapper for running spm.Coregister with optional reporting.
 
@@ -424,6 +433,10 @@ def _do_subject_coregister(subject_data, reslice=False,
         subject_data.func = unravel_filenames(
             coregistered_files, file_types)
 
+    # commit output files
+    if hardlink_output:
+        subject_data.hardlink_output_files()
+
     # generate coregistration thumbs
     if report:
         subject_data.generate_coregistration_thumbnails()
@@ -432,7 +445,7 @@ def _do_subject_coregister(subject_data, reslice=False,
 
 
 def _do_subject_segment(subject_data, normalize=False, caching=True,
-                        report=True, software="spm"):
+                        report=True, software="spm", hardlink_output=True):
     """
     Wrapper for running spm.Segment with optional reporting.
 
@@ -551,6 +564,10 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
         subject_data.wwm = segment_result.outputs.normalized_wm_image
         subject_data.wcsf = segment_result.outputs.normalized_csf_image
 
+    # commit output files
+    if hardlink_output:
+        subject_data.hardlink_output_files()
+
     # generate segmentation thumbs
     if report:
         subject_data.generate_segmentation_thumbnails()
@@ -561,7 +578,8 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
 def _do_subject_normalize(subject_data, fwhm=0., caching=True,
                           func_write_voxel_sizes=None,
                           anat_write_voxel_sizes=None,
-                          report=True, software="spm"
+                          report=True, software="spm",
+                          hardlink_output=True
                           ):
     """
     Wrapper for running spm.Segment with optional reporting.
@@ -730,6 +748,10 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
         else:
             subject_data.anat = normalize_result.outputs.normalized_files
 
+    # commit output files
+    if hardlink_output:
+        subject_data.hardlink_output_files()
+
     # generate thumbnails
     if report:
         subject_data.generate_normalization_thumbnails()
@@ -741,10 +763,15 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
             report=report
             )
 
+    # commit output files
+    if hardlink_output:
+        subject_data.hardlink_output_files()
+
     return subject_data
 
 
-def _do_subject_smooth(subject_data, fwhm, caching=True, report=True):
+def _do_subject_smooth(subject_data, fwhm, caching=True, report=True,
+                       hardlink_output=True):
     """
     Wrapper for running spm.Smooth with optional reporting.
 
@@ -804,6 +831,10 @@ def _do_subject_smooth(subject_data, fwhm, caching=True, report=True):
     subject_data.func = unravel_filenames(
         smooth_result.outputs.smoothed_files, file_types)
 
+    # commit output files
+    if hardlink_output:
+        subject_data.hardlink_output_files()
+
     # reporting
     if report:
         subject_data.generate_smooth_thumbnails()
@@ -820,7 +851,8 @@ def _do_subject_dartelnorm2mni(subject_data,
                                cv_tc=True,
                                last_stage=True,
                                func_write_voxel_sizes=None,
-                               anat_write_voxel_sizes=None
+                               anat_write_voxel_sizes=None,
+                               hardlink_output=True
                                ):
     """
     Uses spm.DARTELNorm2MNI to warp subject brain into MNI space.
@@ -922,7 +954,8 @@ def _do_subject_dartelnorm2mni(subject_data,
                                           )
 
     # hardlink output files
-    subject_data.hardlink_output_files()
+    if hardlink_output:
+        subject_data.hardlink_output_files()
 
     if report:
         # generate normalization thumbnails
@@ -1127,8 +1160,15 @@ def do_subject_preproc(
         subject_data = _do_subject_slice_timing(
             subject_data, TR, refslice=refslice,
             TA=TA, slice_order=slice_order, interleaved=interleaved,
-            report=report  # post-stc reporting bugs like hell!
+            report=report,  # post-stc reporting bugs like hell!
+            software=slice_timing_software,
+            hardlink_output=hardlink_output
             )
+
+        # handle failed node
+        if subject_data.failed:
+            subject_data.finalize_report(last_stage=last_stage)
+            return subject_data
 
     #######################
     #  motion correction
@@ -1139,12 +1179,9 @@ def do_subject_preproc(
             reslice=realign_reslice,
             register_to_mean=register_to_mean,
             report=report,
+            hardlink_output=hardlink_output,
             software=realign_software
             )
-
-        # hard-link node output files
-        if hardlink_output:
-            subject_data.hardlink_output_files()
 
         # handle failed node
         if subject_data.failed:
@@ -1160,12 +1197,9 @@ def do_subject_preproc(
             subject_data, caching=caching,
             coreg_anat_to_func=coreg_anat_to_func,
             reslice=coregister_reslice,
-            report=report
+            report=report,
+            hardlink_output=hardlink_output
             )
-
-        # hard-link node output files
-        if hardlink_output:
-            subject_data.hardlink_output_files()
 
         # handle failed node
         if subject_data.failed:
@@ -1179,12 +1213,9 @@ def do_subject_preproc(
         subject_data = _do_subject_segment(
             subject_data, caching=caching,
             normalize=normalize,
-            report=report
+            report=report,
+            hardlink_output=hardlink_output
             )
-
-        # hard-link node output files
-        if hardlink_output:
-            subject_data.hardlink_output_files()
 
         # handle failed node
         if subject_data.failed:
@@ -1201,12 +1232,9 @@ def do_subject_preproc(
             func_write_voxel_sizes=func_write_voxel_sizes,
             anat_write_voxel_sizes=anat_write_voxel_sizes,
             caching=caching,
-            report=report
+            report=report,
+            hardlink_output=hardlink_output
             )
-
-        # hard-link node output files
-        if hardlink_output:
-            subject_data.hardlink_output_files()
 
         # handle failed node
         if subject_data.failed:
@@ -1219,7 +1247,8 @@ def do_subject_preproc(
     if not normalize and np.sum(fwhm) > 0:
         subject_data = _do_subject_smooth(subject_data, fwhm,
                                           caching=caching,
-                                          report=report
+                                          report=report,
+                                          hardlink_output=hardlink_output
                                           )
 
         # handle failed node

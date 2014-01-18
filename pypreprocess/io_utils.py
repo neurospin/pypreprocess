@@ -642,8 +642,6 @@ def hard_link(filenames, output_dir):
                 # same file
                 continue
 
-            print "\tHardlinking %s -> %s ..." % (src, dst)
-
             assert os.path.isfile(src), "src file %s doesn't exist" % src
 
             # unlink if link already exists
@@ -653,9 +651,11 @@ def hard_link(filenames, output_dir):
             # hard-link the file proper
             try:
                 os.link(src, dst)
+                print "\tHardlinked %s -> %s ..." % (src, dst)
             except OSError:
                 # cross linking on different devices ?
                 shutil.copy(src, dst)
+                print "\tCopied %s -> %s" % (src, dst)
 
         return hardlinked_filenames[0]
     else:

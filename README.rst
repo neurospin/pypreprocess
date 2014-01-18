@@ -25,7 +25,7 @@ Important links
 Dependencies
 ============
 
-First of all, you will need to have the following installed (in that order):
+First of all, you will need to have the following installed (all available on apt):
         * Python >= 2.6
         * Numpy >= 1.3
         * SciPy >= 0.7
@@ -33,10 +33,13 @@ First of all, you will need to have the following installed (in that order):
         * nibabel >= 1.3.0
         * networkx >= 1.7
         * traits >= 4.3.0
-        * sympy >= 0.7.1
+        * sympy >= 0.7.4.1
         * nipype >= 0.8.0
         * nipy >= 0.3.0	
-        
+
+You could install these dependences with apt-get like so:
+  apt-get install python-numpy python-scipy python-traits python-nipype python-nipy python-networkx python-sympy
+
 Install
 =======
 
