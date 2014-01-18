@@ -17,7 +17,7 @@ from pypreprocess.datasets import fetch_spm_auditory_data
 
 # file containing configuration for preprocessing the data
 this_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
-jobfile = os.path.join(this_dir, "spm_auditory_preproc.conf")
+jobfile = os.path.join(this_dir, "spm_auditory_preproc.ini")
 
 # set dataset dir
 if len(sys.argv) > 1:

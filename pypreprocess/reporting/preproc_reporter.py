@@ -301,7 +301,7 @@ def generate_preproc_undergone_docstring(
     if not details_filename is None:
         preproc_undergone += (
             " <a href=%s>See complete configuration used for preprocessing"
-            " here</a>") % details_filename
+            " here</a>") % os.path.basename(details_filename)
 
     preproc_undergone += "</ul>"
 

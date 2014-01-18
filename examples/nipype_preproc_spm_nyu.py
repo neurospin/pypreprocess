@@ -18,7 +18,7 @@ from pypreprocess.datasets import fetch_nyu_rest
 # file containing configuration for preprocessing the data
 this_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
 jobfile = os.path.join(os.path.dirname(sys.argv[0]),
-                       "nyu_rest_preproc.conf")
+                       "nyu_rest_preproc.ini")
 
 # set dataset dir
 if len(sys.argv) > 1:

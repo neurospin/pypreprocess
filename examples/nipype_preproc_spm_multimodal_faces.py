@@ -28,7 +28,7 @@ from pypreprocess.nipype_preproc_spm_utils import (do_subject_preproc,
 
 # file containing configuration for preprocessing the data
 this_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
-jobfile = os.path.join(this_dir, "multimodal_faces_preproc.conf")
+jobfile = os.path.join(this_dir, "multimodal_faces_preproc.ini")
 
 # set dataset dir
 if len(sys.argv) > 1:
