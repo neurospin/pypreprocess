@@ -7,7 +7,13 @@
 
 import os
 import glob
+import distutils
+
+
 import nipype.interfaces.matlab as matlab
+from nipype.interfaces import spm
+import nipype
+
 from io_utils import _expand_path
 
 DEFAULT_SPM_DIR = '/i2bm/local/spm8'
@@ -15,6 +21,7 @@ DEFAULT_MATLAB_EXEC = "/neurospin/local/matlab/bin/matlab"
 
 
 def configure_spm(matlab_exec=None, spm_dir=None):
+    origin_spm_dir = spm_dir
 
     # configure SPM
     if 'SPM_DIR' in os.environ:
@@ -33,7 +40,14 @@ def configure_spm(matlab_exec=None, spm_dir=None):
         "Can't find SPM path '%s'! You should export SPM_DIR=/path/to/"
         "your/SPM/root/dir" % spm_dir)
 
-    matlab.MatlabCommand.set_default_paths(spm_dir)
+    if (distutils.version.LooseVersion(nipype.__version__).version
+                >= [0, 9] and
+            os.path.exists('/i2bm/local/bin/spm8')
+            and origin_spm_dir is None):
+        matlab_cmd = '/i2bm/local/bin/spm8 run script'
+        spm.SPMCommand.set_mlab_paths(matlab_cmd=matlab_cmd, use_mcr=True)
+    else:
+        matlab.MatlabCommand.set_default_paths(spm_dir)
 
     # configure MATLAB
     if 'MATLAB_EXEC' in os.environ:
