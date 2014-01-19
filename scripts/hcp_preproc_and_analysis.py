@@ -23,7 +23,9 @@ from pypreprocess.fsl_to_nipy import (read_design_fsl_design_file,
                                       _insert_directory_in_file_name)
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
 from pypreprocess.reporting.base_reporter import (ProgressReport,
-                                                  pretty_time)
+                                                  pretty_time
+                                                  )
+from pypreprocess.conf_parser import _generate_preproc_pipeline
 from joblib import Parallel, delayed, Memory
 
 
@@ -33,9 +35,13 @@ def _do_fmri_distortion_correction(subject_data,
                                    # directions and so can be scaled to 1
                                    # (or any other nonzero float)
                                    readout_time=.01392,
-                                   fwhm=0.,
-                                   coreg_anat_to_func=True,
-                                   report=False
+                                   coreg_func_to_anat=True,
+                                   segment=False,
+                                   normalize=False,
+                                   func_write_voxel_sizes=None,
+                                   anat_write_voxel_sizes=None,
+                                   report=True,
+                                   **kwargs
                                    ):
     """
     Function to undistort task fMRI data for a given HCP subject.
@@ -84,7 +90,7 @@ def _do_fmri_distortion_correction(subject_data,
                 fieldmap_file))
         fslroi_cmd = "fsl5.0-fslroi %s %s 0 1" % (
             fieldmap_file, zeroth_fieldmap_file)
-        print "\r\nExecuting %s ..." % fslroi_cmd
+        print "\r\nExecuting '%s' ..." % fslroi_cmd
         print mem.cache(commands.getoutput)(fslroi_cmd)
 
         zeroth_fieldmap_files.append(zeroth_fieldmap_file)
@@ -96,7 +102,7 @@ def _do_fmri_distortion_correction(subject_data,
     fslmerge_cmd = "fsl5.0-fslmerge -t %s %s %s" % (
         merged_zeroth_fieldmap_file, zeroth_fieldmap_files[0],
         zeroth_fieldmap_files[1])
-    print "\r\nExecuting %s ..." % fslmerge_cmd
+    print "\r\nExecuting '%s' ..." % fslmerge_cmd
     print mem.cache(commands.getoutput)(fslmerge_cmd)
 
     # do topup (learn distortion model)
@@ -106,7 +112,7 @@ def _do_fmri_distortion_correction(subject_data,
         "fsl5.0-topup --imain=%s --datain=%s --config=b02b0.cnf "
         "--out=%s" % (merged_zeroth_fieldmap_file, acq_params_file,
                       topup_results_basename))
-    print "\r\nExecuting %s ..." % topup_cmd
+    print "\r\nExecuting '%s' ..." % topup_cmd
     print mem.cache(commands.getoutput)(topup_cmd)
 
     # apply learn deformations to absorb distortion
@@ -120,7 +126,7 @@ def _do_fmri_distortion_correction(subject_data,
                 subject_data.func[sess]))
         fslmerge_cmd = "fsl5.0-fslmerge -t %s %s %s" % (
             fourD_plus_sbref, sbref_files[sess], subject_data.func[sess])
-        print "\r\nExecuting %s ..." % fslmerge_cmd
+        print "\r\nExecuting '%s' ..." % fslmerge_cmd
         print mem.cache(commands.getoutput)(fslmerge_cmd)
 
         # realign task BOLD to SBRef
@@ -139,14 +145,14 @@ def _do_fmri_distortion_correction(subject_data,
             "--topup=%s --out=%s --datain=%s --method=jac" % (
                 rfourD_plus_sbref, sess + 1, topup_results_basename,
                 dc_rfourD_plus_sbref, acq_params_file))
-        print "\r\nExecuting %s ..." % applytopup_cmd
+        print "\r\nExecuting '%s' ..." % applytopup_cmd
         print mem.cache(commands.getoutput)(applytopup_cmd)
 
         # recover undistorted task BOLD
         dc_rfmri_file = dc_rfourD_plus_sbref.replace("sbref_plus_", "")
         fslroi_cmd = "fsl5.0-fslroi %s %s 1 -1" % (
             dc_rfourD_plus_sbref, dc_rfmri_file)
-        print "\r\nExecuting %s ..." % fslroi_cmd
+        print "\r\nExecuting '%s' ..." % fslroi_cmd
         print mem.cache(commands.getoutput)(fslroi_cmd)
 
         # sanity tricks
@@ -159,22 +165,23 @@ def _do_fmri_distortion_correction(subject_data,
     if isinstance(subject_data.func, basestring):
         subject_data.func = [subject_data.func]
 
-    subject_data = do_subject_preproc(subject_data, report=report,
-                                      coreg_anat_to_func=coreg_anat_to_func,
-                                      segment=False, normalize=False,
-                                      fwhm=fwhm)
+    # continue preprocessing
+    subject_data = do_subject_preproc(
+        subject_data,
+        coreg_anat_to_func=not coreg_func_to_anat,
+        segment=segment,
+        normalize=normalize,
+        func_write_voxel_sizes=func_write_voxel_sizes,
+        anat_write_voxel_sizes=anat_write_voxel_sizes,
+        report=report)
 
+    # ok for GLM now
     return subject_data
 
 
 def run_suject_level1_glm(subject_data,
-                          # readout_time=.01392,  # seconds
+                          readout_time=.01392,  # seconds
                           tr=.72,
-                          # do_preproc=False,
-                          # do_realign=False,
-                          # do_normalize=False,
-                          # fwhm=0.,
-                          # report=False,
                           hrf_model="Canonical with Derivative",
                           drift_model="Cosine",
                           hfcut=100,
@@ -184,6 +191,7 @@ def run_suject_level1_glm(subject_data,
                           threshold=3.,
                           cluster_th=15,
                           fwhm=0.,
+                          task_id="MOTOR",
                           **other_preproc_kwargs
                           ):
     """
@@ -192,91 +200,14 @@ def run_suject_level1_glm(subject_data,
     """
 
     add_regs_files = None
+    n_motion_regressions = 6
 
     if not os.path.exists(subject_data.output_dir):
         os.makedirs(subject_data.output_dir)
 
     subject_data = _do_fmri_distortion_correction(subject_data, fwhm=fwhm,
+                                                  readout_time=readout_time,
                                                   **other_preproc_kwargs)
-    # # glob fmri files
-    # fmri_files = [os.path.join(
-    #         subject_data_dir,
-    #         "unprocessed/3T/tfMRI_%s_%s/%s_3T_tfMRI_%s_%s.nii.gz" % (
-    #             task_id, direction, subject_id,
-    #             task_id, direction))
-    #                   for direction in ["LR", "RL"]]
-    # assert len(fmri_files) == 2
-
-    # # glob anat file
-    # anat_file = os.path.join(subject_data_dir,
-    #                          "T1w/T1w_acpc_dc_restore_brain.nii.gz")
-    # # assert os.path.isfile(anat_file)
-    # if not os.path.isfile(anat_file):
-    #     anat_file = None
-
-    # # distortion correction ?
-    # dc_output = _do_fmri_distortion_correction(
-    #     fmri_files, subject_data_dir,
-    #     subject_output_dir,
-    #     subject_id, task_id,
-    #     readout_time=readout_time,
-    #     report=report
-    #     )
-    # if dc_output is None:
-    #     return
-    # else:
-    #     fmri_files, realignment_parameters = dc_output
-
-    # # preprocess the data
-    # preproc_subject_data = do_subject_preproc(SubjectData(
-    #         func=fmri_files, anat=anat_file,
-    #         output_dir=subject_output_dir),
-    #                                           do_realign=True,
-    #                                           do_normalize=do_normalize,
-    #                                           fwhm=fwhm,
-    #                                           report=report
-    #                                           )
-    # fmri_files = preproc_subject_data.func
-    n_motion_regressions = 6
-    add_regs_files = subject_data.realignment_parameters
-    # else:
-    #     n_motion_regressions = 12
-
-    #     # glob fmri files
-    #     fmri_files = []
-    #     for direction in ['LR', 'RL']:
-    #         fmri_file = os.path.join(
-    #             _subject_data_dir, "tfMRI_%s_%s/tfMRI_%s_%s.nii.gz" % (
-    #                 task_id, direction, task_id, direction))
-    #         if not os.path.isfile(fmri_file):
-    #             print "Can't find task fMRI file %s; skipping subject %s" % (
-    #                 fmri_file, subject_id)
-    #             return
-    #         else:
-    #             fmri_files.append(fmri_file)
-
-    #     # glob movement confounds
-    #     if regress_motion:
-    #         add_regs_files = [os.path.join(_subject_data_dir,
-    #                                        "tfMRI_%s_%s" % (
-    #                     task_id, direction),
-    #                                        "Movement_Regressors.txt")
-    #                           for direction in ["LR", "RL"]]
-
-    #     # smooth images
-    #     if np.sum(fwhm) > 0:
-    #         print "Smoothing fMRI data (fwhm = %s)..." % fwhm
-    #         fmri_files = _do_subject_smooth(SubjectData(
-    #                 func=fmri_files, output_dir=subject_output_dir),
-    #                                         fwhm=fwhm,
-    #                                         report=False
-    #                                         ).func
-    #         print "... done.\r\n"
-
-    # # sanitize subject_output_dir
-    # if not os.path.exists(subject_output_dir):
-    #     os.makedirs(subject_output_dir)
-
     # chronometry
     stats_start_time = pretty_time()
 
@@ -483,241 +414,115 @@ if __name__ == '__main__':
     ###########################################################################
     # CONFIGURATION
     n_jobs = int(os.environ.get('N_JOBS', -1))
-    n_subjects = int(os.environ.get('N_SUBJECTS', -1))
-    subject_ids = os.environ.get('SUBJECT_IDS', None)
-    subject_ids = subject_ids.split(",") if not subject_ids is None else None
-    task_ids = os.environ.get('TASK_IDS', ",".join(('WM',
-                                                    'MOTOR,'
-                                                    'LANGUAGE,'
-                                                    'EMOTION,'
-                                                    'GAMBLING,'
-                                                    'RELATIONAL,'
-                                                    'SOCIAL'
-                                                    ))).split(',')
-    do_preproc = os.environ.get("PREPROC", False)
-    do_normalize = os.environ.get("NORMALIZE", False) and do_preproc
-    fwhm = np.fromstring(os.environ.get("fwhm", "0."), sep=",")
-    slicer = 'z'  # slicer of activation maps QA
-    cut_coords = 5
+    task_ids = ['MOTOR',
+                'WM',
+                'LANGUAGE',
+                'EMOTION',
+                'GAMBLING',
+                'RELATIONAL',
+                'SOCIAL']
+    slicer = 'ortho'  # slicer of activation maps QA
     threshold = 3.
     cluster_th = 15  # minimum number of voxels in reported clusters
 
     ####################################
     # read input configuration
-    from pypreprocess.conf_parser import _generate_preproc_pipeline
     conf_file = sys.argv[1]
-    subjects, preproc_params = _generate_preproc_pipeline(conf_file)
 
     # GO!
-    fwhm = [5, 5, 5]
-    if n_jobs > 1:
-        group_glm_results = Parallel(
-            n_jobs=n_jobs, verbose=100)(delayed(
-                run_suject_level1_glm)(subject_data, fwhm=fwhm,
-                                       coreg_anat_to_func=True,
-                                       regress_motion=True,
-                                       slicer="ortho",  # slicer,
-                                       cut_coords=cut_coords,
-                                       threshold=threshold,
-                                       cluster_th=cluster_th
-                                       )
-                                        for subject_data in subjects)
-    else:
-        group_glm_results = [run_suject_level1_glm(subject_data, fwhm=fwhm,
-                                                   coreg_anat_to_func=True,
-                                                   regress_motion=True,
-                                                   slicer="ortho",  # slicer,
-                                                   cut_coords=cut_coords,
-                                                   threshold=threshold,
-                                                   cluster_th=cluster_th)
-                             for subject_data in subjects]
-
-    # assert 0, subjects
-
-    # ###########################################################################
-    # # DIRECTORIES
-    # data_dir = "/media/HCP-Q2/"
-    # if len(sys.argv) > 1:
-    #     data_dir = sys.argv[1]
-    #     assert os.path.isdir(data_dir), (
-    #         "data_dir '%s' doesn't exist") % data_dir
-
-    # output_dir = "/volatile/home/edohmato/connectome_output"
-    # if len(sys.argv) > 2:
-    #     output_dir = sys.argv[2]
-
-    # if do_preproc:
-    #     output_dir = os.path.join(output_dir, "custom_preproc")
-    # else:
-    #     output_dir = os.path.join(output_dir, "hcp_preproc")
-
-    # if not os.path.exists(output_dir):
-    #     os.makedirs(output_dir)
-
-    ###########################################################################
-    # DATA GRABBING
-    def _subject_factory(task_output_dir, n_subjects=-1):
-        """
-        Generator for subject data.
-
-        Returns
-        -------
-        subject_data_dir: string
-            existing directory; directory containing subject data
-        subject_output_dir: string
-            output directory for subject GLM
-
-        """
-
-        for subject_data_dir in sorted(glob.glob(os.path.join(
-                    data_dir, "******"))):
-            if n_subjects == 0:
-                return
-            else:
-                n_subjects -= 1
-
-            # is this a subject data dir ?
-            if not (re.match("^.+?[0-9]{6}\/?$", subject_data_dir)
-                    and os.path.isdir(subject_data_dir)):
-                continue
-
-            subject_id = os.path.basename(subject_data_dir)
-
-            # if os.path.isfile(os.path.join(output_dir, task_id, subject_id,
-            #                                "z_maps/LH-RH.nii.gz")):
-            #     continue
-
-            if os.path.exists(os.path.join(
-                    output_dir, "%s/z_maps/LH-RH.nii.gz" % subject_id)):
-                continue
-
-            # exclude this subject ?
-            if not subject_ids is None and not subject_id in subject_ids:
-                print "Skipping %s ..." % subject_id
-                continue
-
-            subject_output_dir = os.path.join(task_output_dir, subject_id)
-
-            yield subject_data_dir, subject_output_dir
-
-    ###########################################################################
-    # MAIN LOOP
-    def _run_suject_level1_glm(subject_data_dir, subject_output_dir,
-                               **kwargs):
-        """
-        Just another wrapper.
-
-        """
-
-        mem = Memory(os.path.join(subject_output_dir, "cache_dir"))
-        return mem.cache(run_suject_level1_glm)(subject_data_dir,
-                                                subject_output_dir,
-                                                **kwargs)
-
-    task_ids = ['MOTOR']
     for task_id in task_ids:
-        try:
-            # best slicer for given task
-            if task_id == "MOTOR":
-                slicer = 'y'
+        subjects, preproc_params = _generate_preproc_pipeline(conf_file,
+                                                              protocol=task_id)
+        fwhm = preproc_params.get("fwhm")
+        task_output_dir = os.path.join(os.path.dirname(subjects[0].output_dir))
+        kwargs = {"regress_motion": True,
+                  "slicer": slicer,
+                  "threshold": threshold,
+                  "cluster_th": cluster_th,
+                  "task_id": task_id
+                  }
+        kwargs.update(preproc_params)
+        if n_jobs > 1:
+            group_glm_inputs = Parallel(
+                n_jobs=n_jobs, verbose=100)(delayed(
+                    run_suject_level1_glm)(
+                        subject_data,
+                        **kwargs) for subject_data in subjects)
+        else:
+            group_glm_inputs = [run_suject_level1_glm(
+                    subject_data,
+                    **kwargs) for subject_data in subjects]
 
-            # # task output dir
-            # task_output_dir = os.path.join(output_dir, task_id)
+        # level 2
+        stats_start_time = pretty_time()
+        normalize = preproc_params.get("normalize", False)
+        if normalize:
+            mask_images = [subject_glm_results[3]
+                           for subject_glm_results in group_glm_inputs]
+            group_mask = nibabel.Nifti1Image(
+                intersect_masks(mask_images).astype(np.int8),
+                nibabel.load(mask_images[0]).get_affine())
+            print "... done.\r\n"
+            print "Group GLM"
+            contrasts = [
+                subject_glm_results
+                for subject_glm_results in group_glm_inputs]
+            contrasts = group_glm_inputs[0][0]
+            sujects_effects_maps = [
+                subject_glm_results[1]
+                for subject_glm_results in group_glm_inputs]
+            group_level_z_maps = {}
+            design_matrix = np.ones(len(sujects_effects_maps)
+                                    )[:, np.newaxis]  # only the intercept
+            for contrast_id in contrasts:
+                print "\tcontrast id: %s" % contrast_id
 
-            # chronometry
-            stats_start_time = pretty_time()
+                # effects maps will be the input to the second level GLM
+                first_level_image = nibabel.concat_images(
+                    [x[contrast_id] for x in sujects_effects_maps])
 
-            # # run intra-subject GLM and collect the results group-level GLM
-            # group_glm_inputs = [subject_glm_results
-            #                             for subject_glm_results in Parallel(
-            #         n_jobs=n_jobs, verbose=100)(delayed(run_suject_level1_glm)(
-            #             subject_data,
-            #             # do_preproc=do_preproc,
-            #             # do_normalize=do_normalize,
-            #             fwhm=fwhm,
-            #             regress_motion=True,
-            #             slicer="ortho",  # slicer,
-            #             cut_coords=cut_coords,
-            #             threshold=threshold,
+                # fit 2nd level GLM for given contrast
+                group_model = FMRILinearModel(first_level_image,
+                                            design_matrix, group_mask)
+                group_model.fit(do_scaling=False, model='ols')
 
-            #             cluster_th=cluster_th
-            #             ) for subject_data in subjects)
-            #                     if not subject_glm_results is None]
+                # specify and estimate the contrast
+                contrast_val = np.array(([[1.]])
+                                        )  # the only possible contrast !
+                z_map, = group_model.contrast(
+                    contrast_val,
+                    con_id='one_sample %s' % contrast_id,
+                    output_z=True)
 
-            ###################################################################
-            # GROUP ANALYSIS BEGINS
-            if not do_preproc or (do_preproc and do_normalize):
-                # compute group mask
-                print "\r\nComputing group mask ..."
-                mask_images = [subject_glm_results[3]
-                               for subject_glm_results in group_glm_inputs]
-                group_mask = nibabel.Nifti1Image(
-                    intersect_masks(mask_images).astype(np.int8),
-                    nibabel.load(mask_images[0]).get_affine())
-                print "... done.\r\n"
-                print "Group GLM"
-                contrasts = [
-                    subject_glm_results
-                    for subject_glm_results in group_glm_inputs]
-                contrasts = group_glm_inputs[0][0]
-                sujects_effects_maps = [
-                    subject_glm_results[1]
-                    for subject_glm_results in group_glm_inputs]
-                group_level_z_maps = {}
-                design_matrix = np.ones(len(sujects_effects_maps)
-                                        )[:, np.newaxis]  # only the intercept
-                for contrast_id in contrasts:
-                    print "\tcontrast id: %s" % contrast_id
+                # save map
+                map_dir = os.path.join(task_output_dir, 'z_maps')
+                if not os.path.exists(map_dir):
+                    os.makedirs(map_dir)
+                map_path = os.path.join(map_dir, '2nd_level_%s.nii.gz' % (
+                        contrast_id))
+                print "\t\tWriting %s ..." % map_path
+                nibabel.save(z_map, map_path)
 
-                    # effects maps will be the input to the second level GLM
-                    first_level_image = nibabel.concat_images(
-                        [x[contrast_id] for x in sujects_effects_maps])
+                group_level_z_maps[contrast_id] = map_path
 
-                    # fit 2nd level GLM for given contrast
-                    group_model = FMRILinearModel(first_level_image,
-                                                design_matrix, group_mask)
-                    group_model.fit(do_scaling=False, model='ols')
+            # do stats report
+            stats_report_filename = os.path.join(
+                task_output_dir, "reports", "report_stats.html")
+            generate_subject_stats_report(
+                stats_report_filename,
+                contrasts,
+                group_level_z_maps,
+                group_mask,
+                threshold=threshold,
+                cluster_th=cluster_th,
+                design_matrices=[design_matrix],
+                subject_id="sub001",
+                start_time=stats_start_time,
+                title='Group GLM for HCP fMRI %s task' % task_id,
+                slicer=slicer,
+                cut_coords=cut_coords
+                )
 
-                    # specify and estimate the contrast
-                    contrast_val = np.array(([[1.]])
-                                            )  # the only possible contrast !
-                    z_map, = group_model.contrast(
-                        contrast_val,
-                        con_id='one_sample %s' % contrast_id,
-                        output_z=True)
-
-                    # save map
-                    map_dir = os.path.join(task_output_dir, 'z_maps')
-                    if not os.path.exists(map_dir):
-                        os.makedirs(map_dir)
-                    map_path = os.path.join(map_dir, '2nd_level_%s.nii.gz' % (
-                            contrast_id))
-                    print "\t\tWriting %s ..." % map_path
-                    nibabel.save(z_map, map_path)
-
-                    group_level_z_maps[contrast_id] = map_path
-
-                # do stats report
-                stats_report_filename = os.path.join(
-                    task_output_dir, "reports", "report_stats.html")
-                generate_subject_stats_report(
-                    stats_report_filename,
-                    contrasts,
-                    group_level_z_maps,
-                    group_mask,
-                    threshold=threshold,
-                    cluster_th=cluster_th,
-                    design_matrices=[design_matrix],
-                    subject_id="sub001",
-                    start_time=stats_start_time,
-                    title='Group GLM for HCP fMRI %s task' % task_id,
-                    slicer=slicer,
-                    cut_coords=cut_coords
-                    )
-
-                ProgressReport().finish_dir(task_output_dir)
-                print "\r\nStatistic report written to %s\r\n" % (
-                    stats_report_filename)
-        except Exception, e:
-            raise
-            print e
+            ProgressReport().finish_dir(task_output_dir)
+            print "\r\nStatistic report written to %s\r\n" % (
+                stats_report_filename)

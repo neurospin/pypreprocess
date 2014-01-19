@@ -7,7 +7,6 @@
 import os
 from pypreprocess.datasets import fetch_spm_auditory_data
 from pypreprocess.purepython_preproc_utils import do_subject_preproc
-from pypreprocess._spike.pipeline_comparisons import execute_spm_auditory_glm
 
 # fetch data
 sd = fetch_spm_auditory_data(os.path.join(os.path.abspath('.'),
@@ -22,10 +21,7 @@ subject_data = {'n_sessions': 1,  # number of sessions
                 }
 
 # preproc data
-subject_data = do_subject_preproc(subject_data,
-                                  do_stc=True,
-                                  fwhm=[8] * 3
-                                  )
-
-# run glm on data
-execute_spm_auditory_glm(subject_data)
+do_subject_preproc(subject_data,
+                   do_stc=True,
+                   fwhm=[8] * 3
+                   )

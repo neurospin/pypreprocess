@@ -18,11 +18,15 @@ def _del_nones_from_dict(some_dict):
     return some_dict
 
 
-def _parse_job(jobfile):
+def _parse_job(jobfile, **replacements):
     assert os.path.isfile(jobfile)
 
     def sanitize(section, key):
         val = section[key]
+
+        if isinstance(val, basestring):
+            for k, v in replacements.iteritems():
+                val = val.replace("%" + k + "%", v)
 
         if key == "slice_order":
             if isinstance(val, basestring):
@@ -60,7 +64,7 @@ def _parse_job(jobfile):
     return cobj['config']
 
 
-def _generate_preproc_pipeline(jobfile, dataset_dir=None):
+def _generate_preproc_pipeline(jobfile, dataset_dir=None, **kwargs):
     """
     Generate pipeline (i.e subject factor + preproc params) from
     config file.
@@ -77,7 +81,7 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None):
 
     # read config file
     jobfile = os.path.abspath(jobfile)
-    options = _parse_job(jobfile)
+    options = _parse_job(jobfile, **kwargs)
     options = _del_nones_from_dict(options)
 
     # generate subject conf
