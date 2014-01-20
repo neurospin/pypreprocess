@@ -1572,8 +1572,7 @@ def do_subjects_preproc(subject_factory,
                     ])
             args_dict['output_dir'] = output_dir
             preproc_details += dict_to_html_ul(args_dict)
-        else:
-            details_filename = os.path.join(output_dir, "preproc_details.html")
+        details_filename = os.path.join(output_dir, "preproc_details.html")
         open(details_filename, "w").write("<pre>%s</pre>" % preproc_details)
 
         # generate docstring for preproc tobe undergone

@@ -18,7 +18,7 @@ from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
                                                    )
 
 # DARTEL ?
-DO_DARTEL = False
+DARTEL = False
 
 DATASET_DESCRIPTION = """\
 This is a block-design fMRI dataset from a study on face and object\
@@ -91,9 +91,9 @@ results = do_subjects_preproc(
     subject_factory(),
     output_dir=OUTPUT_DIR,
     dataset_id="HAXBY 2001",
-    do_realign=False,
-    do_coreg=False,
-    do_dartel=DO_DARTEL,
-    do_cv_tc=False,
+    realign=False,
+    coregister=False,
+    dartel=DARTEL,
+    cv_tc=False,
     dataset_description=DATASET_DESCRIPTION,
     )

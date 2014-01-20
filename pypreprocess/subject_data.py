@@ -173,6 +173,8 @@ class SubjectData(object):
             self.session_output_dirs[sess] = sess_output_dir
 
         # make tmp output dir
+        if self.scratch is None:
+            self.scratch = self.output_dir
         self.tmp_output_dir = os.path.join(self.scratch, "tmp")
         if not os.path.exists(self.tmp_output_dir):
             os.makedirs(self.tmp_output_dir)
