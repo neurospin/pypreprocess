@@ -167,9 +167,8 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None, **kwargs):
             sess_func_wildcard = os.path.join(subject_data_dir, session)
             sess_func = sorted(glob.glob(sess_func_wildcard))
             if not sess_func:
-                Warning("subject %s: No func images found for"
-                        " wildcard %s" % (
-                        subject_id, sess_func_wildcard))
+                print("subject %s: No func images found for"
+                      " wildcard %s" % (subject_id, sess_func_wildcard))
                 skip_subject = True
                 break
             sess_dir = os.path.dirname(sess_func[0])
@@ -196,11 +195,13 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None, **kwargs):
         # grab anat
         anat = None
         if not options.get("anat", None) is None:
-            anat = glob.glob(os.path.join(subject_data_dir, options['anat']))
-            assert len(anat) == 1
+            anat_wildcard = os.path.join(subject_data_dir, options['anat'])
+            anat = glob.glob(anat_wildcard)
+            assert len(anat) == 1, (
+                "subject %s: anat image matching %s not found!" % (
+                    subject_id, anat_wildcard))
+
             anat = anat[0]
-            assert os.path.isfile(anat), "Anatomical image %s not found!" % (
-                anat)
             anat_dir = os.path.dirname(anat)
         else:
             anat = None

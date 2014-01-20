@@ -295,6 +295,10 @@ def run_suject_level1_glm(subject_data,
                 contrasts['RF'] - contrasts['LF'])
             contrasts['F-H'] = -contrasts['H-F']
 
+        for k in contrasts:
+            if not "-" in k:
+                del contrasts[k]
+
     # importat maps
     z_maps = {}
     effects_maps = {}
@@ -520,7 +524,6 @@ if __name__ == '__main__':
                 start_time=stats_start_time,
                 title='Group GLM for HCP fMRI %s task' % task_id,
                 slicer=slicer,
-                cut_coords=cut_coords
                 )
 
             ProgressReport().finish_dir(task_output_dir)
