@@ -43,8 +43,12 @@ def configuration(parent_package='', top_path=None):
     # extrenal dependecies
     config.add_subpackage('pypreprocess/external')
     config.add_subpackage('pypreprocess/external/joblib')
+<<<<<<< HEAD
     config.add_subpackage("pypreprocess/external/nipy_labs")
     config.add_subpackage('pypreprocess/external/tempita')
+=======
+    config.add_subpackage('pypreprocess/external/nipy_labs')
+>>>>>>> Refactored the setup to handle externals
 
     # reporting plugin
     config.add_subpackage('pypreprocess/reporting')
