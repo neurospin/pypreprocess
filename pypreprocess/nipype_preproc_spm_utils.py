@@ -757,6 +757,11 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
         subject_data.generate_normalization_thumbnails()
 
     # explicit smoothing
+    if isinstance(subject_data.func, basestring):
+        # XXX monkey patch (this should not happend, but just in case...)
+        assert subject_data.nsessions == 1
+        subject_data.func = [subject_data.func]
+
     if np.sum(fwhm) > 0:
         subject_data = _do_subject_smooth(
             subject_data, fwhm, caching=caching,
