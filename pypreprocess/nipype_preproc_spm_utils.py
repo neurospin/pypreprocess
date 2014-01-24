@@ -540,11 +540,11 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
         wm_output_type=gm_output_type,
         csf_output_type=csf_output_type,
         tissue_prob_maps=[GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE],
-        gaussians_per_class=[2, 2, 2, 4],
-        affine_regularization="none",
-        bias_regularization=0.0001,
-        bias_fwhm=60,
-        warping_regularization=1,
+        # gaussians_per_class=[2, 2, 2, 4],
+        # affine_regularization="none",
+        # bias_regularization=0.0001,
+        # bias_fwhm=60,
+        # warping_regularization=1,
         ignore_exception=False
         )
 
