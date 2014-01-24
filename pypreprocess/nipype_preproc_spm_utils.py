@@ -759,7 +759,7 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
     # explicit smoothing
     if isinstance(subject_data.func, basestring):
         # XXX monkey patch (this should not happend, but just in case...)
-        assert subject_data.n_essions == 1
+        assert subject_data.n_sessions == 1
         subject_data.func = [subject_data.func]
 
     if np.sum(fwhm) > 0:
