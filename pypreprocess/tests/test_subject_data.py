@@ -3,6 +3,7 @@ import nibabel
 from nose.tools import assert_equal, assert_true, assert_false
 import nose
 from ._test_utils import create_random_image, _make_sd, _save_img
+from pypreprocess.subject_data import SubjectData
 
 DATA_DIR = "test_tmp_data"
 if not os.path.exists(DATA_DIR):
