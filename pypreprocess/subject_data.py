@@ -356,10 +356,11 @@ class SubjectData(object):
         """
 
         # anat stuff
-        for item in ["anat",
-                     'gm', 'wm', 'csf',  # native
-                     'wgm', 'wwm', 'wcsf'  # warped/normalized
-                     ]:
+        for item in [
+            "anat",
+            'gm', 'wm', 'csf',  # native
+            'mwgm', 'mwwm', 'mwcsf',  # warped/normalized
+            ]:
             if hasattr(self, item):
                 filename = getattr(self, item)
                 if not filename is None:
@@ -373,7 +374,7 @@ class SubjectData(object):
             if hasattr(self, item):
                 filenames = getattr(self, item)
                 if isinstance(filenames, basestring):
-                    assert self.n_sessions == 1
+                    assert self.n_sessions == 1, filenames
                     filenames = [filenames]
                 for sess in xrange(self.n_sessions):
                     filename = filenames[sess]
@@ -668,7 +669,7 @@ class SubjectData(object):
 
         # segmentation done ?
         segmented = False
-        for item in ['wgm', 'wwm', 'wcsf']:
+        for item in ['mwgm', 'mwwm', 'mwcsf']:
             if hasattr(self, item):
                 segmented = True
                 break
@@ -685,16 +686,16 @@ class SubjectData(object):
                 thumbs = generate_segmentation_thumbnails(
                     brain,
                     self.reports_output_dir,
-                    subject_gm_file=getattr(self, 'wgm', None),
-                    subject_wm_file=getattr(self, 'wwm', None),
-                    subject_csf_file=getattr(self, 'wcsf', None),
+                    subject_gm_file=getattr(self, 'mwgm', None),
+                    subject_wm_file=getattr(self, 'mwwm', None),
+                    subject_csf_file=getattr(self, 'mwcsf', None),
                     cmap=cmap,
                     brain=brain_name,
                     comments="warped",
                     execution_log_html_filename=make_nipype_execution_log_html(
-                        getattr(self, 'wgm') or getattr(
-                            self, 'wwm') or getattr(
-                            self, 'wcsf'), "Segment",
+                        getattr(self, 'mwgm') or getattr(
+                            self, 'mwwm') or getattr(
+                            self, 'mwcsf'), "Segment",
                         self.reports_output_dir) if log else None,
                     results_gallery=self.results_gallery
                     )

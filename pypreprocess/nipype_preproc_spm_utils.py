@@ -119,6 +119,9 @@ def _do_subject_slice_timing(subject_data, TR, TA=None,
     if software != "spm":
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
+    # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
+    subject_data.sanitize(niigz2nii=(software == spm))
+
     # compute nslices
     assert isinstance(indexing, basestring)
     indexing = indexing.lower()
@@ -187,12 +190,12 @@ def _do_subject_slice_timing(subject_data, TR, TA=None,
 
     subject_data.func = stc_func
 
-    return subject_data
+    return subject_data.sanitize()
 
 
 def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
                         caching=True, report=True, software="spm",
-                        hardlink_output=True):
+                        hardlink_output=True, **kwargs):
     """
     Wrapper for running spm.Realign with optional reporting.
 
@@ -205,11 +208,23 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
         subject data whose functional images (subject_data.func) are to be
         realigned.
 
+    reslice: bool, optional (default False)
+        if set, then realigned images will be resliced
+
+    register_to_mean: bool, optional (default False)
+        if set, then realignment will be to the mean functional image
+
+    software: string, optional (default "spm")
+        software to use for realignment; can be "spm", "fsl", or "python
+
     caching: bool, optional (default True)
         if true, then caching will be enabled
 
     report: bool, optional (default True)
        flag controlling whether post-preprocessing reports should be generated
+
+    **kwargs:
+       additional parameters to the back-end (SPM, FSL, python)
 
     Returns
     -------
@@ -236,8 +251,8 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
     if software != "spm":
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
-    # .nii.gz -> .nii
-    subject_data._niigz2nii()
+    # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
+    subject_data.sanitize(niigz2nii=(software == spm))
 
     # jobtype
     jobtype = "estwrite" if reslice else "estimate"
@@ -264,7 +279,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
     realign_result = realign(
         in_files=subject_data.func,
         register_to_mean=register_to_mean,
-        jobtype=jobtype,
+        jobtype=jobtype, **kwargs
         )
 
     subject_data.func = realign_result.outputs.realigned_files
@@ -298,12 +313,13 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
     if report:
         subject_data.generate_realignment_thumbnails()
 
-    return subject_data
+    return subject_data.sanitize()
 
 
 def _do_subject_coregister(subject_data, reslice=False,
                            coreg_anat_to_func=False, caching=True,
-                           report=True, software="spm", hardlink_output=True):
+                           report=True, software="spm", hardlink_output=True,
+                           **kwargs):
     """
     Wrapper for running spm.Coregister with optional reporting.
 
@@ -327,6 +343,9 @@ def _do_subject_coregister(subject_data, reslice=False,
 
     report: bool, optional (default True)
        flag controlling whether post-preprocessing reports should be generated
+
+    **kwargs:
+       additional parameters to the back-end (SPM, FSL, python)
 
     Returns
     -------
@@ -352,13 +371,8 @@ def _do_subject_coregister(subject_data, reslice=False,
         raise NotImplementedError(
             "Only SPM is supported; got '%s'" % software)
 
-    # .nii.gz -> .nii
-    subject_data._niigz2nii()
-
-    # sanitize software choice
-    software = software.lower()
-    if software != "spm":
-        raise NotImplementedError("Only SPM is supported; got '%s'" % software)
+    # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
+    subject_data.sanitize(niigz2nii=(software == spm))
 
     # jobtype
     jobtype = "estwrite" if reslice else "estimate"
@@ -441,7 +455,7 @@ def _do_subject_coregister(subject_data, reslice=False,
     if report:
         subject_data.generate_coregistration_thumbnails()
 
-    return subject_data
+    return subject_data.sanitize()
 
 
 def _do_subject_segment(subject_data, normalize=False, caching=True,
@@ -511,8 +525,8 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
     if software != "spm":
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
-    # .nii.gz -> .nii
-    subject_data._niigz2nii()
+    # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
+    subject_data.sanitize(niigz2nii=(software == spm))
 
     # prepare for smart caching
     if caching:
@@ -529,9 +543,9 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
         wm_output_type = [False, False, True]
         csf_output_type = [False, False, True]
     else:
-        gm_output_type = [True, True, True]
-        wm_output_type = [True, True, True]
-        csf_output_type = [True, True, True]
+        gm_output_type = [True, False, True]
+        wm_output_type = [True, False, True]
+        csf_output_type = [True, False, True]
 
     # run node
     segment_result = segment(
@@ -540,11 +554,6 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
         wm_output_type=gm_output_type,
         csf_output_type=csf_output_type,
         tissue_prob_maps=[GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE],
-        # gaussians_per_class=[2, 2, 2, 4],
-        # affine_regularization="none",
-        # bias_regularization=0.0001,
-        # bias_fwhm=60,
-        # warping_regularization=1,
         ignore_exception=False
         )
 
@@ -560,9 +569,9 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
     subject_data.wm = segment_result.outputs.native_wm_image
     subject_data.csf = segment_result.outputs.native_csf_image
     if normalize:
-        subject_data.wgm = segment_result.outputs.normalized_gm_image
-        subject_data.wwm = segment_result.outputs.normalized_wm_image
-        subject_data.wcsf = segment_result.outputs.normalized_csf_image
+        subject_data.mwgm = segment_result.outputs.modulated_gm_image
+        subject_data.mwwm = segment_result.outputs.modulated_wm_image
+        subject_data.mwcsf = segment_result.outputs.modulated_csf_image
 
     # commit output files
     if hardlink_output:
@@ -572,7 +581,7 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
     if report:
         subject_data.generate_segmentation_thumbnails()
 
-    return subject_data
+    return subject_data.sanitize()
 
 
 def _do_subject_normalize(subject_data, fwhm=0., caching=True,
@@ -632,8 +641,8 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
     if software != "spm":
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
-    # .nii.gz -> .nii
-    subject_data._niigz2nii()
+    # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
+    subject_data.sanitize(niigz2nii=(software == spm))
 
     # prepare for smart caching
     if caching:
@@ -658,6 +667,8 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
     else:
         parameter_file = subject_data.nipype_results[
             'segment'].outputs.transformation_mat
+
+    subject_data.parameter_file = parameter_file
 
     # do normalization proper
     for brain_name, brain, cmap in zip(
@@ -757,11 +768,6 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
         subject_data.generate_normalization_thumbnails()
 
     # explicit smoothing
-    if isinstance(subject_data.func, basestring):
-        # XXX monkey patch (this should not happend, but just in case...)
-        assert subject_data.n_sessions == 1
-        subject_data.func = [subject_data.func]
-
     if np.sum(fwhm) > 0:
         subject_data = _do_subject_smooth(
             subject_data, fwhm, caching=caching,
@@ -772,11 +778,11 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
     if hardlink_output:
         subject_data.hardlink_output_files()
 
-    return subject_data
+    return subject_data.sanitize()
 
 
 def _do_subject_smooth(subject_data, fwhm, caching=True, report=True,
-                       hardlink_output=True):
+                       hardlink_output=True, software="spm"):
     """
     Wrapper for running spm.Smooth with optional reporting.
 
@@ -788,6 +794,9 @@ def _do_subject_smooth(subject_data, fwhm, caching=True, report=True,
 
     caching: bool, optional (default True)
         if true, then caching will be enabled
+
+    software: string, optional (default "spm")
+        software to use for realignment; can be "spm", "fsl", or "python"
 
     Returns
     -------
@@ -806,8 +815,13 @@ def _do_subject_smooth(subject_data, fwhm, caching=True, report=True,
 
     """
 
-    # .nii.gz -> .nii
-    subject_data._niigz2nii()
+    # sanitize software choice
+    software = software.lower()
+    if software != "spm":
+        raise NotImplementedError("Only SPM is supported; got '%s'" % software)
+
+    # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
+    subject_data.sanitize(niigz2nii=(software == spm))
 
     # prepare for smart caching
     if caching:
@@ -844,7 +858,7 @@ def _do_subject_smooth(subject_data, fwhm, caching=True, report=True,
     if report:
         subject_data.generate_smooth_thumbnails()
 
-    return subject_data
+    return subject_data.sanitize()
 
 
 def _do_subject_dartelnorm2mni(subject_data,
@@ -875,8 +889,8 @@ def _do_subject_dartelnorm2mni(subject_data,
 
     """
 
-    # .nii.gz -> .nii
-    subject_data._niigz2nii()
+    # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
+    subject_data.sanitize(niigz2nii=(software == spm))
 
     # prepare for smart caching
     if caching:
@@ -971,7 +985,7 @@ def _do_subject_dartelnorm2mni(subject_data,
             parent_results_gallery=parent_results_gallery,
             last_stage=last_stage)
 
-    return subject_data
+    return subject_data.sanitize()
 
 
 def do_subject_preproc(
@@ -1197,7 +1211,6 @@ def do_subject_preproc(
     # co-registration of structural (anatomical) against functional
     ##################################################################
     if coregister:
-        print subject_data.func
         subject_data = _do_subject_coregister(
             subject_data, caching=caching,
             coreg_anat_to_func=coreg_anat_to_func,
@@ -1270,7 +1283,7 @@ def do_subject_preproc(
             subject_data.hardlink_output_files(final=True)
 
     # return preprocessed subject_data
-    return subject_data
+    return subject_data.sanitize()
 
 
 def _do_subjects_dartel(subjects,
