@@ -1,60 +1,12 @@
 import os
 import nibabel
-from pypreprocess.subject_data import SubjectData
 from nose.tools import assert_equal, assert_true, assert_false
 import nose
-from ._test_utils import create_random_image
+from ._test_utils import create_random_image, _make_sd, _save_img
 
 DATA_DIR = "test_tmp_data"
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
-
-
-def _save_img(img, filename):
-    dirname = os.path.dirname(filename)
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
-
-    nibabel.save(img, filename)
-
-
-def _make_sd(func_filenames=None, anat_filename=None, ext=".nii.gz",
-             n_sessions=1, make_sess_dirs=False,
-             unique_func_names=False, output_dir="/tmp/titi"):
-    if not func_filenames is None:
-        n_sessions = len(func_filenames)
-    func = [create_random_image(ndim=4) for _ in xrange(n_sessions)]
-    anat = create_random_image(ndim=3)
-    if anat_filename is None:
-        anat_filename = '%s/anat%s' % (DATA_DIR, ext)
-    _save_img(anat, anat_filename)
-    if not func_filenames is None:
-        for sess_func, filename in zip(func, func_filenames):
-            if isinstance(filename, basestring):
-                _save_img(sess_func, filename)
-            else:
-                vols = nibabel.four_to_three(sess_func)
-                for x, y in zip(vols, filename):
-                    assert isinstance(y, basestring), type(y)
-                    _save_img(x, y)
-    else:
-        func_filenames = []
-        for sess in xrange(n_sessions):
-            sess_dir = DATA_DIR if not make_sess_dirs else os.path.join(
-                DATA_DIR, "session%i" % sess)
-            if not os.path.exists(sess_dir):
-                os.makedirs(sess_dir)
-            func_filename = '%s/func%s%s' % (
-                sess_dir, "_sess_%i_" % sess if (
-                    n_sessions > 1 and unique_func_names) else "", ext)
-            _save_img(func[sess], func_filename)
-            func_filenames.append(func_filename)
-
-    sd = SubjectData(anat=anat_filename,
-                     func=func_filenames,
-                     output_dir=output_dir)
-
-    return sd
 
 
 def test_sujectdata_init():

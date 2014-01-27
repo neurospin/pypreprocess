@@ -911,34 +911,51 @@ def generate_stc_thumbnails(
 
         return data
 
-    def _load_session(x):
+    def _get_vol_shape(x):
         if isinstance(x, np.ndarray):
-            return x
+            if x.ndim == 3:
+                return x.shape
+            else:
+                assert x.ndim > 3, x.ndim
+                return _get_vol_shape(x[..., 0])
         elif isinstance(x, basestring):
-            return nibabel.load(x).get_data()
+            return _get_vol_shape(nibabel.load(x).get_data())
         elif is_niimg(x):
-            return x.get_data()
+            return _get_vol_shape(x.get_data())
         else:
-            return [np.array(_load_session(y)) for y in x]
+            return _get_vol_shape(x[0])
 
-    original_bold = _load_session(original_bold)
-    st_corrected_bold = _load_session(st_corrected_bold)
+    def _get_time_series_from_voxel(x, voxel):
+        assert len(voxel) == 3
+        if isinstance(x, np.ndarray):
+            if x.ndim == 3:
+                return x[voxel[0], voxel[1], voxel[2]]
+            else:
+                assert x.ndim == 4 == len(voxel) + 1
+                return x[voxel[0], voxel[1], voxel[2], :]
+        elif is_niimg(x):
+            return _get_time_series_from_voxel(x.get_data(), voxel)
+        elif isinstance(x, basestring):
+            return _get_time_series_from_voxel(nibabel.load(x), voxel)
+        else:
+            return np.array([_get_time_series_from_voxel(y, voxel) for y in x])
 
     if voxel is None:
-        voxel = np.array(original_bold[0].shape[1:]) // 2
+        voxel = np.array(_get_vol_shape(original_bold)) // 2
 
     output = {}
 
     for session_id, o_bold, stc_bold in zip(sessions, original_bold,
                                             st_corrected_bold):
 
+        stc_ts = _get_time_series_from_voxel(stc_bold, voxel)
+        o_ts = _get_time_series_from_voxel(o_bold, voxel)
         output_filename = os.path.join(output_dir,
                                        'stc_plot_%s.png' % session_id)
-
         pl.figure()
-        pl.plot(o_bold[voxel[0], voxel[1], voxel[2], ...], 'o-')
+        pl.plot(o_ts, 'o-')
         pl.hold('on')
-        pl.plot(stc_bold[voxel[0], voxel[1], voxel[2], ...], 's-')
+        pl.plot(stc_ts, 's-')
         pl.legend(('original BOLD', 'ST corrected BOLD'))
         pl.title("session %s: STC QA for voxel (%s, %s, %s)" % (
                 session_id, voxel[0], voxel[1], voxel[2]))

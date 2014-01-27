@@ -201,15 +201,15 @@ def do_subject_preproc(subject_data,
 
         subject_data.func = stc_output
 
-        # if do_report:
-        #     # generate STC QA thumbs
-        #     generate_stc_thumbnails(
-        #         original_bold,
-        #         stc_output,
-        #         subject_data.reports_output_dir,
-        #         sessions=xrange(n_sessions),
-        #         results_gallery=subject_data.results_gallery
-        #         )
+        if do_report:
+            # generate STC QA thumbs
+            generate_stc_thumbnails(
+                original_bold,
+                stc_output,
+                subject_data.reports_output_dir,
+                sessions=xrange(n_sessions),
+                results_gallery=subject_data.results_gallery
+                )
 
         # gc
         del original_bold
