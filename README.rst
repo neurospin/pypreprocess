@@ -72,7 +72,7 @@ Intra-subject preprocessing in pure-Python
 
 cd to the pypreprocess/examples directory, and run the following command:
 
-       python purepython_pipeline_stepwise.py
+       python purepython_preproc_demo.py
 
 Development
 ===========
