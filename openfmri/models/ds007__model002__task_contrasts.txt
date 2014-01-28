@@ -1,5 +1,15 @@
-succstop_vs_go -1 1 0 0
-unsucc_vs_succ_stop 0 -1 1 0
-succstop_vs_rest 0 1 0 0
-go_vs_rest 1 0 0 0
-unsucc_vs_rest 0 0 1 0
+task001 manual_succstop_vs_go -1 1 0 0
+task001 manual_unsucc_vs_succ_stop 0 -1 1 0
+task001 manual_succstop_vs_rest 0 1 0 0
+task001 manual_go_vs_rest 1 0 0 0
+task001 manual_unsucc_vs_rest 0 0 1 0
+task002 letter_naming_succstop_vs_go -1 1 0 0
+task002 letter_naming_unsucc_vs_succ_stop 0 -1 1 0
+task002 letter_naming_succstop_vs_rest 0 1 0 0
+task002 letter_naming_go_vs_rest 1 0 0 0
+task002 letter_naming_unsucc_vs_rest 0 0 1 0
+task003 pw_naming_succstop_vs_go -1 1 0 0
+task003 pw_naming_unsucc_vs_succ_stop 0 -1 1 0
+task003 pw_naming_succstop_vs_rest 0 1 0 0
+task003 pw_naming_go_vs_rest 1 0 0 0
+task003 pw_naming_unsucc_vs_rest 0 0 1 0

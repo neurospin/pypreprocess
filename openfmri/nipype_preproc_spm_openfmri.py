@@ -12,21 +12,20 @@ import traceback
 
 # import spm preproc utilities
 from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
-                                                   SubjectData
-                                                   )
+                                                   SubjectData)
 
 # misc
-from pypreprocess.datasets_extras import unzip_nii_gz
+# from pypreprocess.datasets_extras import unzip_nii_gz
 
 DATASET_DESCRIPTION = """\
 <p><a href="https://openfmri.org/data-sets">openfmri.org datasets</a>.</p>
 """
 
 # location of openfmri dataset on disk
-DATA_ROOT_DIR = '/neurospin/tmp/openfmri'
+DATA_ROOT_DIR = '/volatile/brainpedia/data/openfmri'
 
 # wildcard defining directory structure
-subject_id_wildcard = "sub*"
+subject_id_wildcard = "sub???"
 
 # DARTEL ?
 DO_DARTEL = False
@@ -121,9 +120,9 @@ def main(data_dir, output_dir, exclusions=None, dataset_id=None,
                 continue
 
             # glob for anatomical data
-            anat_dir = os.path.join(
-                data_dir,
-                "%s/anatomy" % subject_id)
+            # anat_dir = os.path.join(
+            #     data_dir,
+            #     "%s/anatomy" % subject_id)
 
             # # extract .nii.gz to .ni
             # unzip_nii_gz(anat_dir)
@@ -142,27 +141,27 @@ def main(data_dir, output_dir, exclusions=None, dataset_id=None,
 
             yield subject_data
 
-    # do preprocessing proper
-    report_filename = os.path.join(output_dir,
-                                   "_report.html")
+    # # do preprocessing proper
+    # report_filename = os.path.join(output_dir,
+    #                                "_report.html")
     return do_subjects_preproc(
         subject_factory(),
         n_jobs=n_jobs,
         dataset_id=dataset_id,
         output_dir=output_dir,
-        do_deleteorient=True,  # some openfmri data have garbage orientation
-        do_dartel=DO_DARTEL,
+        deleteorient=True,  # some openfmri data have garbage orientation
+        dartel=DO_DARTEL,
         # do_cv_tc=False,
         dataset_description=DATASET_DESCRIPTION,
-        report_filename=report_filename,
-        do_shutdown_reloaders=True
+        # report_filename=report_filename,
+        # do_shutdown_reloaders=True
         )
 
 if __name__ == '__main__':
     n_jobs = int(os.environ['N_JOBS']) if 'N_JOBS' in os.environ else -1
 
     # where output will be spat; replace as necessary
-    output_root_dir = '/volatile/home/edohmato/openfmri_pypreproc_runs'
+    output_root_dir = '/havoc/openfmri_preproc'
 
     # dataset ids we're interested in
     ds_ids = sorted([
@@ -180,7 +179,10 @@ if __name__ == '__main__':
             'ds101',
             'ds102',
             'ds105',
-            'ds107'
+            'ds107',
+            'ds108',
+            'ds109',
+            'ds110',
             ])
 
     # /!\ Don't try to 'parallelize' this loop!!!
