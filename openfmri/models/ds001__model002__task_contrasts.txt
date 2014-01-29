@@ -3,9 +3,14 @@ task001 ctrl_realRT_vs_pumps_realRT 0 0 -1 0 0 0 0 0 0 0 1
 task001 pumps_fixed_vs_ctrl_fixed 1 0 0 0 0 0 0 0 -1 0 0
 task001 ctrl_fixed_vs_pumps_fixed -1 0 0 0 0 0 0 0 1 0 0
 task001 pumps_demean_vs_ctrl_demean 0 1 0 0 0 0 0 0 0 -1 0
-task001 ctrl_fixed_vs_rest 0 0 0 0 0 0 0 0 1 0 0
-task001 ctrl_demean_vs_rest 0 0 0 0 0 0 0 0 0 1 0
-task001 ctrl_realRT_vs_rest 0 0 0 0 0 0 0 0 0 0 1
 task001 pumps_fixed_vs_rest 1 0 0 0 0 0 0 0 0 0 0
 task001 pumps_demean_vs_rest 0 1 0 0 0 0 0 0 0 0 0
 task001 pumps_realRT_vs_rest 0 0 1 0 0 0 0 0 0 0 0
+task001 cash_fixed_vs_rest 0 0 0 1 0 0 0 0 0 0 0
+task001 cash_demean_vs_rest 0 0 0 0 1 0 0 0 0 0 0
+task001 cash_fixed_real_RT_vs_rest 0 0 0 0 0 1 0 0 0 0 0
+task001 explode_fixed_vs_rest 0 0 0 0 0 0 1 0 0 0 0
+task001 explode_demean_vs_rest 0 0 0 0 0 0 0 1 0 0 0
+task001 ctrl_fixed_vs_rest 0 0 0 0 0 0 0 0 1 0 0
+task001 ctrl_demean_vs_rest 0 0 0 0 0 0 0 0 0 1 0
+task001 ctrl_realRT_vs_rest 0 0 0 0 0 0 0 0 0 0 1
