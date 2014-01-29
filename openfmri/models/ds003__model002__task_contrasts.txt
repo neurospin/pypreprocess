@@ -1,3 +1,0 @@
-word_vs_pseudo 1 -1
-word_vs_rest 1 0
-pseudo_vs_rest 0 1
