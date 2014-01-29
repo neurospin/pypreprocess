@@ -236,7 +236,7 @@ def test_MRIMotionCorrection_fit():
 
 def test_bug_fix_issue_36_on_realign():
     from pypreprocess.datasets import fetch_spm_auditory_data
-    sd = fetch_spm_auditory_data("/home/elvis/CODE/datasets/spm_auditory/")
+    sd = fetch_spm_auditory_data("/tmp/spm_auditory/")
 
     # shouldn't throw an IndexError
     MRIMotionCorrection(n_sessions=8, quality=1.).fit(

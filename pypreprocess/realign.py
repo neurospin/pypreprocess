@@ -510,6 +510,8 @@ class MRIMotionCorrection(object):
             self.realignment_parameters_.append(sess_rp)
             self._log('...done; session %i.\r\n' % (sess + 1))
 
+        # beware, the clumpsy list comprehension is because sessions may have
+        # different number of volumes (see issue #36, for example)
         self.realignment_parameters_ = [
             sess_rp[..., :6]
             for sess_rp in self.realignment_parameters_]
