@@ -649,10 +649,9 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        normalize = NipypeMemory(base_dir=cache_dir).cache(
-            spm.Normalize, write_preserve=False)
+        normalize = NipypeMemory(base_dir=cache_dir).cache(spm.Normalize)
     else:
-        normalize = spm.Normalize(write_preserve=False).run
+        normalize = spm.Normalize().run
 
     segmented = 'segment' in subject_data.nipype_results
 
@@ -663,6 +662,7 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
                                 output_dir=subject_data.output_dir)
         normalize_result = normalize(source=subject_data.anat,
                                      template=t1_template,
+                                     write_preserve=False,
                                      )
         parameter_file = normalize_result.outputs.normalization_parameters
     else:
