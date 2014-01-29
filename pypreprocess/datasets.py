@@ -1478,3 +1478,42 @@ def fetch_spm_multimodal_fmri_data(data_dir, subject_id="sub001"):
                                                   subject_id=subject_id)
 
     return _glob_spm_multimodal_fmri_data()
+
+
+def fetch_openfmri(data_dir, dataset_id, force_download=False, verbose=1):
+    files = {
+        'ds001': ['ds001_raw_6'],
+        'ds002': ['ds002_raw'],
+        'ds003': ['ds003_raw_1'],
+        'ds005': ['ds005_raw_0'],
+        'ds006A': ['ds006A_raw'],
+        'ds007': ['ds007_raw'],
+        'ds008': ['ds008_raw_4'],
+        'ds011': ['ds011_raw_0'],
+        'ds017A': ['ds017A_raw_0'],
+        'ds017B': ['ds017B_raw_0'],
+        'ds051': ['ds051_raw_0'],
+        'ds052': ['ds052_raw_0'],
+        'ds101': ['ds101_raw_0'],
+        'ds102': ['ds102_raw_0'],
+        'ds105': ['ds105_raw_6'],
+        'ds107': ['ds107_raw_0'],
+        'ds108': ['ds108_raw_part1', 'ds108_raw_part2', 'ds108_raw_part3'],
+        'ds109': ['ds109_raw_4'],
+        'ds110': ['ds110_raw_part1', 'ds110_raw_part2', 'ds110_raw_part3',
+                  'ds110_raw_part4', 'ds110_raw_part5', 'ds110_raw_part6'],
+        }
+
+    if dataset_id not in files:
+        raise Exception('Unknown dataset %s' % dataset_id)
+
+    base_url = 'https://openfmri.org/system/files/%s.tgz'
+    urls = [base_url % f for f in files[dataset_id]]
+    temp_dir = os.path.join(data_dir, '_%s' % dataset_id, dataset_id)
+    output_dir = os.path.join(data_dir, dataset_id)
+
+    if not os.path.exists(output_dir) and not force_download:
+        _fetch_dataset('_%s' % dataset_id, urls, data_dir, verbose=verbose)
+        shutil.move(temp_dir, output_dir)
+        shutil.rmtree(temp_dir)
+    return output_dir
