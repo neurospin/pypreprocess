@@ -114,7 +114,8 @@ if __name__ == '__main__':
     parser.description = (
         '`input_dir` is the path to an existing '
         'OpenfMRI dataset or where to download it. '
-        'The directory name must match a valid OpenfMRI dataset id.')
+        'The directory name must match a valid OpenfMRI dataset id, '
+        'and therefore look like /path/to/dir/{dataset_id}.')
 
     parser.add_option(
         '-n', '--n-jobs', dest='n_jobs', type='int',
