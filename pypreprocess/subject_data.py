@@ -706,7 +706,8 @@ class SubjectData(object):
             # log execution
             if log:
                 execution_log_html = make_nipype_execution_log_html(
-                    brain, "Normalization", self.reports_output_dir)
+                    brain, "Normalization", self.reports_output_dir,
+                    brain_name)
                 self.progress_logger.log(
                     "<b>Normalization of %s</b><br/>" % brain_name)
                 text = open(execution_log_html).read()

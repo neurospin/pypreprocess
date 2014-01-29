@@ -1353,12 +1353,14 @@ def generate_dataset_preproc_report(
 
 def make_nipype_execution_log_html(nipype_output_files,
                                    node_name, output_dir,
+                                   brain_name="",
                                    progress_logger=None):
     execution_log = get_nipype_report(get_nipype_report_filename(
             nipype_output_files))
     execution_log_html_filename = os.path.join(
         output_dir,
-        '%s_execution_log.html' % node_name
+        '%s%sexecution_log.html' % (
+            node_name, "_%s_" % brain_name if brain_name else "")
         )
 
     open(execution_log_html_filename, 'w').write(
