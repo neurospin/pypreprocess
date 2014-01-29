@@ -510,8 +510,9 @@ class MRIMotionCorrection(object):
             self.realignment_parameters_.append(sess_rp)
             self._log('...done; session %i.\r\n' % (sess + 1))
 
-        self.realignment_parameters_ = np.array(
-            self.realignment_parameters_)[..., :6]
+        self.realignment_parameters_ = [
+            sess_rp[..., :6]
+            for sess_rp in self.realignment_parameters_]
 
         return self
 

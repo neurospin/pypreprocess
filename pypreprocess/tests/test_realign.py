@@ -205,7 +205,8 @@ def test_MRIMotionCorrection_fit():
     mrimc = MRIMotionCorrection(quality=1., lkp=lkp).fit([film])
 
     # check shape of realignment params
-    numpy.testing.assert_array_equal(mrimc.realignment_parameters_.shape,
+    numpy.testing.assert_array_equal(np.array(
+            mrimc.realignment_parameters_).shape,
                                      [1] + [n_scans, 6])
 
     # check that we estimated the correct motion params
@@ -232,9 +233,11 @@ def test_MRIMotionCorrection_fit():
 
     nose.tools.assert_true(mrimc_output['realigned_images'], basestring)
 
-# run all tests
-if __name__ == "__main__":
-    nose.runmodule(config=nose.config.Config(
-            verbose=2,
-            nocapture=True,
-            ))
+
+def test_bug_fix_issue_36_on_realign():
+    from pypreprocess.datasets import fetch_spm_auditory_data
+    sd = fetch_spm_auditory_data("/home/elvis/CODE/datasets/spm_auditory/")
+
+    # shouldn't throw an IndexError
+    MRIMotionCorrection(n_sessions=8, quality=1.).fit(
+        [sd.func[:2], sd.func[:3]] * 4).transform("/tmp")
