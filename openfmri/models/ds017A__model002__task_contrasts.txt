@@ -1,3 +1,4 @@
+task001 probabilistic_classification_vs_rest 1 0
 task002 succstop_vs_gononcrit 0 -1 1 0 0 0
 task002 gocrit_vs_gononcrit 1 -1 0 0 0 0
 task002 failstopcrit_vs_succstop 0 0 1 -1 0 0

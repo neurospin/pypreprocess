@@ -215,7 +215,7 @@ def get_subject_events(study_dir, subject_dir):
     return events
 
 
-def get_task_contrasts(study_dir, subject_dir, model_id):
+def get_task_contrasts(study_dir, subject_dir, model_id, hrf_model):
     contrasts_path = os.path.join(
         study_dir, 'models', model_id, 'task_contrasts.txt')
 
@@ -232,6 +232,9 @@ def get_task_contrasts(study_dir, subject_dir, model_id):
             task_id = 'task001'
             contrast_id = line[0]
             con_val = np.array(line[1:]).astype('float')
+
+        if 'with derivative' in hrf_model:
+            con_val = np.insert(con_val, np.arange(con_val.size) + 1, 0)
 
         task_contrasts.setdefault(task_id, {}).setdefault(contrast_id, con_val)
 
@@ -611,7 +614,7 @@ def _first_level_glm(study_dir, subject_id, model_id,
     tr = get_study_tr(study_dir)
     images, n_scans = get_subject_bold_images(subject_dir)
     motion = get_subject_motion_per_session(subject_dir)
-    contrasts = get_task_contrasts(study_dir, subject_dir, model_id)
+    contrasts = get_task_contrasts(study_dir, subject_dir, model_id, hrf_model)
     events = get_subject_events(study_dir, subject_dir)
 
     design_matrices = make_design_matrices(events, n_scans, tr,
@@ -625,9 +628,17 @@ def _first_level_glm(study_dir, subject_id, model_id,
         con_val = []
         for session_con, session_dm in zip(contrasts[contrast_id],
                                            design_matrices):
+
+            print '_' * 80
+            print session_con
             con = np.zeros(session_dm.shape[1])
             con[:len(session_con)] = session_con
             con_val.append(con)
+            print con
+
+            import pylab as pl
+            pl.matshow(session_dm)
+            pl.show()
 
         z_map, t_map, c_map, var_map = glm.contrast(
             con_val,
@@ -905,5 +916,6 @@ def process_dataset(dataset_id, model_id, dataset_dir, preproc_dir,
         dataset_preprocessing(dataset_id, dataset_dir, preproc_dir,
                               ignore_list, description)
 
-    first_level_glm(study_dir, subjects_id, model_id, n_jobs=6,
+    first_level_glm(study_dir, subjects_id, model_id,
+                    hrf_model='canonical with derivative', n_jobs=6,
                     verbose=verbose)
