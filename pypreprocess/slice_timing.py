@@ -13,7 +13,8 @@ import matplotlib.pyplot as plt
 from .io_utils import (load_specific_vol,
                        load_vol,
                        is_niimg,
-                       save_vols
+                       save_vols,
+                       get_basenames
                        )
 
 
@@ -68,8 +69,9 @@ def get_slice_indices(n_slices, slice_order='ascending',
         slice_order = np.array(slice_order, dtype='int')
 
         assert len(slice_order) == n_slices
-        assert np.all((0 <= slice_order) & (slice_order < n_slices))
-        assert len(set(slice_order)) == n_slices
+        assert np.all((0 <= slice_order) & (
+                slice_order < n_slices)), slice_order
+        assert len(set(slice_order)) == n_slices, slice_order
 
         slice_indices = slice_order
 
@@ -531,7 +533,7 @@ class fMRISTC(STC):
         return self.raw_data
 
     def transform(self, raw_data=None, output_dir=None,
-                  affine=None, prefix='a', basenames=None):
+                  affine=None, prefix='a', basenames=None, ext=None):
         self.output_data_ = STC.transform(self, raw_data=raw_data)
 
         if not basenames is None:
@@ -558,9 +560,10 @@ class fMRISTC(STC):
                                                         self.affine_)
 
             if not output_dir is None:
-                self.output_data_ = save_vols(self.output_data_,
-                                              output_dir, prefix=prefix,
-                                              basenames=self.basenames_
-                                              )
+                self.output_data_ = save_vols(
+                    self.output_data_,
+                    output_dir, prefix=prefix,
+                    basenames=get_basenames(self.basenames_, ext=ext)
+                    )
 
         return self.output_data_

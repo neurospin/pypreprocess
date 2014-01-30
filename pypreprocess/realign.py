@@ -519,7 +519,7 @@ class MRIMotionCorrection(object):
         return self
 
     def transform(self, output_dir=None, reslice=False, prefix="r",
-                  basenames=None, ext=".nii.gz", concat=False):
+                  basenames=None, ext=None, concat=False):
         """
         Saves realigned volumes and the realigment parameters to disk.
         Realigment parameters are stored in output_dir/rp.txt and Volumes
@@ -538,7 +538,8 @@ class MRIMotionCorrection(object):
             prefix for output filenames.
 
         ext: string, optional (default ".nii.gz")
-            file extension for ouput images
+            file extension for ouput images; can be ".img", ".nii", or
+            ".nii.gz"
 
         concat: boolean, optional (default False)
             concatenate the ouput volumes for each session into a single
@@ -564,10 +565,6 @@ class MRIMotionCorrection(object):
         # make sure object has been fitted
         if not hasattr(self, 'realignment_parameters_'):
             raise RuntimeError("fit(...) method not yet invoked.")
-
-        # sanitize ext param
-        if not ext.startswith('.'):
-            ext = "." + ext
 
         # sanitize reslice param
         reslice = reslice or concat  # can't conct without reslicing
@@ -613,10 +610,12 @@ class MRIMotionCorrection(object):
                 sess_basenames = None
                 if basenames is None:
                     if isinstance(self.vols_[sess], basestring):
-                        sess_basenames = get_basenames(self.vols_[sess])
+                        sess_basenames = get_basenames(self.vols_[sess],
+                                                       ext=ext)
                     elif isinstance(self.vols_[sess], list):
                         if isinstance(self.vols_[sess][0], basestring):
-                            sess_basenames = get_basenames(self.vols_[sess])
+                            sess_basenames = get_basenames(self.vols_[sess],
+                                                           ext=ext)
                     else:
                         if not isinstance(self.vols_, list) or concat:
                             sess_basenames = "vols"
