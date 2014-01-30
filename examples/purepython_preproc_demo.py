@@ -21,8 +21,9 @@ subject_data = {'n_sessions': 1,  # number of sessions
                 }
 
 # preproc data
-do_subject_preproc(subject_data,
-                   stc=True,
-                   fwhm=[8] * 3,
-                   write_output_images=0
-                   )
+for flag in xrange(3):
+    do_subject_preproc(subject_data,
+                       stc=True,
+                       fwhm=[8] * 3,
+                       write_output_images=flag
+                       )
