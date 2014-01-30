@@ -108,7 +108,7 @@ def preproc_dataset(data_dir, output_dir, dataset_id=None,
 if __name__ == '__main__':
     import sys
     from optparse import OptionParser
-    print 'lala'
+
     parser = OptionParser()
     parser.usage = '%prog [input_dir] [output_dir]'
     parser.description = (
