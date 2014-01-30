@@ -87,7 +87,7 @@ def _do_subject_slice_timing(subject_data, refslice=0,
     # garbage collection
     del fmristc
 
-    if write_output_images:
+    if write_output_images > 1:
         subject_data.hardlink_output_files()
 
     return subject_data
@@ -135,12 +135,12 @@ def _do_subject_realign(subject_data, reslice=True, register_to_mean=False,
 
     # generate realignment thumbs
     if report:
-        subject_data.generate_realignment_thumbnails()
+        subject_data.generate_realignment_thumbnails(nipype=False)
 
     # garbage collection
     del mrimc
 
-    if write_output_images:
+    if write_output_images > 1:
         subject_data.hardlink_output_files()
 
     return subject_data
@@ -200,19 +200,18 @@ def _do_subject_coregister(
     if report:
         # generate coregistration QA thumbs
         subject_data.generate_coregistration_thumbnails(
-            coreg_func_to_anat=coreg_func_to_anat)
+            coreg_func_to_anat=coreg_func_to_anat, nipype=False)
 
     # garbage collection
     del coreg
 
-    if write_output_images:
+    if write_output_images > 1:
         subject_data.hardlink_output_files()
 
     return subject_data
 
 
 def do_subject_preproc(subject_data,
-                       verbose=True,
                        caching=True,
                        stc=False,
                        refslice=0,
@@ -294,10 +293,8 @@ def do_subject_preproc(subject_data,
 
     """
 
-    # # sanitize input args
-    # for key in ["output_dir"
-    #             ]:
-    #     assert key in subject_data, "subject_data must have '%s' key" % key
+    if not write_output_images:
+        cv_tc = False
 
     dict_input = isinstance(subject_data, dict)
 
@@ -331,7 +328,6 @@ def do_subject_preproc(subject_data,
 
     # prefix for final output images
     func_prefix = ""
-    anat_prefix = ""
 
     # cast all images to niimg
     subject_data.func = [load_4D_img(x) for x in subject_data.func]
@@ -396,7 +392,7 @@ def do_subject_preproc(subject_data,
             coreg_func_to_anat=coreg_func_to_anat,
             func_basenames=func_basenames,
             anat_basename=anat_basename,
-            write_output_images=2,
+            write_output_images=write_output_images,
             caching=caching,
             report=report)
 
@@ -452,6 +448,8 @@ def do_subject_preproc(subject_data,
 
     # finalize
     subject_data.finalize_report(last_stage=shutdown_reloaders)
-    subject_data.hardlink_output_files(final=True)
+
+    if write_output_images:
+        subject_data.hardlink_output_files(final=True)
 
     return subject_data.__dict__ if dict_input else subject_data
