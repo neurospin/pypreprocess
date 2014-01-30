@@ -49,8 +49,6 @@ def preproc_dataset(data_dir, output_dir, dataset_id=None,
 
     sessions = sorted(sessions)
     subjects = sorted(subjects)
-    print subjects
-    print sessions
 
     # producer subject data
     def subject_factory():
