@@ -22,6 +22,7 @@ subject_data = {'n_sessions': 1,  # number of sessions
 
 # preproc data
 do_subject_preproc(subject_data,
-                   do_stc=True,
-                   fwhm=[8] * 3
+                   stc=True,
+                   fwhm=[8] * 3,
+                   write_output_images=0
                    )
