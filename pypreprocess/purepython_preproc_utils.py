@@ -17,7 +17,8 @@ from .external.joblib import Memory
 from .io_utils import (get_basenames,
                        save_vols,
                        load_specific_vol,
-                       load_4D_img
+                       load_4D_img,
+                       is_niimg
                        )
 from .subject_data import SubjectData
 from .slice_timing import fMRISTC
@@ -315,7 +316,10 @@ def do_subject_preproc(subject_data,
     coregister = coregister and not subject_data.anat is None
 
     # compute basenames of input images
-    func_basenames = [get_basenames(func) for func in subject_data.func]
+    func_basenames = [get_basenames(subject_data.func[sess]) if not is_niimg(
+            subject_data.func[sess]) else "%s.nii.gz" % (
+            subject_data.session_id[sess])
+                      for sess in xrange(subject_data.n_sessions)]
     if coregister:
         anat_basename = get_basenames(subject_data.anat)
 
