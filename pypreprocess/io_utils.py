@@ -270,9 +270,11 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
             if prefix:
                 prefix = prefix + "_"
         else:
-            assert not isinstance(basenames, basestring)
-            assert len(basenames) == len(vols), "%i != %i" % (len(basenames),
-                                                              len(vols))
+            if isinstance(basenames, basestring):
+                basenames = ["vol%i_%s" % (t, basenames)
+                             for t in xrange(len(vols))]
+            else:
+                assert len(set(basenames)) == len(vols), basenames
 
         for t, vol in zip(xrange(n_vols), vols):
             if isinstance(vol, np.ndarray):
@@ -908,6 +910,9 @@ def isdicom(source_name):
 
     """
 
+    if is_niimg(source_name):
+        return False
+
     for ext in DICOM_EXTENSIONS:
         if source_name.lower().endswith(ext):
             return True
@@ -924,6 +929,9 @@ def dcm2nii(source_names, terminal_output="allatonce", gzip_output=False,
     """
 
     # all input files must be DICOM
+    if is_niimg(source_names):
+        return source_names, None
+
     for source_name in [source_names] if isinstance(
         source_names, basestring) else source_names:
         if not isdicom(source_name):

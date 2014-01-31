@@ -18,7 +18,8 @@ from .io_utils import (niigz2nii as do_niigz2nii,
                        hard_link,
                        get_shape,
                        is_4D, is_3D,
-                       get_basenames)
+                       get_basenames,
+                       is_niimg)
 from .reporting.base_reporter import (
     commit_subject_thumnbail_to_parent_gallery,
     ResultsGallery,
@@ -206,7 +207,8 @@ class SubjectData(object):
 
         self.isdicom = False
         if not isinstance(self.func[0], basestring):
-            self.isdicom = isdicom(self.func[0][0])
+            if not is_niimg(self.func[0]):
+                self.isdicom = isdicom(self.func[0][0])
         self.func = [do_dcm2nii(sess_func, output_dir=self.output_dir)[0]
                      for sess_func in self.func]
 
@@ -223,6 +225,9 @@ class SubjectData(object):
 
         # check that functional image abspaths are distinct across sessions
         for sess1 in xrange(self.n_sessions):
+            if is_niimg(self.func[sess1]):
+                continue
+
             # functional images for this session must all be distinct abspaths
             if not isinstance(self.func[sess1], basestring):
                 if len(self.func[sess1]) != len(set(self.func[sess1])):
@@ -256,6 +261,9 @@ class SubjectData(object):
             # functional images for sess1 shouldn't concide with any functional
             # image of any other session
             for sess2 in xrange(sess1 + 1, self.n_sessions):
+                if is_niimg(self.func[sess2]):
+                    continue
+
                 if self.func[sess1] == self.func[sess2]:
                     raise RuntimeError(
                         ('The same image %s specified for session number %i '
@@ -277,7 +285,11 @@ class SubjectData(object):
                                     self.func[sess1], sess1 + 1, sess2 + 1))
                         else:
                             for x in self.func[sess1]:
+                                if is_niimg(x):
+                                    continue
                                 for y in self.func[sess2]:
+                                    if is_niimg(y):
+                                        continue
                                     if x == y:
                                         raise RuntimeError(
                                             'The same image %s specified for '
@@ -343,8 +355,9 @@ class SubjectData(object):
         self._check_func_names_and_shapes()
 
         # get basenames
-        self.basenames = [get_basenames(sess_func)
-                          for sess_func in self.func]
+        self.basenames = [get_basenames(self.func[sess]) if not is_niimg(
+                self.func[sess]) else "%s.nii.gz" % self.session_id[sess]
+                          for sess in xrange(self.n_sessions)]
 
         return self
 
