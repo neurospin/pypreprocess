@@ -24,7 +24,8 @@ DO_DARTEL = False
 
 
 def preproc_dataset(data_dir, output_dir, dataset_id=None,
-                    ignore_subjects=None, n_jobs=-1):
+                    ignore_subjects=None, restrict_subjects=None,
+                    n_jobs=-1):
     """Main function for preprocessing (and analysis ?)
 
     Parameters
@@ -37,8 +38,11 @@ def preproc_dataset(data_dir, output_dir, dataset_id=None,
     ignore_subjects = [] if ignore_subjects is None else ignore_subjects
 
     # glob for subjects and their imaging sessions identifiers
-    subjects = [os.path.basename(x)
-                for x in glob.glob(os.path.join(data_dir, 'sub???'))]
+    if restrict_subjects is None:
+        subjects = [os.path.basename(x)
+                    for x in glob.glob(os.path.join(data_dir, 'sub???'))]
+    else:
+        subjects = restrict_subjects
 
     sessions = set()
     for subject_id in subjects:
@@ -116,6 +120,10 @@ if __name__ == '__main__':
         'and therefore look like /path/to/dir/{dataset_id}.')
 
     parser.add_option(
+        '-s', '--subject', dest='subject',
+        help='Process a single subject matching the given id.')
+
+    parser.add_option(
         '-n', '--n-jobs', dest='n_jobs', type='int',
         default=os.environ.get('N_JOBS', '1'),
         help='Number of parallel jobs.')
@@ -128,10 +136,13 @@ if __name__ == '__main__':
     if not dataset_id.startswith('ds'):
         parser.error("The directory does not seem to be an OpenfMRI dataset.")
 
+    restrict = None if options.subject is None else [options.subject]
+
     fetch_openfmri(data_dir, dataset_id)
 
     preproc_dataset(data_dir=input_dir,
          output_dir=output_dir,
+         restrict_subjects=restrict,
          n_jobs=options.n_jobs)
 
     print "\r\nAll output written to %s" % output_dir
