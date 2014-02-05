@@ -60,6 +60,7 @@ def plot_spm_motion_parameters(parameter_file, title=None,
     # dump image unto disk
     if not output_filename is None:
         pl.savefig(output_filename, bbox_inches="tight", dpi=200)
+        pl.close()
 
 
 def check_mask(epi_data):
@@ -205,6 +206,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
         if not cv_tc_plot_outfile is None:
             pl.savefig(cv_tc_plot_outfile,
                        bbox_inches="tight", dpi=200)
+            pl.close()
 
     return cv_tc
 
@@ -283,6 +285,7 @@ def plot_registration(reference_img, coregistered_img,
                        facecolor="k",
                        edgecolor="k"
                        )
+            pl.close()
         except AttributeError:
             # XXX TODO: handle this case!!
             pass
@@ -367,6 +370,7 @@ def plot_segmentation(img, gm_filename, wm_filename=None,
         pl.savefig(output_filename, bbox_inches='tight', dpi=200,
                    facecolor="k",
                    edgecolor="k")
+        pl.close()
 
 
 # Demo
