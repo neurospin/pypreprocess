@@ -539,6 +539,7 @@ def make_standalone_colorbar(cmap, vmin, vmax, colorbar_outfile=None):
 
     # save colorbar
     pl.savefig(colorbar_outfile, bbox_inches='tight')
+    pl.close()
 
     return cb
 

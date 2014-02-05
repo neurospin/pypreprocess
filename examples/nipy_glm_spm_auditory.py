@@ -104,6 +104,7 @@ ax.set_position([.05, .25, .9, .65])
 ax.set_title('Design matrix')
 dmat_outfile = os.path.join(subject_data.output_dir, 'design_matrix.png')
 pl.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
+pl.close()
 
 # specify contrasts
 contrasts = {}

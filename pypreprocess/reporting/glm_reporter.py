@@ -363,6 +363,7 @@ Z>%s voxel-level.
                                         'design_matrix_%i.png' % (j + 1),
                                         )
             pl.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
+            pl.close()
 
             thumb = base_reporter.Thumbnail()
             thumb.a = base_reporter.a(href=os.path.basename(dmat_outfile))
@@ -456,6 +457,7 @@ Z>%s voxel-level.
                                   "%s_z_map.png" % contrast_id)
         pl.savefig(z_map_plot, dpi=200, bbox_inches='tight', facecolor="k",
                    edgecolor="k")
+        pl.close()
 
         # create thumbnail for activation
         thumbnail = base_reporter.Thumbnail()

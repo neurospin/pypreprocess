@@ -129,6 +129,7 @@ def load_glm_params(data_dir, model_id,
                 dmat_outfile = os.path.join(session_dir, 'design_matrix.png')
                 print "Saving design matrix %s" % dmat_outfile
                 pl.savefig(dmat_outfile)
+                pl.close()
 
             params.setdefault('design_matrices', []).append(
                 design_matrix.matrix)

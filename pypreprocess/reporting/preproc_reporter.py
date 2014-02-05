@@ -962,6 +962,7 @@ def generate_stc_thumbnails(
         pl.xlabel('time (TR)')
 
         pl.savefig(output_filename, bbox_inches="tight", dpi=200)
+        pl.close()
 
         # create thumbnail
         if results_gallery:

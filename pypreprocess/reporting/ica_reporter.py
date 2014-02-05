@@ -185,6 +185,7 @@ def generate_ica_report(
         pl.savefig(ica_map_plot, dpi=200, bbox_inches='tight',
                    facecolor="k",
                    edgecolor="k")
+        pl.close()
         stats_table = ica_map_plot  # os.path.join(output_dir,
                                    # "%s_stats_table.html" % ica_map_id)
 
