@@ -40,13 +40,16 @@ def test_plot_anat():
     ortho_slicer = plot_anat(data, mni_sform, cut_coords=(80, -120, -60))
     # Saving forces a draw, and thus smoke-tests the axes locators
     pl.savefig(tempfile.TemporaryFile())
+    pl.close()
     ortho_slicer.edge_map(data, mni_sform, color='c')
 
     # Test saving with empty plot
     z_slicer = plot_anat(anat=False, slicer='z')
     pl.savefig(tempfile.TemporaryFile())
+    pl.close()
     z_slicer = plot_anat(slicer='z')
     pl.savefig(tempfile.TemporaryFile())
+    pl.close()
     z_slicer.edge_map(data, mni_sform, color='c')
     # Smoke test coordinate finder, with and without mask
     plot_map(np.ma.masked_equal(data, 0), mni_sform, slicer='x')

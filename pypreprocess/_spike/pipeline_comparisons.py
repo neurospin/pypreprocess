@@ -56,6 +56,7 @@ def execute_spm_auditory_glm(data, reg_motion=False):
     dmat_outfile = os.path.join(data['output_dir'],
                                 'design_matrix.png')
     pl.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
+    pl.close()
 
     # specify contrasts
     contrasts = {}
