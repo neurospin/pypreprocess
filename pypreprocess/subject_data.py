@@ -93,7 +93,8 @@ class SubjectData(object):
 
     def __init__(self, func=None, anat=None, subject_id="sub001",
                  session_id=None, output_dir=None, session_output_dirs=None,
-                 anat_output_dir=None, scratch=None, **kwargs):
+                 anat_output_dir=None, scratch=None, warpable=['anat', 'func'],
+                 **kwargs):
 
         self.func = func
         self.anat = anat
@@ -103,6 +104,7 @@ class SubjectData(object):
         self.anat_output_dir = anat_output_dir
         self.session_output_dirs = session_output_dirs
         self.scratch = scratch if not scratch is None else output_dir
+        self.warpable = warpable
         self.failed = False
 
         # nipype outputs
@@ -610,8 +612,9 @@ class SubjectData(object):
 
         self.final_thumbnail.img.src = thumbs['rp_plot']
 
-    def generate_coregistration_thumbnails(self, coreg_func_to_anat=True,
-                                           log=True, comment=True, nipype=True):
+    def generate_coregistration_thumbnails(
+        self, coreg_func_to_anat=True, log=True, comment=True, nipype=True):
+
         """
         Invoked to generate post-coregistration thumbnails.
 

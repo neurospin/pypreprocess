@@ -161,8 +161,8 @@ def _do_subject_slice_timing(subject_data, TR, TA=None,
                                              'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        mem = NipypeMemory(base_dir=cache_dir)
-        stc = mem.cache(spm.SliceTiming)
+        subject_data.mem = NipypeMemory(base_dir=cache_dir)
+        stc = subject_data.mem.cache(spm.SliceTiming)
     else:
         stc = spm.SliceTiming().run
 
@@ -285,8 +285,8 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        mem = NipypeMemory(base_dir=cache_dir)
-        realign = mem.cache(spm.Realign)
+        subject_data.mem = NipypeMemory(base_dir=cache_dir)
+        realign = subject_data.mem.cache(spm.Realign)
     else:
         realign = spm.Realign().run
 
@@ -317,6 +317,8 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
     if isinstance(subject_data.func, basestring):
         assert subject_data.n_sessions == 1
         subject_data.func = [subject_data.func]
+        subject_data.realignment_parameters = [
+            subject_data.realignment_parameters]
     if subject_data.n_sessions == 1 and len(subject_data.func) > 1:
         subject_data.func = [subject_data.func]
 
@@ -592,6 +594,7 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
         return subject_data
 
     # collect output
+    subject_data.parameter_file = segment_result.outputs.transformation_mat
     subject_data.nipype_results['segment'] = segment_result
     subject_data.gm = segment_result.outputs.native_gm_image
     subject_data.wm = segment_result.outputs.native_wm_image
@@ -613,8 +616,8 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
 
 
 def _do_subject_normalize(subject_data, fwhm=0., caching=True,
-                          func_write_voxel_sizes=None,
-                          anat_write_voxel_sizes=None,
+                          func_write_voxel_sizes=[3, 3, 3],
+                          anat_write_voxel_sizes=[1, 1, 1],
                           report=True, software="spm",
                           hardlink_output=True
                           ):
@@ -699,7 +702,7 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
     subject_data.parameter_file = parameter_file
 
     # do normalization proper
-    for brain_name, brain, cmap in zip(
+    for brain_name, brain, cmap in zip(s
         ['anat', 'func'], [subject_data.anat, subject_data.func],
         [cm.gray, cm.spectral]):
         if segmented:
@@ -721,10 +724,10 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
             normalize_result = normalize(
                 parameter_file=parameter_file,
                 apply_to_files=apply_to_files,
-                write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
                 write_voxel_sizes=write_voxel_sizes,
-                write_interp=1,
-                jobtype='write',
+                # write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
+                # write_interp=1,
+                # jobtype='write',
                 ignore_exception=False
                 )
 
@@ -755,12 +758,12 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
             normalize_result = normalize(
                 parameter_file=parameter_file,
                 apply_to_files=apply_to_files,
-                write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
+                # write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
                 write_voxel_sizes=write_voxel_sizes,
-                write_wrap=[0, 0, 0],
-                write_interp=1,
-                jobtype='write',
-                ignore_exception=False
+                # write_wrap=[0, 0, 0],
+                # write_interp=1,
+                # jobtype='write',
+                # ignore_exception=False
                 )
 
             # failed node
@@ -1359,7 +1362,7 @@ def _do_subjects_dartel(subjects,
     if newsegment_result.outputs is None:
         return
     # compute DARTEL template for group data
-    dartel = mem.cache(spm.DARTEL)
+    dartel = subject_data.mem.cache(spm.DARTEL)
     dartel_input_images = [tpms for tpms in
                            newsegment_result.outputs.dartel_input_images
                            if tpms]
