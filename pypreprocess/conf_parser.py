@@ -19,7 +19,7 @@ def _del_nones_from_dict(some_dict):
 
 
 def _parse_job(jobfile, **replacements):
-    assert os.path.isfile(jobfile)
+    assert os.path.isfile(jobfile), jobfile
 
     def sanitize(section, key):
         val = section[key]
@@ -64,7 +64,8 @@ def _parse_job(jobfile, **replacements):
     return cobj['config']
 
 
-def _generate_preproc_pipeline(jobfile, dataset_dir=None, **kwargs):
+def _generate_preproc_pipeline(jobfile, dataset_dir=None,
+                               options_callback=None, **kwargs):
     """
     Generate pipeline (i.e subject factor + preproc params) from
     config file.
@@ -94,6 +95,23 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None, **kwargs):
         assert not dataset_dir is None, (
             "dataset_dir not specified (neither in jobfile"
             " nor in this function call")
+
+    assert dataset_dir
+    options["dataset_dir"] = dataset_dir
+
+    if not isinstance(dataset_dir, basestring):
+        tmp = [_generate_preproc_pipeline(
+                jobfile, dataset_dir=dsd,
+                options_callback=options_callback, **kwargs)
+               for dsd in dataset_dir]
+
+        subjects = [subject for x in tmp for subject in x[0]]
+
+        return subjects, tmp[0][1]
+
+    if options_callback:
+        options = options_callback(options)
+        dataset_dir = options["dataset_dir"]
 
     dataset_dir = _expand_path(dataset_dir)
     assert os.path.isdir(dataset_dir), (
@@ -197,9 +215,13 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None, **kwargs):
         if not options.get("anat", None) is None:
             anat_wildcard = os.path.join(subject_data_dir, options['anat'])
             anat = glob.glob(anat_wildcard)
-            assert len(anat) == 1, (
-                "subject %s: anat image matching %s not found!" % (
-                    subject_id, anat_wildcard))
+
+            # skip subject if anat absent
+            if len(anat) < 1:
+                print (
+                    "subject %s: anat image matching %s not found!; skipping"
+                    " subject" % (subject_id, anat_wildcard))
+                continue
 
             anat = anat[0]
             anat_dir = os.path.dirname(anat)
@@ -208,12 +230,14 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None, **kwargs):
             anat_dir = ""
 
         # anat output dir
-        anat_output_dir = os.path.join(subject_output_dir,
-                                       get_relative_path(subject_data_dir,
-                                                         anat_dir))
+        anat_output_dir = None
+        if anat_dir:
+            anat_output_dir = os.path.join(subject_output_dir,
+                                           get_relative_path(subject_data_dir,
+                                                             anat_dir))
 
-        if not os.path.exists(anat_output_dir):
-            os.makedirs(anat_output_dir)
+            if not os.path.exists(anat_output_dir):
+                os.makedirs(anat_output_dir)
 
         # make subject data
         subject_data = SubjectData(subject_id=subject_id, func=func, anat=anat,
@@ -225,8 +249,8 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None, **kwargs):
 
         subjects.append(subject_data)
 
-    assert len(subjects), (
-        "All subjects skipped, due to various problems!")
+    print "No subjects globbed (dataset_dir=%s, subject_dir_wildcard=%s" % (
+        dataset_dir, subject_dir_wildcard)
 
     # preproc parameters
     preproc_params = {
@@ -283,12 +307,11 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None, **kwargs):
     # configure normalization node
     preproc_params["normalize"] = not options.get(
         "disable_normalize", False)
-    if preproc_params["normalize"]:
-        preproc_params['func_write_voxel_sizes'] = options.get(
-            "func_voxel_sizes", [3, 3, 3])
-        preproc_params['anat_write_voxel_sizes'] = options.get(
-            "anat_voxel_sizes", [1, 1, 1])
-        preproc_params['dartel'] = options.get("dartel", False)
+    preproc_params['func_write_voxel_sizes'] = options.get(
+        "func_voxel_sizes", [3, 3, 3])
+    preproc_params['anat_write_voxel_sizes'] = options.get(
+        "anat_voxel_sizes", [1, 1, 1])
+    preproc_params['dartel'] = options.get("dartel", False)
 
     # configure smoothing node
     preproc_params["fwhm"] = options.get("fwhm", 0.)
