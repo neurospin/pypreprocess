@@ -195,7 +195,7 @@ def run_suject_level1_glm(subject_data,
                           hfcut=100,
                           regress_motion=True,
                           slicer='ortho',
-                          cut_coords=6,
+                          cut_coords=None,
                           threshold=3.,
                           cluster_th=15,
                           normalize=True,
@@ -577,7 +577,12 @@ if __name__ == '__main__':
             group_mask = nibabel.Nifti1Image(
                 intersect_masks(mask_images).astype(np.int8),
                 nibabel.load(mask_images[0]).get_affine())
+<<<<<<< HEAD
             nibabel.save(group_mask, os.path.join("/tmp/%i_mask.nii.gz"))
+=======
+            nibabel.save(group_mask, os.path.join(
+                    task_output_dir, "mask.nii.gz"))
+>>>>>>> 313638c2bd7e50fd59b233f2aa80e6b6f6b9a289
 
             print "... done.\r\n"
             print "Group GLM"

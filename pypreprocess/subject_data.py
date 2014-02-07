@@ -106,6 +106,7 @@ class SubjectData(object):
         self.scratch = scratch if not scratch is None else output_dir
         self.warpable = warpable
         self.failed = False
+        self.warpable = warpable
 
         # nipype outputs
         self.nipype_results = {}
@@ -399,6 +400,8 @@ class SubjectData(object):
             pipeline
 
         """
+
+        return  # XXX monkey patch; aint no time to loose
 
         # anat stuff
         for item in [
