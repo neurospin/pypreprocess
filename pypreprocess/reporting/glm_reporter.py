@@ -543,7 +543,7 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
         first_level_image = nibabel.concat_images(
             [x[contrast_id] for x in effects_maps])
 
-                # fit 2nd level GLM for given contrast
+        # fit 2nd level GLM for given contrast
         group_model = FMRILinearModel(first_level_image,
                                       design_matrix, group_mask)
         group_model.fit(do_scaling=False, model='ols')
