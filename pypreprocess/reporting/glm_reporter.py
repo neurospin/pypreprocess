@@ -535,6 +535,7 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
                             )[:, np.newaxis]  # only the intercept
 
     group_level_z_maps = {}
+    group_level_t_maps = {}
     for contrast_id in contrasts:
         print "\tcontrast id: %s" % contrast_id
 
@@ -550,19 +551,24 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
         # specify and estimate the contrast
         contrast_val = np.array(([[1.]])
                                 )  # the only possible contrast !
-        z_map, = group_model.contrast(contrast_val,
+        z_map, t_map = group_model.contrast(contrast_val,
                                       con_id='one_sample %s' % contrast_id,
-                                      output_z=True)
+                                      output_z=True,
+                                      output_stat=True)
 
         # save map
-        map_dir = os.path.join(output_dir, 'z_maps')
-        if not os.path.exists(map_dir):
-            os.makedirs(map_dir)
-        map_path = os.path.join(map_dir, 'group_level_%s.nii.gz' % (
-                contrast_id))
-        print "\t\tWriting %s ..." % map_path
-        nibabel.save(z_map, map_path)
-        group_level_z_maps[contrast_id] = map_path
+        for map_type, map_img in zip(["z", "t"], [z_map, t_map]):
+            map_dir = os.path.join(output_dir, '%s_maps' % map_type)
+            if not os.path.exists(map_dir):
+                os.makedirs(map_dir)
+            map_path = os.path.join(map_dir, 'group_level_%s.nii.gz' % (
+                    contrast_id))
+            print "\t\tWriting %s ..." % map_path
+            nibabel.save(map_img, map_path)
+            if map_type == "z":
+                group_level_z_maps[contrast_id] = map_path
+            elif map_type == "t":
+                group_level_z_maps[contrast_id] = map_path
 
     # do stats report
     stats_report_filename = os.path.join(

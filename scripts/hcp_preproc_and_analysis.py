@@ -581,6 +581,7 @@ if __name__ == '__main__':
             threshold=threshold,
             cluster_th=cluster_th,
             start_time=stats_start_time,
-            title='Group GLM for HCP fMRI %s task' % protocol,
+            title='Group GLM for HCP fMRI %s protocol (%i subjects)' % (
+                protocol, len(subjects)),
             slicer=slicer
             )
