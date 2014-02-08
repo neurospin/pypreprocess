@@ -4,6 +4,9 @@
 
 """
 
+import matplotlib
+matplotlib.use('Agg')
+
 import os
 import sys
 import re
@@ -212,6 +215,11 @@ def run_suject_level1_glm(subject_data,
 
     add_regs_files = None
     n_motion_regressions = 6
+    subject_data.n_sessions = 2
+
+    subject_data.tmp_output_dir = os.path.join(subject_data.output_dir, "tmp")
+    if not os.path.exists(subject_data.tmp_output_dir):
+        os.makedirs(subject_data.tmp_output_dir)
 
     if not os.path.exists(subject_data.output_dir):
         os.makedirs(subject_data.output_dir)
@@ -221,16 +229,19 @@ def run_suject_level1_glm(subject_data,
 
     # glob design files (.fsf)
     subject_data.design_files = [os.path.join(
-            subject_data.data_dir, "tfMRI_%s_%s_hp200_s4_level1.fsf" % (
-                protocol, direction)) for direction in ['LR', 'RL']]
+            subject_data.data_dir, ("MNINonLinear/Results/tfMRI_%s_%s/"
+                                    "tfMRI_%s_%s_hp200_s4_level1.fsf") % (
+                protocol, direction, protocol, direction))
+            for direction in ['LR', 'RL']]
 
     assert len(subject_data.design_files) == 2
     for df in subject_data.design_files:
         assert os.path.isfile(df), df
 
-    subject_data = _do_fmri_distortion_correction(
-        subject_data, dc=dc, fwhm=fwhm, readout_time=readout_time,
-        **other_preproc_kwargs)
+    if 0x0:
+        subject_data = _do_fmri_distortion_correction(
+            subject_data, dc=dc, fwhm=fwhm, readout_time=readout_time,
+            **other_preproc_kwargs)
 
     # chronometry
     stats_start_time = pretty_time()
@@ -261,20 +272,9 @@ def run_suject_level1_glm(subject_data,
             read_design_fsl_design_file(design_file)
         print "... done.\r\n"
 
-        tmp = []
-        for tf in timing_files:
-            tf = tf.replace("EVs", "%s/tfMRI_MOTOR_%s/EVs" % (
-                    subject_data.subject_id, direction))
-            tmp.append(tf)
-        timing_files = tmp
-
         # fix timing filenames
-        # timing_files = _insert_directory_in_file_name(
-        #     timing_files, os.path.basename(os.path.dirname(
-        #             subject_data.func[sess])), 1)
-        # timing_files = [tf.replace("tfMRI", "%s/tfMRI" % (
-        #             subject_data.subject_id))
-        #                 for tf in timing_files]
+        timing_files = [tf.replace("EVs", "tfMRI_%s_%s/EVs" % (
+                    protocol, direction)) for tf in timing_files]
 
         # make design matrix
         print "Constructing design matrix for direction %s ..." % direction
@@ -341,12 +341,13 @@ def run_suject_level1_glm(subject_data,
         os.makedirs(cache_dir)
     nipype_mem = NipypeMemory(base_dir=cache_dir)
 
-    if np.sum(fwhm) > 0.:
-        subject_data.func = nipype_mem.cache(spm.Smooth)(
-            in_files=subject_data.func,
-            fwhm=fwhm,
-            ignore_exception=False,
-            ).outputs.smoothed_files
+    if 0x0:
+        if np.sum(fwhm) > 0.:
+            subject_data.func = nipype_mem.cache(spm.Smooth)(
+                in_files=subject_data.func,
+                fwhm=fwhm,
+                ignore_exception=False,
+                ).outputs.smoothed_files
 
     # fit GLM
     def tortoise(*args):
@@ -409,40 +410,41 @@ def run_suject_level1_glm(subject_data,
         subject_data.func, subject_data.anat)
 
     # do stats report
-    anat_img = nibabel.load(subject_data.anat)
-    stats_report_filename = os.path.join(subject_data.output_dir,
-                                         "reports",
-                                         "report_stats.html")
-    generate_subject_stats_report(
-        stats_report_filename,
-        contrasts,
-        z_maps,
-        nibabel.load(mask_path),
-        anat=anat_img.get_data(),
-        anat_affine=anat_img.get_affine(),
-        threshold=threshold,
-        cluster_th=cluster_th,
-        slicer=slicer,
-        cut_coords=cut_coords,
-        design_matrices=design_matrices,
-        subject_id=subject_data.subject_id,
-        start_time=stats_start_time,
-        title="GLM for subject %s" % subject_data.subject_id,
+    if 0x0:
+        anat_img = nibabel.load(subject_data.anat)
+        stats_report_filename = os.path.join(subject_data.output_dir,
+                                             "reports",
+                                             "report_stats.html")
+        generate_subject_stats_report(
+            stats_report_filename,
+            contrasts,
+            z_maps,
+            nibabel.load(mask_path),
+            anat=anat_img.get_data(),
+            anat_affine=anat_img.get_affine(),
+            threshold=threshold,
+            cluster_th=cluster_th,
+            slicer=slicer,
+            cut_coords=cut_coords,
+            design_matrices=design_matrices,
+            subject_id=subject_data.subject_id,
+            start_time=stats_start_time,
+            title="GLM for subject %s" % subject_data.subject_id,
 
-        # additional ``kwargs`` for more informative report
-        TR=tr,
-        n_scans=n_scans,
-        hfcut=hfcut,
-        drift_model=drift_model,
-        hrf_model=hrf_model,
-        paradigm={'LR': paradigms[0].__dict__,
-                  'RL': paradigms[1].__dict__},
-        frametimes={'LR': frametimes_list[0], 'RL': frametimes_list[1]},
-        fwhm=fwhm
-        )
+            # additional ``kwargs`` for more informative report
+            TR=tr,
+            n_scans=n_scans,
+            hfcut=hfcut,
+            drift_model=drift_model,
+            hrf_model=hrf_model,
+            paradigm={'LR': paradigms[0].__dict__,
+                      'RL': paradigms[1].__dict__},
+            frametimes={'LR': frametimes_list[0], 'RL': frametimes_list[1]},
+            fwhm=fwhm
+            )
 
-    ProgressReport().finish_dir(subject_data.output_dir)
-    print "\r\nStatistic report written to %s\r\n" % stats_report_filename
+        ProgressReport().finish_dir(subject_data.output_dir)
+        print "\r\nStatistic report written to %s\r\n" % stats_report_filename
 
     # remove repeated contrasts
     contrasts = dict((cid, cval[0]) for cid, cval in contrasts.iteritems())
@@ -499,13 +501,13 @@ def run_suject_level1_glm(subject_data,
 if __name__ == '__main__':
     ###########################################################################
     # CONFIGURATION
-    protocols = ['MOTOR',
-                'WM',
+    protocols = ['WM',
+                'MOTOR',
                 'LANGUAGE',
                 'EMOTION',
                 'GAMBLING',
                 'RELATIONAL',
-                'SOCIAL'][:1]
+                'SOCIAL']
     slicer = 'ortho'  # slicer of activation maps QA
     cut_coords = None
     threshold = 3.
@@ -516,23 +518,9 @@ if __name__ == '__main__':
     conf_file = os.path.join(os.path.dirname(sys.argv[0]),
                              "HCP_tfMRI_MOTOR_preproc.ini")
 
-    # GO!
-    def _options_callback(options):
-        if "Q2" in options["dataset_dir"]:
-            options["output_dir"] = options["output_dir"].replace(
-                "Q1_Reproc", "Q2")
-
-        return options
-
     for protocol in protocols:
-        if protocol == "MOTOR":
-            # slicer = "y"
-            # cut_coords = 5
-            pass
-
         subjects, preproc_params = _generate_preproc_pipeline(
-            conf_file, options_callback=_options_callback,
-            protocol=protocol)
+            conf_file, protocol=protocol)
 
         if 0x1:
             np.random.RandomState(42)
@@ -545,7 +533,8 @@ if __name__ == '__main__':
                   "threshold": threshold,
                   "cluster_th": cluster_th,
                   "protocol": protocol,
-                  "dc": True,
+                  "dc": not preproc_params.get(
+                "disable_distortion_correction", False),
                   "realign": preproc_params["realign"],
                   "coregister": preproc_params["coregister"],
                   "segment": preproc_params["segment"],
@@ -571,66 +560,27 @@ if __name__ == '__main__':
 
         # level 2
         stats_start_time = pretty_time()
-        normalize = preproc_params.get("normalize", False)
-        if normalize:
-            mask_images = [subject_data.mask for subject_data in subjects]
-            group_mask = nibabel.Nifti1Image(
-                intersect_masks(mask_images).astype(np.int8),
-                nibabel.load(mask_images[0]).get_affine())
-            nibabel.save(group_mask, os.path.join("/tmp/%i_mask.nii.gz"))
+        mask_images = [subject_data.mask for subject_data in subjects]
+        group_mask = nibabel.Nifti1Image(
+            intersect_masks(mask_images).astype(np.int8),
+            nibabel.load(mask_images[0]).get_affine())
+        nibabel.save(group_mask, os.path.join(
+                task_output_dir, "mask.nii.gz"))
 
-            print "... done.\r\n"
-            print "Group GLM"
-            contrasts = subjects[0].contrasts
-            subjects_effects_maps = [subject_data.effects_maps
-                                     for subject_data in subjects]
+        print "... done.\r\n"
+        print "Group GLM"
+        contrasts = subjects[0].contrasts
+        subjects_effects_maps = [subject_data.effects_maps
+                                 for subject_data in subjects]
 
-            # group_level_z_maps = {}
-            # design_matrix = np.ones(len(subjects_effects_maps)
-            #                         )[:, np.newaxis]  # only the intercept
-            # for contrast_id in contrasts:
-            #     print "\tcontrast id: %s" % contrast_id
-
-            #     # effects maps will be the input to the second level GLM
-            #     first_level_image = nibabel.concat_images(
-            #         [x[contrast_id] for x in subjects_effects_maps])
-
-            #     # fit 2nd level GLM for given contrast
-            #     group_model = FMRILinearModel(first_level_image,
-            #                                 design_matrix, group_mask)
-            #     group_model.fit(do_scaling=False, model='ols')
-
-            #     # specify and estimate the contrast
-            #     contrast_val = np.array(([[1.]])
-            #                             )  # the only possible contrast !
-            #     z_map, = group_model.contrast(
-            #         contrast_val,
-            #         con_id='one_sample %s' % contrast_id,
-            #         output_z=True)
-
-            #     # save map
-            #     map_dir = os.path.join(task_output_dir, 'z_maps')
-            #     if not os.path.exists(map_dir):
-            #         os.makedirs(map_dir)
-            #     map_path = os.path.join(map_dir, '2nd_level_%s.nii.gz' % (
-            #             contrast_id))
-            #     print "\t\tWriting %s ..." % map_path
-            #     nibabel.save(z_map, map_path)
-
-            #     group_level_z_maps[contrast_id] = map_path
-
-            # # do stats report
-            # stats_report_filename = os.path.join(
-            #     task_output_dir, "reports", "report_stats.html")
-
-            group_one_sample_t_test(
-                mask_images,
-                subjects_effects_maps,
-                contrasts,
-                task_output_dir,
-                threshold=threshold,
-                cluster_th=cluster_th,
-                start_time=stats_start_time,
-                title='Group GLM for HCP fMRI %s task' % protocol,
-                slicer=slicer
-                )
+        group_one_sample_t_test(
+            mask_images,
+            subjects_effects_maps,
+            contrasts,
+            task_output_dir,
+            threshold=threshold,
+            cluster_th=cluster_th,
+            start_time=stats_start_time,
+            title='Group GLM for HCP fMRI %s task' % protocol,
+            slicer=slicer
+            )
