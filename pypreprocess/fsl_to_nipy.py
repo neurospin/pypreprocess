@@ -77,7 +77,7 @@ def _insert_directory_in_file_name(filename, directory, level):
                 os.path.basename(filename)]))
 
 
-def read_design_fsl_design_file(design_filename):
+def read_fsl_design_file(design_filename):
     """
     Scrapes an FSL design file for the list of contrasts.
 
