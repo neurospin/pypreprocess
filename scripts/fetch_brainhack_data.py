@@ -84,7 +84,7 @@ def _url_factory():
 
     """
 
-    for subject_id in range(1, 2):
+    for subject_id in range(0x10):
         # anat nifti URLs
         anat_url = ANAT_URL_PATTERN % (subject_id + 1)
         anat_dir = os.path.join(DATA_DIR, "Sub%02i/T1" % (
@@ -94,7 +94,6 @@ def _url_factory():
                      'headpoints.txt'
                      ]:
             item_url = os.path.join(anat_url, item)
-
             if _file_exists(item_url, anat_dir):
                 continue
 
