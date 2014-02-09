@@ -22,7 +22,7 @@ from pypreprocess.nipype_preproc_spm_utils import (SubjectData,
                                                    _do_subject_smooth,
                                                    do_subject_preproc)
 from pypreprocess.io_utils import load_specific_vol
-from pypreprocess.fsl_to_nipy import (read_design_fsl_design_file,
+from pypreprocess.fsl_to_nipy import (read_fsl_design_file,
                                       make_dmtx_from_timing_files,
                                       _insert_directory_in_file_name)
 from pypreprocess.reporting.glm_reporter import (generate_subject_stats_report,
