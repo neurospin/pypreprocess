@@ -23,8 +23,7 @@ from pypreprocess.nipype_preproc_spm_utils import (SubjectData,
                                                    do_subject_preproc)
 from pypreprocess.io_utils import load_specific_vol
 from pypreprocess.fsl_to_nipy import (read_fsl_design_file,
-                                      make_dmtx_from_timing_files,
-                                      _insert_directory_in_file_name)
+                                      make_dmtx_from_timing_files)
 from pypreprocess.reporting.glm_reporter import (generate_subject_stats_report,
                                                  group_one_sample_t_test)
 from pypreprocess.reporting.base_reporter import (ProgressReport,
@@ -270,7 +269,7 @@ def run_suject_level1_glm(subject_data,
         # read the experimental setup
         print "Reading experimental setup from %s ..." % design_file
         fsl_condition_ids, timing_files, fsl_contrast_ids, contrast_values = \
-            read_design_fsl_design_file(design_file)
+            read_fsl_design_file(design_file)
         print "... done.\r\n"
 
         # fix timing filenames
