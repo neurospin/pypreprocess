@@ -702,7 +702,7 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
     subject_data.parameter_file = parameter_file
 
     # do normalization proper
-    for brain_name, brain, cmap in zip(s
+    for brain_name, brain, cmap in zip(
         ['anat', 'func'], [subject_data.anat, subject_data.func],
         [cm.gray, cm.spectral]):
         if segmented:
@@ -725,9 +725,9 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
                 parameter_file=parameter_file,
                 apply_to_files=apply_to_files,
                 write_voxel_sizes=write_voxel_sizes,
-                # write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-                # write_interp=1,
-                # jobtype='write',
+                write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
+                write_interp=1,
+                jobtype='write',
                 ignore_exception=False
                 )
 
@@ -758,12 +758,12 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
             normalize_result = normalize(
                 parameter_file=parameter_file,
                 apply_to_files=apply_to_files,
-                # write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
+                write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
                 write_voxel_sizes=write_voxel_sizes,
-                # write_wrap=[0, 0, 0],
-                # write_interp=1,
-                # jobtype='write',
-                # ignore_exception=False
+                write_wrap=[0, 0, 0],
+                write_interp=1,
+                jobtype='write',
+                ignore_exception=False
                 )
 
             # failed node

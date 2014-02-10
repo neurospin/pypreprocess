@@ -126,19 +126,6 @@ for contrast_id, contrast_val in contrasts.iteritems():
 
     print
 
-cache_dir = cache_dir = os.path.join(subject_data.output_dir,
-                                     'cache_dir')
-if not os.path.exists(cache_dir):
-    os.makedirs(cache_dir)
-    mem = NipypeMemory(base_dir=cache_dir)
-
-tmp = mem.cache(spm.Normalize)(
-    parameter_file=subject_data.parameter_file,
-    apply_to_files=[v for k, v in effect_maps.iteritems()],
-    write_voxel_sizes=func_write_voxel_sizes)
-
-effects_maps = dict(zip(effect_maps.keys(), tmp))
-
 # do stats report
 stats_report_filename = os.path.join(subject_data.reports_output_dir,
                                      "report_stats.html")
