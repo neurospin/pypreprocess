@@ -136,7 +136,8 @@ if __name__ == '__main__':
 
     restrict = None if options.subject is None else [options.subject]
 
-    fetch_openfmri(data_dir, dataset_id)
+    if not os.path.exists(input_dir):
+        fetch_openfmri(data_dir, dataset_id)
 
     preproc_dataset(data_dir=input_dir,
          output_dir=output_dir,
