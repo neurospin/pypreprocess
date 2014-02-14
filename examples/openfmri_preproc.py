@@ -44,14 +44,6 @@ def preproc_dataset(data_dir, output_dir, dataset_id=None,
     else:
         subjects = restrict_subjects
 
-    sessions = set()
-    for subject_id in subjects:
-        subject_dir = os.path.join(data_dir, subject_id)
-        for session_dir in glob.glob(os.path.join(
-                subject_dir, 'model', '*', 'onsets', '*')):
-            sessions.add(os.path.split(session_dir)[1])
-
-    sessions = sorted(sessions)
     subjects = sorted(subjects)
 
     # producer subject data
@@ -60,6 +52,12 @@ def preproc_dataset(data_dir, output_dir, dataset_id=None,
             if subject_id in ignore_subjects:
                 continue
 
+            sessions = set()
+            subject_dir = os.path.join(data_dir, subject_id)
+            for session_dir in glob.glob(os.path.join(
+                    subject_dir, 'BOLD', '*')):
+                sessions.add(os.path.split(session_dir)[1])
+            sessions = sorted(sessions)
             # construct subject data structure
             subject_data = SubjectData()
             subject_data.session_id = sessions
@@ -74,7 +72,6 @@ def preproc_dataset(data_dir, output_dir, dataset_id=None,
 
                 # glob bold data for this session
                 func = glob.glob(os.path.join(bold_dir, "bold.nii.gz"))
-
                 # check that this session is OK (has bold data, etc.)
                 if not func:
                     has_bad_sessions = True
@@ -133,8 +130,9 @@ if __name__ == '__main__':
     input_dir = input_dir.rstrip('/')
     output_dir = output_dir.rstrip('/')
     data_dir, dataset_id = os.path.split(input_dir)
-    if not dataset_id.startswith('ds'):
-        parser.error("The directory does not seem to be an OpenfMRI dataset.")
+    if not dataset_id.startswith('ds') and not os.path.exists(input_dir):
+        parser.error("The directory does not exist and "
+                     "does not seem to be an OpenfMRI dataset.")
 
     restrict = None if options.subject is None else [options.subject]
 
