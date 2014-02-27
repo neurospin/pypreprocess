@@ -141,6 +141,7 @@ generate_subject_stats_report(
     anat=anat,
     anat_affine=anat_affine,
     slicer='ortho',
+    threshold=3.,
     cluster_th=50,  # we're only interested in this 'large' clusters
     start_time=stats_start_time,
 

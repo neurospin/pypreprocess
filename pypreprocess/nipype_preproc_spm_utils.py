@@ -297,10 +297,20 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
         jobtype=jobtype, **kwargs
         )
 
+    # failed node
+    if realign_result.outputs is None:
+        subject_data.failed = True
+        return subject_data
+
+    # collect output
     subject_data.func = realign_result.outputs.realigned_files
 
     subject_data.realignment_parameters = \
         realign_result.outputs.realignment_parameters
+    if isinstance(subject_data.realignment_parameters, basestring):
+        assert subject_data.n_sessions == 1
+        subject_data.realignment_parameters = [
+            subject_data.realignment_parameters]
 
     if register_to_mean and jobtype == "estwrite":
         subject_data.mean_realigned_file = \
@@ -308,17 +318,9 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     subject_data.nipype_results['realign'] = realign_result
 
-    # failed node
-    if realign_result.outputs is None:
-        subject_data.failed = True
-        return subject_data
-
-    # collect output
     if isinstance(subject_data.func, basestring):
         assert subject_data.n_sessions == 1
         subject_data.func = [subject_data.func]
-        subject_data.realignment_parameters = [
-            subject_data.realignment_parameters]
     if subject_data.n_sessions == 1 and len(subject_data.func) > 1:
         subject_data.func = [subject_data.func]
 
@@ -726,7 +728,7 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
                 parameter_file=parameter_file,
                 apply_to_files=apply_to_files,
                 write_voxel_sizes=write_voxel_sizes,
-                write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
+                # write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
                 write_interp=1,
                 jobtype='write',
                 ignore_exception=False
