@@ -21,5 +21,4 @@ install:
     - python setup.py install
 
 script:
-    - make clean
-    - make test-code
+    - nosetests

@@ -401,8 +401,6 @@ class SubjectData(object):
 
         """
 
-        return  # XXX monkey patch; aint no time to loose
-
         # anat stuff
         for item in [
             "anat",
