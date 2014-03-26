@@ -149,8 +149,8 @@ def _do_subject_realign(subject_data, reslice=True, register_to_mean=False,
 
 def _do_subject_coregister(
     subject_data, coreg_func_to_anat=True, reslice=False, caching=True,
-    ext=False, write_output_images=2, func_basenames=None,
-    anat_basename=None, report=True, verbose=True):
+    ext=False, write_output_images=2, func_basenames=None, func_prefix="",
+    anat_basename=None, anat_prefix="", report=True, verbose=True):
 
     ref_brain = 'func'
     src_brain = 'anat'
@@ -184,7 +184,7 @@ def _do_subject_coregister(
                     sess_func, output_dir=subject_data.tmp_output_dir if (
                         write_output_images == 2) else None,
                     basenames=func_basenames[sess_id] if coreg_func_to_anat
-                    else anat_basename
+                    else anat_basename, prefix=func_prefix
                     ))
             subject_data.func = coreg_func
         src = load_specific_vol(subject_data.func[0], 0)[0]
@@ -195,7 +195,7 @@ def _do_subject_coregister(
         subject_data.anat = runner(coreg.transform)(
             subject_data.anat, basename=anat_basename,
             output_dir=subject_data.tmp_output_dir if (
-                write_output_images == 2) else None)
+                write_output_images == 2) else None, prefix=anat_prefix)
         src = subject_data.anat
 
     if report:
@@ -332,6 +332,7 @@ def do_subject_preproc(subject_data,
 
     # prefix for final output images
     func_prefix = ""
+    anat_prefix = ""
 
     # cast all images to niimg
     subject_data.func = [load_4D_img(x) for x in subject_data.func]
@@ -392,12 +393,10 @@ def do_subject_preproc(subject_data,
         print "\r\nNODE> Coregistration %s" % which
 
         subject_data = _do_subject_coregister(
-            subject_data,
-            coreg_func_to_anat=coreg_func_to_anat,
-            func_basenames=func_basenames,
-            anat_basename=anat_basename,
-            write_output_images=write_output_images,
-            caching=caching,
+            subject_data, coreg_func_to_anat=coreg_func_to_anat,
+            func_basenames=func_basenames, anat_basename=anat_basename,
+            write_output_images=write_output_images, caching=caching,
+            func_prefix=func_prefix, anat_prefix=anat_prefix,
             report=report)
 
     ##############
