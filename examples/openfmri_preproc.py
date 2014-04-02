@@ -22,7 +22,7 @@ DATASET_DESCRIPTION = """\
 
 def preproc_dataset(data_dir, output_dir,
                     ignore_subjects=None, restrict_subjects=None,
-                    delete_orient=True, dartel=False,
+                    delete_orient=False, dartel=False,
                     n_jobs=-1):
     """Main function for preprocessing a dataset with the OpenfMRI layout.
 
@@ -145,18 +145,18 @@ if __name__ == '__main__':
 
     parser.add_option(
         '-s', '--subjects', dest='subjects',
-        help=('Process a single subject matching the given id.'
+        help=('Process a single subject matching the given id. '
               'A file path may be given, and must contain '
               'a subject_id per line.'))
 
     parser.add_option(
         '-O', '--delete-orient', dest='delete_orient',
-        type='bool', default=True,
+        default=False, action="store_true",
         help=('Delete orientation information in nifti files.'))
 
     parser.add_option(
         '-D', '--dartel', dest='dartel',
-        type='bool', default=False,
+        default=False, action="store_true",
         help=('Use dartel.'))
 
     parser.add_option(
