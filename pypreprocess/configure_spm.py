@@ -40,15 +40,19 @@ def configure_spm(matlab_exec=None, spm_dir=None):
         "Can't find SPM path '%s'! You should export SPM_DIR=/path/to/"
         "your/SPM/root/dir" % spm_dir)
 
-    if (distutils.version.LooseVersion(nipype.__version__).version
-                >= [0, 9] and
-            os.path.exists('/i2bm/local/bin/spm8')
-            and origin_spm_dir is None):
-        if 'SPM8_MCR' in os.environ:
+    # use SPM_MCR defined by environment variable
+    if (distutils.version.LooseVersion(nipype.__version__).version >= [0, 9]
+        and 'SPM8_MCR' in os.environ
+        and os.path.exists(os.environ['SPM8_MCR'])):
             matlab_cmd = '%s run script' % os.environ['SPM8_MCR']
-        else:
-            matlab_cmd = '/i2bm/local/bin/spm8 run script'
+            spm.SPMCommand.set_mlab_paths(matlab_cmd=matlab_cmd, use_mcr=True)
+    # use hard coded SPM_MCR
+    elif (distutils.version.LooseVersion(nipype.__version__).version >= [0, 9]
+          and os.path.exists('/i2bm/local/bin/spm8')
+          and origin_spm_dir is None):
+        matlab_cmd = '/i2bm/local/bin/spm8 run script'
         spm.SPMCommand.set_mlab_paths(matlab_cmd=matlab_cmd, use_mcr=True)
+    # use Matlab with SPM toolbox
     else:
         matlab.MatlabCommand.set_default_paths(spm_dir)
 
