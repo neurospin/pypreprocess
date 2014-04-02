@@ -44,7 +44,10 @@ def configure_spm(matlab_exec=None, spm_dir=None):
                 >= [0, 9] and
             os.path.exists('/i2bm/local/bin/spm8')
             and origin_spm_dir is None):
-        matlab_cmd = '/i2bm/local/bin/spm8 run script'
+        if 'SPM8_MCR' in os.environ:
+            matlab_cmd = '%s run script' % os.environ['SPM8_MCR']
+        else:
+            matlab_cmd = '/i2bm/local/bin/spm8 run script'
         spm.SPMCommand.set_mlab_paths(matlab_cmd=matlab_cmd, use_mcr=True)
     else:
         matlab.MatlabCommand.set_default_paths(spm_dir)
