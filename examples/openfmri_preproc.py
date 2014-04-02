@@ -153,6 +153,8 @@ if __name__ == '__main__':
     input_dir, output_dir = args[1:]
     input_dir = input_dir.rstrip('/')
     output_dir = output_dir.rstrip('/')
+    _, dataset_id = os.path.split(input_dir)
+
     if not dataset_id.startswith('ds') and not os.path.exists(input_dir):
         parser.error("The directory does not exist and "
                      "does not seem to be an OpenfMRI dataset.")
