@@ -57,6 +57,12 @@ from .reporting.preproc_reporter import (
     generate_stc_thumbnails
     )
 
+# import pure python preproc API
+from purepython_preproc_utils import (
+    _do_subject_slice_timing as _pp_do_subject_slice_timing,
+    _do_subject_realign as _pp_do_subject_realign,
+    _do_subject_coregister as _pp_do_subject_coregister)
+
 # configure SPM
 EPI_TEMPLATE = SPM_DIR = SPM_T1_TEMPLATE = T1_TEMPLATE = None
 GM_TEMPLATE = WM_TEMPLATE = CSF_TEMPLATE = None
@@ -94,8 +100,8 @@ except AssertionError:
 
 def _do_subject_slice_timing(subject_data, TR, TA=None,
                              refslice=0, slice_order="ascending",
-                             interleaved=False, caching=True, report=True,
-                             indexing="matlab", software="spm",
+                             interleaved=False, caching=True,
+                             report=True, software="spm",
                              hardlink_output=True):
     """
     Slice-Timing Correction.
@@ -114,19 +120,31 @@ def _do_subject_slice_timing(subject_data, TR, TA=None,
 
     """
 
-    # sanitize software choice
     software = software.lower()
-    if software != "spm":
-        raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
     subject_data.sanitize(niigz2nii=(software == spm))
 
     # compute nslices
-    assert isinstance(indexing, basestring)
-    indexing = indexing.lower()
-    assert indexing in ['matlab', 'python']
     nslices = load_specific_vol(subject_data.func[0], 0)[0].shape[2]
+    assert 1 <= refslice <= nslices, refslice
+
+    # compute slice indices / order
+    if not isinstance(slice_order, basestring):
+        slice_order = np.array(slice_order) - 1
+    slice_order = get_slice_indices(nslices, slice_order=slice_order,
+                                    interleaved=interleaved)
+
+    # use pure python (pp) code ?
+    if software == "python":
+        return _pp_do_subject_slice_timing(subject_data, refslice=refslice,
+                                           slice_order=slice_order,
+                                           caching=caching, report=report)
+
+    # sanitize software choice
+    if software != "spm":
+        raise NotImplementedError(
+            "Only SPM is supported; got software='%s'" % software)
 
     # compute TA (possibly from formula specified as a string)
     if isinstance(TA, basestring):
@@ -137,24 +155,14 @@ def _do_subject_slice_timing(subject_data, TR, TA=None,
     if TA is None:
         TA = TR * (1. - 1. / nslices)
 
-    # compute slice indices / order
-    if indexing == "matlab":
-        if not isinstance(slice_order, basestring):
-            refslice -= 1
-            slice_order = np.array(slice_order) - 1
-    elif indexing == "python":
-        refslice += 1
-    slice_order = get_slice_indices(nslices, slice_order=slice_order,
-                                    interleaved=interleaved)
-
    # run pipeline
     if caching:
         cache_dir = cache_dir = os.path.join(subject_data.output_dir,
                                              'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        mem = NipypeMemory(base_dir=cache_dir)
-        stc = mem.cache(spm.SliceTiming)
+        subject_data.mem = NipypeMemory(base_dir=cache_dir)
+        stc = subject_data.mem.cache(spm.SliceTiming)
     else:
         stc = spm.SliceTiming().run
 
@@ -163,7 +171,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None,
     for sess_func in subject_data.func:
         stc_result = stc(in_files=sess_func, time_repetition=TR,
                          time_acquisition=TA, num_slices=nslices,
-                         ref_slice=refslice,
+                         ref_slice=refslice + 1,
                          slice_order=list(slice_order + 1),  # SPM
                          ignore_exception=False
                          )
@@ -246,13 +254,20 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     """
 
-    # sanitize software choice
     software = software.lower()
-    if software != "spm":
-        raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
-    subject_data.sanitize(niigz2nii=(software == spm))
+    subject_data.sanitize(niigz2nii=(software == "spm"))
+
+    # use pure python (pp) code ?
+    if software == "python":
+        return _pp_do_subject_realign(subject_data, register_to_mean=False,
+                                      report=report, caching=caching,
+                                      reslice=reslice
+                                      )
+
+    if software != "spm":
+        raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # jobtype
     jobtype = "estwrite" if reslice else "estimate"
@@ -270,8 +285,8 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        mem = NipypeMemory(base_dir=cache_dir)
-        realign = mem.cache(spm.Realign)
+        subject_data.mem = NipypeMemory(base_dir=cache_dir)
+        realign = subject_data.mem.cache(spm.Realign)
     else:
         realign = spm.Realign().run
 
@@ -282,10 +297,20 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
         jobtype=jobtype, **kwargs
         )
 
+    # failed node
+    if realign_result.outputs is None:
+        subject_data.failed = True
+        return subject_data
+
+    # collect output
     subject_data.func = realign_result.outputs.realigned_files
 
     subject_data.realignment_parameters = \
         realign_result.outputs.realignment_parameters
+    if isinstance(subject_data.realignment_parameters, basestring):
+        assert subject_data.n_sessions == 1
+        subject_data.realignment_parameters = [
+            subject_data.realignment_parameters]
 
     if register_to_mean and jobtype == "estwrite":
         subject_data.mean_realigned_file = \
@@ -293,12 +318,6 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     subject_data.nipype_results['realign'] = realign_result
 
-    # failed node
-    if realign_result.outputs is None:
-        subject_data.failed = True
-        return subject_data
-
-    # collect output
     if isinstance(subject_data.func, basestring):
         assert subject_data.n_sessions == 1
         subject_data.func = [subject_data.func]
@@ -365,14 +384,27 @@ def _do_subject_coregister(subject_data, reslice=False,
 
     """
 
-    # sanitize software choice
     software = software.lower()
+
+    # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
+    subject_data.sanitize(niigz2nii=(software == "spm"))
+
+    # use pure python (pp) code ?
+    if software == "python":
+        return _pp_do_subject_coregister(
+            subject_data,
+            reslice=reslice,
+            coreg_func_to_anat=not coreg_anat_to_func,
+            report=report, caching=caching,
+            )
+
+    # sanitize software choice
     if not software in ["spm", "fsl"]:
         raise NotImplementedError(
             "Only SPM is supported; got '%s'" % software)
 
     # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
-    subject_data.sanitize(niigz2nii=(software == spm))
+    subject_data.sanitize(niigz2nii=(software == "spm"))
 
     # jobtype
     jobtype = "estwrite" if reslice else "estimate"
@@ -526,7 +558,7 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
-    subject_data.sanitize(niigz2nii=(software == spm))
+    subject_data.sanitize(niigz2nii=(software == "spm"))
 
     # prepare for smart caching
     if caching:
@@ -564,6 +596,7 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
         return subject_data
 
     # collect output
+    subject_data.parameter_file = segment_result.outputs.transformation_mat
     subject_data.nipype_results['segment'] = segment_result
     subject_data.gm = segment_result.outputs.native_gm_image
     subject_data.wm = segment_result.outputs.native_wm_image
@@ -585,8 +618,8 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
 
 
 def _do_subject_normalize(subject_data, fwhm=0., caching=True,
-                          func_write_voxel_sizes=None,
-                          anat_write_voxel_sizes=None,
+                          func_write_voxel_sizes=[3, 3, 3],
+                          anat_write_voxel_sizes=[1, 1, 1],
                           report=True, software="spm",
                           hardlink_output=True
                           ):
@@ -642,7 +675,7 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
-    subject_data.sanitize(niigz2nii=(software == spm))
+    subject_data.sanitize(niigz2nii=(software == "spm"))
 
     # prepare for smart caching
     if caching:
@@ -694,8 +727,8 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
             normalize_result = normalize(
                 parameter_file=parameter_file,
                 apply_to_files=apply_to_files,
-                write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
                 write_voxel_sizes=write_voxel_sizes,
+                # write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
                 write_interp=1,
                 jobtype='write',
                 ignore_exception=False
@@ -822,7 +855,7 @@ def _do_subject_smooth(subject_data, fwhm, caching=True, report=True,
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
-    subject_data.sanitize(niigz2nii=(software == spm))
+    subject_data.sanitize(niigz2nii=(software == "spm"))
 
     # prepare for smart caching
     if caching:
@@ -891,7 +924,7 @@ def _do_subject_dartelnorm2mni(subject_data,
     """
 
     # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
-    subject_data.sanitize(niigz2nii=(software == spm))
+    subject_data.sanitize(niigz2nii=True)
 
     # prepare for smart caching
     if caching:
@@ -1217,7 +1250,8 @@ def do_subject_preproc(
             coreg_anat_to_func=coreg_anat_to_func,
             reslice=coregister_reslice,
             report=report,
-            hardlink_output=hardlink_output
+            hardlink_output=hardlink_output,
+            software=coregister_software
             )
 
         # handle failed node
@@ -1331,7 +1365,7 @@ def _do_subjects_dartel(subjects,
     if newsegment_result.outputs is None:
         return
     # compute DARTEL template for group data
-    dartel = mem.cache(spm.DARTEL)
+    dartel = subject_data.mem.cache(spm.DARTEL)
     dartel_input_images = [tpms for tpms in
                            newsegment_result.outputs.dartel_input_images
                            if tpms]

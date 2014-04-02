@@ -404,7 +404,7 @@ class Coregister(object):
     def transform(self,
                   source,
                   output_dir=None,
-                  prefix="Coreg",
+                  prefix="",
                   ext=".nii.gz",
                   basenames=None,
                   ):

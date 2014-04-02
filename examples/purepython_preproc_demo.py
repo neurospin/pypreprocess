@@ -7,21 +7,16 @@
 import os
 from pypreprocess.datasets import fetch_spm_auditory_data
 from pypreprocess.purepython_preproc_utils import do_subject_preproc
+from pypreprocess.subject_data import SubjectData
+import nibabel
 
 # fetch data
 sd = fetch_spm_auditory_data(os.path.join(os.path.abspath('.'),
                                           "spm_auditory"))
-
-# pack data into dict, the format understood by the pipeleine
-subject_data = {'n_sessions': 1,  # number of sessions
-                'func': [sd.func],  # functional (BOLD) images 1 item/session
-                'anat': sd.anat,  # anatomical (structural) image
-                'subject_id': 'sub001',
-                'output_dir': os.path.abspath('spm_auditory_preproc')
-                }
+sd.output_dir = "/tmp/sub001"
+sd.func = [sd.func]
 
 # preproc data
-do_subject_preproc(subject_data,
-                   do_stc=True,
-                   fwhm=[8] * 3
-                   )
+do_subject_preproc(sd.__dict__, concat=False, coregister=True,
+                   stc=True, cv_tc=True, realign=True,
+                   report=True)

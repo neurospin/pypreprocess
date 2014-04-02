@@ -6,10 +6,10 @@ teardown for reports, etc., general sanitization, etc.
 
 """
 
+import numpy as np
 import os
 import time
 from matplotlib.pyplot import cm
-
 from pypreprocess.external.joblib import Memory
 from .io_utils import (niigz2nii as do_niigz2nii,
                        dcm2nii as do_dcm2nii,
@@ -17,7 +17,9 @@ from .io_utils import (niigz2nii as do_niigz2nii,
                        delete_orientation,
                        hard_link,
                        get_shape,
-                       is_4D, is_3D)
+                       is_4D, is_3D,
+                       get_basenames,
+                       is_niimg)
 from .reporting.base_reporter import (
     commit_subject_thumnbail_to_parent_gallery,
     ResultsGallery,
@@ -91,7 +93,8 @@ class SubjectData(object):
 
     def __init__(self, func=None, anat=None, subject_id="sub001",
                  session_id=None, output_dir=None, session_output_dirs=None,
-                 anat_output_dir=None, scratch=None, **kwargs):
+                 anat_output_dir=None, scratch=None, warpable=['anat', 'func'],
+                 **kwargs):
 
         self.func = func
         self.anat = anat
@@ -101,7 +104,9 @@ class SubjectData(object):
         self.anat_output_dir = anat_output_dir
         self.session_output_dirs = session_output_dirs
         self.scratch = scratch if not scratch is None else output_dir
+        self.warpable = warpable
         self.failed = False
+        self.warpable = warpable
 
         # nipype outputs
         self.nipype_results = {}
@@ -205,7 +210,8 @@ class SubjectData(object):
 
         self.isdicom = False
         if not isinstance(self.func[0], basestring):
-            self.isdicom = isdicom(self.func[0][0])
+            if not is_niimg(self.func[0]):
+                self.isdicom = isdicom(self.func[0][0])
         self.func = [do_dcm2nii(sess_func, output_dir=self.output_dir)[0]
                      for sess_func in self.func]
 
@@ -222,6 +228,9 @@ class SubjectData(object):
 
         # check that functional image abspaths are distinct across sessions
         for sess1 in xrange(self.n_sessions):
+            if is_niimg(self.func[sess1]):
+                continue
+
             # functional images for this session must all be distinct abspaths
             if not isinstance(self.func[sess1], basestring):
                 if len(self.func[sess1]) != len(set(self.func[sess1])):
@@ -255,6 +264,9 @@ class SubjectData(object):
             # functional images for sess1 shouldn't concide with any functional
             # image of any other session
             for sess2 in xrange(sess1 + 1, self.n_sessions):
+                if is_niimg(self.func[sess2]):
+                    continue
+
                 if self.func[sess1] == self.func[sess2]:
                     raise RuntimeError(
                         ('The same image %s specified for session number %i '
@@ -276,7 +288,11 @@ class SubjectData(object):
                                     self.func[sess1], sess1 + 1, sess2 + 1))
                         else:
                             for x in self.func[sess1]:
+                                if is_niimg(x):
+                                    continue
                                 for y in self.func[sess2]:
+                                    if is_niimg(y):
+                                        continue
                                     if x == y:
                                         raise RuntimeError(
                                             'The same image %s specified for '
@@ -341,7 +357,37 @@ class SubjectData(object):
 
         self._check_func_names_and_shapes()
 
+        # get basenames
+        self.basenames = [get_basenames(self.func[sess]) if not is_niimg(
+                self.func[sess]) else "%s.nii.gz" % self.session_id[sess]
+                          for sess in xrange(self.n_sessions)]
+
         return self
+
+    def save_realignment_parameters(self, lkp=6):
+        if not hasattr(self, "realignment_parameters"):
+            return
+
+        rp_filenames = []
+        for sess in xrange(self.n_sessions):
+            sess_rps = getattr(self, "realignment_parameters")[sess]
+            if isinstance(sess_rps, basestring):
+                rp_filenames.append(sess_rps)
+            else:
+                sess_basename = self.basenames[sess]
+                if not isinstance(sess_basename, basestring):
+                    sess_basename = sess_basename[0]
+
+                rp_filename = os.path.join(
+                    self.tmp_output_dir,
+                    "rp_" + sess_basename + ".txt")
+
+                np.savetxt(rp_filename, sess_rps[..., :lkp])
+                rp_filenames.append(rp_filename)
+
+        setattr(self, "realignment_parameters", rp_filenames)
+
+        return rp_filenames
 
     def hardlink_output_files(self, final=False):
         """
@@ -369,6 +415,7 @@ class SubjectData(object):
                         setattr(self, item, linked_filename)
 
         # func stuff
+        self.save_realignment_parameters()
         for item in ['func', 'realignment_parameters']:
             tmp = []
             if hasattr(self, item):
@@ -528,7 +575,7 @@ class SubjectData(object):
 
         return hasattr(self, 'results_gallery')
 
-    def generate_realignment_thumbnails(self, log=True):
+    def generate_realignment_thumbnails(self, log=True, nipype=True):
         """
         Invoked to generate post-realignment thumbnails.
 
@@ -544,13 +591,16 @@ class SubjectData(object):
 
         # log execution
         if log:
-            execution_log_html = make_nipype_execution_log_html(
+            execution_log_html = None
+            if nipype:
+                execution_log_html = make_nipype_execution_log_html(
                     self.func, "Motion_Correction",
                     self.reports_output_dir)
             self.progress_logger.log(
                 "<b>Motion Correction</b><br/>")
-            self.progress_logger.log(open(execution_log_html).read())
-            self.progress_logger.log('<hr/>')
+            if execution_log_html:
+                self.progress_logger.log(open(execution_log_html).read())
+                self.progress_logger.log('<hr/>')
 
         thumbs = generate_realignment_thumbnails(
             getattr(self, 'realignment_parameters'),
@@ -563,8 +613,9 @@ class SubjectData(object):
 
         self.final_thumbnail.img.src = thumbs['rp_plot']
 
-    def generate_coregistration_thumbnails(self, coreg_func_to_anat=True,
-                                           log=True, comment=True):
+    def generate_coregistration_thumbnails(
+        self, coreg_func_to_anat=True, log=True, comment=True, nipype=True):
+
         """
         Invoked to generate post-coregistration thumbnails.
 
@@ -587,13 +638,16 @@ class SubjectData(object):
 
         # log execution
         if log:
-            execution_log_html = make_nipype_execution_log_html(
+            execution_log_html = None
+            if nipype:
+                execution_log_html = make_nipype_execution_log_html(
                     src, "Coregister",
                     self.reports_output_dir)
             self.progress_logger.log(
                 "<b>Coregistration</b><br/>")
-            self.progress_logger.log(open(execution_log_html).read())
-            self.progress_logger.log('<hr/>')
+            if execution_log_html:
+                self.progress_logger.log(open(execution_log_html).read())
+                self.progress_logger.log('<hr/>')
 
         # generate thumbs proper
         thumbs = generate_coregistration_thumbnails(
@@ -608,7 +662,7 @@ class SubjectData(object):
 
         self.final_thumbnail.img.src = thumbs['axial']
 
-    def generate_segmentation_thumbnails(self, log=True):
+    def generate_segmentation_thumbnails(self, log=True, nipype=True):
         """
         Invoked to generate post-segmentation thumbnails.
 
@@ -629,13 +683,16 @@ class SubjectData(object):
 
         # log execution
         if log:
-            execution_log_html = make_nipype_execution_log_html(
-                getattr(self, 'gm') or getattr(self, 'wm') or getattr(
-                    self, 'csf'), "Segment", self.reports_output_dir)
+            execution_log_html = None
+            if nipype:
+                execution_log_html = make_nipype_execution_log_html(
+                    getattr(self, 'gm') or getattr(self, 'wm') or getattr(
+                        self, 'csf'), "Segment", self.reports_output_dir)
             self.progress_logger.log(
                 "<b>Segmentation</b><br/>")
-            self.progress_logger.log(open(execution_log_html).read())
-            self.progress_logger.log('<hr/>')
+            if execution_log_html:
+                self.progress_logger.log(open(execution_log_html).read())
+                self.progress_logger.log('<hr/>')
 
         for brain_name, brain, cmap in zip(
             ['anat', 'func'], [self.anat, self.func],
@@ -657,7 +714,7 @@ class SubjectData(object):
             if brain_name == 'func':
                 self.final_thumbnail.img.src = thumbs['axial']
 
-    def generate_normalization_thumbnails(self, log=True):
+    def generate_normalization_thumbnails(self, log=True, nipype=True):
         """
         Invoked to generate post-normalization thumbnails.
 
@@ -705,14 +762,18 @@ class SubjectData(object):
 
             # log execution
             if log:
-                execution_log_html = make_nipype_execution_log_html(
-                    brain, "Normalization", self.reports_output_dir)
+                execution_log_html = None
+                if nipype:
+                    execution_log_html = make_nipype_execution_log_html(
+                        brain, "Normalization", self.reports_output_dir,
+                        brain_name)
                 self.progress_logger.log(
                     "<b>Normalization of %s</b><br/>" % brain_name)
-                text = open(execution_log_html).read()
-                if "normalized_files" in text or "warped_files" in text:
-                    self.progress_logger.log(text)
-                self.progress_logger.log('<hr/>')
+                if execution_log_html:
+                    text = open(execution_log_html).read()
+                    if "normalized_files" in text or "warped_files" in text:
+                        self.progress_logger.log(text)
+                        self.progress_logger.log('<hr/>')
 
             # generate normalization thumbs proper
             thumbs = generate_normalization_thumbnails(

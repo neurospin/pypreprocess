@@ -15,6 +15,7 @@ from ..io_utils import (
     save_vols,
     save_vol,
     hard_link,
+    get_basename,
     get_basenames,
     load_4D_img,
     is_niimg,
@@ -145,14 +146,15 @@ def test_save_vol():
 
     vol = create_random_image(ndim=3)
 
-    output_filename = save_vol(vol, output_dir=output_dir, basename='123')
+    output_filename = save_vol(vol, output_dir=output_dir,
+                               basename='123.nii.gz')
     assert_equal(os.path.basename(output_filename),
                             '123.nii.gz')
 
-    output_filename = save_vol(vol, output_dir=output_dir, basename='123',
+    output_filename = save_vol(vol, output_dir=output_dir, basename='123.img',
                                 prefix='s')
     assert_equal(os.path.basename(output_filename),
-                            's123.nii.gz')
+                            's123.img')
 
 
 def test_save_vols():
@@ -196,7 +198,8 @@ def test_save_vols():
                                                 'fMETHODS-000007.nii.gz')
                 else:
                     assert_true(isinstance(saved_vols_filenames, basestring))
-                    assert_true(saved_vols_filenames.endswith('.nii.gz'))
+                    assert_true(saved_vols_filenames.endswith('.nii.gz'),
+                                msg=saved_vols_filenames)
                     assert_true(is_4D(load_4D_img(
                                 saved_vols_filenames)))
 
@@ -310,13 +313,25 @@ def test_hardlink():
     _check_ok(hl_filenames, filenames)
 
 
+def test_get_basename():
+    assert_equal(get_basename("/tmp/toto/titi.nii.gz", ext=".img"),
+                              "titi.img")
+    assert_equal(get_basename("/tmp/toto/titi.nii.gz"),
+                              "titi.nii.gz")
+
+    assert_equal(get_basename("/tmp/toto/titi.nii", ext=".img"),
+                              "titi.img")
+    assert_equal(get_basename("/tmp/toto/titi.nii"),
+                              "titi.nii")
+
+
 def test_get_basenames():
     assert_equal(get_basenames("/path/to/file/file.nii.gz"),
-                            "file")
+                            "file.nii.gz")
 
     assert_equal(get_basenames(["/path/to/file/file-%04i.nii.gz" % i
                                            for i in xrange(10)])[3],
-                            "file-0003")
+                            "file-0003.nii.gz")
 
 
 def test_load_4D_img():

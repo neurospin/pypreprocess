@@ -166,7 +166,7 @@ def three_to_four(images):
 
 
 def save_vols(vols, output_dir, basenames=None, affine=None,
-               concat=False, prefix='', ext='.nii.gz'):
+              concat=False, prefix='', ext=None):
     """
     Saves a single 4D image or a couple of 3D vols unto disk.
 
@@ -215,6 +215,9 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
         else:
             return nibabel.Nifti1Image(x, affine)
 
+    if not basenames is None:
+        basenames = get_basenames(basenames, ext=ext)
+
     # sanitize output_dir
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -242,20 +245,20 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
 
     if not isinstance(vols, list):
         if basenames is None:
-            basenames = "vols"
+            basenames = get_basenames("vols", ext=ext)
 
         if not isinstance(basenames, basestring):
             vols = nibabel.four_to_three(vols)
             filenames = []
             for vol, basename in zip(vols, basenames):
                 assert isinstance(basename, basestring)
-                filename = os.path.join(output_dir, "%s%s%s" % (
-                        prefix, basename.split(".")[0], ext))
+                filename = os.path.join(output_dir, "%s%s" % (
+                        prefix, basename))
                 nibabel.save(vol, filename)
                 filenames.append(filename)
         else:
-            filenames = os.path.join(output_dir, "%s%s%s" % (
-                    prefix, basenames.split(".")[0], ext))
+            filenames = os.path.join(output_dir, "%s%s" % (
+                    prefix, basenames))
             nibabel.save(vols, filenames)
 
         return filenames
@@ -267,9 +270,11 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
             if prefix:
                 prefix = prefix + "_"
         else:
-            assert not isinstance(basenames, basestring)
-            assert len(basenames) == len(vols), "%i != %i" % (len(basenames),
-                                                              len(vols))
+            if isinstance(basenames, basestring):
+                basenames = ["vol%i_%s" % (t, basenames)
+                             for t in xrange(len(vols))]
+            else:
+                assert len(set(basenames)) == len(vols), basenames
 
         for t, vol in zip(xrange(n_vols), vols):
             if isinstance(vol, np.ndarray):
@@ -282,12 +287,17 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
 
             # save realigned vol unto disk
             if basenames is None:
+                if ext is None:
+                    ext = ".nii.gz"
                 output_filename = os.path.join(output_dir,
-                                               "%svol_%i%s" % (
-                        prefix, t, ext))
+                                               get_basename("%svol_%i" % (
+                            prefix, t), ext=ext))
             else:
-                output_filename = os.path.join(output_dir, "%s%s%s" % (
-                        prefix, basenames[t].split(".")[0], ext))
+                basename = basenames if isinstance(
+                    basenames, basestring) else basenames[t]
+                output_filename = os.path.join(output_dir,
+                                               get_basenames("%s%s" % (
+                            prefix, basename), ext=ext))
 
             vol = load_vol(vol) if not is_niimg(vol) else vol
 
@@ -405,10 +415,8 @@ def delete_orientation(imgs, output_dir, output_tag=''):
         imgs = [imgs]
 
     for img in imgs:
-        output_img = os.path.join(
-            output_dir,
-            "deleteorient%s" % ("_%s_" if output_tag else "_"
-                                ) + os.path.basename(img))
+        output_img = os.path.join(output_dir,
+                                  output_tag + os.path.basename(img))
         nibabel.save(nibabel.load(img), output_img)
         commands_output = commands.getoutput(
             "fslorient -deleteorient %s" % output_img)
@@ -662,11 +670,22 @@ def hard_link(filenames, output_dir):
         return [hard_link(_filenames, output_dir) for _filenames in filenames]
 
 
-def get_basenames(x):
+def get_basename(x, ext=None):
+    bn = os.path.basename(x)
+    if ext is None:
+        return bn
+
+    if not ext.startswith('.'):
+        ext = "." + ext
+
+    return "%s%s" % (bn.split(".")[0], ext)
+
+
+def get_basenames(x, ext=None):
     if isinstance(x, list):
-        return [os.path.basename(y).split(".")[0] for y in x]
+        return [get_basename(y, ext=ext) for y in x]
     elif isinstance(x, basestring):
-        return os.path.basename(x).split(".")[0]
+        return get_basenames([x], ext=ext)[0]
     else:
         raise TypeError(
             "Input must be string or list of strings; got %s" % type(x))
@@ -889,6 +908,9 @@ def isdicom(source_name):
 
     """
 
+    if is_niimg(source_name):
+        return False
+
     for ext in DICOM_EXTENSIONS:
         if source_name.lower().endswith(ext):
             return True
@@ -905,6 +927,9 @@ def dcm2nii(source_names, terminal_output="allatonce", gzip_output=False,
     """
 
     # all input files must be DICOM
+    if is_niimg(source_names):
+        return source_names, None
+
     for source_name in [source_names] if isinstance(
         source_names, basestring) else source_names:
         if not isdicom(source_name):

@@ -4,6 +4,8 @@ import pylab as pl
 from ..external.nipy_labs import viz
 import nibabel
 import numpy as np
+from nipy.modalities.fmri.glm import FMRILinearModel
+from nipy.labs.mask import intersect_masks
 import base_reporter
 
 
@@ -485,3 +487,98 @@ Z>%s voxel-level.
         fd.close()
 
         return stats_report
+
+
+def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
+                            start_time=base_reporter.pretty_time(),
+                            **kwargs):
+    """
+    Runs a one-sample t-test procedure for group analysis. Here, we are
+    for each experimental condition, only interested refuting the null
+    hypothesis H0: "The average effect accross the subjects is zero!"
+
+    Parameters
+    ----------
+    masks: list of strings or nibabel image objects
+        subject masks, one per subject
+
+    effects_maps: list of dicts of lists
+        effects maps from subject-level GLM; each entry is a dictionary;
+        each entry (indexed by condition id) of this dictionary is the
+        filename (or correspinding nibabel image object) for the effects
+        maps for that condition (aka contrast),for that subject
+
+    contrasts: dictionary of array_likes
+        contrasts vectors, indexed by condition id
+
+    kwargs: dict_like
+        parameters can be regular `nipy.labs.viz.plot_map` parameters
+        (e.g slicer="y") or any parameter we want be reported (e.g
+        fwhm=[5, 5, 5])
+
+    """
+
+    # make output directory
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    assert len(masks) == len(effects_maps), (len(masks), len(effects_maps))
+
+    # compute group mask
+    group_mask = nibabel.Nifti1Image(
+        intersect_masks(masks).astype(np.int8),
+        (nibabel.load(masks[0]) if isinstance(
+                masks[0], basestring) else masks[0]).get_affine())
+
+    # construct design matrix (only one covariate, namely the "mean effect")
+    design_matrix = np.ones(len(effects_maps)
+                            )[:, np.newaxis]  # only the intercept
+
+    group_level_z_maps = {}
+    group_level_t_maps = {}
+    for contrast_id in contrasts:
+        print "\tcontrast id: %s" % contrast_id
+
+        # effects maps will be the input to the second level GLM
+        first_level_image = nibabel.concat_images(
+            [x[contrast_id] for x in effects_maps])
+
+        # fit 2nd level GLM for given contrast
+        group_model = FMRILinearModel(first_level_image,
+                                      design_matrix, group_mask)
+        group_model.fit(do_scaling=False, model='ols')
+
+        # specify and estimate the contrast
+        contrast_val = np.array(([[1.]])
+                                )  # the only possible contrast !
+        z_map, t_map = group_model.contrast(contrast_val,
+                                      con_id='one_sample %s' % contrast_id,
+                                      output_z=True,
+                                      output_stat=True)
+
+        # save map
+        for map_type, map_img in zip(["z", "t"], [z_map, t_map]):
+            map_dir = os.path.join(output_dir, '%s_maps' % map_type)
+            if not os.path.exists(map_dir):
+                os.makedirs(map_dir)
+            map_path = os.path.join(map_dir, 'group_level_%s.nii.gz' % (
+                    contrast_id))
+            print "\t\tWriting %s ..." % map_path
+            nibabel.save(map_img, map_path)
+            if map_type == "z":
+                group_level_z_maps[contrast_id] = map_path
+            elif map_type == "t":
+                group_level_z_maps[contrast_id] = map_path
+
+    # do stats report
+    stats_report_filename = os.path.join(
+        output_dir, "report_stats.html")
+    generate_subject_stats_report(stats_report_filename, contrasts,
+                                  group_level_z_maps, group_mask,
+                                  start_time=start_time,
+                                  **kwargs)
+
+    print "\r\nStatistic report written to %s\r\n" % (
+        stats_report_filename)
+
+    return group_level_z_maps

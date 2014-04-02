@@ -1,6 +1,5 @@
 import os
 import numpy as np
-import nose
 import nose.tools
 import numpy.testing
 import nibabel
@@ -71,9 +70,3 @@ def test_coregister_on_real_data():
                                              [0, 0], decimal=4)
     numpy.testing.assert_array_equal(np.round(-c.params_)[[0, 1, 2]],
                                      [1., 2., 3.])
-
-# run all tests
-nose.runmodule(config=nose.config.Config(
-        verbose=2,
-        nocapture=True,
-        ))
