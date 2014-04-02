@@ -8,7 +8,7 @@
 # standard imports
 import os
 import glob
-import traceback
+import warnings
 
 # import spm preproc utilities
 from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
@@ -23,18 +23,37 @@ DATASET_DESCRIPTION = """\
 DO_DARTEL = False
 
 
-def preproc_dataset(data_dir, output_dir, dataset_id=None,
+def preproc_dataset(data_dir, output_dir,
                     ignore_subjects=None, restrict_subjects=None,
                     n_jobs=-1):
-    """Main function for preprocessing (and analysis ?)
+    """Main function for preprocessing a dataset with the OpenfMRI layout.
 
     Parameters
     ----------
+    data_dir: str
+        Path of input directory. If does not exist and finishes
+        by a valid OpenfMRI dataset id, it will be downloaded.
+    output_dir: str
+        Path of output directory.
+    ignore_subjects: list or None
+        List of subject identifiers not to process.
+    restrict_subjects: list or None
+        List of subject identifiers to process.
+    n_jobs: int
+        Number of parallel processes.
 
-    returns list of Bunch objects with fields anat, func, and subject_id
+    Warning
+    -------
+    Subjects may be excluded if some data is missing.
+
+    Returns list of Bunch objects with fields anat, func, and subject_id
     for each preprocessed subject
-
     """
+    parent_dir, dataset_id = os.path.split(data_dir)
+
+    if not os.path.exists(data_dir):
+        fetch_openfmri(parent_dir, dataset_id)
+
     ignore_subjects = [] if ignore_subjects is None else ignore_subjects
 
     # glob for subjects and their imaging sessions identifiers
@@ -64,16 +83,19 @@ def preproc_dataset(data_dir, output_dir, dataset_id=None,
             subject_data.subject_id = subject_id
             subject_data.func = []
 
-            # glob for bold data
+            # glob for BOLD data
             has_bad_sessions = False
             for session_id in subject_data.session_id:
                 bold_dir = os.path.join(
                     data_dir, subject_id, 'BOLD', session_id)
 
-                # glob bold data for this session
+                # glob BOLD data for this session
                 func = glob.glob(os.path.join(bold_dir, "bold.nii.gz"))
-                # check that this session is OK (has bold data, etc.)
+                # check that this session is OK (has BOLD data, etc.)
                 if not func:
+                    warnings.warn(
+                        'Subject %s is missing data for session %s.' % (
+                        subject_id, session_id))
                     has_bad_sessions = True
                     break
 
@@ -81,6 +103,7 @@ def preproc_dataset(data_dir, output_dir, dataset_id=None,
 
             # exclude subject if necessary
             if has_bad_sessions:
+                warnings.warn('Excluding subject %s' % subject_id)
                 continue
 
             # anatomical data
@@ -130,7 +153,6 @@ if __name__ == '__main__':
     input_dir, output_dir = args[1:]
     input_dir = input_dir.rstrip('/')
     output_dir = output_dir.rstrip('/')
-    data_dir, dataset_id = os.path.split(input_dir)
     if not dataset_id.startswith('ds') and not os.path.exists(input_dir):
         parser.error("The directory does not exist and "
                      "does not seem to be an OpenfMRI dataset.")
@@ -140,9 +162,6 @@ if __name__ == '__main__':
             restrict = f.read().split()
     else:
         restrict = None if options.subjects is None else [options.subjects]
-
-    if not os.path.exists(input_dir):
-        fetch_openfmri(data_dir, dataset_id)
 
     preproc_dataset(data_dir=input_dir,
          output_dir=output_dir,
