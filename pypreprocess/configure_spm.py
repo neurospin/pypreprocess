@@ -40,6 +40,10 @@ def configure_spm(matlab_exec=None, spm_dir=None):
         "Can't find SPM path '%s'! You should export SPM_DIR=/path/to/"
         "your/SPM/root/dir" % spm_dir)
 
+    # configure MATLAB
+    if 'MATLAB_EXEC' in os.environ:
+        matlab_exec = os.environ['MATLAB_EXEC']
+
     # use SPM_MCR defined by environment variable
     if (distutils.version.LooseVersion(nipype.__version__).version >= [0, 9]
         and 'SPM8_MCR' in os.environ
@@ -56,28 +60,25 @@ def configure_spm(matlab_exec=None, spm_dir=None):
     else:
         matlab.MatlabCommand.set_default_paths(spm_dir)
 
-    # configure MATLAB
-    if 'MATLAB_EXEC' in os.environ:
-        matlab_exec = os.environ['MATLAB_EXEC']
+        # try real hard to find matlab only if not using the mcr
+        if not matlab_exec is None:
+            matlab_exec = _expand_path(matlab_exec)
 
-    if not matlab_exec is None:
-        matlab_exec = _expand_path(matlab_exec)
+        if matlab_exec is None or not os.path.exists(matlab_exec):
+            if matlab_exec:
+                print "Path %s doesn't exist" % matlab_exec
+            matlab_exec = DEFAULT_MATLAB_EXEC
 
-    if matlab_exec is None or not os.path.exists(matlab_exec):
-        if matlab_exec:
-            print "Path %s doesn't exist" % matlab_exec
-        matlab_exec = DEFAULT_MATLAB_EXEC
+            if not os.path.exists(matlab_exec):
+                m_choices = glob.glob("/neurospin/local/matlab/R*/bin/matlab")
+                if m_choices:
+                    matlab_exec = m_choices[0]
 
-        if not os.path.exists(matlab_exec):
-            m_choices = glob.glob("/neurospin/local/matlab/R*/bin/matlab")
-            if m_choices:
-                matlab_exec = m_choices[0]
+        assert os.path.exists(matlab_exec), (
+            "Can't find matlab path: '%s' ! You should export MATLAB_EXEC="
+            "/path/to/your/matlab/exec, doesn't exist; you need to export "
+            "matlab_exec" % matlab_exec)
 
-    assert os.path.exists(matlab_exec), (
-        "Can't find matlab path: '%s' ! You should export MATLAB_EXEC="
-        "/path/to/your/matlab/exec, doesn't exist; you need to export "
-        "matlab_exec" % matlab_exec)
-
-    matlab.MatlabCommand.set_default_matlab_cmd(matlab_exec)
+        matlab.MatlabCommand.set_default_matlab_cmd(matlab_exec)
 
     return spm_dir, matlab_exec
