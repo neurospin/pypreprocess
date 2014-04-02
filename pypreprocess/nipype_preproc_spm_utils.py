@@ -683,9 +683,9 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         normalize = NipypeMemory(base_dir=cache_dir).cache(
-            spm.Normalize, write_preserve=False)
+            spm.Normalize)
     else:
-        normalize = spm.Normalize(write_preserve=False).run
+        normalize = spm.Normalize().run
 
     segmented = 'segment' in subject_data.nipype_results
 
