@@ -1,6 +1,0 @@
-novel_vs_repeat 1 1 1 1 1 1 1 1 -1 -1 -1 -1 -1 -1 -1 -1
-abstract_vs_concrete 1 -1 1 -1 1 -1 1 -1 1 -1 1 -1 1 -1 1 -1
-novel_vs_rest 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
-repeat_vs_rest 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1
-abstract_vs_rest 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
-concrete_vs_rest 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1

@@ -1,8 +1,0 @@
-task001	cue_greater_than_fixation	1	0	1	0	1	0	1	0	1	0	1	0	1	0	1	0	1	0
-task001	invalidly_greater_than_validly_cued_objects	0	-1	0	-1	0	-1	0	1.333	0	1.333	0	1.333	0	-1	0	0	0	0
-task001	validly_cued_high_confidence_hit_objects_greater_than_validly_cued_miss_objects	0	1	0	0	0	-1	0	0	0	0	0	0	0	0	0	0	0	0
-task001	validly_cued_miss_objects_greater_than_validly_cued_high_confidence_hit_objects	0	-1	0	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0
-task001	invalidly_cued_high_confidence_hit_objects_greater_than_invalidly_cued_miss_objects	0	0	0	0	0	0	0	1	0	0	0	-1	0	0	0	0	0	0
-task001	invalidly_cued_miss_objects_greater_than_invalidly_cued_high_confidence_hit_objects	0	0	0	0	0	0	0	-1	0	0	0	1	0	0	0	0	0	0
-task001	high_confidence_hit_objects_greater_than_miss_objects_x_invalidly_cued_objects_greater_than_validly_cued_objects	0	-1	0	0	0	1	0	1	0	0	0	-1	0	0	0	0	0	0
-task001	high_confidence_hit_objects_greater_than_miss_objects_x_validly_cued_objects_greater_than_invalidly_cued_objects	0	1	0	0	0	-1	0	-1	0	0	0	1	0	0	0	0	0	0
