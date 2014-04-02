@@ -99,9 +99,10 @@ def preproc_dataset(data_dir, output_dir, dataset_id=None,
         n_jobs=n_jobs,
         dataset_id=dataset_id,
         output_dir=output_dir,
-        deleteorient=True,
+        deleteorient=False,
         dartel=DO_DARTEL,
         dataset_description=DATASET_DESCRIPTION,
+        # caching=False,
         )
 
 if __name__ == '__main__':
@@ -117,7 +118,7 @@ if __name__ == '__main__':
         'and therefore look like /path/to/dir/{dataset_id}.')
 
     parser.add_option(
-        '-s', '--subject', dest='subject',
+        '-s', '--subjects', dest='subjects',
         help='Process a single subject matching the given id.')
 
     parser.add_option(
@@ -134,7 +135,11 @@ if __name__ == '__main__':
         parser.error("The directory does not exist and "
                      "does not seem to be an OpenfMRI dataset.")
 
-    restrict = None if options.subject is None else [options.subject]
+    if options.subjects is not None and os.path.exists(options.subjects):
+        with open(options.subjects, 'rb') as f:
+            restrict = f.read().split()
+    else:
+        restrict = None if options.subjects is None else [options.subjects]
 
     if not os.path.exists(input_dir):
         fetch_openfmri(data_dir, dataset_id)
