@@ -1,6 +1,0 @@
-objects_vs_scrambled 0 1 -1 0
-words_vs_consonants 1 0 0 -1
-words_vs_rest 1 0 0 0
-objects_vs_rest 0 1 0 0
-scramble_vs_rest 0 0 1 0
-consonant_vs_rest 0 0 0 1

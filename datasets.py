@@ -1515,5 +1515,5 @@ def fetch_openfmri(data_dir, dataset_id, force_download=False, verbose=1):
     if not os.path.exists(output_dir) and not force_download:
         _fetch_dataset('_%s' % dataset_id, urls, data_dir, verbose=verbose)
         shutil.move(temp_dir, output_dir)
-        shutil.rmtree(temp_dir)
+        shutil.rmtree(os.path.split(temp_dir)[0])
     return output_dir

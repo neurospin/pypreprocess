@@ -682,7 +682,8 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        normalize = NipypeMemory(base_dir=cache_dir).cache(spm.Normalize)
+        normalize = NipypeMemory(base_dir=cache_dir).cache(
+            spm.Normalize)
     else:
         normalize = spm.Normalize().run
 
