@@ -19,12 +19,10 @@ DATASET_DESCRIPTION = """\
 <p><a href="https://openfmri.org/data-sets">openfmri.org datasets</a>.</p>
 """
 
-# DARTEL ?
-DO_DARTEL = False
-
 
 def preproc_dataset(data_dir, output_dir,
                     ignore_subjects=None, restrict_subjects=None,
+                    delete_orient=True, dartel=False,
                     n_jobs=-1):
     """Main function for preprocessing a dataset with the OpenfMRI layout.
 
@@ -32,15 +30,20 @@ def preproc_dataset(data_dir, output_dir,
     ----------
     data_dir: str
         Path of input directory. If does not exist and finishes
-        by a valid OpenfMRI dataset id, it will be downloaded.
+        by a valid OpenfMRI dataset id, it will be downloaded,
+        i.e., /path/to/dir/{dataset_id}.
     output_dir: str
         Path of output directory.
     ignore_subjects: list or None
         List of subject identifiers not to process.
     restrict_subjects: list or None
         List of subject identifiers to process.
+    delete_orient: bool
+        Delete orientation information in nifti files.
+    dartel: bool
+        Use dartel.
     n_jobs: int
-        Number of parallel processes.
+        Number of parallel jobs.
 
     Warning
     -------
@@ -122,8 +125,8 @@ def preproc_dataset(data_dir, output_dir,
         n_jobs=n_jobs,
         dataset_id=dataset_id,
         output_dir=output_dir,
-        deleteorient=False,
-        dartel=DO_DARTEL,
+        deleteorient=delete_orient,
+        dartel=dartel,
         dataset_description=DATASET_DESCRIPTION,
         # caching=False,
         )
@@ -142,7 +145,19 @@ if __name__ == '__main__':
 
     parser.add_option(
         '-s', '--subjects', dest='subjects',
-        help='Process a single subject matching the given id.')
+        help=('Process a single subject matching the given id.'
+              'A file path may be given, and must contain '
+              'a subject_id per line.'))
+
+    parser.add_option(
+        '-O', '--delete-orient', dest='delete_orient',
+        type='bool', default=True,
+        help=('Delete orientation information in nifti files.'))
+
+    parser.add_option(
+        '-D', '--dartel', dest='dartel',
+        type='bool', default=False,
+        help=('Use dartel.'))
 
     parser.add_option(
         '-n', '--n-jobs', dest='n_jobs', type='int',
@@ -168,6 +183,8 @@ if __name__ == '__main__':
     preproc_dataset(data_dir=input_dir,
          output_dir=output_dir,
          restrict_subjects=restrict,
+         dartel=options.dartel,
+         delete_orient=options.delete_orient,
          n_jobs=options.n_jobs)
 
     print "\r\nAll output written to %s" % output_dir
