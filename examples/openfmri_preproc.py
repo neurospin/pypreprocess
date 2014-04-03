@@ -45,6 +45,13 @@ def preproc_dataset(data_dir, output_dir,
     n_jobs: int
         Number of parallel jobs.
 
+    Examples
+    --------
+    preproc_dataset('/tmp/ds105', '/tmp/ds105_preproc ',
+                    ignore_subjects=['sub002', 'sub003'],
+                    delete_orient=True,
+                    n_jobs=3)
+
     Warning
     -------
     Subjects may be excluded if some data is missing.
@@ -135,13 +142,19 @@ if __name__ == '__main__':
     import sys
     from optparse import OptionParser
 
-    parser = OptionParser()
-    parser.usage = '%prog [input_dir] [output_dir]'
+    parser = OptionParser(usage=(
+        '%prog [input_dir] [output_dir]\n\n'
+        'Examples:\n\r'
+        'openfmri_preproc.py /tmp/ds105 /tmp/ds105_preproc -s sub001 -O\n'
+        'openfmri_preproc.py /tmp/ds105 /tmp/ds105_preproc -O -D -n 6'))
+
     parser.description = (
         '`input_dir` is the path to an existing '
         'OpenfMRI dataset or where to download it. '
         'The directory name must match a valid OpenfMRI dataset id, '
-        'and therefore look like /path/to/dir/{dataset_id}.')
+        'and therefore look like /path/to/dir/{dataset_id}. OpenfMRI datasets '
+        'identifiers may be found here: https://openfmri.org/data-sets but '
+        'contain only 3 digits. e.g., the valid id for ds000001 is ds001.')
 
     parser.add_option(
         '-s', '--subjects', dest='subjects',
