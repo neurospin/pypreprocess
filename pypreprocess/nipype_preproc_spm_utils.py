@@ -695,6 +695,7 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
                                 output_dir=subject_data.output_dir)
         normalize_result = normalize(source=subject_data.anat,
                                      template=t1_template,
+                                     write_preserve=False,
                                      )
         parameter_file = normalize_result.outputs.normalization_parameters
     else:
