@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 :Module: nipype_preproc_spm_openfmri
 :Synopsis: Preprocessing Openfmri
