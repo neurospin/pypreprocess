@@ -180,6 +180,8 @@ if __name__ == '__main__':
         help='Number of parallel jobs.')
 
     options, args = parser.parse_args(sys.argv)
+    if len(args) < 3:
+        options, args = parser.parse_args(sys.argv + ['-h'])
     input_dir, output_dir = args[1:]
     input_dir = input_dir.rstrip('/')
     output_dir = output_dir.rstrip('/')
