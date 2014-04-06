@@ -7,13 +7,14 @@ failure thumbnail!!!
 """
 
 # standard imports
-import numpy as np
-import nibabel
 import os
 import sys
 import time
-from matplotlib.pyplot import cm
+import warnings
 import inspect
+import numpy as np
+import nibabel
+from matplotlib.pyplot import cm
 
 from slice_timing import get_slice_indices
 from conf_parser import _generate_preproc_pipeline
@@ -119,6 +120,11 @@ def _do_subject_slice_timing(subject_data, TR, TA=None,
        Time of Acaquisition
 
     """
+
+    if not subject_data.func:
+        warnings.warn("subject_data.func=%s (empty); skipping STC!" % (
+                subject_data.func))
+        return subject_data
 
     software = software.lower()
 
@@ -254,6 +260,11 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     """
 
+    if not subject_data.func:
+        warnings.warn("subject_data.func=%s (empty); skipping MC!" % (
+                subject_data.func))
+        return subject_data
+
     software = software.lower()
 
     # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
@@ -383,6 +394,18 @@ def _do_subject_coregister(subject_data, reslice=False,
     Input subject_data is modified.
 
     """
+
+    if not subject_data.func:
+        warnings.warn(
+            "subject_data.func=%s (empty); skipping coregistration!" % (
+                subject_data.func))
+        return subject_data
+
+    if not subject_data.anat:
+        warnings.warn(
+            "subject_data.anat=%s (empty); skipping coregistration!" % (
+                subject_data.anat))
+        return subject_data
 
     software = software.lower()
 
@@ -617,7 +640,7 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
     return subject_data.sanitize()
 
 
-def _do_subject_normalize(subject_data, fwhm=0., caching=True,
+def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                           func_write_voxel_sizes=[3, 3, 3],
                           anat_write_voxel_sizes=[1, 1, 1],
                           report=True, software="spm",
@@ -708,6 +731,7 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
     for brain_name, brain, cmap in zip(
         ['anat', 'func'], [subject_data.anat, subject_data.func],
         [cm.gray, cm.spectral]):
+        if not brain: continue
         if segmented:
             if brain_name == 'func':
                 apply_to_files, file_types = ravel_filenames(subject_data.func)
@@ -802,9 +826,9 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
         subject_data.generate_normalization_thumbnails()
 
     # explicit smoothing
-    if np.sum(fwhm) > 0:
+    if np.sum(fwhm) + np.sum(anat_fwhm) > 0:
         subject_data = _do_subject_smooth(
-            subject_data, fwhm, caching=caching,
+            subject_data, fwhm, anat_fwhm=anat_fwhm, caching=caching,
             report=report
             )
 
@@ -815,7 +839,7 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
     return subject_data.sanitize()
 
 
-def _do_subject_smooth(subject_data, fwhm, caching=True, report=True,
+def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, caching=True, report=True,
                        hardlink_output=True, software="spm"):
     """
     Wrapper for running spm.Smooth with optional reporting.
@@ -866,23 +890,34 @@ def _do_subject_smooth(subject_data, fwhm, caching=True, report=True,
     else:
         smooth = spm.Smooth().run
 
-    # configure node
-    in_files, file_types = ravel_filenames(subject_data.func)
-
     # run node
-    smooth_result = smooth(in_files=in_files,
-                           fwhm=fwhm,
-                           ignore_exception=False
-                           )
     # failed node ?
-    subject_data.nipype_results['smooth'] = smooth_result
-    if smooth_result.outputs is None:
-        subject_data.failed = True
-        return subject_data
+    subject_data.nipype_results['smooth'] = {}
+    for brain_name, brain, width in zip(['func', 'anat'],
+                                        [subject_data.func, subject_data.anat],
+                                        [fwhm, anat_fwhm]):
+        if not brain: continue
+        if not np.sum(width): continue
+        in_files = brain
+        if brain_name == "func":
+            in_files, file_types = ravel_filenames(brain)
 
-    # collect results
-    subject_data.func = unravel_filenames(
-        smooth_result.outputs.smoothed_files, file_types)
+        smooth_result = smooth(in_files=in_files,
+                               fwhm=width,
+                               ignore_exception=False
+                               )
+
+        # failed node ?
+        subject_data.nipype_results['smooth'][brain_name] = smooth_result
+        if smooth_result.outputs is None:
+            subject_data.failed = True
+            warnings.warn("Failed smoothing %s" % brain_name)
+            return subject_data
+
+        brain = smooth_result.outputs.smoothed_files
+        if brain_name == "func":
+            brain = unravel_filenames(brain, file_types)
+        setattr(subject_data, brain_name, brain)
 
     # commit output files
     if hardlink_output:
@@ -1060,7 +1095,9 @@ def do_subject_preproc(
     preproc_undergone=None,
     prepreproc_undergone="",
     generate_preproc_undergone=True,
-    caching=True
+    caching=True,
+
+    **kwargs
     ):
     """
     Function preprocessing data for a single subject.

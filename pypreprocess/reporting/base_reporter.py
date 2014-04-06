@@ -369,10 +369,12 @@ def commit_subject_thumnbail_to_parent_gallery(
     # resize thumbnail
     thumbnail.img.height = "250px"
 
-    thumbnail.img.src = os.path.join(subject_id, "reports",
-                                     os.path.basename(thumbnail.img.src))
-    thumbnail.a.href = os.path.join(subject_id, "reports",
-                                    os.path.basename(thumbnail.a.href))
+    if thumbnail.img.src:
+        thumbnail.img.src = os.path.join(subject_id, "reports",
+                                         os.path.basename(thumbnail.img.src))
+    if thumbnail.a.href:
+        thumbnail.a.href = os.path.join(subject_id, "reports",
+                                        os.path.basename(thumbnail.a.href))
 
     # commit thumbnail to parent's gallery
     parent_results_gallery.commit_thumbnails(thumbnail)

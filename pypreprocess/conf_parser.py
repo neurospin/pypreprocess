@@ -1,4 +1,5 @@
 import os
+import warnings
 import glob
 import re
 from configobj import ConfigObj
@@ -158,18 +159,16 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
     sessions = [k for k in options.keys() if re.match("session_.+_func", k)]
     session_ids = [re.match("session_(.+)_func", session).group(1)
                    for session in sessions]
-    assert len(sessions) > 0
+    # assert len(sessions) > 0
     subject_data_dirs = sorted(glob.glob(subject_dir_wildcard))
     assert subject_data_dirs, (
         "No subject directories found for wildcard: %s" % (
             subject_dir_wildcard))
     for subject_data_dir in subject_data_dirs:
-        if len(subjects) == nsubjects:
-            break
+        if len(subjects) == nsubjects: break
 
         subject_id = os.path.basename(subject_data_dir)
-        if _ignore_subject(subject_id):
-            continue
+        if _ignore_subject(subject_id): continue
 
         subject_output_dir = os.path.join(output_dir, subject_id)
 
@@ -243,11 +242,12 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
                                    anat_output_dir=anat_output_dir,
                                    session_id=session_ids,
                                    data_dir=subject_data_dir)
-
         subjects.append(subject_data)
 
-    print "No subjects globbed (dataset_dir=%s, subject_dir_wildcard=%s" % (
-        dataset_dir, subject_dir_wildcard)
+    if not subjects:
+        warnings.warn(
+            "No subjects globbed (dataset_dir=%s, subject_dir_wildcard=%s" % (
+                dataset_dir, subject_dir_wildcard))
 
     # preproc parameters
     preproc_params = {
