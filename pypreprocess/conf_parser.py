@@ -30,32 +30,26 @@ def _parse_job(jobfile, **replacements):
                 val = val.replace("%" + k + "%", v)
 
         if key == "slice_order":
-            if isinstance(val, basestring):
-                return
+            if isinstance(val, basestring): return
 
         if isinstance(val, basestring):
-            if val.lower() in ["true", "yes"]:
-                val = True
-            elif val.lower() in ["false", "no"]:
-                val = False
-            elif key == "slice_order":
-                val = val.lower()
+            if val.lower() in ["true", "yes"]: val = True
+            elif val.lower() in ["false", "no"]: val = False
+            elif key == "slice_order": val = val.lower()
             elif val.lower() in ["none", "auto", "unspecified", "unknown"]:
                 val = None
 
         if key in ["TR", "nslices", "refslice", "nsubjects", "nsessions",
                    "n_jobs"]:
-            if not val is None:
-                val = eval(val)
+            if not val is None: val = eval(val)
 
-        if key in ["fwhm", "anat_voxel_sizes", "func_voxel_sizes",
+        if key in ["fwhm", "anat_fwhm", "anat_voxel_sizes", "func_voxel_sizes",
                    "slice_order"]:
             dtype = np.int if key == "slice_order" else np.float
-            val = ",".join(val).replace("[", "")
-            val = val.replace("]", "")
+            if not isinstance(val, basestring): val = ",".join(val)
+            for x in "()[]": val = val.replace(x, "")
             val = list(np.fromstring(val, sep=",", dtype=dtype))
-            if len(val) == 1:
-                val = val[0]
+            if len(val) == 1: val = val[0]
 
         section[key] = val
 
@@ -311,6 +305,7 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
 
     # configure smoothing node
     preproc_params["fwhm"] = options.get("fwhm", 0.)
+    preproc_params["anat_fwhm"] = options.get("anat_fwhm", 0.)
 
     return subjects, preproc_params
 

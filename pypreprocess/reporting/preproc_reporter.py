@@ -24,6 +24,7 @@ from .check_preprocessing import (plot_registration,
 from ..io_utils import (compute_mean_3D_image,
                         is_3D,
                         is_niimg,
+                        sanitize_fwhm
                         )
 from .base_reporter import (Thumbnail,
                             ResultsGallery,
@@ -96,7 +97,7 @@ def generate_preproc_undergone_docstring(
     tools_used=None,
     dcm2nii=False,
     deleteorient=False,
-    fwhm=None,
+    fwhm=None, anat_fwhm=None,
     bet=False,
     slice_timing=False,
     realign=False,
@@ -109,7 +110,8 @@ def generate_preproc_undergone_docstring(
     dartel=False,
     additional_preproc_undergone="",
     command_line=None,
-    details_filename=None
+    details_filename=None,
+    has_func=True,
     ):
     """
     Generates a brief description of the pipeline used in the preprocessing.
@@ -121,6 +123,9 @@ def generate_preproc_undergone_docstring(
         preprocessing (useful if someone were to reproduce your results)
 
     """
+
+    fwhm = sanitize_fwhm(fwhm)
+    anat_fwhm = sanitize_fwhm(anat_fwhm)
 
     if dartel:
         normalize = False
@@ -213,12 +218,15 @@ def generate_preproc_undergone_docstring(
             "template TPMs (Tissue Probability Maps).</li>")
     if normalize:
         if segment:
+            if has_func:
+                salt = ("The same deformations have been"
+                        'applied to the functional images.')
+            else: salt = ""
             preproc_undergone += (
                 "<li>"
                 "The segmented anatomical image has been warped "
                 "into the MNI template space by applying the deformations "
-                "learnt during segmentation. The same deformations have been"
-                " applied to the functional images.</li>")
+                "learnt during segmentation.%s</li>" % salt)
         else:
             if coregister:
                 preproc_undergone += (
@@ -284,16 +292,20 @@ def generate_preproc_undergone_docstring(
 
     if additional_preproc_undergone:
         preproc_undergone += additional_preproc_undergone
-    if not fwhm is None:
-        if len(np.shape(fwhm)) == 0:
-            fwhm = [fwhm] * 3
 
-        if np.sum(fwhm) > 0:
-            preproc_undergone += (
-                "<li>"
-                "The resulting functional images have been "
-                "smoothed with a %smm x %smm x %smm "
-                "Gaussian kernel.</li>") % tuple(fwhm)
+    if np.sum(fwhm) > 0 and has_func:
+        preproc_undergone += (
+            "<li>"
+            "The functional images have been "
+            "smoothed with a %smm x %smm x %smm "
+            "Gaussian kernel.</li>") % tuple(fwhm)
+
+    if np.sum(anat_fwhm) > 0:
+        preproc_undergone += (
+            "<li>"
+            "The anatomical image has been "
+            "smoothed with a %smm x %smm x %smm "
+            "Gaussian kernel.</li>") % tuple(anat_fwhm)
 
     if not details_filename is None:
         preproc_undergone += (

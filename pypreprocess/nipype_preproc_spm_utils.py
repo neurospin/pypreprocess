@@ -37,7 +37,8 @@ from .io_utils import (load_specific_vol,
                        get_vox_dims,
                        niigz2nii,
                        resample_img,
-                       compute_output_voxel_size
+                       compute_output_voxel_size,
+                       sanitize_fwhm
                        )
 from subject_data import SubjectData
 
@@ -839,8 +840,8 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
     return subject_data.sanitize()
 
 
-def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, caching=True, report=True,
-                       hardlink_output=True, software="spm"):
+def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, caching=True,
+                       report=True, hardlink_output=True, software="spm"):
     """
     Wrapper for running spm.Smooth with optional reporting.
 
@@ -1084,6 +1085,7 @@ def do_subject_preproc(
     normalize=True,
     dartel=False,
     fwhm=0.,
+    anat_fwhm=0.,
     func_write_voxel_sizes=None,
     anat_write_voxel_sizes=None,
 
@@ -1181,6 +1183,12 @@ def do_subject_preproc(
 
     """
 
+    # disable nodes that can't run
+    if not subject_data.func:
+        slice_timing = realign = coregister = False
+        fwhm = 0.
+    if not subject_data.anat:  anat_fwhm = 0
+
     assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
@@ -1202,15 +1210,9 @@ def do_subject_preproc(
         subject_data.hires = EPI_TEMPLATE
         coreg_anat_to_func = False
 
-    # sanitize fwhm
-    if not fwhm is None:
-        if not np.shape(fwhm):
-            fwhm = [fwhm, fwhm, fwhm]
-        if len(fwhm) == 1:
-            fwhm = list(fwhm) * 3
-        else:
-            assert len(fwhm) == 3, ("fwhm must be float or list of 3 "
-                                    "floats; got %s" % fwhm)
+    # sanitize fwhms
+    fwhm = sanitize_fwhm(fwhm)
+    anat_fwhm = sanitize_fwhm(anat_fwhm)
 
     # XXX For the moment, we can neither segment nor normalize without anat.
     # A trick would be to register the func with an EPI template and then
@@ -1220,23 +1222,20 @@ def do_subject_preproc(
     # get ready for reporting
     if report:
         # generate explanation of preproc steps undergone by subject
-        if generate_preproc_undergone:
-            if preproc_undergone is None:
-                preproc_undergone = generate_preproc_undergone_docstring(
-                    dcm2nii=subject_data.isdicom,
-                    deleteorient=deleteorient,
-                    slice_timing=slice_timing,
-                    realign=realign,
-                    coregister=coregister,
-                    segment=segment,
-                    normalize=normalize,
-                    fwhm=fwhm,
-                    dartel=dartel,
-                    coreg_func_to_anat=not coreg_anat_to_func,
-                    prepreproc_undergone=prepreproc_undergone
-                    )
-        else:
-            preproc_undergone = None
+        preproc_undergone = generate_preproc_undergone_docstring(
+            dcm2nii=subject_data.isdicom,
+            deleteorient=deleteorient,
+            slice_timing=slice_timing,
+            realign=realign,
+            coregister=coregister,
+            segment=segment,
+            normalize=normalize,
+            fwhm=fwhm, anat_fwhm=anat_fwhm,
+            dartel=dartel,
+            coreg_func_to_anat=not coreg_anat_to_func,
+            prepreproc_undergone=prepreproc_undergone,
+            has_func=subject_data.func
+            )
 
         # initialize report factory
         subject_data.init_report(parent_results_gallery=parent_results_gallery,
@@ -1319,6 +1318,7 @@ def do_subject_preproc(
         subject_data = _do_subject_normalize(
             subject_data,
             fwhm,  # smooth func after normalization
+            anat_fwhm=anat_fwhm,
             func_write_voxel_sizes=func_write_voxel_sizes,
             anat_write_voxel_sizes=anat_write_voxel_sizes,
             caching=caching,
@@ -1335,7 +1335,7 @@ def do_subject_preproc(
     # Smooth without Spatial Normalization
     #########################################
     if not normalize and np.sum(fwhm) > 0:
-        subject_data = _do_subject_smooth(subject_data, fwhm,
+        subject_data = _do_subject_smooth(subject_data, fwhm, anat_fwhm=anat_fwhm,
                                           caching=caching,
                                           report=report,
                                           hardlink_output=hardlink_output
@@ -1346,13 +1346,13 @@ def do_subject_preproc(
             subject_data.finalize_report(last_stage=last_stage)
             return subject_data
 
-    if report and not dartel:
-        subject_data.finalize_report(last_stage=last_stage)
-
     # hard-link node output files
     if last_stage or not dartel:
         if hardlink_output:
             subject_data.hardlink_output_files(final=True)
+
+    if report and not dartel:
+        subject_data.finalize_report(last_stage=last_stage)
 
     # return preprocessed subject_data
     return subject_data.sanitize()
@@ -1665,27 +1665,27 @@ def do_subjects_preproc(subject_factory,
         details_filename = os.path.join(output_dir, "preproc_details.html")
         open(details_filename, "w").write("<pre>%s</pre>" % preproc_details)
 
-        # generate docstring for preproc tobe undergone
-        preproc_params["generate_preproc_undergone"] = False
-        preproc_undergone = ""
-        preproc_undergone += generate_preproc_undergone_docstring(
-            command_line=command_line,
-            prepreproc_undergone=prepreproc_undergone,
-            deleteorient=preproc_params.get("deleteorient", False),
-            slice_timing=preproc_params.get('slice_timing', False),
-            realign=preproc_params.get("realign", False),
-            coregister=preproc_params.get("coregister", False),
-            segment=preproc_params.get("segment", False),
-            normalize=preproc_params.get("normalize", False),
-            fwhm=preproc_params.get("fwhm", 0),
-            dartel=dartel,
-            func_write_voxel_sizes=preproc_params.get(
-                "func_write_voxel_sizes", None),
-            anat_write_voxel_sizes=preproc_params.get(
-                "anat_write_voxel_sizes", None),
-            coreg_func_to_anat=preproc_params.get("coreg_func_to_anat", False),
-            details_filename=details_filename
-            )
+        # # generate docstring for preproc tobe undergone
+        # preproc_params["generate_preproc_undergone"] = False
+        # preproc_undergone = ""
+        # preproc_undergone += generate_preproc_undergone_docstring(
+        #     command_line=command_line,
+        #     prepreproc_undergone=prepreproc_undergone,
+        #     deleteorient=preproc_params.get("deleteorient", False),
+        #     slice_timing=preproc_params.get('slice_timing', False),
+        #     realign=preproc_params.get("realign", False),
+        #     coregister=preproc_params.get("coregister", False),
+        #     segment=preproc_params.get("segment", False),
+        #     normalize=preproc_params.get("normalize", False),
+        #     fwhm=preproc_params.get("fwhm", 0),
+        #     dartel=dartel,
+        #     func_write_voxel_sizes=preproc_params.get(
+        #         "func_write_voxel_sizes", None),
+        #     anat_write_voxel_sizes=preproc_params.get(
+        #         "anat_write_voxel_sizes", None),
+        #     coreg_func_to_anat=preproc_params.get("coreg_func_to_anat", False),
+        #     details_filename=details_filename
+        #     )
 
         # initialize results gallery
         loader_filename = os.path.join(
@@ -1708,7 +1708,7 @@ def do_subjects_preproc(subject_factory,
         preproc = get_dataset_report_preproc_html_template(
             results=parent_results_gallery,
             start_time=time.ctime(),
-            preproc_undergone=preproc_undergone,
+            # preproc_undergone=preproc_undergone,
             dataset_description=dataset_description,
             source_code=user_source_code,
             source_script_name=user_script_name,
