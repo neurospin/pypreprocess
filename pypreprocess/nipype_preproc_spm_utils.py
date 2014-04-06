@@ -894,14 +894,23 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, caching=True,
     # run node
     # failed node ?
     subject_data.nipype_results['smooth'] = {}
-    for brain_name, brain, width in zip(['func', 'anat'],
-                                        [subject_data.func, subject_data.anat],
-                                        [fwhm, anat_fwhm]):
+
+    for brain_name, width in zip(
+        ['func', 'anat'],
+        [fwhm] + [anat_fwhm] * 7):
+        brain = getattr(subject_data, brain_name)
         if not brain: continue
+        print brain_name
         if not np.sum(width): continue
         in_files = brain
         if brain_name == "func":
             in_files, file_types = ravel_filenames(brain)
+        if brain_name == "anat":
+            anat_like = ['anat',
+                         'mwgm', 'mwwm', 'mwcsf'  # normalized TPMs
+                         ]
+            anat_like = [x for x in anat_like if hasattr(subject_data, x)]
+            in_files = [getattr(subject_data, x) for x in anat_like]
 
         smooth_result = smooth(in_files=in_files,
                                fwhm=width,
@@ -918,15 +927,16 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, caching=True,
         brain = smooth_result.outputs.smoothed_files
         if brain_name == "func":
             brain = unravel_filenames(brain, file_types)
-        setattr(subject_data, brain_name, brain)
+            subject_data.func = brain
+        if brain_name == "anat":
+            for j, x in enumerate(anat_like):
+                setattr(subject_data, x, brain[j])
 
     # commit output files
-    if hardlink_output:
-        subject_data.hardlink_output_files()
+    if hardlink_output: subject_data.hardlink_output_files()
 
     # reporting
-    if report:
-        subject_data.generate_smooth_thumbnails()
+    if report: subject_data.generate_smooth_thumbnails()
 
     return subject_data.sanitize()
 
