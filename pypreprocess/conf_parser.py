@@ -159,7 +159,6 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
     sessions = [k for k in options.keys() if re.match("session_.+_func", k)]
     session_ids = [re.match("session_(.+)_func", session).group(1)
                    for session in sessions]
-    # assert len(sessions) > 0
     subject_data_dirs = sorted(glob.glob(subject_dir_wildcard))
     assert subject_data_dirs, (
         "No subject directories found for wildcard: %s" % (
