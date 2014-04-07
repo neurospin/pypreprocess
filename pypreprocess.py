@@ -6,6 +6,8 @@ Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com> <elvis.dohmatob@inria.fr>
 """
 
 import sys
+import matplotlib
+matplotlib.use('Agg')
 from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
 
 if __name__ == "__main__":
