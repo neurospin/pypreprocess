@@ -10,8 +10,8 @@
 # * This goes beyond the information coded by just the affine. This has to do with the
 # [sq]form. 
 
-DATA_DIR=/home/elvis/CODE/datasets/oasis
-OUTPUT_DIR=/home/elvis/CODE/datasets/oasis_preproc
+DATA_DIR=$1
+OUTPUT_DIR=$2
 
 for subject_id in `ls ${DATA_DIR}`
 do
