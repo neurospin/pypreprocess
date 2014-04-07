@@ -2,8 +2,8 @@
 Outlier detection and removal for OASIS preprocessed data.
 
 """
-# Authors: Elvis Dhomatob, <elvis.dohmatob@inria.fr>
-#          Virgile Fritsch, <virgile.fritsch@inria.fr>
+# Authors: Elvis Dhomatob, <elvis.dohmatob@inria.fr>, Apr. 2014
+#          Virgile Fritsch, <virgile.fritsch@inria.fr>, Apr. 2014
 import os
 import glob
 import numpy as np
@@ -13,10 +13,13 @@ from mpl_toolkits.axes_grid1 import ImageGrid
 from sklearn.metrics import euclidean_distances
 from nilearn.input_data import NiftiMasker
 
+BET = True
 
 ### Gather data
 path_to_images = "/home/virgile/wip/retreat/pypreprocess_output"
-images = glob.glob(os.path.join(path_to_images, "OAS1_*_MR1/mwc1OAS1_*.nii"))
+images = glob.glob(
+    os.path.join(path_to_images,
+                 "OAS1_*_MR1/mwc1OAS1_*dim%s.nii" % ("bet" if BET else "")))
 
 ### Mask data
 nifti_masker = NiftiMasker(
@@ -42,21 +45,24 @@ plt.xlim(0, n_samples)
 outlier_ids = np.where(mahalanobis_dist > threshold)[0]
 outliers_unmasked = nifti_masker.inverse_transform(images_masked[outlier_ids])
 n_outliers = outliers_unmasked.shape[-1]
-picked_slice = 30
-grid = ImageGrid(plt.figure(), 111, nrows_ncols=(1, n_outliers),
-                 direction="row",
-                 axes_pad=0.05, add_all=True, label_mode="1",
-                 share_all=True, cbar_location="right", cbar_mode="single",
-                 cbar_size="7%", cbar_pad="1%")
+if n_outliers > 0:
+    picked_slice = 30
+    grid = ImageGrid(plt.figure(), 111, nrows_ncols=(1, n_outliers),
+                     direction="row",
+                     axes_pad=0.05, add_all=True, label_mode="1",
+                     share_all=True, cbar_location="right", cbar_mode="single",
+                     cbar_size="7%", cbar_pad="1%")
 
-for i in np.arange(n_outliers):
-    ax = grid[i]
-    im = ax.imshow(
-        np.rot90(outliers_unmasked.get_data()[..., picked_slice, i]),
-        interpolation='nearest', cmap=plt.cm.gray, vmin=0, vmax=1)
-    ax.set_title(str.split(images[outlier_ids[i]], "mwc1")[1][:10])
-    ax.axis('off')
+    for i in np.arange(n_outliers):
+        ax = grid[i]
+        im = ax.imshow(
+            np.rot90(outliers_unmasked.get_data()[..., picked_slice, i]),
+            interpolation='nearest', cmap=plt.cm.gray, vmin=0, vmax=1)
+        ax.set_title(str.split(images[outlier_ids[i]], "mwc1")[1][:10])
+        ax.axis('off')
 
-grid[0].cax.colorbar(im)
+    grid[0].cax.colorbar(im)
+else:
+    print "No outlier found"
 
 plt.show()
