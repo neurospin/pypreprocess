@@ -19,7 +19,12 @@ do
     do
 	mkdir -p ${OUTPUT_DIR}/${subject_id}
 	out_file=${OUTPUT_DIR}/${subject_id}/`basename ${in_file%.*}_fslswapdim.nii.gz`
-	cmd="fsl5.0-fslswapdim ${in_file} z x y ${out_file} && 	fsl5.0-bet ${out_file} ${out_file%.*.*}bet.nii.gz"
+	cmd="fsl5.0-fslswapdim ${in_file} z x y ${out_file}"
+	echo "Executing '${cmd}' ..."
+	bash ${cmd}
+	echo "Done."
+
+	cmd="fsl5.0-bet ${out_file} ${out_file%.*.*}bet.nii.gz"
 	echo "Executing '${cmd}' ..."
 	bash ${cmd}
 	echo "Done."
