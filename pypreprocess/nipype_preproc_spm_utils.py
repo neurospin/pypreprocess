@@ -1536,7 +1536,7 @@ def do_subjects_preproc(subject_factory,
     dartel = dartel and (len(subject_factory) > 1
                          )
 
-    # configure SPM back-end
+    # configure SPM back-end    
     _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
     assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)

@@ -5,13 +5,10 @@ from distutils import log
 
 # Global variables
 THIS_DIR = os.path.dirname(__file__)
-LIBS = os.path.realpath(os.path.join(THIS_DIR, 'libcstat'))
 
 
 def configuration(parent_package='',top_path=None):
-    from numpy.distutils.misc_util import Configuration, get_numpy_include_dirs
-    from numpy.distutils.system_info import get_info
-
+    from numpy.distutils.misc_util import Configuration
 
     # config = Configuration('nipy_labs', parent_package, top_path)
     config = Configuration(THIS_DIR, parent_package, top_path)
