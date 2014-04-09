@@ -978,9 +978,10 @@ def _do_subject_dartelnorm2mni(subject_data,
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        dartelnorm2mni = NipypeMemory(base_dir=cache_dir).cache(
+        subject_data.mem = NipypeMemory(base_dir=cache_dir) 
+        dartelnorm2mni = subject_data.mem.cache(
             spm.DARTELNorm2MNI)
-        createwarped = NipypeMemory(base_dir=cache_dir).cache(
+        createwarped = subject_data.mem.cache(
             spm.CreateWarped)
     else:
         dartelnorm2mni = spm.DARTELNorm2MNI().run
@@ -1416,7 +1417,7 @@ def _do_subjects_dartel(subjects,
     if newsegment_result.outputs is None:
         return
     # compute DARTEL template for group data
-    dartel = subject_data.mem.cache(spm.DARTEL)
+    dartel = mem.cache(spm.DARTEL)
     dartel_input_images = [tpms for tpms in
                            newsegment_result.outputs.dartel_input_images
                            if tpms]
