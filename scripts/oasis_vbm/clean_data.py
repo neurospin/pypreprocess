@@ -19,7 +19,8 @@ FWHM = 5
 ### Gather data
 path_to_images = "/home/virgile/wip/retreat/pypreprocess_output"
 images = sorted(glob.glob(
-        os.path.join(path_to_images, "OAS1_*_MR1/mwc2OAS1_*dimbet.nii")))
+        os.path.join(path_to_images, "OAS1_*_MR1/mwc1OAS1_*dim.nii")))
+images = images[:39]
 
 ### Mask data
 print "Nifti masker"

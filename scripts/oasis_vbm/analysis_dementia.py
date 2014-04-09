@@ -79,7 +79,7 @@ mean_anat /= float(len(images))
 ref_img = nibabel.load(images[0])
 picked_slice = 36
 vmin = -np.log10(0.1)  # 10% corrected
-plt.figure()
+plt.figure(figsize=(5, 4))
 p_ma = np.ma.masked_less(neg_log_pvals_unmasked, vmin)
 plt.imshow(np.rot90(mean_anat[..., picked_slice]),
            interpolation='nearest', cmap=plt.cm.gray, vmin=0., vmax=1.)
