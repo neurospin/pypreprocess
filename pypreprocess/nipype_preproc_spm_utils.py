@@ -1771,17 +1771,11 @@ def do_subjects_preproc(subject_factory,
                      "last_stage"]:
             preproc_params[item] = False
 
-    if n_jobs > 1:
-        preproc_subject_data = Parallel(n_jobs=n_jobs)(
-            delayed(do_subject_preproc)(
-                subject_data,
-                **preproc_params
-                ) for subject_data in subjects)
-
-    else:
-        preproc_subject_data = [do_subject_preproc(subject_data,
-                                                   **preproc_params)
-                                for subject_data in subjects]
+    preproc_subject_data = Parallel(n_jobs=n_jobs)(
+        delayed(do_subject_preproc)(
+            subject_data,
+            **preproc_params)
+        for subject_data in subjects)
 
     # DARTEL
     if dartel:
