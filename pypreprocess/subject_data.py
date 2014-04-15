@@ -406,14 +406,13 @@ class SubjectData(object):
         for item in [
             "anat",
             'gm', 'wm', 'csf',  # native
-            'mwgm', 'mwwm', 'mwcsf',  # warped/normalized
-            ]:
+            'wgm', 'wwm', 'wcsf'
+            'mwgm', 'mwwm', 'mwcsf']:
             if hasattr(self, item):
                 filename = getattr(self, item)
                 if not filename is None:
                     linked_filename = hard_link(filename, self.anat_output_dir)
-                    if final:
-                        setattr(self, item, linked_filename)
+                    if final: setattr(self, item, linked_filename)
 
         # func stuff
         self.save_realignment_parameters()
@@ -430,11 +429,10 @@ class SubjectData(object):
                         linked_filename = hard_link(
                             filename, self.session_output_dirs[sess])
                         tmp.append(linked_filename)
-            if final:
-                setattr(self, item, tmp)
+            if final: setattr(self, item, tmp)
 
-    def init_report(self, parent_results_gallery=None,
-                    cv_tc=True, preproc_undergone=None):
+    def init_report(self, parent_results_gallery=None, cv_tc=True,
+                    preproc_undergone=None):
         """
         This method is invoked to initialize the reports factory for the
         subject. It configures everything necessary for latter reporting:

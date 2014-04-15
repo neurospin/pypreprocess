@@ -1,9 +1,6 @@
 """
 :Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
-XXX TODO : if a node fails and reporting is enabled, the generate a
-failure thumbnail!!!
-
 """
 
 # standard imports
@@ -587,8 +584,7 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
     # prepare for smart caching
     if caching:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
+        if not os.path.exists(cache_dir): os.makedirs(cache_dir)
         segment = NipypeMemory(base_dir=cache_dir).cache(spm.Segment)
     else:
         segment = spm.Segment().run
@@ -704,11 +700,9 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
     # prepare for smart caching
     if caching:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
+        if not os.path.exists(cache_dir): os.makedirs(cache_dir)
         normalize = NipypeMemory(base_dir=cache_dir).cache(spm.Normalize)
-    else:
-        normalize = spm.Normalize().run
+    else: normalize = spm.Normalize().run
 
     segmented = 'segment' in subject_data.nipype_results
 
@@ -738,14 +732,12 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                 apply_to_files, file_types = ravel_filenames(subject_data.func)
                 if func_write_voxel_sizes is None:
                     write_voxel_sizes = get_vox_dims(apply_to_files)
-                else:
-                    write_voxel_sizes = func_write_voxel_sizes
+                else: write_voxel_sizes = func_write_voxel_sizes
             else:
                 apply_to_files = subject_data.anat
                 if anat_write_voxel_sizes is None:
                     write_voxel_sizes = get_vox_dims(apply_to_files)
-                else:
-                    write_voxel_sizes = anat_write_voxel_sizes
+                else: write_voxel_sizes = anat_write_voxel_sizes
                 apply_to_files = subject_data.anat
 
             # run node
@@ -772,15 +764,13 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                 apply_to_files, file_types = ravel_filenames(subject_data.func)
                 if func_write_voxel_sizes is None:
                     write_voxel_sizes = get_vox_dims(apply_to_files)
-                else:
-                    write_voxel_sizes = func_write_voxel_sizes
+                else: write_voxel_sizes = func_write_voxel_sizes
             else:
                 apply_to_files = subject_data.anat
                 apply_to_files, file_types = ravel_filenames(subject_data.func)
                 if anat_write_voxel_sizes is None:
                     write_voxel_sizes = get_vox_dims(apply_to_files)
-                else:
-                    write_voxel_sizes = anat_write_voxel_sizes
+                else: write_voxel_sizes = anat_write_voxel_sizes
 
             # run node
             normalize_result = normalize(
@@ -819,8 +809,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
             subject_data.anat = normalize_result.outputs.normalized_files
 
     # commit output files
-    if hardlink_output:
-        subject_data.hardlink_output_files()
+    if hardlink_output: subject_data.hardlink_output_files()
 
     # generate thumbnails
     if report:
@@ -834,8 +823,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
             )
 
     # commit output files
-    if hardlink_output:
-        subject_data.hardlink_output_files()
+    if hardlink_output: subject_data.hardlink_output_files()
 
     return subject_data.sanitize()
 
@@ -987,7 +975,7 @@ def _do_subject_dartelnorm2mni(subject_data,
         dartelnorm2mni = spm.DARTELNorm2MNI().run
         createwarped = spm.CreateWarped().run
 
-    # warp subject tissue class image (produced by Segment or NewSegment)
+    # warp subject tissue class images
     # into MNI space
     tricky_kwargs = {}
     if not anat_write_voxel_sizes is None:
@@ -1056,8 +1044,7 @@ def _do_subject_dartelnorm2mni(subject_data,
                                               )
 
     # hardlink output files
-    if hardlink_output:
-        subject_data.hardlink_output_files()
+    if hardlink_output: subject_data.hardlink_output_files()
 
     if report:
         # generate normalization thumbnails
@@ -1200,7 +1187,7 @@ def do_subject_preproc(
     if not subject_data.func:
         slice_timing = realign = coregister = False
         fwhm = 0.
-    if not subject_data.anat:  anat_fwhm = 0
+    if not subject_data.anat: anat_fwhm = 0
 
     assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
@@ -1362,8 +1349,7 @@ def do_subject_preproc(
 
     # hard-link node output files
     if last_stage or not dartel:
-        if hardlink_output:
-            subject_data.hardlink_output_files(final=True)
+        if hardlink_output: subject_data.hardlink_output_files(final=True)
 
     if report and not dartel:
         subject_data.finalize_report(last_stage=last_stage)
@@ -1395,6 +1381,8 @@ def _do_subjects_dartel(subjects,
     mem = NipypeMemory(base_dir=cache_dir)
 
     # compute gm, wm, etc. structural segmentation using Newsegment
+    # XXX verify that the following TPM paths remain valid in case of
+    # precompilted SPM
     newsegment = mem.cache(spm.NewSegment)
     tissue1 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 1),
                2, (True, True), (False, False))
@@ -1413,9 +1401,8 @@ def _do_subjects_dartel(subjects,
         tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6],
         ignore_exception=False
         )
+    if newsegment_result.outputs is None: return
 
-    if newsegment_result.outputs is None:
-        return
     # compute DARTEL template for group data
     dartel = mem.cache(spm.DARTEL)
     dartel_input_images = [tpms for tpms in
@@ -1423,9 +1410,7 @@ def _do_subjects_dartel(subjects,
                            if tpms]
     dartel_result = dartel(
         image_files=dartel_input_images,)
-
-    if dartel_result.outputs is None:
-        return
+    if dartel_result.outputs is None: return
 
     for subject_data, j in zip(subjects, xrange(len(subjects))):
         subject_data.gm = newsegment_result.outputs.dartel_input_images[0][j]
@@ -1436,7 +1421,7 @@ def _do_subjects_dartel(subjects,
     # warp individual brains into group (DARTEL) space
     preproc_subject_data = Parallel(
         n_jobs=n_jobs, verbose=100,
-        pre_dispatch='1.5*n_jobs',  # for scalability over RAM
+        pre_dispatch='1.5 * n_jobs',
         )(delayed(
             _do_subject_dartelnorm2mni)(
                 subject_data,
@@ -1557,14 +1542,11 @@ def do_subjects_preproc(subject_factory,
             dataset_id = preproc_params["dataset_id"]
             del preproc_params["dataset_id"]
 
-        if "dartel" in preproc_params:
-            dartel = preproc_params["dartel"]
+        if "dartel" in preproc_params: dartel = preproc_params["dartel"]
 
-        if "caching" in preproc_params:
-            caching = preproc_params["caching"]
+        if "caching" in preproc_params: caching = preproc_params["caching"]
 
-        if "report" in preproc_params:
-            report = preproc_params["report"]
+        if "report" in preproc_params: report = preproc_params["report"]
 
         if not preproc_params.get("dataset_description", None) is None:
             dataset_description = preproc_params["dataset_description"]
@@ -1585,8 +1567,7 @@ def do_subjects_preproc(subject_factory,
                        for subject_data in subject_factory]
 
     # DARTEL on 1 subject is senseless
-    dartel = dartel and (len(subject_factory) > 1
-                         )
+    dartel = dartel and (len(subject_factory) > 1)
 
     # configure SPM back-end
     _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
@@ -1615,11 +1596,9 @@ def do_subjects_preproc(subject_factory,
         if "output_dir" in preproc_params:
             output_dir = preproc_params["output_dir"]
             del preproc_params['output_dir']
-        else:
-            output_dir = os.path.join(os.getcwd(), "pypreprocess_results")
+        else: output_dir = os.path.join(os.getcwd(), "pypreprocess_results")
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not os.path.exists(output_dir): os.makedirs(output_dir)
 
     # generate list of subjects
     subjects = [subject_data for subject_data in subject_factory]
@@ -1644,12 +1623,10 @@ def do_subjects_preproc(subject_factory,
         # copy web stuff to output_dir
         copy_web_conf_files(output_dir)
 
-        report_log_filename = os.path.join(
-            output_dir, 'report_log.html')
+        report_log_filename = os.path.join(output_dir, 'report_log.html')
         report_preproc_filename = os.path.join(
             output_dir, 'report_preproc.html')
-        report_filename = os.path.join(
-            output_dir, 'report.html')
+        report_filename = os.path.join(output_dir, 'report.html')
 
         # get caller module handle from stack-frame
         user_script_name = sys.argv[0]
@@ -1680,42 +1657,15 @@ def do_subjects_preproc(subject_factory,
         details_filename = os.path.join(output_dir, "preproc_details.html")
         open(details_filename, "w").write("<pre>%s</pre>" % preproc_details)
 
-        # # generate docstring for preproc tobe undergone
-        # preproc_params["generate_preproc_undergone"] = False
-        # preproc_undergone = ""
-        # preproc_undergone += generate_preproc_undergone_docstring(
-        #     command_line=command_line,
-        #     prepreproc_undergone=prepreproc_undergone,
-        #     deleteorient=preproc_params.get("deleteorient", False),
-        #     slice_timing=preproc_params.get('slice_timing', False),
-        #     realign=preproc_params.get("realign", False),
-        #     coregister=preproc_params.get("coregister", False),
-        #     segment=preproc_params.get("segment", False),
-        #     normalize=preproc_params.get("normalize", False),
-        #     fwhm=preproc_params.get("fwhm", 0),
-        #     dartel=dartel,
-        #     func_write_voxel_sizes=preproc_params.get(
-        #         "func_write_voxel_sizes", None),
-        #     anat_write_voxel_sizes=preproc_params.get(
-        #         "anat_write_voxel_sizes", None),
-        #     coreg_func_to_anat=preproc_params.get("coreg_func_to_anat",
-        #                                           False),
-        #     details_filename=details_filename
-        #     )
-
         # initialize results gallery
-        loader_filename = os.path.join(
-            output_dir, "results_loader.php")
+        loader_filename = os.path.join(output_dir, "results_loader.php")
         parent_results_gallery = ResultsGallery(
-            loader_filename=loader_filename,
-            refresh_timeout=30,
-            )
+            loader_filename=loader_filename, refresh_timeout=30)
 
         # initialize progress bar
         progress_logger = ProgressReport(
             report_log_filename,
-            other_watched_files=[report_filename,
-                                 report_preproc_filename])
+            other_watched_files=[report_filename, report_preproc_filename])
 
         # html markup
         log = get_dataset_report_log_html_template(
@@ -1746,8 +1696,7 @@ def do_subjects_preproc(subject_factory,
             fd.write(str(main_html))
             fd.close()
 
-        if not dartel:
-            preproc_params['parent_results_gallery'
+        if not dartel: preproc_params['parent_results_gallery'
                                       ] = parent_results_gallery
 
         # log command line
@@ -1763,8 +1712,7 @@ def do_subjects_preproc(subject_factory,
             + "</ul><hr/>")
 
     def finalize_report():
-        if not report:
-            return
+        if not report: return
 
         progress_logger.finish(report_preproc_filename)
 
@@ -1774,7 +1722,6 @@ def do_subjects_preproc(subject_factory,
 
         print "\r\n\tHTML report written to %s" % report_preproc_filename
 
-    # preprocess subject's separately
     if dartel:
         fwhm = preproc_params.get("fwhm", 0.)
         anat_fwhm = preproc_params.get("anat_fwhm", 0.)

@@ -1,3 +1,9 @@
+"""
+:Synopsis: Parser for pypreprocess .ini configuration files.
+:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com> <elvis.dohmatob@inria.fr>
+
+"""
+
 import os
 import warnings
 import glob
@@ -11,10 +17,8 @@ from io_utils import _expand_path, get_relative_path
 def _del_nones_from_dict(some_dict):
     if isinstance(some_dict, dict):
         for k, v in some_dict.iteritems():
-            if v is None:
-                del some_dict[k]
-            else:
-                _del_nones_from_dict(v)
+            if v is None: del some_dict[k]
+            else: _del_nones_from_dict(v)
 
     return some_dict
 
@@ -138,13 +142,11 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
 
         """
 
-        if subject_id in exclude_these_subject_ids:
-            return True
+        if subject_id in exclude_these_subject_ids: return True
         elif len(include_only_these_subject_ids
                ) and not subject_id in include_only_these_subject_ids:
             return True
-        else:
-            return False
+        else: return False
 
     # subject data factory
     subject_dir_wildcard = os.path.join(dataset_dir,
