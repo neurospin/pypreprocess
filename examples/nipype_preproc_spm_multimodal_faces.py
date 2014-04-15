@@ -23,7 +23,7 @@ from nipy.modalities.fmri.glm import FMRILinearModel
 from pypreprocess.datasets import fetch_spm_multimodal_fmri_data
 from pypreprocess.reporting.base_reporter import ProgressReport
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
-from pypreprocess.nipype_preproc_spm_utils import (do_subject_preproc,
+from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
                                                    SubjectData)
 
 # file containing configuration for preprocessing the data
@@ -48,9 +48,9 @@ subject_data = SubjectData(output_dir=os.path.join(
                            anat=subject_data.anat,
                            trials_ses1=subject_data.trials_ses1,
                            trials_ses2=subject_data.trials_ses2)
-subject_data = do_subject_preproc(subject_data, realign=True,
+subject_data = do_subjects_preproc([subject_data], realign=True,
                                   coregister=True, segment=True,
-                                  normalize=True)
+                                  normalize=True)[0]
 
 # experimental paradigm meta-params
 stats_start_time = time.ctime()
