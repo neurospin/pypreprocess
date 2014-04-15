@@ -304,6 +304,8 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
     preproc_params['anat_write_voxel_sizes'] = options.get(
         "anat_voxel_sizes", [1, 1, 1])
     preproc_params['dartel'] = options.get("dartel", False)
+    preproc_params['output_modulated_tpms'] = options.get(
+        "output_modulated_tpms", False)
 
     # configure smoothing node
     preproc_params["fwhm"] = options.get("fwhm", 0.)
