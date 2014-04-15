@@ -1555,8 +1555,10 @@ def do_subjects_preproc(subject_factory,
             if param in preproc_params: del preproc_params[param]
         else:
             val = eval(param)
-            if not val is None: preproc_params[param] = val
-
+            if not val is None:
+                preproc_params[param] = val
+            else: lcls[param] = preproc_params.get(param, None)
+                
     print "Using the following parameters for preprocessing:"
     for k, v in preproc_params.iteritems(): print "\t%s=%s" % (k, v)
 
