@@ -209,13 +209,14 @@ class SubjectData(object):
         """
 
         self.isdicom = False
-        if not isinstance(self.func[0], basestring):
-            if not is_niimg(self.func[0]):
-                self.isdicom = isdicom(self.func[0][0])
-        self.func = [do_dcm2nii(sess_func, output_dir=self.output_dir)[0]
-                     for sess_func in self.func]
+        if self.func:
+            if not isinstance(self.func[0], basestring):
+                if not is_niimg(self.func[0]):
+                    self.isdicom = isdicom(self.func[0][0])
+            self.func = [do_dcm2nii(sess_func, output_dir=self.output_dir)[0]
+                         for sess_func in self.func]
 
-        if not self.anat is None:
+        if self.anat:
             self.anat = do_dcm2nii(self.anat, output_dir=self.output_dir)[0]
 
     def _check_func_names_and_shapes(self):
@@ -405,14 +406,13 @@ class SubjectData(object):
         for item in [
             "anat",
             'gm', 'wm', 'csf',  # native
-            'mwgm', 'mwwm', 'mwcsf',  # warped/normalized
-            ]:
+            'wgm', 'wwm', 'wcsf'
+            'mwgm', 'mwwm', 'mwcsf']:
             if hasattr(self, item):
                 filename = getattr(self, item)
                 if not filename is None:
                     linked_filename = hard_link(filename, self.anat_output_dir)
-                    if final:
-                        setattr(self, item, linked_filename)
+                    if final: setattr(self, item, linked_filename)
 
         # func stuff
         self.save_realignment_parameters()
@@ -429,11 +429,10 @@ class SubjectData(object):
                         linked_filename = hard_link(
                             filename, self.session_output_dirs[sess])
                         tmp.append(linked_filename)
-            if final:
-                setattr(self, item, tmp)
+            if final: setattr(self, item, tmp)
 
-    def init_report(self, parent_results_gallery=None,
-                    cv_tc=True, preproc_undergone=None):
+    def init_report(self, parent_results_gallery=None, cv_tc=True,
+                    preproc_undergone=None):
         """
         This method is invoked to initialize the reports factory for the
         subject. It configures everything necessary for latter reporting:
@@ -449,6 +448,8 @@ class SubjectData(object):
             generated
 
         """
+
+        if not self.func: cv_tc = False
 
         # make sure output_dir is OK
         self._sanitize_output_dir()
@@ -534,7 +535,7 @@ class SubjectData(object):
             copy_failed_png(self.reports_output_dir)
             self.final_thumbnail.img.src = 'failed.png'
             self.final_thumbnail.description += (
-                ' (failed realignment)')
+                ' (failed preprocessing)')
         else:
             # geneate cv_tc plots
             if self.cv_tc:
@@ -674,12 +675,10 @@ class SubjectData(object):
             if hasattr(self, item):
                 segmented = True
                 break
-        if not segmented:
-            return
+        if not segmented: return
 
         # reporting enabled ?
-        if not self.reporting_enabled():
-            self.init_report()
+        if not self.reporting_enabled(): self.init_report()
 
         # log execution
         if log:
@@ -697,6 +696,7 @@ class SubjectData(object):
         for brain_name, brain, cmap in zip(
             ['anat', 'func'], [self.anat, self.func],
             [cm.gray, cm.spectral]):
+            if not brain: continue
             thumbs = generate_segmentation_thumbnails(
                 brain,
                 self.reports_output_dir,
@@ -735,8 +735,7 @@ class SubjectData(object):
             ['anat', 'func'], [self.anat, self.func],
             [cm.gray, cm.spectral]):
 
-            if not hasattr(self, brain_name):
-                continue
+            if not brain: continue
 
             # generate segmentation thumbs
             if segmented:
@@ -757,7 +756,7 @@ class SubjectData(object):
                     results_gallery=self.results_gallery
                     )
 
-                if brain_name == 'func':
+                if brain_name == 'func' or not self.func:
                     self.final_thumbnail.img.src = thumbs['axial']
 
             # log execution
@@ -785,7 +784,7 @@ class SubjectData(object):
                 results_gallery=self.results_gallery,
                 )
 
-            if not segmented and brain_name == 'func':
+            if not segmented and (brain_name == 'func' or not self.func):
                 self.final_thumbnail.img.src = thumbs['axial']
 
     def generate_smooth_thumbnails(self):
@@ -799,15 +798,17 @@ class SubjectData(object):
             self.init_report()
 
         # log execution
-        execution_log_html = make_nipype_execution_log_html(
-                self.func, "Smooth",
-                self.reports_output_dir)
-        self.progress_logger.log(
-            "<b>Smooth</b><br/>")
-        text = open(execution_log_html).read()
-        if "smoothed_files" in text:
-            self.progress_logger.log(text)
-        self.progress_logger.log('<hr/>')
+        for brain_name, brain in zip(['func', 'anat'], [self.func, self.anat]):
+            if not brain: continue
+            execution_log_html = make_nipype_execution_log_html(
+                    brain, "%s Smooth" % brain_name,
+                    self.reports_output_dir)
+            self.progress_logger.log(
+                "<b>%s Smooth</b><br/>" % brain_name)
+            text = open(execution_log_html).read()
+            if "smoothed_files" in text:
+                self.progress_logger.log(text)
+            self.progress_logger.log('<hr/>')
 
     def generate_report(self, **kwargs):
         """

@@ -1,19 +1,17 @@
 """
 :Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
-XXX TODO : if a node fails and reporting is enabled, the generate a
-failure thumbnail!!!
-
 """
 
 # standard imports
-import numpy as np
-import nibabel
 import os
 import sys
 import time
-from matplotlib.pyplot import cm
+import warnings
 import inspect
+import numpy as np
+import nibabel
+from matplotlib.pyplot import cm
 
 from slice_timing import get_slice_indices
 from conf_parser import _generate_preproc_pipeline
@@ -36,7 +34,8 @@ from .io_utils import (load_specific_vol,
                        get_vox_dims,
                        niigz2nii,
                        resample_img,
-                       compute_output_voxel_size
+                       compute_output_voxel_size,
+                       sanitize_fwhm
                        )
 from subject_data import SubjectData
 
@@ -119,6 +118,11 @@ def _do_subject_slice_timing(subject_data, TR, TA=None,
        Time of Acaquisition
 
     """
+
+    if not subject_data.func:
+        warnings.warn("subject_data.func=%s (empty); skipping STC!" % (
+                subject_data.func))
+        return subject_data
 
     software = software.lower()
 
@@ -254,6 +258,11 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     """
 
+    if not subject_data.func:
+        warnings.warn("subject_data.func=%s (empty); skipping MC!" % (
+                subject_data.func))
+        return subject_data
+
     software = software.lower()
 
     # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
@@ -383,6 +392,18 @@ def _do_subject_coregister(subject_data, reslice=False,
     Input subject_data is modified.
 
     """
+
+    if not subject_data.func:
+        warnings.warn(
+            "subject_data.func=%s (empty); skipping coregistration!" % (
+                subject_data.func))
+        return subject_data
+
+    if not subject_data.anat:
+        warnings.warn(
+            "subject_data.anat=%s (empty); skipping coregistration!" % (
+                subject_data.anat))
+        return subject_data
 
     software = software.lower()
 
@@ -563,8 +584,7 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
     # prepare for smart caching
     if caching:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
+        if not os.path.exists(cache_dir): os.makedirs(cache_dir)
         segment = NipypeMemory(base_dir=cache_dir).cache(spm.Segment)
     else:
         segment = spm.Segment().run
@@ -617,7 +637,7 @@ def _do_subject_segment(subject_data, normalize=False, caching=True,
     return subject_data.sanitize()
 
 
-def _do_subject_normalize(subject_data, fwhm=0., caching=True,
+def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                           func_write_voxel_sizes=[3, 3, 3],
                           anat_write_voxel_sizes=[1, 1, 1],
                           report=True, software="spm",
@@ -680,11 +700,9 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
     # prepare for smart caching
     if caching:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
+        if not os.path.exists(cache_dir): os.makedirs(cache_dir)
         normalize = NipypeMemory(base_dir=cache_dir).cache(spm.Normalize)
-    else:
-        normalize = spm.Normalize().run
+    else: normalize = spm.Normalize().run
 
     segmented = 'segment' in subject_data.nipype_results
 
@@ -708,19 +726,18 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
     for brain_name, brain, cmap in zip(
         ['anat', 'func'], [subject_data.anat, subject_data.func],
         [cm.gray, cm.spectral]):
+        if not brain: continue
         if segmented:
             if brain_name == 'func':
                 apply_to_files, file_types = ravel_filenames(subject_data.func)
                 if func_write_voxel_sizes is None:
                     write_voxel_sizes = get_vox_dims(apply_to_files)
-                else:
-                    write_voxel_sizes = func_write_voxel_sizes
+                else: write_voxel_sizes = func_write_voxel_sizes
             else:
                 apply_to_files = subject_data.anat
                 if anat_write_voxel_sizes is None:
                     write_voxel_sizes = get_vox_dims(apply_to_files)
-                else:
-                    write_voxel_sizes = anat_write_voxel_sizes
+                else: write_voxel_sizes = anat_write_voxel_sizes
                 apply_to_files = subject_data.anat
 
             # run node
@@ -747,15 +764,13 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
                 apply_to_files, file_types = ravel_filenames(subject_data.func)
                 if func_write_voxel_sizes is None:
                     write_voxel_sizes = get_vox_dims(apply_to_files)
-                else:
-                    write_voxel_sizes = func_write_voxel_sizes
+                else: write_voxel_sizes = func_write_voxel_sizes
             else:
                 apply_to_files = subject_data.anat
                 apply_to_files, file_types = ravel_filenames(subject_data.func)
                 if anat_write_voxel_sizes is None:
                     write_voxel_sizes = get_vox_dims(apply_to_files)
-                else:
-                    write_voxel_sizes = anat_write_voxel_sizes
+                else: write_voxel_sizes = anat_write_voxel_sizes
 
             # run node
             normalize_result = normalize(
@@ -794,29 +809,27 @@ def _do_subject_normalize(subject_data, fwhm=0., caching=True,
             subject_data.anat = normalize_result.outputs.normalized_files
 
     # commit output files
-    if hardlink_output:
-        subject_data.hardlink_output_files()
+    if hardlink_output: subject_data.hardlink_output_files()
 
     # generate thumbnails
     if report:
         subject_data.generate_normalization_thumbnails()
 
     # explicit smoothing
-    if np.sum(fwhm) > 0:
+    if np.sum(fwhm) + np.sum(anat_fwhm) > 0:
         subject_data = _do_subject_smooth(
-            subject_data, fwhm, caching=caching,
+            subject_data, fwhm, anat_fwhm=anat_fwhm, caching=caching,
             report=report
             )
 
     # commit output files
-    if hardlink_output:
-        subject_data.hardlink_output_files()
+    if hardlink_output: subject_data.hardlink_output_files()
 
     return subject_data.sanitize()
 
 
-def _do_subject_smooth(subject_data, fwhm, caching=True, report=True,
-                       hardlink_output=True, software="spm"):
+def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, caching=True,
+                       report=True, hardlink_output=True, software="spm"):
     """
     Wrapper for running spm.Smooth with optional reporting.
 
@@ -866,31 +879,52 @@ def _do_subject_smooth(subject_data, fwhm, caching=True, report=True,
     else:
         smooth = spm.Smooth().run
 
-    # configure node
-    in_files, file_types = ravel_filenames(subject_data.func)
-
     # run node
-    smooth_result = smooth(in_files=in_files,
-                           fwhm=fwhm,
-                           ignore_exception=False
-                           )
     # failed node ?
-    subject_data.nipype_results['smooth'] = smooth_result
-    if smooth_result.outputs is None:
-        subject_data.failed = True
-        return subject_data
+    subject_data.nipype_results['smooth'] = {}
 
-    # collect results
-    subject_data.func = unravel_filenames(
-        smooth_result.outputs.smoothed_files, file_types)
+    for brain_name, width in zip(
+        ['func', 'anat'],
+        [fwhm] + [anat_fwhm] * 7):
+        brain = getattr(subject_data, brain_name)
+        if not brain: continue
+        print brain_name
+        if not np.sum(width): continue
+        in_files = brain
+        if brain_name == "func":
+            in_files, file_types = ravel_filenames(brain)
+        if brain_name == "anat":
+            anat_like = ['anat',
+                         'mwgm', 'mwwm', 'mwcsf'  # normalized TPMs
+                         ]
+            anat_like = [x for x in anat_like if hasattr(subject_data, x)]
+            in_files = [getattr(subject_data, x) for x in anat_like]
+
+        smooth_result = smooth(in_files=in_files,
+                               fwhm=width,
+                               ignore_exception=False
+                               )
+
+        # failed node ?
+        subject_data.nipype_results['smooth'][brain_name] = smooth_result
+        if smooth_result.outputs is None:
+            subject_data.failed = True
+            warnings.warn("Failed smoothing %s" % brain_name)
+            return subject_data
+
+        brain = smooth_result.outputs.smoothed_files
+        if brain_name == "func":
+            brain = unravel_filenames(brain, file_types)
+            subject_data.func = brain
+        if brain_name == "anat":
+            for j, x in enumerate(anat_like):
+                setattr(subject_data, x, brain[j])
 
     # commit output files
-    if hardlink_output:
-        subject_data.hardlink_output_files()
+    if hardlink_output: subject_data.hardlink_output_files()
 
     # reporting
-    if report:
-        subject_data.generate_smooth_thumbnails()
+    if report: subject_data.generate_smooth_thumbnails()
 
     return subject_data.sanitize()
 
@@ -898,6 +932,7 @@ def _do_subject_smooth(subject_data, fwhm, caching=True, report=True,
 def _do_subject_dartelnorm2mni(subject_data,
                                template_file,
                                fwhm=0,
+                               anat_fwhm=0.,
                                caching=True,
                                report=True,
                                parent_results_gallery=None,
@@ -931,15 +966,16 @@ def _do_subject_dartelnorm2mni(subject_data,
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        dartelnorm2mni = NipypeMemory(base_dir=cache_dir).cache(
+        subject_data.mem = NipypeMemory(base_dir=cache_dir) 
+        dartelnorm2mni = subject_data.mem.cache(
             spm.DARTELNorm2MNI)
-        createwarped = NipypeMemory(base_dir=cache_dir).cache(
+        createwarped = subject_data.mem.cache(
             spm.CreateWarped)
     else:
         dartelnorm2mni = spm.DARTELNorm2MNI().run
         createwarped = spm.CreateWarped().run
 
-    # warp subject tissue class image (produced by Segment or NewSegment)
+    # warp subject tissue class images
     # into MNI space
     tricky_kwargs = {}
     if not anat_write_voxel_sizes is None:
@@ -952,7 +988,7 @@ def _do_subject_dartelnorm2mni(subject_data,
                 flowfield_files=subject_data.dartel_flow_fields,
                 template_file=template_file,
                 modulate=False,  # don't modulate
-                fwhm=0.,  # don't smooth
+                fwhm=anat_fwhm,
                 **tricky_kwargs
                 )
             setattr(subject_data, "w" + tissue,
@@ -965,50 +1001,50 @@ def _do_subject_dartelnorm2mni(subject_data,
         template_file=template_file,
         ignore_exception=False,
         modulate=False,  # don't modulate
-        fwhm=0.,  # don't smooth
+        fwhm=anat_fwhm,
         **tricky_kwargs
         )
     subject_data.anat = dartelnorm2mni_result.outputs.normalized_files
 
     # warp functional image into MNI space
     # functional_file = do_3Dto4D_merge(functional_file)
-    func_write_voxel_sizes = compute_output_voxel_size(
-        subject_data.func, func_write_voxel_sizes)
-    createwarped_result = createwarped(
-        image_files=subject_data.func,
-        flowfield_files=subject_data.dartel_flow_fields,
-        ignore_exception=False
-        )
-    subject_data.func = createwarped_result.outputs.warped_files
+    if subject_data.func:
+        func_write_voxel_sizes = compute_output_voxel_size(
+            subject_data.func, func_write_voxel_sizes)
+        createwarped_result = createwarped(
+            image_files=subject_data.func,
+            flowfield_files=subject_data.dartel_flow_fields,
+            ignore_exception=False
+            )
+        subject_data.func = createwarped_result.outputs.warped_files
 
-    # resample func if necessary
-    if not func_write_voxel_sizes is None:
-        vox_dims = get_vox_dims(subject_data.func[0])
-        if func_write_voxel_sizes != vox_dims:
-            _resample_img = lambda input_filename: resample_img(
-                input_filename, func_write_voxel_sizes,
-                output_filename=os.path.join(
-                    os.path.dirname(input_filename),
-                    "resampled_" + os.path.basename(input_filename)))
+        # resample func if necessary
+        if not func_write_voxel_sizes is None:
+            vox_dims = get_vox_dims(subject_data.func[0])
+            if func_write_voxel_sizes != vox_dims:
+                _resample_img = lambda input_filename: resample_img(
+                    input_filename, func_write_voxel_sizes,
+                    output_filename=os.path.join(
+                        os.path.dirname(input_filename),
+                        "resampled_" + os.path.basename(input_filename)))
 
-            func = []
-            for sess_func in subject_data.func:
-                assert get_vox_dims(sess_func) == vox_dims
-                func.append(_resample_img(sess_func) if isinstance(
-                        sess_func, basestring) else [_resample_img(x)
-                                                     for x in sess_func])
-            subject_data.func = func
+                func = []
+                for sess_func in subject_data.func:
+                    assert get_vox_dims(sess_func) == vox_dims
+                    func.append(_resample_img(sess_func) if isinstance(
+                            sess_func, basestring) else [_resample_img(x)
+                                                         for x in sess_func])
+                subject_data.func = func
 
-    # smooth func
-    if np.sum(fwhm) > 0:
-        subject_data = _do_subject_smooth(subject_data, fwhm,
-                                          caching=caching,
-                                          report=report
-                                          )
+        # smooth func
+        if np.sum(fwhm) > 0:
+            subject_data = _do_subject_smooth(subject_data, fwhm,
+                                              caching=caching,
+                                              report=report
+                                              )
 
     # hardlink output files
-    if hardlink_output:
-        subject_data.hardlink_output_files()
+    if hardlink_output: subject_data.hardlink_output_files()
 
     if report:
         # generate normalization thumbnails
@@ -1049,6 +1085,7 @@ def do_subject_preproc(
     normalize=True,
     dartel=False,
     fwhm=0.,
+    anat_fwhm=0.,
     func_write_voxel_sizes=None,
     anat_write_voxel_sizes=None,
 
@@ -1060,7 +1097,9 @@ def do_subject_preproc(
     preproc_undergone=None,
     prepreproc_undergone="",
     generate_preproc_undergone=True,
-    caching=True
+    caching=True,
+
+    **kwargs
     ):
     """
     Function preprocessing data for a single subject.
@@ -1144,6 +1183,12 @@ def do_subject_preproc(
 
     """
 
+    # disable nodes that can't run
+    if not subject_data.func:
+        slice_timing = realign = coregister = False
+        fwhm = 0.
+    if not subject_data.anat: anat_fwhm = 0
+
     assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
@@ -1165,15 +1210,9 @@ def do_subject_preproc(
         subject_data.hires = EPI_TEMPLATE
         coreg_anat_to_func = False
 
-    # sanitize fwhm
-    if not fwhm is None:
-        if not np.shape(fwhm):
-            fwhm = [fwhm, fwhm, fwhm]
-        if len(fwhm) == 1:
-            fwhm = list(fwhm) * 3
-        else:
-            assert len(fwhm) == 3, ("fwhm must be float or list of 3 "
-                                    "floats; got %s" % fwhm)
+    # sanitize fwhms
+    fwhm = sanitize_fwhm(fwhm)
+    anat_fwhm = sanitize_fwhm(anat_fwhm)
 
     # XXX For the moment, we can neither segment nor normalize without anat.
     # A trick would be to register the func with an EPI template and then
@@ -1183,23 +1222,20 @@ def do_subject_preproc(
     # get ready for reporting
     if report:
         # generate explanation of preproc steps undergone by subject
-        if generate_preproc_undergone:
-            if preproc_undergone is None:
-                preproc_undergone = generate_preproc_undergone_docstring(
-                    dcm2nii=subject_data.isdicom,
-                    deleteorient=deleteorient,
-                    slice_timing=slice_timing,
-                    realign=realign,
-                    coregister=coregister,
-                    segment=segment,
-                    normalize=normalize,
-                    fwhm=fwhm,
-                    dartel=dartel,
-                    coreg_func_to_anat=not coreg_anat_to_func,
-                    prepreproc_undergone=prepreproc_undergone
-                    )
-        else:
-            preproc_undergone = None
+        preproc_undergone = generate_preproc_undergone_docstring(
+            dcm2nii=subject_data.isdicom,
+            deleteorient=deleteorient,
+            slice_timing=slice_timing,
+            realign=realign,
+            coregister=coregister,
+            segment=segment,
+            normalize=normalize,
+            fwhm=fwhm, anat_fwhm=anat_fwhm,
+            dartel=dartel,
+            coreg_func_to_anat=not coreg_anat_to_func,
+            prepreproc_undergone=prepreproc_undergone,
+            has_func=subject_data.func
+            )
 
         # initialize report factory
         subject_data.init_report(parent_results_gallery=parent_results_gallery,
@@ -1282,6 +1318,7 @@ def do_subject_preproc(
         subject_data = _do_subject_normalize(
             subject_data,
             fwhm,  # smooth func after normalization
+            anat_fwhm=anat_fwhm,
             func_write_voxel_sizes=func_write_voxel_sizes,
             anat_write_voxel_sizes=anat_write_voxel_sizes,
             caching=caching,
@@ -1297,8 +1334,9 @@ def do_subject_preproc(
     #########################################
     # Smooth without Spatial Normalization
     #########################################
-    if not normalize and np.sum(fwhm) > 0:
-        subject_data = _do_subject_smooth(subject_data, fwhm,
+    if not normalize and (np.sum(fwhm) + np.sum(anat_fwhm) > 0):
+        subject_data = _do_subject_smooth(subject_data,
+                                          fwhm, anat_fwhm=anat_fwhm,
                                           caching=caching,
                                           report=report,
                                           hardlink_output=hardlink_output
@@ -1309,13 +1347,12 @@ def do_subject_preproc(
             subject_data.finalize_report(last_stage=last_stage)
             return subject_data
 
-    if report and not dartel:
-        subject_data.finalize_report(last_stage=last_stage)
-
     # hard-link node output files
     if last_stage or not dartel:
-        if hardlink_output:
-            subject_data.hardlink_output_files(final=True)
+        if hardlink_output: subject_data.hardlink_output_files(final=True)
+
+    if report and not dartel:
+        subject_data.finalize_report(last_stage=last_stage)
 
     # return preprocessed subject_data
     return subject_data.sanitize()
@@ -1324,6 +1361,7 @@ def do_subject_preproc(
 def _do_subjects_dartel(subjects,
                         output_dir,
                         fwhm=0,
+                        anat_fwhm=0.,
                         func_write_voxel_sizes=None,
                         anat_write_voxel_sizes=None,
                         n_jobs=-1,
@@ -1343,6 +1381,8 @@ def _do_subjects_dartel(subjects,
     mem = NipypeMemory(base_dir=cache_dir)
 
     # compute gm, wm, etc. structural segmentation using Newsegment
+    # XXX verify that the following TPM paths remain valid in case of
+    # precompilted SPM
     newsegment = mem.cache(spm.NewSegment)
     tissue1 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 1),
                2, (True, True), (False, False))
@@ -1361,19 +1401,16 @@ def _do_subjects_dartel(subjects,
         tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6],
         ignore_exception=False
         )
+    if newsegment_result.outputs is None: return
 
-    if newsegment_result.outputs is None:
-        return
     # compute DARTEL template for group data
-    dartel = subject_data.mem.cache(spm.DARTEL)
+    dartel = mem.cache(spm.DARTEL)
     dartel_input_images = [tpms for tpms in
                            newsegment_result.outputs.dartel_input_images
                            if tpms]
     dartel_result = dartel(
         image_files=dartel_input_images,)
-
-    if dartel_result.outputs is None:
-        return
+    if dartel_result.outputs is None: return
 
     for subject_data, j in zip(subjects, xrange(len(subjects))):
         subject_data.gm = newsegment_result.outputs.dartel_input_images[0][j]
@@ -1384,14 +1421,14 @@ def _do_subjects_dartel(subjects,
     # warp individual brains into group (DARTEL) space
     preproc_subject_data = Parallel(
         n_jobs=n_jobs, verbose=100,
-        pre_dispatch='1.5*n_jobs',  # for scalability over RAM
+        pre_dispatch='1.5 * n_jobs',
         )(delayed(
             _do_subject_dartelnorm2mni)(
                 subject_data,
                 report=report,
                 cv_tc=cv_tc,
                 parent_results_gallery=parent_results_gallery,
-                fwhm=fwhm,
+                fwhm=fwhm, anat_fwhm=anat_fwhm,
                 func_write_voxel_sizes=func_write_voxel_sizes,
                 anat_write_voxel_sizes=anat_write_voxel_sizes,
                 template_file=dartel_result.outputs.final_template_file,
@@ -1505,14 +1542,11 @@ def do_subjects_preproc(subject_factory,
             dataset_id = preproc_params["dataset_id"]
             del preproc_params["dataset_id"]
 
-        if "dartel" in preproc_params:
-            dartel = preproc_params["dartel"]
+        if "dartel" in preproc_params: dartel = preproc_params["dartel"]
 
-        if "caching" in preproc_params:
-            caching = preproc_params["caching"]
+        if "caching" in preproc_params: caching = preproc_params["caching"]
 
-        if "report" in preproc_params:
-            report = preproc_params["report"]
+        if "report" in preproc_params: report = preproc_params["report"]
 
         if not preproc_params.get("dataset_description", None) is None:
             dataset_description = preproc_params["dataset_description"]
@@ -1533,8 +1567,7 @@ def do_subjects_preproc(subject_factory,
                        for subject_data in subject_factory]
 
     # DARTEL on 1 subject is senseless
-    dartel = dartel and (len(subject_factory) > 1
-                         )
+    dartel = dartel and (len(subject_factory) > 1)
 
     # configure SPM back-end    
     _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
@@ -1563,11 +1596,9 @@ def do_subjects_preproc(subject_factory,
         if "output_dir" in preproc_params:
             output_dir = preproc_params["output_dir"]
             del preproc_params['output_dir']
-        else:
-            output_dir = os.path.join(os.getcwd(), "pypreprocess_results")
+        else: output_dir = os.path.join(os.getcwd(), "pypreprocess_results")
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not os.path.exists(output_dir): os.makedirs(output_dir)
 
     # generate list of subjects
     subjects = [subject_data for subject_data in subject_factory]
@@ -1592,12 +1623,10 @@ def do_subjects_preproc(subject_factory,
         # copy web stuff to output_dir
         copy_web_conf_files(output_dir)
 
-        report_log_filename = os.path.join(
-            output_dir, 'report_log.html')
+        report_log_filename = os.path.join(output_dir, 'report_log.html')
         report_preproc_filename = os.path.join(
             output_dir, 'report_preproc.html')
-        report_filename = os.path.join(
-            output_dir, 'report.html')
+        report_filename = os.path.join(output_dir, 'report.html')
 
         # get caller module handle from stack-frame
         user_script_name = sys.argv[0]
@@ -1628,41 +1657,15 @@ def do_subjects_preproc(subject_factory,
         details_filename = os.path.join(output_dir, "preproc_details.html")
         open(details_filename, "w").write("<pre>%s</pre>" % preproc_details)
 
-        # generate docstring for preproc tobe undergone
-        preproc_params["generate_preproc_undergone"] = False
-        preproc_undergone = ""
-        preproc_undergone += generate_preproc_undergone_docstring(
-            command_line=command_line,
-            prepreproc_undergone=prepreproc_undergone,
-            deleteorient=preproc_params.get("deleteorient", False),
-            slice_timing=preproc_params.get('slice_timing', False),
-            realign=preproc_params.get("realign", False),
-            coregister=preproc_params.get("coregister", False),
-            segment=preproc_params.get("segment", False),
-            normalize=preproc_params.get("normalize", False),
-            fwhm=preproc_params.get("fwhm", 0),
-            dartel=dartel,
-            func_write_voxel_sizes=preproc_params.get(
-                "func_write_voxel_sizes", None),
-            anat_write_voxel_sizes=preproc_params.get(
-                "anat_write_voxel_sizes", None),
-            coreg_func_to_anat=preproc_params.get("coreg_func_to_anat", False),
-            details_filename=details_filename
-            )
-
         # initialize results gallery
-        loader_filename = os.path.join(
-            output_dir, "results_loader.php")
+        loader_filename = os.path.join(output_dir, "results_loader.php")
         parent_results_gallery = ResultsGallery(
-            loader_filename=loader_filename,
-            refresh_timeout=30,
-            )
+            loader_filename=loader_filename, refresh_timeout=30)
 
         # initialize progress bar
         progress_logger = ProgressReport(
             report_log_filename,
-            other_watched_files=[report_filename,
-                                 report_preproc_filename])
+            other_watched_files=[report_filename, report_preproc_filename])
 
         # html markup
         log = get_dataset_report_log_html_template(
@@ -1671,7 +1674,7 @@ def do_subjects_preproc(subject_factory,
         preproc = get_dataset_report_preproc_html_template(
             results=parent_results_gallery,
             start_time=time.ctime(),
-            preproc_undergone=preproc_undergone,
+            # preproc_undergone=preproc_undergone,
             dataset_description=dataset_description,
             source_code=user_source_code,
             source_script_name=user_script_name,
@@ -1693,8 +1696,7 @@ def do_subjects_preproc(subject_factory,
             fd.write(str(main_html))
             fd.close()
 
-        if not dartel:
-            preproc_params['parent_results_gallery'
+        if not dartel: preproc_params['parent_results_gallery'
                                       ] = parent_results_gallery
 
         # log command line
@@ -1710,8 +1712,7 @@ def do_subjects_preproc(subject_factory,
             + "</ul><hr/>")
 
     def finalize_report():
-        if not report:
-            return
+        if not report: return
 
         progress_logger.finish(report_preproc_filename)
 
@@ -1721,9 +1722,9 @@ def do_subjects_preproc(subject_factory,
 
         print "\r\n\tHTML report written to %s" % report_preproc_filename
 
-    # preprocess subject's separately
     if dartel:
         fwhm = preproc_params.get("fwhm", 0.)
+        anat_fwhm = preproc_params.get("anat_fwhm", 0.)
         func_write_voxel_sizes = preproc_params.get(
             "func_write_voxel_sizes", None)
         func_write_voxel_sizes = preproc_params.get(
@@ -1745,7 +1746,7 @@ def do_subjects_preproc(subject_factory,
         preproc_subject_data = _do_subjects_dartel(
             preproc_subject_data, output_dir,
             n_jobs=n_jobs,
-            fwhm=fwhm,
+            fwhm=fwhm, anat_fwhm=anat_fwhm,
             func_write_voxel_sizes=func_write_voxel_sizes,
             anat_write_voxel_sizes=anat_write_voxel_sizes,
             report=preproc_params.get("report", True),

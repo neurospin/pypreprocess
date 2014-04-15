@@ -1076,3 +1076,15 @@ def compute_output_voxel_size(img, voxel_size):
     else:
         # donno
         return None
+
+
+def sanitize_fwhm(fwhm):
+    if fwhm is None: return 0.  # no smoothing
+    if not np.shape(fwhm):
+        fwhm = [fwhm, fwhm, fwhm]
+    if len(fwhm) == 1:
+        fwhm = list(fwhm) * 3
+    else:
+        assert len(fwhm) == 3, ("fwhm must be float or list of 3 "
+                                "floats; got %s" % fwhm)
+    return fwhm

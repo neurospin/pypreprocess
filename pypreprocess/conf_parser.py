@@ -1,4 +1,11 @@
+"""
+:Synopsis: Parser for pypreprocess .ini configuration files.
+:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com> <elvis.dohmatob@inria.fr>
+
+"""
+
 import os
+import warnings
 import glob
 import re
 from configobj import ConfigObj
@@ -10,10 +17,8 @@ from io_utils import _expand_path, get_relative_path
 def _del_nones_from_dict(some_dict):
     if isinstance(some_dict, dict):
         for k, v in some_dict.iteritems():
-            if v is None:
-                del some_dict[k]
-            else:
-                _del_nones_from_dict(v)
+            if v is None: del some_dict[k]
+            else: _del_nones_from_dict(v)
 
     return some_dict
 
@@ -29,32 +34,26 @@ def _parse_job(jobfile, **replacements):
                 val = val.replace("%" + k + "%", v)
 
         if key == "slice_order":
-            if isinstance(val, basestring):
-                return
+            if isinstance(val, basestring): return
 
         if isinstance(val, basestring):
-            if val.lower() in ["true", "yes"]:
-                val = True
-            elif val.lower() in ["false", "no"]:
-                val = False
-            elif key == "slice_order":
-                val = val.lower()
+            if val.lower() in ["true", "yes"]: val = True
+            elif val.lower() in ["false", "no"]: val = False
+            elif key == "slice_order": val = val.lower()
             elif val.lower() in ["none", "auto", "unspecified", "unknown"]:
                 val = None
 
         if key in ["TR", "nslices", "refslice", "nsubjects", "nsessions",
                    "n_jobs"]:
-            if not val is None:
-                val = eval(val)
+            if not val is None: val = eval(val)
 
-        if key in ["fwhm", "anat_voxel_sizes", "func_voxel_sizes",
+        if key in ["fwhm", "anat_fwhm", "anat_voxel_sizes", "func_voxel_sizes",
                    "slice_order"]:
             dtype = np.int if key == "slice_order" else np.float
-            val = ",".join(val).replace("[", "")
-            val = val.replace("]", "")
+            if not isinstance(val, basestring): val = ",".join(val)
+            for x in "()[]": val = val.replace(x, "")
             val = list(np.fromstring(val, sep=",", dtype=dtype))
-            if len(val) == 1:
-                val = val[0]
+            if len(val) == 1: val = val[0]
 
         section[key] = val
 
@@ -143,13 +142,11 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
 
         """
 
-        if subject_id in exclude_these_subject_ids:
-            return True
+        if subject_id in exclude_these_subject_ids: return True
         elif len(include_only_these_subject_ids
                ) and not subject_id in include_only_these_subject_ids:
             return True
-        else:
-            return False
+        else: return False
 
     # subject data factory
     subject_dir_wildcard = os.path.join(dataset_dir,
@@ -158,18 +155,15 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
     sessions = [k for k in options.keys() if re.match("session_.+_func", k)]
     session_ids = [re.match("session_(.+)_func", session).group(1)
                    for session in sessions]
-    assert len(sessions) > 0
     subject_data_dirs = sorted(glob.glob(subject_dir_wildcard))
     assert subject_data_dirs, (
         "No subject directories found for wildcard: %s" % (
             subject_dir_wildcard))
     for subject_data_dir in subject_data_dirs:
-        if len(subjects) == nsubjects:
-            break
+        if len(subjects) == nsubjects: break
 
         subject_id = os.path.basename(subject_data_dir)
-        if _ignore_subject(subject_id):
-            continue
+        if _ignore_subject(subject_id): continue
 
         subject_output_dir = os.path.join(output_dir, subject_id)
 
@@ -243,11 +237,12 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
                                    anat_output_dir=anat_output_dir,
                                    session_id=session_ids,
                                    data_dir=subject_data_dir)
-
         subjects.append(subject_data)
 
-    print "No subjects globbed (dataset_dir=%s, subject_dir_wildcard=%s" % (
-        dataset_dir, subject_dir_wildcard)
+    if not subjects:
+        warnings.warn(
+            "No subjects globbed (dataset_dir=%s, subject_dir_wildcard=%s" % (
+                dataset_dir, subject_dir_wildcard))
 
     # preproc parameters
     preproc_params = {
@@ -312,8 +307,13 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
 
     # configure smoothing node
     preproc_params["fwhm"] = options.get("fwhm", 0.)
+    preproc_params["anat_fwhm"] = options.get("anat_fwhm", 0.)
 
     return subjects, preproc_params
+
+# this pseudo is better
+import_data = _generate_preproc_pipeline
+
 
 if __name__ == '__main__':
     from pypreprocess.reporting.base_reporter import dict_to_html_ul
