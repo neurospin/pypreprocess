@@ -1450,16 +1450,6 @@ def _do_subjects_dartel(subjects,
 
 
 def do_subjects_preproc(subject_factory,
-                        output_dir=None,
-                        n_jobs=None,
-                        dartel=None,
-                        report=None,
-                        dataset_id=None,
-                        dataset_description="",
-                        shutdown_reloaders=True,
-                        dataset_dir=None,
-                        spm_dir=None,
-                        matlab_exec=None,
                         **preproc_params
                         ):
     """
@@ -1536,29 +1526,22 @@ def do_subjects_preproc(subject_factory,
             preproc_details = fd.read()
             fd.close()
         subject_factory, _preproc_params = _generate_preproc_pipeline(
-            subject_factory, dataset_dir=dataset_dir)
+            subject_factory, dataset_dir=preproc_params.get(
+                "dataset_dir", None))
         _preproc_params.update(preproc_params)
         preproc_params = _preproc_params
 
-    # resolve parameters
-    lcls = locals()
-    for param in ['output_dir',
-                  'n_jobs',
-                  'dartel',
-                  'report',
-                  'dataset_id',
-                  'dataset_description',
-                  'spm_dir',
-                  'matlab_exec']:
-        if param in ['n_jobs', 'report', 'dataset_id', 'dataset_description']:
-            lcls[param] = preproc_params.get(param, None)
-            if param in preproc_params: del preproc_params[param]
-        else:
-            val = eval(param)
-            if not val is None:
-                preproc_params[param] = val
-            else: lcls[param] = preproc_params.get(param, None)
-                
+    # collect some params for local usage
+    dartel = preproc_params.get('dartel', False)
+    output_dir = preproc_params.get('output_dir', "pypreprocess_output")
+    report = preproc_params.get("report", True)
+    spm_dir = preproc_params.get("spm_dir", None)
+    matlab_exec = preproc_params.get("matlab_exec", None)
+    dataset_id = preproc_params.get('dataset_id', None)
+    dataset_description = preproc_params.get('dataset_description', None)
+    shutdown_reloaders = preproc_params.get('shutdown_reloaders', True)
+    n_jobs = preproc_params.get('n_jobs', None)
+
     print "Using the following parameters for preprocessing:"
     for k, v in preproc_params.iteritems(): print "\t%s=%s" % (k, v)
 
