@@ -47,8 +47,8 @@ def _parse_job(jobfile, **replacements):
                    "n_jobs"]:
             if not val is None: val = eval(val)
 
-        if key in ["fwhm", "anat_fwhm", "anat_voxel_sizes", "func_voxel_sizes",
-                   "slice_order"]:
+        if key in ["fwhm", "anat_fwhm", "anat_write_voxel_size",
+                   "func_write_voxel_size", "slice_order"]:
             dtype = np.int if key == "slice_order" else np.float
             if not isinstance(val, basestring): val = ",".join(val)
             for x in "()[]": val = val.replace(x, "")
@@ -95,7 +95,6 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
             "dataset_dir not specified (neither in jobfile"
             " nor in this function call")
 
-    assert dataset_dir
     options["dataset_dir"] = dataset_dir
 
     if not isinstance(dataset_dir, basestring):
@@ -128,6 +127,73 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
     # dataset description
     dataset_description = options.get("dataset_description", None)
 
+    # preproc parameters
+    preproc_params = {
+        "spm_dir": options.get("spm_dir", None),
+        "matlab_exec": options.get("matlab_exec", None),
+        "report": options.get("report", True),
+        "output_dir": output_dir,
+        "dataset_id": options.get("dataset_id", dataset_dir),
+        "n_jobs": options.get("n_jobs", None),
+        "caching": options.get("caching", True),
+        "cv_tc": options.get("cv_tc", True),
+        "dataset_description": dataset_description,
+        "slice_timing_software": options.get("slice_timing_software", "spm"),
+        "realign_software": options.get("realign_software", "spm"),
+        "coregister_software": options.get("coregister_software", "spm"),
+        }
+
+    # delete orientation meta-data ?
+    preproc_params['deleteorient'] = options.get(
+        "deleteorient", False)
+
+    # configure slice-timing correction node
+    preproc_params["slice_timing"] = not options.get(
+        "disable_slice_timing", False)
+    # can't do STC without TR
+    if preproc_params["slice_timing"]:
+        preproc_params.update(dict((k, options.get(k, None))
+                                   for k in ["TR", "TA", "slice_order",
+                                             "interleaved"]))
+        if preproc_params["TR"] is None:
+            preproc_params["slice_timing"] = False
+
+    # configure motion correction node
+    preproc_params["realign"] = not options.get("disable_realign", False)
+    if preproc_params["realign"]:
+        preproc_params['realign_reslice'] = options.get("reslice_realign",
+                                                        False)
+        preproc_params['register_to_mean'] = options.get("register_to_mean",
+                                                         True)
+
+    # configure coregistration node
+    preproc_params["coregister"] = not options.get("disable_coregister",
+                                                   False)
+    if preproc_params["coregister"]:
+        preproc_params['coregister_reslice'] = options["coregister_reslice"]
+        preproc_params['coreg_anat_to_func'] = not options.get(
+            "coreg_func_to_anat", True)
+
+    # configure tissue segmentation node
+    preproc_params["segment"] = not options.get("disable_segment", False)
+    if preproc_params["segment"]:
+        pass  # XXX pending code...
+
+    # configure normalization node
+    preproc_params["normalize"] = not options.get(
+        "disable_normalize", False)
+    preproc_params['func_write_voxel_size'] = tuple(options.get(
+            "func_write_voxel_size", [3, 3, 3]))
+    preproc_params['anat_write_voxel_size'] = tuple(options.get(
+            "anat_write_voxel_size", [1, 1, 1]))
+    preproc_params['dartel'] = options.get("dartel", False)
+    preproc_params['output_modulated_tpms'] = options.get(
+        "output_modulated_tpms", False)
+
+    # configure smoothing node
+    preproc_params["fwhm"] = options.get("fwhm", 0.)
+    preproc_params["anat_fwhm"] = options.get("anat_fwhm", 0.)
+
     # how many subjects ?
     subjects = []
     nsubjects = options.get('nsubjects', np.inf)
@@ -156,9 +222,11 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
     session_ids = [re.match("session_(.+)_func", session).group(1)
                    for session in sessions]
     subject_data_dirs = sorted(glob.glob(subject_dir_wildcard))
-    assert subject_data_dirs, (
-        "No subject directories found for wildcard: %s" % (
-            subject_dir_wildcard))
+    if not subject_data_dirs:
+        warnings.warn("No subject directories found for wildcard: %s" % (
+                subject_dir_wildcard))
+        return [], preproc_params
+
     for subject_data_dir in subject_data_dirs:
         if len(subjects) == nsubjects: break
 
@@ -243,73 +311,6 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
         warnings.warn(
             "No subjects globbed (dataset_dir=%s, subject_dir_wildcard=%s" % (
                 dataset_dir, subject_dir_wildcard))
-
-    # preproc parameters
-    preproc_params = {
-        "spm_dir": options.get("spm_dir", None),
-        "matlab_exec": options.get("matlab_exec", None),
-        "report": options.get("report", True),
-        "output_dir": output_dir,
-        "dataset_id": options.get("dataset_id", dataset_dir),
-        "n_jobs": options.get("n_jobs", None),
-        "caching": options.get("caching", True),
-        "cv_tc": options.get("cv_tc", True),
-        "dataset_description": dataset_description,
-        "slice_timing_software": options.get("slice_timing_software", "spm"),
-        "realign_software": options.get("realign_software", "spm"),
-        "coregister_software": options.get("coregister_software", "spm"),
-        }
-
-    # delete orientation meta-data ?
-    preproc_params['deleteorient'] = options.get(
-        "deleteorient", False)
-
-    # configure slice-timing correction node
-    preproc_params["slice_timing"] = not options.get(
-        "disable_slice_timing", False)
-    # can't do STC without TR
-    if preproc_params["slice_timing"]:
-        preproc_params.update(dict((k, options.get(k, None))
-                                   for k in ["TR", "TA", "slice_order",
-                                             "interleaved"]))
-        if preproc_params["TR"] is None:
-            preproc_params["slice_timing"] = False
-
-    # configure motion correction node
-    preproc_params["realign"] = not options.get("disable_realign", False)
-    if preproc_params["realign"]:
-        preproc_params['realign_reslice'] = options.get("reslice_realign",
-                                                        False)
-        preproc_params['register_to_mean'] = options.get("register_to_mean",
-                                                         True)
-
-    # configure coregistration node
-    preproc_params["coregister"] = not options.get("disable_coregister",
-                                                   False)
-    if preproc_params["coregister"]:
-        preproc_params['coregister_reslice'] = options["coregister_reslice"]
-        preproc_params['coreg_anat_to_func'] = not options.get(
-            "coreg_func_to_anat", True)
-
-    # configure tissue segmentation node
-    preproc_params["segment"] = not options.get("disable_segment", False)
-    if preproc_params["segment"]:
-        pass  # XXX pending code...
-
-    # configure normalization node
-    preproc_params["normalize"] = not options.get(
-        "disable_normalize", False)
-    preproc_params['func_write_voxel_sizes'] = tuple(options.get(
-            "func_voxel_sizes", [3, 3, 3]))
-    preproc_params['anat_write_voxel_sizes'] = tuple(options.get(
-            "anat_voxel_sizes", [1, 1, 1]))
-    preproc_params['dartel'] = options.get("dartel", False)
-    preproc_params['output_modulated_tpms'] = options.get(
-        "output_modulated_tpms", False)
-
-    # configure smoothing node
-    preproc_params["fwhm"] = options.get("fwhm", 0.)
-    preproc_params["anat_fwhm"] = options.get("anat_fwhm", 0.)
 
     return subjects, preproc_params
 
