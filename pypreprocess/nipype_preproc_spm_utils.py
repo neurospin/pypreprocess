@@ -1699,10 +1699,16 @@ def do_subjects_preproc(subject_factory,
 
         print "\r\n\tHTML report written to %s" % report_preproc_filename
 
+    # don't yet segment nor normalize if dartel enabled
+    if dartel:
+        for item in ["segment", "normalize", "cv_tc", "last_stage"]:
+            preproc_params[item] = False
+
+    # run classic preproc
     preproc_subject_data = Parallel(n_jobs=n_jobs)(delayed(do_subject_preproc)(
             subject_data, **preproc_params) for subject_data in subjects)
 
-    # DARTEL
+    # run DARTEL
     if dartel:
         preproc_subject_data = _do_subjects_dartel(
             preproc_subject_data, output_dir,
