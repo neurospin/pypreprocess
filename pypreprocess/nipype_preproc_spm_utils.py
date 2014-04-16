@@ -749,7 +749,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
             normalize_result = normalize(
                 parameter_file=parameter_file,
                 apply_to_files=apply_to_files,
-                write_voxel_sizes=write_voxel_sizes,
+                write_voxel_sizes=tuple(write_voxel_sizes),
                 # write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
                 write_interp=1,
                 jobtype='write',
@@ -782,7 +782,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                 parameter_file=parameter_file,
                 apply_to_files=apply_to_files,
                 write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-                write_voxel_sizes=write_voxel_sizes,
+                write_voxel_sizes=tuple(write_voxel_sizes),
                 write_wrap=[0, 0, 0],
                 write_interp=1,
                 jobtype='write',
@@ -1534,6 +1534,7 @@ def do_subjects_preproc(subject_factory,
     # collect some params for local usage
     dartel = preproc_params.get('dartel', False)
     output_dir = preproc_params.get('output_dir', "pypreprocess_output")
+    if "output_dir" in preproc_params: del preproc_params["output_dir"]
     report = preproc_params.get("report", True)
     spm_dir = preproc_params.get("spm_dir", None)
     matlab_exec = preproc_params.get("matlab_exec", None)
@@ -1541,6 +1542,7 @@ def do_subjects_preproc(subject_factory,
     dataset_description = preproc_params.get('dataset_description', None)
     shutdown_reloaders = preproc_params.get('shutdown_reloaders', True)
     n_jobs = preproc_params.get('n_jobs', None)
+    if "n_jobs" in preproc_params: del preproc_params["n_jobs"]
 
     print "Using the following parameters for preprocessing:"
     for k, v in preproc_params.iteritems(): print "\t%s=%s" % (k, v)
@@ -1561,12 +1563,6 @@ def do_subjects_preproc(subject_factory,
     # configure number of jobs
     if n_jobs is None: n_jobs = 1
     n_jobs = int(os.environ.get('N_JOBS', n_jobs))
-
-    _n_jobs = None
-    if "n_jobs" in preproc_params:
-        _n_jobs = preproc_params["n_jobs"]
-        del preproc_params["n_jobs"]
-    n_jobs = _n_jobs if not _n_jobs is None else n_jobs
 
     # sanitize output_dir
     if output_dir is None:
