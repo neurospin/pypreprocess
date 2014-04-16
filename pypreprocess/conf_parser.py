@@ -299,10 +299,10 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
     # configure normalization node
     preproc_params["normalize"] = not options.get(
         "disable_normalize", False)
-    preproc_params['func_write_voxel_sizes'] = options.get(
-        "func_voxel_sizes", [3, 3, 3])
-    preproc_params['anat_write_voxel_sizes'] = options.get(
-        "anat_voxel_sizes", [1, 1, 1])
+    preproc_params['func_write_voxel_sizes'] = tuple(options.get(
+            "func_voxel_sizes", [3, 3, 3]))
+    preproc_params['anat_write_voxel_sizes'] = tuple(options.get(
+            "anat_voxel_sizes", [1, 1, 1]))
     preproc_params['dartel'] = options.get("dartel", False)
     preproc_params['output_modulated_tpms'] = options.get(
         "output_modulated_tpms", False)
