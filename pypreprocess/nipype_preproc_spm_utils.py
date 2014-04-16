@@ -1010,7 +1010,7 @@ def _do_subject_dartelnorm2mni(subject_data,
         flowfield_files=subject_data.dartel_flow_fields,
         template_file=template_file,
         ignore_exception=False,
-        modulate=False,  # don't modulate
+        modulate=output_modulated_tpms,
         fwhm=anat_fwhm,
         **tricky_kwargs
         )
@@ -1374,6 +1374,7 @@ def _do_subjects_dartel(subjects,
                         anat_fwhm=0.,
                         func_write_voxel_sizes=None,
                         anat_write_voxel_sizes=None,
+                        output_modulated_tpms=False,
                         n_jobs=-1,
                         report=True,
                         cv_tc=True,
@@ -1442,6 +1443,7 @@ def _do_subjects_dartel(subjects,
                 fwhm=fwhm, anat_fwhm=anat_fwhm,
                 func_write_voxel_sizes=func_write_voxel_sizes,
                 anat_write_voxel_sizes=anat_write_voxel_sizes,
+                output_modulated_tpms=output_modulated_tpms,
                 template_file=dartel_result.outputs.final_template_file,
                 )
           for subject_data in subjects)
