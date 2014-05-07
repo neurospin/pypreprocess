@@ -110,10 +110,12 @@ def preproc_dataset(data_dir, output_dir,
 
             # anatomical data
             subject_data.anat = os.path.join(
-                data_dir, subject_id, 'anatomy', 'highres001_brain.nii.gz')
+                data_dir, subject_id, 'anatomy', 'highres001.nii.gz')
+            # pypreprocess is setup to work with non-skull stripped brain and
+            # is likely to crash otherwise.
             if not os.path.exists(subject_data.anat):
                 subject_data.anat = os.path.join(
-                    data_dir, subject_id, 'anatomy', 'highres001.nii.gz')
+                    data_dir, subject_id, 'anatomy', 'highres001_brain.nii.gz')
 
             # subject output_dir
             subject_data.output_dir = os.path.join(output_dir, subject_id)
