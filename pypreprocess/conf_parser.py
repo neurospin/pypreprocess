@@ -8,6 +8,7 @@ import os
 import warnings
 import glob
 import re
+from copy import deepcopy
 from configobj import ConfigObj
 import numpy as np
 from subject_data import SubjectData
@@ -311,6 +312,12 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
         warnings.warn(
             "No subjects globbed (dataset_dir=%s, subject_dir_wildcard=%s" % (
                 dataset_dir, subject_dir_wildcard))
+
+    # XXX voxel_size -> voxel_sizes
+    ppp = deepcopy(preproc_params)
+    for k, v in ppp.iteritems():
+        if k.endswith("voxel_size"):
+            preproc_params[k + 's'] = preproc_params.pop(k)
 
     return subjects, preproc_params
 
