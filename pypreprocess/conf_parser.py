@@ -316,7 +316,7 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
     # XXX voxel_size -> voxel_sizes
     ppp = deepcopy(preproc_params)
     for k, v in ppp.iteritems():
-        if k.endswith("voxel_size"):
+        if k.endswith("write_voxel_size"):
             preproc_params[k + 's'] = preproc_params.pop(k)
 
     return subjects, preproc_params
