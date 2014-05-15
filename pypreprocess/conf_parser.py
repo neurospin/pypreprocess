@@ -48,8 +48,12 @@ def _parse_job(jobfile, **replacements):
                    "n_jobs"]:
             if not val is None: val = eval(val)
 
-        if key in ["fwhm", "anat_fwhm", "anat_write_voxel_size",
-                   "func_write_voxel_size", "slice_order"]:
+        if key in ["fwhm", "anat_fwhm", "anat_write_voxel_sizes",
+                   "func_write_voxel_sizes", "slice_order",
+
+                   # XXX BF: some users forget to pluralize
+                   "anat_write_voxel_size", "func_write_voxel_sizes"
+                   ]:
             dtype = np.int if key == "slice_order" else np.float
             if not isinstance(val, basestring): val = ",".join(val)
             for x in "()[]": val = val.replace(x, "")
@@ -183,10 +187,21 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
     # configure normalization node
     preproc_params["normalize"] = not options.get(
         "disable_normalize", False)
-    preproc_params['func_write_voxel_size'] = tuple(options.get(
-            "func_write_voxel_size", [3, 3, 3]))
-    preproc_params['anat_write_voxel_size'] = tuple(options.get(
-            "anat_write_voxel_size", [1, 1, 1]))
+
+    # configure output voxel sizes
+    for brain in ["func", "anat"]:
+        k = "%s_write_voxel_size" % brain
+        ks = k + "s"
+        if k in options:
+            assert not ks in options, (
+                "Both %s and %s specified in ini file. Please use only one of "
+                "them, they mean thesame thing!")
+            options[ks] = options.pop(k)
+        else: print k
+        preproc_params[ks] = options.get(
+            ks, [[3, 3, 3], [1, 1, 1]][brain == "anat"])
+
+    # configure dartel
     preproc_params['dartel'] = options.get("dartel", False)
     preproc_params['output_modulated_tpms'] = options.get(
         "output_modulated_tpms", False)
@@ -312,12 +327,6 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
         warnings.warn(
             "No subjects globbed (dataset_dir=%s, subject_dir_wildcard=%s" % (
                 dataset_dir, subject_dir_wildcard))
-
-    # XXX voxel_size -> voxel_sizes
-    ppp = deepcopy(preproc_params)
-    for k, v in ppp.iteritems():
-        if k.endswith("write_voxel_size"):
-            preproc_params[k + 's'] = preproc_params.pop(k)
 
     return subjects, preproc_params
 
