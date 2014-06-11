@@ -1294,7 +1294,8 @@ def fetch_spm_auditory_data(data_dir, subject_id="sub001"):
 
     # No. Download the data
     print("Data absent, downloading...")
-    url = "ftp://ftp.fil.ion.ucl.ac.uk/spm/data/MoAEpilot/MoAEpilot.zip"
+    url = ("http://www.fil.ion.ucl.ac.uk/spm/download/data/MoAEpilot/"
+           "MoAEpilot.zip")
     archive_path = os.path.join(subject_dir, os.path.basename(url))
     _fetch_file(url, subject_dir)
     try:
