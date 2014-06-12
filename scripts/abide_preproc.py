@@ -24,24 +24,23 @@ DO_DARTEL = True
 
 """institutes we're insterested in"""
 INSTITUTES = [
-    # 'CMU',
-    # 'Caltech',
-    # 'KKI',
-    # 'Leuven',
-    # 'MaxMun',
-    # 'NYU',
-    # 'OHSU',
-    # 'Olin',
-    # 'Pitt',
-    # 'SBL',
-    # 'SDSU',
-    # 'Stanford',
-    # 'Trinity',
-    # 'UCLA',
-    # 'UM',
-    # 'USM',
-    'Yale',
-    ]
+    'CMU',
+    'Caltech',
+    'KKI',
+    'Leuven',
+    'MaxMun',
+    'NYU',
+    'OHSU',
+    'Olin',
+    'Pitt',
+    'SBL',
+    'SDSU',
+    'Stanford',
+    'Trinity',
+    'UCLA',
+    'UM',
+    'USM',
+    'Yale']
 
 
 def preproc_abide_institute(institute_id, abide_data_dir, abide_output_dir,
