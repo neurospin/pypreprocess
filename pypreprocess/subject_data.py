@@ -406,7 +406,7 @@ class SubjectData(object):
         for item in [
             "anat",
             'gm', 'wm', 'csf',  # native
-            'wgm', 'wwm', 'wcsf'
+            'wgm', 'wwm', 'wcsf',
             'mwgm', 'mwwm', 'mwcsf']:
             if hasattr(self, item):
                 filename = getattr(self, item)
