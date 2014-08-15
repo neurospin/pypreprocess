@@ -50,8 +50,7 @@ def _do_subject_slice_timing(subject_data, refslice=0,
     if caching:
         mem = Memory(cachedir=os.path.join(
                 subject_data.output_dir, 'cache_dir'),
-                     verbose=100
-                     )
+                     verbose=100)
     runner = lambda handle: mem.cache(handle) if caching else handle
 
     stc_output = []
@@ -212,6 +211,41 @@ def _do_subject_coregister(
     return subject_data
 
 
+def _do_subject_smooth(subject_data, fwhm, func_prefix=None,
+                       write_output_images=2, func_basenames=None,
+                       concat=False, caching=True, report=True):
+
+    if func_prefix is None:
+        func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['smoothing']
+
+    # prepare for smart caching
+    if caching:
+        mem = Memory(cachedir=os.path.join(
+                subject_data.output_dir, 'cache_dir'), verbose=100)
+
+    sfunc = []
+    for sess in xrange(subject_data.n_sessions):
+        sess_func = subject_data.func[sess]
+
+        _tmp = mem.cache(smooth_image)(sess_func,
+                                   fwhm)
+
+        # save smoothed func
+        if write_output_images == 2:
+            _tmp = mem.cache(save_vols)(
+                _tmp,
+                subject_data.output_dir,
+                basenames=func_basenames[sess],
+                prefix=func_prefix,
+                concat=concat
+                )
+
+        sfunc.append(_tmp)
+
+    subject_data.func = sfunc
+    return subject_data
+
+
 def do_subject_preproc(subject_data,
                        caching=True,
                        stc=False,
@@ -360,9 +394,7 @@ def do_subject_preproc(subject_data,
     ############################
     if stc:
         print "\r\nNODE> Slice-Timing Correction"
-
         func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['STC'] + func_prefix
-
         subject_data = _do_subject_slice_timing(
             subject_data, refslice=refslice,
             slice_order=slice_order, interleaved=interleaved,
@@ -376,9 +408,7 @@ def do_subject_preproc(subject_data,
     ######################
     if realign:
         print "\r\nNODE> Motion Correction"
-
         func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['MC'] + func_prefix
-
         subject_data = _do_subject_realign(
             subject_data, reslice=False,
             caching=caching, write_output_images=write_output_images,
@@ -391,7 +421,6 @@ def do_subject_preproc(subject_data,
     if coregister and not subject_data.anat is None:
         which = "func -> anat" if coreg_func_to_anat else "anat -> func"
         print "\r\nNODE> Coregistration %s" % which
-
         subject_data = _do_subject_coregister(
             subject_data, coreg_func_to_anat=coreg_func_to_anat,
             func_basenames=func_basenames, anat_basename=anat_basename,
@@ -405,29 +434,11 @@ def do_subject_preproc(subject_data,
     if not fwhm is None:
         print ("\r\nNODE> Smoothing with %smm x %smm x %smm Gaussian"
                " kernel") % tuple(fwhm)
-
         func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['smoothing'] + func_prefix
-
-        sfunc = []
-        for sess in xrange(n_sessions):
-            sess_func = subject_data.func[sess]
-
-            _tmp = mem.cache(smooth_image)(sess_func,
-                                       fwhm)
-
-            # save smoothed func
-            if write_output_images == 2:
-                _tmp = mem.cache(save_vols)(
-                    _tmp,
-                    subject_data.output_dir,
-                    basenames=func_basenames[sess],
-                    prefix=func_prefix,
-                    concat=concat
-                    )
-
-            sfunc.append(_tmp)
-
-        subject_data.func = sfunc
+        subject_data = _do_subject_smooth(
+            subject_data, fwhm, caching=caching, prefix=func_prefix,
+            write_output_images=write_output_images,
+            func_basenames=func_basenames, concat=concat)
 
     # write final output images
     if write_output_images == 1:

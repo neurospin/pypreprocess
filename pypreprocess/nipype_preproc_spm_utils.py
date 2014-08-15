@@ -60,7 +60,8 @@ from .reporting.preproc_reporter import (
 from purepython_preproc_utils import (
     _do_subject_slice_timing as _pp_do_subject_slice_timing,
     _do_subject_realign as _pp_do_subject_realign,
-    _do_subject_coregister as _pp_do_subject_coregister)
+    _do_subject_coregister as _pp_do_subject_coregister,
+    _do_subject_smooth as _pp_do_subject_smooth)
 
 # configure SPM
 EPI_TEMPLATE = SPM_DIR = SPM_T1_TEMPLATE = T1_TEMPLATE = None
@@ -97,8 +98,9 @@ except AssertionError:
     pass
 
 
-def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None, matlab_exec=None,
-                             refslice=0, slice_order="ascending",
+def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
+                             matlab_exec=None, refslice=0,
+                             slice_order="ascending",
                              interleaved=False, caching=True,
                              report=True, software="spm",
                              hardlink_output=True):
@@ -211,8 +213,9 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None, matlab_exe
 
 
 def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
-                        caching=True, report=True, software="spm", spm_dir=None,
-                        matlab_exec=None, hardlink_output=True, **kwargs):
+                        caching=True, report=True, software="spm",
+                        spm_dir=None, matlab_exec=None, hardlink_output=True,
+                        **kwargs):
     """
     Wrapper for running spm.Realign with optional reporting.
 
@@ -896,6 +899,11 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
 
     # sanitize software choice
     software = software.lower()
+
+    if software == "python":
+        return _pp_do_subject_smooth(subject_data, fwhm, caching=caching,
+                                     report=report)
+
     if software != "spm":
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
