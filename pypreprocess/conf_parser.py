@@ -145,6 +145,7 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
         "slice_timing_software": options.get("slice_timing_software", "spm"),
         "realign_software": options.get("realign_software", "spm"),
         "coregister_software": options.get("coregister_software", "spm"),
+        "smooth_software": options.get("smooth_software", "spm"),
         }
 
     # delete orientation meta-data ?
