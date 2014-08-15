@@ -20,4 +20,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # consume config file and run pypreprocess back-end
-    do_subjects_preproc(sys.argv[1])
+    subjects = do_subjects_preproc(sys.argv[1])
+
+    from sprint import do_subject_glm
+    map(do_subject_glm, subjects)
