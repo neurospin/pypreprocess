@@ -667,6 +667,7 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
 
 def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                           spm_dir=None, matlab_exec=None,
+                          smooth_software="spm",
                           func_write_voxel_sizes=[3, 3, 3],
                           anat_write_voxel_sizes=[1, 1, 1],
                           report=True, software="spm",
@@ -863,8 +864,8 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
 
 
 def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
-                       matlab_exec=None, caching=True,
-                       report=True, hardlink_output=True, software="spm"):
+                       matlab_exec=None, caching=True, software="spm",
+                       report=True, hardlink_output=True):
     """
     Wrapper for running spm.Smooth with optional reporting.
 
@@ -947,7 +948,8 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
 
         smooth_result = smooth(in_files=in_files,
                                fwhm=width,
-                               ignore_exception=False
+                               ignore_exception=False,
+                               software=smooth_software
                                )
 
         # failed node ?
@@ -1144,6 +1146,8 @@ def do_subject_preproc(
     anat_fwhm=0.,
     func_write_voxel_sizes=None,
     anat_write_voxel_sizes=None,
+
+    smooth_software="spm",
 
     hardlink_output=True,
     report=True,
@@ -1379,7 +1383,8 @@ def do_subject_preproc(
             anat_write_voxel_sizes=anat_write_voxel_sizes,
             caching=caching,
             report=report,
-            hardlink_output=hardlink_output
+            hardlink_output=hardlink_output,
+            smooth_software=smooth_software
             )
 
         # handle failed node
@@ -1395,7 +1400,8 @@ def do_subject_preproc(
                                           fwhm, anat_fwhm=anat_fwhm,
                                           caching=caching,
                                           report=report,
-                                          hardlink_output=hardlink_output
+                                          hardlink_output=hardlink_output,
+                                          software=smooth_software
                                           )
 
         # handle failed node

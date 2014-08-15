@@ -218,6 +218,9 @@ def _do_subject_smooth(subject_data, fwhm, func_prefix=None,
     if func_prefix is None:
         func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['smoothing']
 
+    if func_basenames is None:
+        func_basenames = [get_basenames(func) for func in subject_data.func]
+
     # prepare for smart caching
     if caching:
         mem = Memory(cachedir=os.path.join(
