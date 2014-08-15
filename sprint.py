@@ -228,25 +228,26 @@ def do_subject_glm(subject_data):
     return subject_id, anat, effects_maps, z_maps, contrasts, fmri_glm.mask
 
 
-mem = Memory(os.path.join(output_dir, "cache"))
-first_level_glms = map(mem.cache(do_subject_glm), subject_dirs)
+if __name__ == "__maih__":
+    mem = Memory(os.path.join(output_dir, "cache"))
+    first_level_glms = map(mem.cache(do_subject_glm), subject_dirs)
 
-# plot stats (per subject)
-import matplotlib.pyplot as plt
-import nipy.labs.viz as viz
-all_masks = []
-all_effects_maps = []
-for (subject_id, anat, effects_maps, z_maps,
-     contrasts, mask) in first_level_glms:
-    all_masks.append(mask)
-    anat_img = nibabel.load(anat)
-    z_map = nibabel.load(z_maps.values()[0])
-    all_effects_maps.append(effects_maps)
-    for contrast_id, z_map in z_maps.iteritems():
-        z_map = nibabel.load(z_map)
-        viz.plot_map(z_map.get_data(), z_map.get_affine(),
-                     anat=anat_img.get_data(),
-                     anat_affine=anat_img.get_affine(), slicer='ortho',
-                     title="%s: %s" % (subject_id, contrast_id),
-                     black_bg=True, cmap=viz.cm.cold_hot, threshold=2.3)
-        plt.savefig("%s_%s.png" % (subject_id, contrast_id))
+    # plot stats (per subject)
+    import matplotlib.pyplot as plt
+    import nipy.labs.viz as viz
+    all_masks = []
+    all_effects_maps = []
+    for (subject_id, anat, effects_maps, z_maps,
+         contrasts, mask) in first_level_glms:
+        all_masks.append(mask)
+        anat_img = nibabel.load(anat)
+        z_map = nibabel.load(z_maps.values()[0])
+        all_effects_maps.append(effects_maps)
+        for contrast_id, z_map in z_maps.iteritems():
+            z_map = nibabel.load(z_map)
+            viz.plot_map(z_map.get_data(), z_map.get_affine(),
+                         anat=anat_img.get_data(),
+                         anat_affine=anat_img.get_affine(), slicer='ortho',
+                         title="%s: %s" % (subject_id, contrast_id),
+                         black_bg=True, cmap=viz.cm.cold_hot, threshold=2.3)
+            plt.savefig("%s_%s.png" % (subject_id, contrast_id))
