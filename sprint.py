@@ -192,7 +192,7 @@ def job(subject_dir):
         for map_type, out_map in zip(['z', 't', 'effects', 'variance'],
                                   [z_map, t_map, effects_map, var_map]):
             map_dir = os.path.join(
-                subject_data.output_dir, '%s_maps' % map_type)
+                subject_output_dir, '%s_maps' % map_type)
             if not os.path.exists(map_dir):
                 os.makedirs(map_dir)
             map_path = os.path.join(
