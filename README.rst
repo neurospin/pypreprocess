@@ -73,6 +73,10 @@ Intra-subject preprocessing in pure-Python
 cd to the pypreprocess/examples directory, and run the following command:
 
        python purepython_preproc_demo.py
+       
+Using .ini configuration files to specify pipeline
+==================================================
+Take a look at the examples/ subdirectory for use-cases of this feature.
 
 Development
 ===========
