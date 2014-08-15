@@ -15,7 +15,7 @@ and smoothing, without need for nipype or matlab.
 
 Check out the wiki at https://github.com/neurospin/pypreprocess/wiki.
 
-This work is made available by the [Parietal](https://team.inria.fr/parietal/) .
+This work is made available by the Parietal https://team.inria.fr/parietal/.
 
 Important links
 ===============
