@@ -87,27 +87,32 @@ session_onset_wildcards = [session_1_onset, session_2_onset]
 session_func_wildcards = [session_1_func, session_2_func]
 
 
-def job(subject_dir):
+def do_subject_glm(subject_data):
     """FE analysis for a single subject."""
-    subject_id = os.path.basename(subject_dir)
-    subject_output_dir = os.path.join(output_dir, subject_id)
-    mem = Memory(os.path.join(subject_output_dir, "cache"))
-    if not os.path.exists(subject_output_dir):
-        os.makedirs(subject_output_dir)
+    subject_id = subject_data['subject_id']
+    output_dir = subject_data["output_dir"]
+    func_files = subject_data['func']
+    anat = subject_data['anat']
+    onset_files = subject_data['onset']
+    # subject_id = os.path.basename(subject_dir)
+    # subject_output_dir = os.path.join(output_dir, subject_id)
+    mem = Memory(os.path.join(output_dir, "cache"))
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     # glob files: anat, session func files, session onset files
-    anat = glob.glob(os.path.join(subject_dir, anat_wildcard))
-    assert len(anat) == 1
-    anat = anat[0]
-    onset_files = sorted([glob.glob(os.path.join(subject_dir, session))[0]
-                          for session in session_onset_wildcards])
-    func_files = sorted([sorted(glob.glob(os.path.join(subject_dir, session)))
-                         for session in session_func_wildcards])
+    # anat = glob.glob(os.path.join(subject_dir, anat_wildcard))
+    # assert len(anat) == 1
+    # anat = anat[0]
+    # onset_files = sorted([glob.glob(os.path.join(subject_dir, session))[0]
+    #                       for session in session_onset_wildcards])
+    # func_files = sorted([sorted(glob.glob(os.path.join(subject_dir, session)))
+    #                      for session in session_func_wildcards])
 
     ### Preprocess data #######################################################
     if 0:
         subject_data = mem.cache(do_subject_preproc)(
-            dict(func=func_files, anat=anat, output_dir=subject_output_dir))
+            dict(func=func_files, anat=anat, output_dir=output_dir))
         func_files = subject_data['func']
         anat = subject_data['anat']
 
@@ -178,7 +183,7 @@ def job(subject_dir):
     fmri_glm.fit(do_scaling=True, model='ar1')
 
     # save computed mask
-    mask_path = os.path.join(subject_output_dir, "mask.nii.gz")
+    mask_path = os.path.join(output_dir, "mask.nii.gz")
 
     print "Saving mask image %s" % mask_path
     nibabel.save(fmri_glm.mask, mask_path)
@@ -206,7 +211,7 @@ def job(subject_dir):
         for map_type, out_map in zip(['z', 't', 'effects', 'variance'],
                                   [z_map, t_map, effects_map, var_map]):
             map_dir = os.path.join(
-                subject_output_dir, '%s_maps' % map_type)
+                output_dir, '%s_maps' % map_type)
             if not os.path.exists(map_dir):
                 os.makedirs(map_dir)
             map_path = os.path.join(
@@ -224,7 +229,7 @@ def job(subject_dir):
 
 
 mem = Memory(os.path.join(output_dir, "cache"))
-first_level_glms = map(mem.cache(job), subject_dirs)
+first_level_glms = map(mem.cache(do_subject_glm), subject_dirs)
 
 # plot stats (per subject)
 import matplotlib.pyplot as plt

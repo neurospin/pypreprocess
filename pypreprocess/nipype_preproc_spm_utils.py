@@ -150,6 +150,13 @@ def _do_subject_slice_timing(subject_data, TR, TA=None,
         raise NotImplementedError(
             "Only SPM is supported; got software='%s'" % software)
 
+    # configure SPM back-end
+    # XXX what about precompiled SPM; the following check would be too harsh in
+    # XXX this case
+    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
+    assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
+        "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
+
     # compute TA (possibly from formula specified as a string)
     if isinstance(TA, basestring):
         TA = TA.replace("/", "* 1. /")
@@ -1199,8 +1206,8 @@ def do_subject_preproc(
         fwhm = 0.
     if not subject_data.anat: anat_fwhm = 0
 
-    assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
-        "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
+    # assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
+    #     "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
     # sanitze subject data
     if isinstance(subject_data, dict):
@@ -1558,9 +1565,9 @@ def do_subjects_preproc(subject_factory,
     # configure SPM back-end
     # XXX what about precompiled SPM; the following check would be too harsh in
     # XXX this case
-    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
-    assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
-        "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
+    # _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
+    # assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
+    #     "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
     # configure number of jobs
     if n_jobs is None: n_jobs = 1

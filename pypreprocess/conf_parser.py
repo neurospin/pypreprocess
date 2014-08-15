@@ -8,7 +8,6 @@ import os
 import warnings
 import glob
 import re
-from copy import deepcopy
 from configobj import ConfigObj
 import numpy as np
 from subject_data import SubjectData
@@ -197,7 +196,6 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
                 "Both %s and %s specified in ini file. Please use only one of "
                 "them, they mean thesame thing!")
             options[ks] = options.pop(k)
-        else: print k
         preproc_params[ks] = options.get(
             ks, [[3, 3, 3], [1, 1, 1]][brain == "anat"])
 
@@ -234,9 +232,12 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
     subject_dir_wildcard = os.path.join(dataset_dir,
                                         options.get("subject_dirs",
                                                     "*"))
-    sessions = [k for k in options.keys() if re.match("session_.+_func", k)]
-    session_ids = [re.match("session_(.+)_func", session).group(1)
-                   for session in sessions]
+    sess_func_wildcards = [k for k in options.keys()
+                              if re.match("session_.+_func", k)]
+    sess_onset_wildcards = [k for k in options.keys()
+                              if re.match("session_.+_onset", k)]
+    sess_ids = [re.match("session_(.+)_func", session).group(1)
+                   for session in sess_func_wildcards]
     subject_data_dirs = sorted(glob.glob(subject_dir_wildcard))
     if not subject_data_dirs:
         warnings.warn("No subject directories found for wildcard: %s" % (
@@ -255,10 +256,25 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
         func = []
         sess_output_dirs = []
         skip_subject = False
-        for session in sessions:
-            session = options[session]
-            sess_func_wildcard = os.path.join(subject_data_dir, session)
+        onset = []
+        for s, sess_func_wildcard in enumerate(sess_func_wildcards):
+            o = None
+            if s < len(sess_onset_wildcards):
+                sess_onset_wildcard = sess_onset_wildcards[s]
+                sess_onset_wildcard = options[sess_onset_wildcard]
+                sess_onset_wildcard = os.path.join(subject_data_dir,
+                                                  sess_onset_wildcard)
+                sess_onset = sorted(glob.glob(sess_onset_wildcard))
+                assert len(sess_onset) in [0, 1]
+                if len(sess_onset) > 0:
+                    o = sess_onset[0]
+                onset.append(o)
+
+            sess_func_wildcard = options[sess_func_wildcard]
+            sess_func_wildcard = os.path.join(subject_data_dir,
+                                              sess_func_wildcard)
             sess_func = sorted(glob.glob(sess_func_wildcard))
+
             if not sess_func:
                 print("subject %s: No func images found for"
                       " wildcard %s" % (subject_id, sess_func_wildcard))
@@ -319,8 +335,9 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
                                    output_dir=subject_output_dir,
                                    session_output_dirs=sess_output_dirs,
                                    anat_output_dir=anat_output_dir,
-                                   session_id=session_ids,
-                                   data_dir=subject_data_dir)
+                                   session_id=sess_ids,
+                                   data_dir=subject_data_dir,
+                                   onset=onset)
         subjects.append(subject_data)
 
     if not subjects:
