@@ -104,14 +104,20 @@ def job(subject_dir):
     func_files = sorted([sorted(glob.glob(os.path.join(subject_dir, session)))
                          for session in session_func_wildcards])
 
-    # preprocess data
-    subject_data = mem.cache(do_subject_preproc)(
-        dict(func=func_files, anat=anat, output_dir=subject_output_dir))
+    ### Preprocess data #######################################################
+    if 0:
+        subject_data = mem.cache(do_subject_preproc)(
+            dict(func=func_files, anat=anat, output_dir=subject_output_dir))
+        func_files = subject_data['func']
+        anat = subject_data['anat']
 
-    func_files = subject_data['func']
-    anat = subject_data['anat']
+        # reslice func images
+        func_files = [mem.cache(reslice_vols)(
+                sess_func,
+                target_affine=nibabel.load(sess_func[0]).get_affine())
+                  for sess_func in func_files]
 
-    # loop on (session_bold, onse_file) pairs over the various sessions
+    ### GLM: loop on (session_bold, onse_file) pairs over the various sessions
     design_matrices = []
     for session, (func_file, onset_file) in enumerate(zip(func_files,
                                                           onset_files)):
@@ -138,15 +144,9 @@ def job(subject_dir):
                 paradigm, hrf_model=hrf_model,
                 drift_model=drift_model, hfcut=hfcut))
 
-    # resample func images
-    func_files = [mem.cache(reslice_vols)(
-                sess_func,
-                target_affine=nibabel.load(sess_func[0]).get_affine())
-                  for sess_func in func_files]
-
     # specify contrasts
-    contrasts = {}
     n_columns = len(design_matrices[0].names)
+    contrasts = {}
     for i in xrange(paradigm.n_conditions):
         contrasts['%s' % design_matrices[0].names[2 * i]
                   ] = np.eye(n_columns)[2 * i]
@@ -158,9 +158,18 @@ def job(subject_dir):
     contrasts['effects_of_interest'] = contrasts['faces'
                                                  ] + contrasts['scrambled']
 
+    # effects of interest F-test
+    diff_contrasts = []
+    for i in xrange(paradigm.n_conditions - 1):
+        a = contrasts[design_matrices[0].names[2 * i]]
+        b = contrasts[design_matrices[0].names[2 * (i + 1)]]
+        diff_contrasts.append(a - b)
+    contrasts["diff"] = diff_contrasts
+
     # fit GLM
     print 'Fitting a GLM (this takes time)...'
-    fmri_glm = FMRILinearModel([nibabel.concat_images(sess_func)
+    fmri_glm = FMRILinearModel([nibabel.concat_images(sess_func,
+                                                      check_affines=False)
                                 for sess_func in func_files],
                                [design_matrix.matrix
                                 for design_matrix in design_matrices],
@@ -179,9 +188,14 @@ def job(subject_dir):
     effects_maps = {}
     for contrast_id, contrast_val in contrasts.iteritems():
         print "\tcontrast id: %s" % contrast_id
+        if np.ndim(contrast_val) > 1:
+            contrast_type = "t"
+        else:
+            contrast_type = "F"
         z_map, t_map, effects_map, var_map = fmri_glm.contrast(
             [contrast_val] * 2,
             con_id=contrast_id,
+            contrast_type=contrast_type,
             output_z=True,
             output_stat=True,
             output_effects=True,
@@ -206,4 +220,28 @@ def job(subject_dir):
             if map_type == 'effects':
                 effects_maps[contrast_id] = map_path
 
-map(job, subject_dirs)
+    return subject_id, anat, effects_maps, z_maps, contrasts, fmri_glm.mask
+
+
+mem = Memory(os.path.join(output_dir, "cache"))
+first_level_glms = map(mem.cache(job), subject_dirs)
+
+# plot stats (per subject)
+import matplotlib.pyplot as plt
+import nipy.labs.viz as viz
+all_masks = []
+all_effects_maps = []
+for (subject_id, anat, effects_maps, z_maps,
+     contrasts, mask) in first_level_glms:
+    all_masks.append(mask)
+    anat_img = nibabel.load(anat)
+    z_map = nibabel.load(z_maps.values()[0])
+    all_effects_maps.append(effects_maps)
+    for contrast_id, z_map in z_maps.iteritems():
+        z_map = nibabel.load(z_map)
+        viz.plot_map(z_map.get_data(), z_map.get_affine(),
+                     anat=anat_img.get_data(),
+                     anat_affine=anat_img.get_affine(), slicer='ortho',
+                     title="%s: %s" % (subject_id, contrast_id),
+                     black_bg=True, cmap=viz.cm.cold_hot, threshold=2.3)
+        plt.savefig("%s_%s.png" % (subject_id, contrast_id))
