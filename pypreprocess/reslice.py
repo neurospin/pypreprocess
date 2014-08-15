@@ -176,6 +176,7 @@ def reslice_vols(vols, target_affine=None, interp_order=3,
             msk = msk & fov_msk
 
     # loop on all vols, reslicing them one-by-one
+    rvols = []
     for t in xrange(n_scans):
         _log('\tReslicing volume %i/%i...' % (t + 1, len(vols)))
 
@@ -205,7 +206,6 @@ def reslice_vols(vols, target_affine=None, interp_order=3,
 
         # replace vols's affine with ref vol's (this has been the ultimate
         # goal all along)
-        rvol = nibabel.Nifti1Image(rdata.reshape(dim), target_affine)
+        rvols.append(nibabel.Nifti1Image(rdata.reshape(dim), target_affine))
 
-        # yield resliced vol
-        yield rvol
+    return rvols
