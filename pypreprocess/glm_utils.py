@@ -216,7 +216,7 @@ def do_subject_glm(subject_data):
         else:
             contrast_type = "F"
         z_map, t_map, effects_map, var_map = fmri_glm.contrast(
-            [contrast_val] * 2,
+            [contrast_val] * len(func_files),
             con_id=contrast_id,
             contrast_type=contrast_type,
             output_z=True,
