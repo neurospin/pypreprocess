@@ -17,9 +17,6 @@ from nipy.modalities.fmri.glm import FMRILinearModel
 from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
 from pypreprocess.datasets import fetch_spm_auditory_data
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
-from pypreprocess.reporting.base_reporter import ProgressReport
-from nipype.caching import Memory as NipypeMemory
-import nipype.interfaces.spm as spm
 
 # file containing configuration for preprocessing the data
 this_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -31,12 +28,8 @@ if len(sys.argv) > 1:
 else:
     dataset_dir = os.path.join(this_dir, "spm_auditory")
 
-
 # fetch spm auditory data
-fetch_spm_auditory_data(dataset_dir)
-
-# preprocess the data
-subject_data = do_subjects_preproc(jobfile, dataset_dir=dataset_dir)[0]
+sd = fetch_spm_auditory_data(dataset_dir)
 
 # construct experimental paradigm
 stats_start_time = time.ctime()
@@ -50,6 +43,14 @@ onset = np.linspace(0, (len(conditions) - 1) * epoch_duration,
                     len(conditions))
 paradigm = BlockParadigm(con_id=conditions, onset=onset, duration=duration)
 hfcut = 2 * 2 * epoch_duration
+fd = open(sd.func[0].split(".")[0] + "_onset.txt", "w")
+for c, o, d in zip(conditions, onset, duration):
+    fd.write("%s %s %s\r\n" % (c, o, d))
+fd.close()
+assert 0
+
+# preprocess the data
+subject_data = do_subjects_preproc(jobfile, dataset_dir=dataset_dir)[0]
 
 # construct design matrix
 nscans = len(subject_data.func[0])

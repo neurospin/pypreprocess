@@ -1,12 +1,13 @@
 """
 GLM utils (backended by nipy).
 
-# WIP
-# Experimenting the possibility of specifying timing info in .ini files
-# alongside info specific to preprocessing business
-# XXX TODO: take into account multi-models (a model is simply a
-# one-to-one mapping a subset of bold files, unto onset / timing
-# files.
+WIP
+===
+Experimenting the possibility of specifying timing info in .ini files
+alongside info specific to preprocessing business
+XXX TODO: take into account multi-models (a model is simply a
+one-to-one mapping a subset of bold files, unto onset / timing
+files.
 
 
 """
