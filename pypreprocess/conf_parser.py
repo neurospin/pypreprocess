@@ -145,7 +145,7 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
         "slice_timing_software": options.get("slice_timing_software", "spm"),
         "realign_software": options.get("realign_software", "spm"),
         "coregister_software": options.get("coregister_software", "spm"),
-        "smooth_software": options.get("smooth_software", "spm"),
+        "smooth_software": options.get("smooth_software", "spm")
         }
 
     # delete orientation meta-data ?
@@ -332,13 +332,20 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
                 os.makedirs(anat_output_dir)
 
         # make subject data
-        subject_data = SubjectData(subject_id=subject_id, func=func, anat=anat,
-                                   output_dir=subject_output_dir,
-                                   session_output_dirs=sess_output_dirs,
-                                   anat_output_dir=anat_output_dir,
-                                   session_id=sess_ids,
-                                   data_dir=subject_data_dir,
-                                   onset=onset)
+        subject_data = SubjectData(
+            subject_id=subject_id, func=func, anat=anat,
+            output_dir=subject_output_dir,
+            session_output_dirs=sess_output_dirs,
+            anat_output_dir=anat_output_dir,
+            session_id=sess_ids,
+            data_dir=subject_data_dir,
+            onset=onset,
+            TR=options.get('TR', None),
+            drift_model='Cosine',
+            hrf_model=options.get('hrf_model', 'Canonical With Derivative'),
+            hfcut=options.get("hfcut", 128.),
+            time_units=options.get("time_units", "seconds")
+            )
         subjects.append(subject_data)
 
     if not subjects:

@@ -86,15 +86,6 @@ def parse_onset_file(onset_file):
 data_dir = "examples/spm_multimodal/"
 subject_data = fetch_spm_multimodal_fmri_data(data_dir)
 
-# XXX to be verified
-tr = 2.
-drift_model = 'Cosine'
-hrf_model = 'Canonical With Derivative'
-hfcut = 128.
-time_units = "tr"  # default if 1
-if time_units == "tr":
-    time_units = tr
-
 # re-write onset files into compatible format
 for sess in xrange(2):
     trials = getattr(subject_data, "trials_ses%i" % (sess + 1))
@@ -131,6 +122,12 @@ def do_subject_glm(subject_data):
     func_files = subject_data['func']
     anat = subject_data['anat']
     onset_files = subject_data['onset']
+    tr = subject_data['TR']
+    time_units = subject_data['time_units'].lower()
+    assert time_units in ["seconds", "tr", "milliseconds"]
+    drift_model = subject_data['drift_model']
+    hrf_model = subject_data["hrf_model"]
+    hfcut = subject_data["hfcut"]
     mem = Memory(os.path.join(output_dir, "cache"))
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -165,8 +162,12 @@ def do_subject_glm(subject_data):
         frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)
         conditions, onsets, durations, amplitudes = parse_onset_file(
             onset_file)
-        onsets *= tr
-        durations *= tr
+        if time_units == "tr":
+            onsets *= tr
+            durations *= tr
+        elif time_units in ["milliseconds"]:
+            onsets *= 1e-3
+            durations *= 1e-3
         paradigm = BlockParadigm(con_id=conditions, onset=onsets,
                                  duration=durations, amplitude=amplitudes)
         design_matrices.append(make_dmtx(
