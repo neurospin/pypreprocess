@@ -225,7 +225,7 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
 
         if subject_id in exclude_these_subject_ids: return True
         elif len(include_only_these_subject_ids
-               ) and not subject_id in include_only_these_subject_ids:
+                 ) and not subject_id in include_only_these_subject_ids:
             return True
         else: return False
 
@@ -234,11 +234,11 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
                                         options.get("subject_dirs",
                                                     "*"))
     sess_func_wildcards = [k for k in options.keys()
-                              if re.match("session_.+_func", k)]
+                           if re.match("session_.+_func", k)]
     sess_onset_wildcards = [k for k in options.keys()
-                              if re.match("session_.+_onset", k)]
+                            if re.match("session_.+_onset", k)]
     sess_ids = [re.match("session_(.+)_func", session).group(1)
-                   for session in sess_func_wildcards]
+                for session in sess_func_wildcards]
     subject_data_dirs = sorted(glob.glob(subject_dir_wildcard))
     if not subject_data_dirs:
         warnings.warn("No subject directories found for wildcard: %s" % (
@@ -269,7 +269,7 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
                 assert len(sess_onset) in [0, 1]
                 if len(sess_onset) > 0:
                     o = sess_onset[0]
-                onset.append(o)
+            onset.append(o)
 
             sess_func_wildcard = options[sess_func_wildcard]
             sess_func_wildcard = os.path.join(subject_data_dir,
