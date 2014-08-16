@@ -181,13 +181,6 @@ def do_subject_glm(subject_data):
         contrasts['%s' % design_matrices[0].names[2 * i]
                   ] = np.eye(n_columns)[2 * i]
 
-    # more interesting contrasts
-    contrasts['faces-scrambled'] = contrasts['faces'
-                                             ] - contrasts['scrambled']
-    contrasts['scrambled-faces'] = -contrasts['faces-scrambled']
-    contrasts['effects_of_interest'] = contrasts['faces'
-                                                 ] + contrasts['scrambled']
-
     # effects of interest F-test
     diff_contrasts = []
     for i in xrange(paradigm.n_conditions - 1):
