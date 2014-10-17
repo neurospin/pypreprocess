@@ -29,7 +29,7 @@ def configure_spm(matlab_exec=None, spm_dir=None):
     if (distutils.version.LooseVersion(nipype.__version__).version >= [0, 9]
         and 'SPM_MCR' in os.environ
         and os.path.exists(os.environ['SPM_MCR'])):
-        spm_dir = os.environ['SPM_DIR']
+        spm_dir = os.environ['SPM_MCR']
         matlab_cmd = '%s run script' % os.environ['SPM_MCR']
         spm.SPMCommand.set_mlab_paths(matlab_cmd=matlab_cmd, use_mcr=True)
     # use hard coded SPM_MCR
