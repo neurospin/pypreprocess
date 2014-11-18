@@ -66,16 +66,17 @@ EPI_TEMPLATE = SPM_DIR = SPM_T1_TEMPLATE = T1_TEMPLATE = None
 GM_TEMPLATE = WM_TEMPLATE = CSF_TEMPLATE = None
 
 
-def _configure_backends(spm_dir=None, matlab_exec=None, spm_mcr=None):
+def _configure_backends(spm_dir=None, matlab_exec=None, spm_mcr=None,
+                        critical=True):
     global SPM_DIR, EPI_TEMPLATE, SPM_T1_TEMPLATE, T1_TEMPLATE
     global GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE
 
-    _ = _configure_spm(spm_dir=spm_dir, matlab_exec=matlab_exec,
+    spm_dir = _configure_spm(spm_dir=spm_dir, matlab_exec=matlab_exec,
                       spm_mcr=spm_mcr)
 
-    if _[0]:
-        if os.path.isdir(_[0]):
-            SPM_DIR = _[0]
+    if spm_dir:
+        if os.path.isdir(spm_dir):
+            SPM_DIR = spm_dir
 
             # configure template images
             EPI_TEMPLATE = os.path.join(SPM_DIR, 'templates/EPI.nii')
@@ -90,6 +91,8 @@ def _configure_backends(spm_dir=None, matlab_exec=None, spm_mcr=None):
             CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
 
             _set_templates(spm_dir=SPM_DIR)
+    elif critical:
+        raise RuntimeError("Failed to configure SPM!")
 
 try:
     _configure_backends()
