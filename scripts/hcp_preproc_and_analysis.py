@@ -1,3 +1,4 @@
+
 """
 :Synopsis: preprocessing and/or analysis of HCP task fMRI data
 :Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com> <elvis.dohmatob@inria.fr>
@@ -507,7 +508,7 @@ if __name__ == '__main__':
                 'EMOTION',
                 'GAMBLING',
                 'RELATIONAL',
-                'SOCIAL']
+                'SOCIAL'][3:4]
     slicer = 'ortho'  # slicer of activation maps QA
     cut_coords = None
     threshold = 3.
@@ -515,16 +516,11 @@ if __name__ == '__main__':
 
     ####################################
     # read input configuration
-    conf_file = os.path.join(os.path.dirname(sys.argv[0]),
-                             "HCP_tfMRI_MOTOR_preproc.ini")
+    conf_file = os.path.join(os.path.dirname(sys.argv[0]), "HCP.ini")
 
     for protocol in protocols:
         subjects, preproc_params = _generate_preproc_pipeline(
             conf_file, protocol=protocol)
-
-        if 0x1:
-            np.random.RandomState(42)
-            np.random.shuffle(subjects)
 
         fwhm = preproc_params.get("fwhm")
         task_output_dir = os.path.join(os.path.dirname(subjects[0].output_dir))
