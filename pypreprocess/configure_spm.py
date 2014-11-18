@@ -13,13 +13,32 @@ from nipype.interfaces import spm
 import nipype
 
 # default paths
-DEFAULT_SPM_DIRS = ['/i2bm/local/spm8'][:0]
+DEFAULT_SPM_DIRS = ['/i2bm/local/spm8']
 DEFAULT_MATLAB_EXECS = ["/neurospin/local/bin/matlab"]
-DEFAULT_SPM_MCRS = ["/i2bm/local/bin/spm8"]
+DEFAULT_SPM_MCRS = ["/i2bm/local/bin/spm8",
+                    "/storage/workspace/usr/local/spm8"]
 
 
 def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):
-    """Configure SPM backend."""
+    """Configure SPM backend.
+
+    Parameters
+    ----------
+    spm_dir : string, optional (default None)
+        Directory containing SPM installation.
+
+    matlab_exec : string, optional (default None)
+        Path to matlab executable.
+
+    spm_mcr : string, optional (default None)
+        Path to precompiled SPM executable.
+
+    Returns
+    -------
+    spm_dir_ : string, Nonetype
+        If all went well, then this returned variable is the path to
+        the directory containing SPM stuff (TPMs, templates, etc.),
+        otherwise it is None."""
     # sanitize input spm_dir
     if not spm_dir is None:
         if spm_dir is None or not os.path.isdir(spm_dir):
