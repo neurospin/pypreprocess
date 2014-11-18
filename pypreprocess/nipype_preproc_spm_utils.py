@@ -14,6 +14,9 @@ from matplotlib.pyplot import cm
 from slice_timing import get_slice_indices
 from conf_parser import _generate_preproc_pipeline
 
+import matplotlib
+matplotlib.use('Agg')
+
 # import joblib API
 from joblib import (Parallel,
                     delayed,

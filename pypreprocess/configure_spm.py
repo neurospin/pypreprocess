@@ -107,7 +107,7 @@ def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):
             if spm_mcr is None:
                 # set spm_mcr to SPM_MCR exported variable
                 if "SPM_MCR" in os.environ:
-                    if not os.path.isdir(os.environ["SPM_MCR"]):
+                    if not os.path.isfile(os.environ["SPM_MCR"]):
                         warnings.warn(
                             "Exported SPM_MCR '%s' is not a file!" % (
                                 os.environ["SPM_MCR"]))
