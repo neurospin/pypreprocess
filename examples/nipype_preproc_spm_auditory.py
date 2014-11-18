@@ -47,7 +47,6 @@ fd = open(sd.func[0].split(".")[0] + "_onset.txt", "w")
 for c, o, d in zip(conditions, onset, duration):
     fd.write("%s %s %s\r\n" % (c, o, d))
 fd.close()
-assert 0
 
 # preprocess the data
 subject_data = do_subjects_preproc(jobfile, dataset_dir=dataset_dir)[0]

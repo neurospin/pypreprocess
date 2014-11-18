@@ -1,6 +1,5 @@
 """
 :Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
-
 """
 
 # standard imports
@@ -12,7 +11,6 @@ import inspect
 import numpy as np
 import nibabel
 from matplotlib.pyplot import cm
-
 from slice_timing import get_slice_indices
 from conf_parser import _generate_preproc_pipeline
 
@@ -25,7 +23,7 @@ from joblib import (Parallel,
 # import nipype API
 import nipype.interfaces.spm as spm
 from nipype.caching import Memory as NipypeMemory
-from configure_spm import configure_spm
+from configure_spm import _configure_spm
 
 # import API for i/o
 from .io_utils import (load_specific_vol,
@@ -68,11 +66,12 @@ EPI_TEMPLATE = SPM_DIR = SPM_T1_TEMPLATE = T1_TEMPLATE = None
 GM_TEMPLATE = WM_TEMPLATE = CSF_TEMPLATE = None
 
 
-def _configure_backends(spm_dir=None, matlab_exec=None):
+def _configure_backends(spm_dir=None, matlab_exec=None, spm_mcr=None):
     global SPM_DIR, EPI_TEMPLATE, SPM_T1_TEMPLATE, T1_TEMPLATE
     global GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE
 
-    _ = configure_spm(spm_dir=spm_dir, matlab_exec=matlab_exec)
+    _ = _configure_spm(spm_dir=spm_dir, matlab_exec=matlab_exec,
+                      spm_mcr=spm_mcr)
 
     if _[0]:
         if os.path.isdir(_[0]):
@@ -99,7 +98,7 @@ except AssertionError:
 
 
 def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
-                             matlab_exec=None, refslice=0,
+                             matlab_exec=None, spm_mcr=None, refslice=0,
                              slice_order="ascending",
                              interleaved=False, caching=True,
                              report=True, software="spm",
@@ -153,7 +152,8 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
             "Only SPM is supported; got software='%s'" % software)
 
     # configure SPM back-end
-    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
+    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec,
+                        spm_mcr=spm_mcr)
     assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
@@ -214,8 +214,8 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
 
 def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
                         caching=True, report=True, software="spm",
-                        spm_dir=None, matlab_exec=None, hardlink_output=True,
-                        **kwargs):
+                        spm_dir=None, matlab_exec=None, spm_mcr=None,
+                        hardlink_output=True, **kwargs):
     """
     Wrapper for running spm.Realign with optional reporting.
 
@@ -287,7 +287,8 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # configure SPM back-end
-    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
+    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec,
+                        spm_mcr=spm_mcr)
     assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
@@ -358,9 +359,10 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
 
 def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
-                           matlab_exec=None, coreg_anat_to_func=False,
-                           caching=True, report=True, software="spm",
-                           hardlink_output=True, **kwargs):
+                           matlab_exec=None, spm_mcr=None,
+                           coreg_anat_to_func=False, caching=True,
+                           report=True, software="spm", hardlink_output=True,
+                           **kwargs):
     """
     Wrapper for running spm.Coregister with optional reporting.
 
@@ -438,7 +440,8 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
             "Only SPM is supported; got '%s'" % software)
 
     # configure SPM back-end
-    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
+    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec,
+                        spm_mcr=spm_mcr)
     assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
@@ -530,8 +533,9 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
 
 
 def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
-                        matlab_exec=None, normalize=False, caching=True,
-                        report=True, software="spm", hardlink_output=True):
+                        matlab_exec=None, spm_mcr=None, normalize=False,
+                        caching=True, report=True, software="spm",
+                        hardlink_output=True):
     """
     Wrapper for running spm.Segment with optional reporting.
 
@@ -602,7 +606,8 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # configure SPM back-end
-    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
+    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec,
+                        spm_mcr=spm_mcr)
     assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
@@ -666,13 +671,11 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
 
 
 def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
-                          spm_dir=None, matlab_exec=None,
+                          spm_dir=None, matlab_exec=None, spm_mcr=None,
                           smooth_software="spm",
                           func_write_voxel_sizes=[3, 3, 3],
-                          anat_write_voxel_sizes=[1, 1, 1],
-                          report=True, software="spm",
-                          hardlink_output=True
-                          ):
+                          anat_write_voxel_sizes=[1, 1, 1], report=True,
+                          software="spm", hardlink_output=True):
     """
     Wrapper for running spm.Segment with optional reporting.
 
@@ -725,7 +728,8 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # configure SPM back-end
-    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
+    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec,
+                        spm_mcr=spm_mcr)
     assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
@@ -864,8 +868,8 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
 
 
 def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
-                       matlab_exec=None, caching=True, software="spm",
-                       report=True, hardlink_output=True):
+                       matlab_exec=None, spm_mcr=None, caching=True,
+                       software="spm", report=True, hardlink_output=True):
     """
     Wrapper for running spm.Smooth with optional reporting.
 
@@ -909,7 +913,8 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # configure SPM back-end
-    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
+    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec,
+                        spm_mcr=spm_mcr)
     assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
@@ -980,6 +985,7 @@ def _do_subject_dartelnorm2mni(subject_data,
                                template_file,
                                spm_dir=None,
                                matlab_exec=None,
+                               spm_mcr=None,
                                fwhm=0,
                                anat_fwhm=0.,
                                output_modulated_tpms=False,
@@ -1012,7 +1018,8 @@ def _do_subject_dartelnorm2mni(subject_data,
     """
 
     # configure SPM back-end
-    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
+    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec,
+                        spm_mcr=spm_mcr)
     assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
@@ -1024,7 +1031,7 @@ def _do_subject_dartelnorm2mni(subject_data,
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        subject_data.mem = NipypeMemory(base_dir=cache_dir) 
+        subject_data.mem = NipypeMemory(base_dir=cache_dir)
         dartelnorm2mni = subject_data.mem.cache(
             spm.DARTELNorm2MNI)
         createwarped = subject_data.mem.cache(
@@ -1424,6 +1431,7 @@ def _do_subjects_dartel(subjects,
                         output_dir,
                         spm_dir=None,
                         matlab_exec=None,
+                        spm_mcr=None,
                         fwhm=0,
                         anat_fwhm=0.,
                         func_write_voxel_sizes=None,
@@ -1441,7 +1449,8 @@ def _do_subjects_dartel(subjects,
     """
 
     # configure SPM back-end
-    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec)
+    _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec,
+                        spm_mcr=spm_mcr)
     assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
