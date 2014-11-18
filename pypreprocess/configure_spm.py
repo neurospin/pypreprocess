@@ -32,6 +32,8 @@ def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):
         for spm_dir in DEFAULT_SPM_DIRS:
             if os.path.isdir(spm_dir):
                 break
+        else:
+            spm_dir = None
 
     if spm_dir is None:
         # set spm_dir to SPM_DIR exported variable
@@ -61,6 +63,8 @@ def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):
         for matlab_exec in DEFAULT_MATLAB_EXECS:
             if os.path.isfile(matlab_exec):
                 break
+        else:
+            matlab_exec = None
 
     if matlab_exec is None:
         # set matlab_exec to MATLAB_EXEC exported variable
@@ -97,6 +101,8 @@ def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):
             for spm_mcr in DEFAULT_SPM_MCRS:
                 if os.path.isfile(spm_mcr):
                     break
+            else:
+                spm_mcr = None
 
             if spm_mcr is None:
                 # set spm_mcr to SPM_MCR exported variable
