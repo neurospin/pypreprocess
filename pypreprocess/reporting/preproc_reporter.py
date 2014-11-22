@@ -219,7 +219,7 @@ def generate_preproc_undergone_docstring(
     if normalize:
         if segment:
             if has_func:
-                salt = (" The same deformations have been"
+                salt = (" The same deformations have been "
                         'applied to the functional images.')
             else: salt = ""
             preproc_undergone += (
