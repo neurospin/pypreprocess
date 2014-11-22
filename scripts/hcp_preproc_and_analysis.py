@@ -1,4 +1,3 @@
-
 """
 :Synopsis: preprocessing and/or analysis of HCP task fMRI data
 :Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com> <elvis.dohmatob@inria.fr>
@@ -237,7 +236,8 @@ def run_suject_level1_glm(subject_data,
 
     assert len(subject_data.design_files) == 2
     for df in subject_data.design_files:
-        assert os.path.isfile(df), df
+        if not os.path.isfile(df):
+            return
 
     if 0x0:
         subject_data = _do_fmri_distortion_correction(
@@ -374,78 +374,47 @@ def run_suject_level1_glm(subject_data,
         z_maps = {}
         effects_maps = {}
         map_dirs = {}
-        for contrast_id, contrast_val in contrasts.iteritems():
-            print "\tcontrast id: %s" % contrast_id
-            z_map, eff_map = fmri_glm.contrast(
-                contrast_val,
-                con_id=contrast_id,
-                output_z=True,
-                output_effects=True
-                )
+        try:
+            for contrast_id, contrast_val in contrasts.iteritems():
+                print "\tcontrast id: %s" % contrast_id
+                z_map, eff_map = fmri_glm.contrast(
+                    contrast_val,
+                    con_id=contrast_id,
+                    output_z=True,
+                    output_effects=True
+                    )
 
-            # store stat maps to disk
-            for map_type, out_map in zip(['z', 'effects'],
-                                         [z_map, eff_map]):
-                map_dir = os.path.join(
-                    subject_data.output_dir, '%s_maps' % map_type)
-                map_dirs[map_type] = map_dir
-                if not os.path.exists(map_dir):
-                    os.makedirs(map_dir)
-                map_path = os.path.join(
-                    map_dir, '%s_%s.nii' % (map_type, contrast_id))
-                print "\t\tWriting %s ..." % map_path
+                # store stat maps to disk
+                for map_type, out_map in zip(['z', 'effects'],
+                                             [z_map, eff_map]):
+                    map_dir = os.path.join(
+                        subject_data.output_dir, '%s_maps' % map_type)
+                    map_dirs[map_type] = map_dir
+                    if not os.path.exists(map_dir):
+                        os.makedirs(map_dir)
+                    map_path = os.path.join(
+                        map_dir, '%s_%s.nii' % (map_type, contrast_id))
+                    print "\t\tWriting %s ..." % map_path
 
-                nibabel.save(out_map, map_path)
+                    nibabel.save(out_map, map_path)
 
-                # collect zmaps for contrasts we're interested in
-                if map_type == 'z':
-                    z_maps[contrast_id] = map_path
+                    # collect zmaps for contrasts we're interested in
+                    if map_type == 'z':
+                        z_maps[contrast_id] = map_path
 
-                if map_type == 'effects':
-                    effects_maps[contrast_id] = map_path
+                    if map_type == 'effects':
+                        effects_maps[contrast_id] = map_path
 
-        return effects_maps, z_maps, mask_path, map_dirs
+            return effects_maps, z_maps, mask_path, map_dirs
+        except:
+            return None
 
     # compute native-space maps and mask
-    effects_maps, z_maps, mask_path, map_dirs = mem.cache(tortoise)(
+    stuff = mem.cache(tortoise)(
         subject_data.func, subject_data.anat)
-
-    # do stats report
-    if 0x0:
-        anat_img = nibabel.load(subject_data.anat)
-        stats_report_filename = os.path.join(subject_data.output_dir,
-                                             "reports",
-                                             "report_stats.html")
-        generate_subject_stats_report(
-            stats_report_filename,
-            contrasts,
-            z_maps,
-            nibabel.load(mask_path),
-            anat=anat_img.get_data(),
-            anat_affine=anat_img.get_affine(),
-            threshold=threshold,
-            cluster_th=cluster_th,
-            slicer=slicer,
-            cut_coords=cut_coords,
-            design_matrices=design_matrices,
-            subject_id=subject_data.subject_id,
-            start_time=stats_start_time,
-            title="GLM for subject %s" % subject_data.subject_id,
-
-            # additional ``kwargs`` for more informative report
-            TR=tr,
-            n_scans=n_scans,
-            hfcut=hfcut,
-            drift_model=drift_model,
-            hrf_model=hrf_model,
-            paradigm={'LR': paradigms[0].__dict__,
-                      'RL': paradigms[1].__dict__},
-            frametimes={'LR': frametimes_list[0], 'RL': frametimes_list[1]},
-            fwhm=fwhm
-            )
-
-        ProgressReport().finish_dir(subject_data.output_dir)
-        print "\r\nStatistic report written to %s\r\n" % stats_report_filename
+    if stuff is None:
+        return None
+    effects_maps, z_maps, mask_path, map_dirs = stuff
 
     # remove repeated contrasts
     contrasts = dict((cid, cval[0]) for cid, cval in contrasts.iteritems())
@@ -502,13 +471,15 @@ def run_suject_level1_glm(subject_data,
 if __name__ == '__main__':
     ###########################################################################
     # CONFIGURATION
-    protocols = ['WM',
-                'MOTOR',
-                'LANGUAGE',
-                'EMOTION',
-                'GAMBLING',
-                'RELATIONAL',
-                'SOCIAL'][3:4]
+    protocols = [
+        'WM',
+        'MOTOR',
+        'LANGUAGE',
+        'EMOTION',
+        'GAMBLING',
+        'RELATIONAL',
+        'SOCIAL'
+        ]
     slicer = 'ortho'  # slicer of activation maps QA
     cut_coords = None
     threshold = 3.
@@ -541,8 +512,7 @@ if __name__ == '__main__':
                 'anat_write_voxel_sizes'],
                   "fwhm": fwhm
                   }
-        n_jobs = int(os.environ.get('N_JOBS', preproc_params.get(
-                    "n_jobs", -1)))
+        n_jobs = int(os.environ.get('N_JOBS', 1))
         if n_jobs > 1:
             subjects = Parallel(
                 n_jobs=n_jobs, verbose=100)(delayed(
@@ -553,6 +523,7 @@ if __name__ == '__main__':
             subjects = [run_suject_level1_glm(subject_data,
                                               **kwargs)
                         for subject_data in subjects]
+        subjects = [subject for subject in subjects if subject]
 
         # level 2
         stats_start_time = pretty_time()
