@@ -34,6 +34,7 @@ Dependencies
         * sympy >= 0.7.4.1
         * nipype >= 0.8.0
         * nipy >= 0.3.0	
+	* configobj >= 5.0.6
 
 
 Installation
