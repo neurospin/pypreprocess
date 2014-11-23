@@ -83,7 +83,8 @@ cd to the pypreprocess/examples directory, and run the following command:
 
 Using .ini configuration files to specify pipeline
 ==================================================
-Take a look at the examples/ subdirectory for use-cases of this feature.
+It's possible (and recommended) to configure the preprocessing pipeline just by copying
+any of the `.ini` configuration files under the `examples` sub-directory and modifying it accordingly (usually, you only need to modify the `dataset_dir` paramter).
 
 
 Development
