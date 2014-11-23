@@ -1,5 +1,3 @@
-.. -*- mode: rst -*-
-
 pypreprocess
 ============
 **pypreprocess** is a collection of python scripts for preprocessing (motion 
