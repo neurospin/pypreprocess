@@ -49,7 +49,6 @@ First install the above dependencies by running the following commands in a term
        sudo apt-key adv --recv-keys --keyserver pgp.mit.edu 2649A5A9
        sudo apt-get update
        sudo apt-get install python-scipy python-nose python-nibabel python-sklearn python-sympy python-networkx python-nipy python-nipype
-Ensure that you have the above dependencies installed. Then run:
 
 Then install *pypreprocess* itself by running:
        python setup.py install --user
