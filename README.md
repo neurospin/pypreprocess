@@ -97,3 +97,6 @@ or if you have write privileges::
     git clone git@github.com:neurospin/pypreprocess.git
 
 
+CI status
+=========
+[![Build Status](https://travis-ci.org/dohmatob/pypreprocess.svg?branch=master)](https://travis-ci.org/dohmatob/pypreprocess)
