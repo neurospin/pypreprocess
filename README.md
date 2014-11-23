@@ -25,31 +25,34 @@ Important links
 
 - Official source code repo: https://github.com/neurospin/pypreprocess
 
+
 Dependencies
 ============
-        * Python >= 2.6
-        * Numpy >= 1.3
-        * SciPy >= 0.7
-        * matplotlib >= 0.99.1
-        * nibabel >= 1.3.0
-        * networkx >= 1.7
-        * traits >= 4.3.0
-        * sympy >= 0.7.4.1
-        * nipype >= 0.8.0
-        * nipy >= 0.3.0	
-	* configobj >= 5.0.6
+* Python >= 2.6
+* Numpy >= 1.3
+* SciPy >= 0.7
+* matplotlib >= 0.99.1
+* nibabel >= 1.3.0
+* networkx >= 1.7
+* traits >= 4.3.0
+* sympy >= 0.7.4.1
+* nipype >= 0.8.0
+* nipy >= 0.3.0	
+* configobj >= 5.0.6
 
 
 Installation
 ============
+First install the above dependencies by running the following commands in a terminal:
+
+       wget -O- http://neuro.debian.net/lists/precise.us-nh.libre | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
+       sudo apt-key adv --recv-keys --keyserver pgp.mit.edu 2649A5A9
+       sudo apt-get update
+       sudo apt-get install python-scipy python-nose python-nibabel python-sklearn python-sympy python-networkx python-nipy python-nipype
 Ensure that you have the above dependencies installed. Then run:
 
-  python setup.py install --user
-
-To install for all users on Unix/Linux::
-
-  python setup.py build
-  sudo python setup.py install
+Then install *pypreprocess* itself by running:
+       python setup.py install --user
 
 
 Use-case Examples
