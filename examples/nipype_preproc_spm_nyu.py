@@ -32,5 +32,4 @@ fetch_nyu_rest(data_dir=dataset_dir)
 
 # preprocess the data
 results = do_subjects_preproc(jobfile, dataset_dir=os.path.join(
-        dataset_dir, "nyu_rest"))
-assert len(results) == 1
+    dataset_dir, "nyu_rest"))
