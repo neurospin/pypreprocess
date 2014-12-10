@@ -959,8 +959,7 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
 
         smooth_result = smooth(in_files=in_files,
                                fwhm=width,
-                               ignore_exception=False,
-                               software=smooth_software
+                               ignore_exception=False
                                )
 
         # failed node ?
