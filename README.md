@@ -15,8 +15,8 @@ Check out the wiki at https://github.com/neurospin/pypreprocess/wiki.
 This work is made available by the Parietal https://team.inria.fr/parietal/.
 
 
-CI status
-=========
+Build status
+============
 [![Build Status](https://travis-ci.org/dohmatob/pypreprocess.svg?branch=master)](https://travis-ci.org/dohmatob/pypreprocess)
 
 
