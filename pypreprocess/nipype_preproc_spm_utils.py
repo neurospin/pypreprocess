@@ -1131,7 +1131,6 @@ def _do_subject_dartelnorm2mni(subject_data,
 def do_subject_preproc(
     subject_data,
     deleteorient=False,
-
     slice_timing=False,
     slice_order="ascending",
     interleaved=False,
@@ -1139,28 +1138,22 @@ def do_subject_preproc(
     TR=None,
     TA=None,
     slice_timing_software="spm",
-
     realign=True,
     realign_reslice=False,
     register_to_mean=True,
     realign_software="spm",
-
     coregister=True,
     coregister_reslice=False,
     coreg_anat_to_func=False,
     coregister_software="spm",
-
     segment=True,
-
     normalize=True,
     dartel=False,
     fwhm=0.,
     anat_fwhm=0.,
     func_write_voxel_sizes=None,
     anat_write_voxel_sizes=None,
-
     smooth_software="spm",
-
     hardlink_output=True,
     report=True,
     cv_tc=True,
@@ -1168,10 +1161,7 @@ def do_subject_preproc(
     last_stage=True,
     preproc_undergone=None,
     prepreproc_undergone="",
-    generate_preproc_undergone=True,
     caching=True,
-
-    **kwargs
     ):
     """
     Function preprocessing data for a single subject.
@@ -1446,7 +1436,6 @@ def _do_subjects_dartel(subjects,
                         report=True,
                         cv_tc=True,
                         parent_results_gallery=None,
-                        **kwargs
                         ):
     """
     Runs NewSegment + DARTEL on given subjects.
