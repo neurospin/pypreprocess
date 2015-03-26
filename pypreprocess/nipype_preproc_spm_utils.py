@@ -1162,6 +1162,7 @@ def do_subject_preproc(
     preproc_undergone=None,
     prepreproc_undergone="",
     caching=True,
+    **kwargs,
     ):
     """
     Function preprocessing data for a single subject.
