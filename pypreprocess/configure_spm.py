@@ -150,6 +150,8 @@ def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):
                     spm_dir = m.group(1)
                 else:
                     spm_dir = os.path.dirname(spm_mcr)
+                for item in ["$HOME", "${HOME}"]:
+                    spm_dir = spm_dir.replace(item, os.environ["HOME"])
                 tpm_path = glob.glob(os.path.join(spm_dir,
                                                   "*_mcr/spm*/tpm"))[0]
                 spm_dir = os.path.dirname(tpm_path)
