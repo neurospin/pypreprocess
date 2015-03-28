@@ -1,3 +1,9 @@
+.. -*- mode: rst -*-
+
+.. image:: https://travis-ci.org/dohmatob/pypreprocess.svg?branch=master
+   :target: https://travis-ci.org/dohmatob/pypreprocess
+   :alt: Build Status
+   
 pypreprocess
 ============
 **pypreprocess** is a collection of python scripts for preprocessing (motion 
@@ -11,14 +17,6 @@ modules and scripts for slice-timing correction, motion correction, coregistrati
 and smoothing, without need for nipype or matlab.
 
 Check out the wiki at https://github.com/neurospin/pypreprocess/wiki.
-
-This work is made available by the Parietal https://team.inria.fr/parietal/.
-
-
-Build status
-============
-[![Build Status](https://travis-ci.org/dohmatob/pypreprocess.svg?branch=master)](https://travis-ci.org/dohmatob/pypreprocess)
-
 
 Important links
 ===============
