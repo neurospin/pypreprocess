@@ -7,7 +7,6 @@
 {{default design_thumbs = "design.html"}}
 {{default methods = None}}
 {{default design_params = None}}
-{{default activation_colorbar_image = "activation_colorbar.png"}}
 {{default report_html = "report.html"}}
 {{default conf_path = "."}}
 {{default threshold = None}}
@@ -74,7 +73,6 @@
     <b>Thresholded activation maps{{if not threshold is None}} (threshold = {{threshold}}){{endif}}</b><br/><br/>
     Below are thresholded activation z-maps{{if not cmap is None}} (<b>cmap = "{{cmap}}"</b>){{endif}} for the different contrasts of interest. Click on a thumbnail for more details.<br/>
     <br clear="all"/>
-    <center><img src="{{activation_colorbar_image}}" /></center> <!-- centralized colorbar for activations-->
     <div id="activation">
     </div>
     <br clear="all"/>
