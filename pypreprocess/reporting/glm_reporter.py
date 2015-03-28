@@ -1,9 +1,10 @@
 import os
 import sys
-import pylab as pl
-from ..external.nipy_labs import viz
-import nibabel
 import numpy as np
+import pylab as pl
+import nibabel
+from nilearn.plotting import plot_stat_map
+from nilearn.image import reorder_img
 from nipy.modalities.fmri.glm import FMRILinearModel
 from nipy.labs.mask import intersect_masks
 import base_reporter
@@ -158,27 +159,22 @@ def generate_level1_stats_table(zmap, mask,
 
 
 def generate_subject_stats_report(
-    stats_report_filename,
-    contrasts,
-    z_maps,
-    mask,
-    design_matrices=None,
-    subject_id=None,
-    anat=None,
-    anat_affine=None,
-    slicer="z",
-    cut_coords=None,
-    statistical_mapping_trick=False,
-    threshold=2.3,
-    cluster_th=0,
-    cmap=viz.cm.cold_hot,
-    start_time=None,
-    title=None,
-    user_script_name=None,
-    progress_logger=None,
-    shutdown_all_reloaders=True,
-    **glm_kwargs
-    ):
+        stats_report_filename,
+        contrasts,
+        z_maps,
+        mask,
+        design_matrices=None,
+        subject_id=None,
+        anat=None,
+        display_mode="z",
+        cut_coords=None,
+        threshold=2.3,
+        start_time=None,
+        title=None,
+        user_script_name=None,
+        progress_logger=None,
+        shutdown_all_reloaders=True,
+        **glm_kwargs):
     """Generates a report summarizing the statistical methods and results
 
     Parameters
@@ -209,8 +205,7 @@ def generate_subject_stats_report(
        for the respective contrasts
 
     anat: 3D array (optional)
-        brain image to serve bg unto which activation maps will be plotted;
-        passed to viz.plot_map API
+        brain image to serve bg unto which activation maps will be plotted
 
     anat_affine: 2D array (optional)
         affine data for the anat
@@ -247,12 +242,9 @@ def generate_subject_stats_report(
     # Delayed import of nipy for more robustness when it is not present
     from nipy.modalities.fmri.design_matrix import DesignMatrix
 
-    if slicer == "ortho":
+    if display_mode == "ortho":
         statistical_mapping_trick = False
 
-        if not hasattr(cut_coords, "__iter__"):
-            cut_coords = None
-    
     # prepare for stats reporting
     if progress_logger is None:
         progress_logger = base_reporter.ProgressReport()
@@ -317,8 +309,7 @@ Z>%s voxel-level.
 
         design_params=design_params,
         methods=methods,
-        threshold=threshold,
-        cmap=cmap.name)
+        threshold=threshold)
 
     with open(stats_report_filename, 'w') as fd:
         fd.write(str(level1_html_markup))
@@ -347,16 +338,11 @@ Z>%s voxel-level.
                         "Unsupported design matrix type: %s" % type(
                             design_matrix))
             elif isinstance(design_matrix, np.ndarray) or isinstance(
-                design_matrix,
-                list):
+                    design_matrix, list):
                 X = np.array(design_matrix)
                 # assert len(X.shape) == 2
                 conditions = ['%i' % i for i in xrange(X.shape[-1])]
                 design_matrix = DesignMatrix(X, conditions)
-            # else:
-            #     raise TypeError(
-            #         "Unsupported design matrix type '%s'" % type(
-            #             design_matrix))
 
             # plot design_matrix proper
             ax = design_matrix.show(rescale=True)
@@ -379,80 +365,26 @@ Z>%s voxel-level.
             # commit activation thumbnail into gallery
             design_thumbs.commit_thumbnails(thumb)
 
-    # make colorbar (place-holder, will be overridden, once we've figured out
-    # the correct end points) for activations
-    colorbar_outfile = os.path.join(output_dir,
-                                    'activation_colorbar.png')
-    base_reporter.make_standalone_colorbar(
-        cmap, threshold, 8., colorbar_outfile)
-
     # create activation thumbs
-    _vmax = 0
-    _vmin = threshold
-    for contrast_id, contrast_val in contrasts.iteritems():
+    for contrast_id in contrasts:
         z_map = z_maps[contrast_id]
 
         # load the map
         if isinstance(z_map, basestring):
             z_map = nibabel.load(z_map)
 
-        # compute vmin and vmax
-        vmin, vmax = base_reporter.compute_vmin_vmax(z_map.get_data())
-
-        # update colorbar endpoints
-        _vmax = max(_vmax, vmax)
-        _vmin = min(_vmin, vmin)
-
-        # sanitize anat
-        if not anat is None:
-            if anat.ndim == 4:
-                assert anat.shape[-1] == 1, (
-                    "Expecting 3D array for ant, got shape %s" % str(
-                        anat.shape))
-                anat = anat[..., 0]
-            else:
-                assert anat.ndim == 3, (
-                    "Expecting 3D array for ant, got shape %s" % str(
-                        anat.shape))
-
         # generate level 1 stats table
         title = "Level 1 stats for %s contrast" % contrast_id
         stats_table = os.path.join(output_dir, "%s_stats_table.html" % (
                 contrast_id))
-        z_clusters = generate_level1_stats_table(
-            z_map, mask,
-            stats_table,
-            cluster_th=cluster_th,
-            z_threshold=threshold,
-            title=title,
-            )
-
-        # compute cut_coords
-        if statistical_mapping_trick:
-            slicer = slicer.lower()
-            if slicer in ["x", "y", "z"] and cut_coords is None or isinstance(
-                cut_coords, int):
-                axis = 'xyz'.index(slicer)
-                if cut_coords is None:
-                    cut_coords = min(5, len(z_clusters))
-                _cut_coords = [x for zc in z_clusters for x in list(
-                        set(zc['maxima'][..., axis]))]
-                # # _cut_coords = _maximally_separated_subset(
-                # #     _cut_coords, cut_coords)
-
-                # assert len(_cut_coords) == cut_coords
-                cut_coords = _cut_coords
 
         # plot activation proper
-        viz.plot_map(z_map.get_data(), z_map.get_affine(),
-                     cmap=cmap,
-                     anat=anat,
-                     anat_affine=anat_affine,
-                     threshold=threshold,
-                     slicer=slicer,
-                     cut_coords=cut_coords,
-                     black_bg=True
-                     )
+        # XXX: nilearn's plotting bug's about rotations inf affine, etc.
+        z_map = reorder_img(z_map, resample="continuous")
+        anat = reorder_img(anat, resample="continuous")
+        plot_stat_map(z_map, anat, threshold=threshold,
+                      display_mode=display_mode, cut_coords=cut_coords,
+                      black_bg=True)
 
         # store activation plot
         z_map_plot = os.path.join(output_dir,
@@ -468,10 +400,6 @@ Z>%s voxel-level.
                                           height="150px",)
         thumbnail.description = contrast_id
         activation_thumbs.commit_thumbnails(thumbnail)
-
-    # make colorbar for activations
-    base_reporter.make_standalone_colorbar(
-        cmap, _vmin, _vmax, colorbar_outfile)
 
     # we're done, shut down re-loaders
     progress_logger.log('<hr/>')
@@ -514,10 +442,7 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
         contrasts vectors, indexed by condition id
 
     kwargs: dict_like
-        parameters can be regular `nipy.labs.viz.plot_map` parameters
-        (e.g slicer="y") or any parameter we want be reported (e.g
-        fwhm=[5, 5, 5])
-
+        kwargs for plot_stats_map API
     """
 
     # make output directory

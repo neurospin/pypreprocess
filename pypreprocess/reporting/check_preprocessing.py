@@ -7,19 +7,16 @@ segmentation, etc.) using the viz module from nipy.labs.
 """
 
 import os
-import traceback
 import tempfile
 import numpy as np
 import pylab as pl
 import nibabel
+from nilearn.plotting import plot_img, plot_stat_map
+from nilearn.image import reorder_img
 from ..external.nipy_labs import viz
 from ..external.nipy_labs import compute_mask_files
 from ..external import joblib
-from ..io_utils import (compute_mean_3D_image,
-                        load_4D_img,
-                        is_niimg,
-                        load_specific_vol
-                        )
+from ..io_utils import load_4D_img, is_niimg, load_specific_vol
 
 EPS = np.finfo(float).eps
 
@@ -97,11 +94,8 @@ def compute_cv(data, mask_array=None):
 
 
 def plot_cv_tc(epi_data, session_ids, subject_id,
-               do_plot=True,
-               write_image=True, mask=True, bg_image=False,
-               plot_diff=True,
-               _output_dir=None,
-               cv_tc_plot_outfile=None):
+               do_plot=True, write_image=True, mask=True,
+               _output_dir=None, cv_tc_plot_outfile=None, **kwargs):
     """ Compute coefficient of variation of the data and plot it
 
     Parameters
@@ -116,10 +110,8 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
                  should we write the cv image
     mask: bool or string, optional,
           (string) path of a mask or (bool)  should we mask the data
-    bg_image: bool or string, optional,
-              (string) pasth of a background image for display or (bool)
-              should we compute such an image as the mean across inputs.
-              if no, an MNI template is used (works for normalized data)
+    **kwargs:
+        kwargs for plot_stat_map API
     """
 
     if _output_dir is None:
@@ -161,31 +153,16 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
             os.makedirs(cache_dir)
         mem = joblib.Memory(cachedir=cache_dir, verbose=5)
         cv = mem.cache(compute_cv)(data, mask_array=mask_array)
+        cv = nibabel.Nifti1Image(cv, affine)
+
+        # XXX nilearn complains about rotations in affine, etc.
+        cv = reorder_img(cv, resample="continuous")
 
         if write_image:
             # write an image
-            nibabel.save(nibabel.Nifti1Image(cv, affine),
-                         os.path.join(_output_dir, 'cv_%s.nii' % session_id))
-            if bg_image == False:
-                try:
-                    viz.plot_map(
-                        cv, affine, threshold=.01, cmap=viz.cm.cold_hot)
-                except IndexError:
-                    print traceback.format_exc()
-            else:
-                if isinstance(bg_image, basestring):
-                    _tmp = nibabel.load(bg_image)
-                    anat, anat_affine = (
-                        _tmp.get_data(),
-                        _tmp.get_affine())
-                else:
-                    anat, anat_affine = data.mean(-1), affine
-                try:
-                    viz.plot_map(
-                        cv, affine, threshold=.01, cmap=viz.cm.cold_hot,
-                             anat=anat, anat_affine=anat_affine)
-                except IndexError:
-                    print traceback.format_exc()
+            cv.to_filename(os.path.join(_output_dir, 'cv_%s.nii' % session_id))
+        plot_stat_map(cv, threshold=.01, cmap=viz.cm.cold_hot, **kwargs)
+
         # compute the time course of cv
         cv_tc_sess = np.median(
             np.sqrt((data[mask_array > 0].T /
@@ -214,7 +191,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
 def plot_registration(reference_img, coregistered_img,
                       title="untitled coregistration!",
                       cut_coords=None,
-                      slicer='ortho',
+                      display_mode='ortho',
                       cmap=None,
                       output_filename=None):
     """Plots a coregistered source as bg/contrast for the reference image
@@ -227,8 +204,8 @@ def plot_registration(reference_img, coregistered_img,
     coregistered_img: string
         path to other image (to be compared with reference)
 
-    slicer: string (optional, defaults to 'ortho')
-        slicer param to pass to the nipy.labs.viz.plot_??? APIs
+    display_mode: string (optional, defaults to 'ortho')
+        display_mode param to pass to the nipy.labs.viz.plot_??? APIs
 
     cmap: matplotlib colormap object (optional, defaults to spectral)
         colormap to user for plots
@@ -245,35 +222,27 @@ def plot_registration(reference_img, coregistered_img,
     if cut_coords is None:
         cut_coords = (-10, -28, 17)
 
-    if slicer in ['x', 'y', 'z']:
-        cut_coords = (cut_coords['xyz'.index(slicer)],)
+    if display_mode in ['x', 'y', 'z']:
+        cut_coords = (cut_coords['xyz'.index(display_mode)],)
 
     # plot the coregistered image
     if hasattr(coregistered_img, '__len__'):
         coregistered_img = load_specific_vol(coregistered_img, 0)[0]
-    # XXX else i'm assuming a nifi object ;)
-    coregistered_data = coregistered_img.get_data()
-    coregistered_affine = coregistered_img.get_affine()
-    _slicer = viz.plot_anat(
-        anat=coregistered_data,
-        anat_affine=coregistered_affine,
-        cmap=cmap,
-        cut_coords=cut_coords,
-        slicer=slicer,
-        black_bg=True
-        )
+
+    # XXX nilearn complains about rotations in affine, etc.
+    coregistered_img = reorder_img(coregistered_img, resample="continuous")
+
+    _slicer = plot_img(coregistered_img, cmap=cmap, cut_coords=cut_coords,
+              display_mode=display_mode, black_bg=True)
 
     # overlap the reference image
     if hasattr(reference_img, '__len__'):
         reference_img = load_specific_vol(reference_img, 0)[0]
 
-    # coregistered_img = load_vol(coregistered_img)
-    # reference_img = load_vol(reference_img)
+    # XXX nilearn complains about rotations in affine, etc.
+    reference_img = reorder_img(reference_img, resample="continuous")
 
-    # XXX else i'm assuming a nifi object ;)
-    reference_data = reference_img.get_data()
-    reference_affine = reference_img.get_affine()
-    _slicer.edge_map(reference_data, reference_affine)
+    _slicer.add_edges(reference_img)
 
     # misc
     _slicer.title("%s (cmap: %s)" % (title, cmap.name), size=12, color='w',
@@ -294,7 +263,7 @@ def plot_registration(reference_img, coregistered_img,
 def plot_segmentation(img, gm_filename, wm_filename=None,
                       csf_filename=None,
                       output_filename=None, cut_coords=None,
-                      slicer='ortho',
+                      display_mode='ortho',
                       cmap=None,
                       title='GM + WM + CSF segmentation'):
     """
@@ -324,55 +293,28 @@ def plot_segmentation(img, gm_filename, wm_filename=None,
     if cut_coords is None:
         cut_coords = (-10, -28, 17)
 
-    if slicer in ['x', 'y', 'z']:
-        cut_coords = (cut_coords['xyz'.index(slicer)],)
+    if display_mode in ['x', 'y', 'z']:
+        cut_coords = (cut_coords['xyz'.index(display_mode)],)
 
     # plot img
     if hasattr(img, '__len__'):
-        img = compute_mean_3D_image(img)
-    # XXX else i'm assuming a nifti object
-    anat = img.get_data()
-    anat_affine = img.get_affine()
-    _slicer = viz.plot_anat(
-        anat, anat_affine, cut_coords=cut_coords,
-        slicer=slicer,
-        cmap=cmap,
-        black_bg=True,
-        )
+        img = reorder_img(img, resample="continuous")
+    _slicer = plot_img(img, cut_coords=cut_coords, display_mode=display_mode,
+                       cmap=cmap, black_bg=True)
 
-    # draw a GM contour map
+    # add TPM contours
     gm = nibabel.load(gm_filename)
-    gm_template = gm.get_data()
-    gm_affine = gm.get_affine()
-    _slicer.contour_map(gm_template, gm_affine, levels=[.51], colors=["r"])
-
-    # draw a WM contour map
+    _slicer.add_contours(gm, levels=[.51], colors=["r"])
     if not wm_filename is None:
-        wm = nibabel.load(wm_filename)
-        wm_template = wm.get_data()
-        wm_affine = wm.get_affine()
-        _slicer.contour_map(wm_template, wm_affine, levels=[.51], colors=["g"])
-
-    # draw a CSF contour map
+        _slicer.add_contours(wm_filename, levels=[.51], colors=["g"])
     if not csf_filename is None:
-        csf = nibabel.load(csf_filename)
-        csf_template = csf.get_data()
-        csf_affine = csf.get_affine()
-        _slicer.contour_map(
-            csf_template, csf_affine, levels=[.51], colors=['b'])
+        _slicer.add_contours(csf_filename, levels=[.51], colors=['b'])
 
     # misc
     _slicer.title("%s (cmap: %s)" % (title, cmap.name), size=12, color='w',
                  alpha=0)
-    # pl.legend(("WM", "CSF", "GM"), loc="lower left", ncol=len(cut_coords))
-
     if not output_filename is None:
         pl.savefig(output_filename, bbox_inches='tight', dpi=200,
                    facecolor="k",
                    edgecolor="k")
         pl.close()
-
-
-# Demo
-if __name__ == '__main__':
-    pass  # XXX placeholder for demo code
