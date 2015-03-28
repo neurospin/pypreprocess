@@ -50,7 +50,7 @@ First install the above dependencies by running the following commands in a term
 
 Then install pypreprocess itself by running:
 
-       python setup.py install --user
+   python setup.py install --user
 
 
 Use-case Examples
@@ -61,7 +61,7 @@ SPM auditory (single-subject)
 -----------------------------
 cd to the pypreprocess/examples directory, and run the following command:
 
-       python nipype_preproc_spm_auditory.py 
+   python nipype_preproc_spm_auditory.py 
 
 Now open the file spm_auditory_runs/sub001/report.html in your browser (firefox), to see
 the generate report (QA).
@@ -76,8 +76,7 @@ Intra-subject preprocessing in pure-Python
 ==========================================
 cd to the pypreprocess/examples directory, and run the following command:
 
-       python purepython_preproc_demo.py
-       
+   python purepython_preproc_demo.py
 
 Using .ini configuration files to specify pipeline
 ==================================================
@@ -88,7 +87,9 @@ any of the `.ini` configuration files under the `examples` sub-directory and mod
 Development
 ===========
 You can check the latestC sources with the command::
+
    git clone git://github.com/neurospin/pypreprocess.git
 
 or if you have write privileges::
+
    git clone git@github.com:neurospin/pypreprocess.git
