@@ -87,16 +87,8 @@ any of the `.ini` configuration files under the `examples` sub-directory and mod
 
 Development
 ===========
-
-Code
-----
-
-GIT
-~~~
-You can check the latest sources with the command::
-
-    git clone git://github.com/neurospin/pypreprocess.git
+You can check the latestC sources with the command::
+   git clone git://github.com/neurospin/pypreprocess.git
 
 or if you have write privileges::
-
-    git clone git@github.com:neurospin/pypreprocess.git
+   git clone git@github.com:neurospin/pypreprocess.git
