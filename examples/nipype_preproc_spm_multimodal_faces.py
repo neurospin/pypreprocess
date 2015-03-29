@@ -41,8 +41,8 @@ subject_data = fetch_spm_multimodal_fmri_data(dataset_dir)
 
 # preprocess the data
 subject_id = "sub001"
-subject_data = SubjectData(output_dir=os.path.join(
-        dataset_dir, "pypreprocess", subject_id),
+subject_data = SubjectData(output_dir=os.path.join(dataset_dir, "pypreprocess",
+                                                   subject_id),
                            subject_id=subject_id,
                            func=[subject_data.func1, subject_data.func2],
                            anat=subject_data.anat,
@@ -165,10 +165,9 @@ generate_subject_stats_report(
     contrasts,
     z_maps,
     fmri_glm.mask,
+    anat=anat_img,
     threshold=2.3,
     cluster_th=15,
-    anat=anat_img.get_data(),
-    anat_affine=anat_img.get_affine(),
     design_matrices=design_matrix,
     subject_id="sub001",
     start_time=stats_start_time,
