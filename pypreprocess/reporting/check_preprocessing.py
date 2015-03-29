@@ -123,7 +123,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
     cv_tc_ = []
     if isinstance(mask, basestring):
         mask_array = nibabel.load(mask).get_data() > 0
-    elif mask == True:
+    elif mask:
         try:
             mask_array = compute_mask_files(epi_data[0])
         except AttributeError:  # nipy BUG / limitation
@@ -145,7 +145,6 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
             data = nim.get_data()
         else:
             raise TypeError("Expecting 4D image!")
-            pass
 
         # compute the CV for the session
         cache_dir = os.path.join(_output_dir, "CV")
