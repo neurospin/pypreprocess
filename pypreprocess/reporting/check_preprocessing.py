@@ -151,8 +151,8 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         mem = joblib.Memory(cachedir=cache_dir, verbose=5)
-        cv = mem.cache(compute_cv)(data, mask_array=mask_array)
-        cv = nibabel.Nifti1Image(cv, affine)
+        cv = nibabel.Nifti1Image(mem.cache(compute_cv)(
+            data, mask_array=mask_array), affine)
 
         # XXX nilearn complains about rotations in affine, etc.
         cv = reorder_img(cv, resample="continuous")
