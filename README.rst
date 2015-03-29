@@ -1,3 +1,9 @@
+.. -*- mode: rst -*-
+
+.. image:: https://travis-ci.org/dohmatob/pypreprocess.svg?branch=master
+   :target: https://travis-ci.org/dohmatob/pypreprocess
+   :alt: Build Status
+   
 pypreprocess
 ============
 **pypreprocess** is a collection of python scripts for preprocessing (motion 
@@ -11,14 +17,6 @@ modules and scripts for slice-timing correction, motion correction, coregistrati
 and smoothing, without need for nipype or matlab.
 
 Check out the wiki at https://github.com/neurospin/pypreprocess/wiki.
-
-This work is made available by the Parietal https://team.inria.fr/parietal/.
-
-
-Build status
-============
-[![Build Status](https://travis-ci.org/dohmatob/pypreprocess.svg?branch=master)](https://travis-ci.org/dohmatob/pypreprocess)
-
 
 Important links
 ===============
@@ -50,6 +48,7 @@ First install the above dependencies by running the following commands in a term
        sudo apt-get update
        sudo apt-get install python-scipy python-nose python-nibabel python-sklearn python-sympy python-networkx python-nipy python-nipype
 
+
 Then install pypreprocess itself by running:
 
        python setup.py install --user
@@ -79,7 +78,6 @@ Intra-subject preprocessing in pure-Python
 cd to the pypreprocess/examples directory, and run the following command:
 
        python purepython_preproc_demo.py
-       
 
 Using .ini configuration files to specify pipeline
 ==================================================
@@ -89,16 +87,10 @@ any of the `.ini` configuration files under the `examples` sub-directory and mod
 
 Development
 ===========
+You can check the latestC sources with the command::
 
-Code
-----
-
-GIT
-~~~
-You can check the latest sources with the command::
-
-    git clone git://github.com/neurospin/pypreprocess.git
+       git clone git://github.com/neurospin/pypreprocess.git
 
 or if you have write privileges::
 
-    git clone git@github.com:neurospin/pypreprocess.git
+       git clone git@github.com:neurospin/pypreprocess.git
