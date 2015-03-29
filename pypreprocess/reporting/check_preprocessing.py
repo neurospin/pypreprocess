@@ -159,7 +159,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
         if write_image:
             # write an image
             cv.to_filename(os.path.join(_output_dir, 'cv_%s.nii' % session_id))
-        plot_stat_map(cv, threshold=.01, cmap=viz.cm.cold_hot, **kwargs)
+        plot_stat_map(cv, threshold=.01, **kwargs)
 
         # compute the time course of cv
         cv_tc_sess = np.median(
