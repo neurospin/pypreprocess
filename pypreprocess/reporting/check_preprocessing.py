@@ -13,7 +13,6 @@ import pylab as pl
 import nibabel
 from nilearn.plotting import plot_img, plot_stat_map
 from nilearn.image import reorder_img
-from ..external.nipy_labs import viz
 from ..external.nipy_labs import compute_mask_files
 from ..external import joblib
 from ..io_utils import load_4D_img, is_niimg, load_specific_vol
