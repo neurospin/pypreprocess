@@ -248,9 +248,8 @@ def generate_subject_stats_report(
 
     methods = """
     GLM and Statistical Inference have been done using the <i>%s</i> script, \
-powered by <a href="%s">nipy</a>. Statistic images have been thresholded at \
-Z>%s voxel-level.
-    """ % (user_script_name, base_reporter.NIPY_URL, threshold)
+powered by <a href="%s">nipy</a>.""" % (user_script_name,
+                                       base_reporter.NIPY_URL)
 
     # report the control parameters used in the paradigm and analysis
     design_params = ""
