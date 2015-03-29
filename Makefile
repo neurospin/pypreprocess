@@ -42,7 +42,6 @@ test-code:
 test-doc:
 	$(NOSETESTS) -s --with-doctest --doctest-tests --doctest-extension=rst \
 	--doctest-extension=inc --doctest-fixtures=_fixture doc/ \
-	
 
 test-coverage:
 	rm -rf coverage .coverage
