@@ -37,6 +37,7 @@ Dependencies
 * nipype >= 0.8.0
 * nipy >= 0.3.0	
 * configobj >= 5.0.6
+* nilearn >= 0.1.1
 
 
 Installation
@@ -47,6 +48,7 @@ First install the above dependencies by running the following commands in a term
        sudo apt-key adv --recv-keys --keyserver pgp.mit.edu 2649A5A9
        sudo apt-get update
        sudo apt-get install python-scipy python-nose python-nibabel python-sklearn python-sympy python-networkx python-nipy python-nipype
+       sudo apt-get install python-pip && pip install nilearn --user
 
 
 Then install pypreprocess itself by running:
