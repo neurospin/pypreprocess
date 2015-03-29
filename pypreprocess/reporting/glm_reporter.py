@@ -8,6 +8,7 @@ from nilearn.image import reorder_img
 from nipy.modalities.fmri.glm import FMRILinearModel
 from nipy.labs.mask import intersect_masks
 import base_reporter
+from cluster_level_analysis import  cluster_stats
 
 
 def generate_level1_stats_table(zmap, mask,
@@ -63,10 +64,6 @@ def generate_level1_stats_table(zmap, mask,
         title of generated stats table
 
     """
-    # Delayed import of nipy for more robustness when it is not present
-    #import nipy.labs.statistical_mapping as sm
-    from cluster_level_analysis import  cluster_stats
-
     # sanity
     if isinstance(zmap, basestring):
         zmap = nibabel.load(zmap)
@@ -79,20 +76,11 @@ def generate_level1_stats_table(zmap, mask,
     # do some sanity checks
     if title is None:
         title = "Level 1 Statistics"
-
-    #clusters, _ = sm.cluster_stats(zmap, mask, height_th=p_threshold,
-    #                                  nulls=nulls, cluster_th=cluster_th,)
     clusters, _ = cluster_stats(zmap, mask, height_th=p_threshold,
                                 nulls=nulls, cluster_th=cluster_th)
-    
-
     if clusters is not None:
         clusters = [c for c in clusters if c['cluster_p_value'] < cluster_pval]
-
-    #if clusters == None or info == None:
-    #    print "No results were written for %s" % zmap_file_path
-    #    return
-    if clusters == None:
+    else:
         clusters = []
 
     # Make HTML page
@@ -131,18 +119,16 @@ def generate_level1_stats_table(zmap, mask,
     nclust = len(clusters)
     nvox = sum([clusters[k]['size'] for k in range(nclust)])
 
+    # finish up
     page.write("</table>\n")
-    page.write("Threshold Z: %.2f (%s control at %.3f)<br/>\n" \
-                   % (z_threshold, method, p_threshold))
+    page.write("Threshold Z: %.2f (%s control at %.3f)<br/>\n"
+               % (z_threshold, method, p_threshold))
     page.write("Cluster level p-value threshold: %s<br/>\n" % cluster_pval)
     page.write("Cluster size threshold: %i voxels<br/>\n" % cluster_th)
     page.write("Number of voxels: %i<br>\n" % nvox)
     page.write("Number of clusters: %i<br>\n" % nclust)
-
-    # finish up
     page.write("</center>\n")
     page.close()
-
     return clusters
 
 
@@ -157,6 +143,7 @@ def generate_subject_stats_report(
         display_mode="z",
         cut_coords=None,
         threshold=2.3,
+        cluster_th=15,
         start_time=None,
         title=None,
         user_script_name=None,
@@ -229,9 +216,6 @@ def generate_subject_stats_report(
     """
     # Delayed import of nipy for more robustness when it is not present
     from nipy.modalities.fmri.design_matrix import DesignMatrix
-
-    if display_mode == "ortho":
-        statistical_mapping_trick = False
 
     # prepare for stats reporting
     if progress_logger is None:
@@ -328,7 +312,6 @@ Z>%s voxel-level.
             elif isinstance(design_matrix, np.ndarray) or isinstance(
                     design_matrix, list):
                 X = np.array(design_matrix)
-                # assert len(X.shape) == 2
                 conditions = ['%i' % i for i in xrange(X.shape[-1])]
                 design_matrix = DesignMatrix(X, conditions)
 
@@ -365,6 +348,9 @@ Z>%s voxel-level.
         title = "Level 1 stats for %s contrast" % contrast_id
         stats_table = os.path.join(output_dir, "%s_stats_table.html" % (
                 contrast_id))
+        generate_level1_stats_table(
+            z_map, mask, stats_table, cluster_th=cluster_th,
+            z_threshold=threshold, title=title)
 
         # plot activation proper
         # XXX: nilearn's plotting bug's about rotations inf affine, etc.
@@ -466,10 +452,9 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
         # specify and estimate the contrast
         contrast_val = np.array(([[1.]])
                                 )  # the only possible contrast !
-        z_map, t_map = group_model.contrast(contrast_val,
-                                      con_id='one_sample %s' % contrast_id,
-                                      output_z=True,
-                                      output_stat=True)
+        z_map, t_map = group_model.contrast(
+            contrast_val, con_id='one_sample %s' % contrast_id, output_z=True,
+            output_stat=True)
 
         # save map
         for map_type, map_img in zip(["z", "t"], [z_map, t_map]):
