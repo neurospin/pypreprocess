@@ -59,28 +59,6 @@ def plot_spm_motion_parameters(parameter_file, title=None,
         pl.close()
 
 
-def check_mask(epi_data):
-    """
-    Create the data mask and check that the volume is reasonable
-
-    Parameters
-    ----------
-    data: string: path of some input data
-
-    returns
-    -------
-    mask_array: array of shape nibabel.load(data).get_shape(),
-                the binary mask
-
-    """
-    mask_array = compute_mask_files(epi_data[0])
-    affine = nibabel.load(epi_data[0]).get_affine()
-    vol = np.abs(np.linalg.det(affine)) * mask_array.sum() / 1000
-    print 'The estimated brain volume is: %f cm^3, should be 1000< <2000' % vol
-
-    return mask_array
-
-
 def compute_cv(data, mask_array=None):
     if mask_array is not None:
         cv = .0 * mask_array
@@ -92,15 +70,15 @@ def compute_cv(data, mask_array=None):
     return cv
 
 
-def plot_cv_tc(epi_data, session_ids, subject_id,
-               do_plot=True, write_image=True, mask=True,
-               _output_dir=None, cv_tc_plot_outfile=None, **kwargs):
+def plot_cv_tc(epi_imgs, session_ids, subject_id,
+               do_plot=True, write_image=True, _output_dir=None,
+               cv_tc_plot_outfile=None, **kwargs):
     """ Compute coefficient of variation of the data and plot it
 
     Parameters
     ----------
-    epi_data: list of strings, input fMRI 4D images
-    session_ids: list of strings of the same length as epi_data,
+    epi_imgs: list of strings, input fMRI 4D images
+    session_ids: list of strings of the same length as epi_imgs,
                  session indexes (for figures)
     subject_id: string, id of the subject (for figures)
     do_plot: bool, optional,
@@ -112,7 +90,6 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
     **kwargs:
         kwargs for plot_stat_map API
     """
-
     if _output_dir is None:
         if not cv_tc_plot_outfile is None:
             _output_dir = os.path.dirname(cv_tc_plot_outfile)
@@ -120,27 +97,10 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
             _output_dir = tempfile.mkdtemp()
 
     cv_tc_ = []
-    if isinstance(mask, basestring):
-        mask_array = nibabel.load(mask).get_data() > 0
-    elif mask:
-        try:
-            mask_array = compute_mask_files(epi_data[0])
-        except AttributeError:  # nipy BUG / limitation
-            _img = epi_data[0] if is_niimg(epi_data[0]
-                                           ) else nibabel.concat_images(
-                epi_data[0])
-            _tmp = os.path.join(_output_dir, "_useless.nii.gz")
-            nibabel.save(_img, _tmp)
-
-            mask_array = compute_mask_files(_tmp)
-    else:
-        mask_array = None
-    for (session_id, fmri_file) in zip(session_ids, epi_data):
+    for (session_id, fmri_file) in zip(session_ids, epi_imgs):
         nim = load_4D_img(fmri_file)
-
         affine = nim.get_affine()
         if len(nim.shape) == 4:
-            # get the data
             data = nim.get_data()
         else:
             raise TypeError("Expecting 4D image!")
@@ -150,8 +110,7 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         mem = joblib.Memory(cachedir=cache_dir, verbose=5)
-        cv = nibabel.Nifti1Image(mem.cache(compute_cv)(
-            data, mask_array=mask_array), affine)
+        cv = nibabel.Nifti1Image(mem.cache(compute_cv)(data), affine)
 
         # XXX nilearn complains about rotations in affine, etc.
         cv = reorder_img(cv, resample="continuous")
@@ -162,22 +121,20 @@ def plot_cv_tc(epi_data, session_ids, subject_id,
         plot_stat_map(cv, threshold=.01, **kwargs)
 
         # compute the time course of cv
-        cv_tc_sess = np.median(
-            np.sqrt((data[mask_array > 0].T /
-                     data[mask_array > 0].mean(-1) - 1) ** 2), 1)
-
+        data = data.reshape((-1, data.shape[-1]))
+        cv_tc_sess = np.median(np.sqrt((data.T / data.mean(axis=-1) - 1) ** 2),
+                               axis=-1)
         cv_tc_.append(cv_tc_sess)
     cv_tc = np.concatenate(cv_tc_)
 
+    # plot CV time-course
     if do_plot:
-        # plot the time course of cv for different subjects
         pl.figure()
         pl.plot(cv_tc, label=subject_id)
         pl.legend()
         pl.xlabel('time(scans)')
         pl.ylabel('Median coefficient of variation')
         pl.axis('tight')
-
         if not cv_tc_plot_outfile is None:
             pl.savefig(cv_tc_plot_outfile,
                        bbox_inches="tight", dpi=200)
