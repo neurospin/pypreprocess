@@ -1,7 +1,7 @@
 .. -*- mode: rst -*-
 
-.. image:: https://travis-ci.org/dohmatob/pypreprocess.svg?branch=master
-   :target: https://travis-ci.org/dohmatob/pypreprocess
+.. image:: https://travis-ci.org/neurospin/pypreprocess.svg?branch=master
+   :target: https://travis-ci.org/neurospin/pypreprocess
    :alt: Build Status
    
 pypreprocess
