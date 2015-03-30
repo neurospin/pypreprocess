@@ -4,7 +4,8 @@ import shutil
 import re
 import nibabel
 from nilearn.datasets import (_fetch_file, _fetch_files, _uncompress_file,
-                              _get_dataset_dir, Bunch, fetch_nyu_rest)
+                              _get_dataset_dir, Bunch, fetch_nyu_rest,
+                              fetch_haxby)
 
 SPM_AUDITORY_DATA_FILES = ["fM00223/fM00223_%03i.img" % index
                            for index in xrange(4, 100)]

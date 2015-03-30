@@ -14,8 +14,7 @@ from pypreprocess.datasets import fetch_haxby
 
 # import spm preproc utilities
 from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
-                                                   SubjectData
-                                                   )
+                                                   SubjectData)
 
 # DARTEL ?
 DARTEL = False
@@ -34,24 +33,14 @@ Get full description <a href="http://dev.pymvpa.org/datadb/haxby2001.html">\
 here</a>.\
 """
 
-# sanitize cmd-line
-if len(sys.argv) < 3:
-    print "Usage: python %s <haxby_dir> <output_dir>" % sys.argv[0]
-    print ("Example:\r\npython %s ~/CODE/datasets/haxby"
-           " ~/CODE/FORKED/pypreprocess/haxby_runs") % sys.argv[0]
-    sys.exit(1)
-
-# set dataset dir
-DATA_DIR = sys.argv[1]
-
 # set output dir
-OUTPUT_DIR = sys.argv[2]
+OUTPUT_DIR = "haxby_runs"
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
 # fetch HAXBY dataset
 N_SUBJECTS = 5
-haxby_data = fetch_haxby(data_dir=DATA_DIR, n_subjects=N_SUBJECTS)
+haxby_data = fetch_haxby(n_subjects=N_SUBJECTS)
 
 
 def subject_factory():
