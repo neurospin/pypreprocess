@@ -8,7 +8,7 @@ import shutil
 
 DISTNAME = 'pypreprocess'
 DESCRIPTION = 'Statistical learning for neuroimaging in Python'
-LONG_DESCRIPTION = open('README.md').read()
+LONG_DESCRIPTION = open('README.rst').read()
 MAINTAINER = 'Gael Varoquaux'
 MAINTAINER_EMAIL = 'gael.varoquaux@normalesup.org'
 URL = 'http://pypreprocess.github.com'
