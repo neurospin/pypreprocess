@@ -87,7 +87,7 @@ def time_slice_diffs(img):
         sdmx_higher = sliceds[dtpi] > slice_diff_maxes
         if any(sdmx_higher):
             slice_diff_maxes[sdmx_higher] = sliceds[dtpi][sdmx_higher]
-            slice_diff_max_vol[sdmx_higher] = dtp_diff2[sdmx_higher]
+            slice_diff_max_vol[..., sdmx_higher] = dtp_diff2[..., sdmx_higher]
         last_tp = tp
     volds = sliceds.mean(1)
     diff_mean_vol /= (T - 1)
@@ -103,11 +103,8 @@ def time_slice_diffs(img):
             'slice_diff2_max_vol': slice_diff2_max_vol}
 
 
-
-
 if __name__ == '__main__':
     img = '/home/bertrand/retreat/results/ibc_001_01/fmri/rsocial_pa.nii'
     plop = time_slice_diffs(img)
     nib.save(plop['slice_diff2_max_vol'], '/tmp/max_diff.nii')
     nib.save(plop['diff2_mean_vol'], '/tmp/mean_diff.nii')
-    
