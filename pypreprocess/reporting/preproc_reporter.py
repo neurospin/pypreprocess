@@ -882,7 +882,7 @@ def generate_realignment_thumbnails(
 
 def generate_stc_thumbnails(original_bold, st_corrected_bold, output_dir,
                             voxel=None, sessions=None, results_gallery=None,
-                            execution_log_html_filename=None):
+                            execution_log_html_filename=None, close=True):
     sessions = [1] if sessions is None else sessions
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -947,7 +947,8 @@ def generate_stc_thumbnails(original_bold, st_corrected_bold, output_dir,
         pl.xlabel('time (TR)')
 
         pl.savefig(output_filename, bbox_inches="tight", dpi=200)
-        pl.close()
+        if close:
+            pl.close()
 
         # create thumbnail
         if results_gallery:
