@@ -510,7 +510,7 @@ def generate_registration_thumbnails(
         target[0],
         source[0],
         output_filename=outline_axial,
-        slicer='z',
+        display_mode='z',
         title="Outline of %s on %s" % (
             target[1],
             source[1]))
@@ -704,7 +704,7 @@ def generate_segmentation_thumbnails(
             wm_filename=WM_TEMPLATE,
             csf_filename=CSF_TEMPLATE,
             output_filename=template_compartments_contours_axial,
-            slicer='z',
+            display_mode='z',
             cmap=cmap,
             title="template TPMs")
 
@@ -747,7 +747,7 @@ def generate_segmentation_thumbnails(
             wm_filename=subject_wm_file,
             csf_filename=subject_csf_file,
             output_filename=subject_compartments_contours_axial,
-            slicer='z',
+            display_mode='z',
             cmap=cmap,
             title="subject TPMs")
 
@@ -784,13 +784,8 @@ def generate_segmentation_thumbnails(
     return output
 
 
-def generate_cv_tc_thumbnail(
-    image_files,
-    sessions,
-    subject_id,
-    output_dir,
-    plot_diff=True,
-    results_gallery=None):
+def generate_cv_tc_thumbnail(image_files, sessions, subject_id, output_dir,
+                             results_gallery=None):
     """Generate cv tc thumbnails
 
     Parameters
@@ -830,13 +825,8 @@ def generate_cv_tc_thumbnail(
         "cv_tc_plot.png")
 
     qa_mem.cache(
-        plot_cv_tc)(
-        image_files,
-        sessions,
-        subject_id,
-        _output_dir=output_dir,
-        cv_tc_plot_outfile=cv_tc_plot_output_file,
-        plot_diff=True)
+        plot_cv_tc)(image_files, sessions, subject_id, _output_dir=output_dir,
+                    cv_tc_plot_outfile=cv_tc_plot_output_file)
 
     # create thumbnail
     thumbnail = Thumbnail()
@@ -845,8 +835,8 @@ def generate_cv_tc_thumbnail(
     thumbnail.img = img(
         src=os.path.basename(cv_tc_plot_output_file), height="250px",
         width="600px")
-    thumbnail.description = "Coefficient of Variation (%d sessions)"\
-                                 % len(sessions)
+    thumbnail.description = "Coefficient of Variation (%d sessions)" % (
+        len(sessions))
 
     if results_gallery:
         results_gallery.commit_thumbnails(thumbnail)
@@ -855,20 +845,12 @@ def generate_cv_tc_thumbnail(
 
 
 def generate_realignment_thumbnails(
-    estimated_motion,
-    output_dir,
-    sessions=[1],
-    execution_log_html_filename=None,
-    results_gallery=None,
-    progress_logger=None):
-    """Function generates thumbnails for realignment parameters
-    (aka estimated motion)
-
-    """
-
+        estimated_motion, output_dir, sessions=None,
+        execution_log_html_filename=None, results_gallery=None):
+    """Function generates thumbnails for realignment parameters."""
+    sessions = [1] if sessions is None else sessions
     if isinstance(estimated_motion, basestring):
         estimated_motion = [estimated_motion]
-
     output = {}
 
     for session_id, rp in zip(sessions, estimated_motion):
@@ -884,8 +866,7 @@ def generate_realignment_thumbnails(
             thumbnail = Thumbnail()
             thumbnail.a = a(href=os.path.basename(rp_plot))
             thumbnail.img = img(src=os.path.basename(rp_plot),
-                                         height="250px",
-                                         width="600px")
+                                height="250px", width="600px")
             thumbnail.description = "Motion Correction"
             if not execution_log_html_filename is None:
                 thumbnail.description += (" (<a href=%s>see execution "
@@ -899,16 +880,10 @@ def generate_realignment_thumbnails(
     return output
 
 
-def generate_stc_thumbnails(
-    original_bold,
-    st_corrected_bold,
-    output_dir,
-    voxel=None,
-    sessions=[1],
-    execution_log_html_filename=None,
-    results_gallery=None,
-    progress_logger=None):
-
+def generate_stc_thumbnails(original_bold, st_corrected_bold, output_dir,
+                            voxel=None, sessions=None, results_gallery=None,
+                            execution_log_html_filename=None, close=True):
+    sessions = [1] if sessions is None else sessions
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -920,10 +895,6 @@ def generate_stc_thumbnails(
             data = np.rollaxis(data.get_data(), -1, start=0)
         elif isinstance(data, basestring):
             data = nibabel.load(data).get_data()
-
-        # if data.ndim < 5:
-        #     data = np.array([data])
-
         return data
 
     def _get_vol_shape(x):
@@ -957,7 +928,6 @@ def generate_stc_thumbnails(
 
     if voxel is None:
         voxel = np.array(_get_vol_shape(original_bold)) // 2
-
     output = {}
 
     for session_id, o_bold, stc_bold in zip(sessions, original_bold,
@@ -977,7 +947,8 @@ def generate_stc_thumbnails(
         pl.xlabel('time (TR)')
 
         pl.savefig(output_filename, bbox_inches="tight", dpi=200)
-        pl.close()
+        if close:
+            pl.close()
 
         # create thumbnail
         if results_gallery:
@@ -1000,40 +971,35 @@ def generate_stc_thumbnails(
 
 
 def generate_subject_preproc_report(
-    func=None,
-    anat=None,
-    original_bold=None,
-    st_corrected_bold=None,
-    estimated_motion=None,
-    gm=None,
-    wm=None,
-    csf=None,
-    output_dir='/tmp',
-    subject_id="UNSPECIFIED!",
-    sessions=['UNKNOWN_SESSION'],
-    tools_used=None,
-    fwhm=None,
-    did_bet=False,
-    did_slice_timing=False,
-    slice_order='ascending',
-    interleaved=False,
-    did_deleteorient=False,
-    did_realign=True,
-    did_coreg=True,
-    func_to_anat=False,
-    did_segment=True,
-    did_normalize=True,
-    cv_tc=True,
-    additional_preproc_undergone=None,
-    parent_results_gallery=None,
-    subject_progress_logger=None,
-    conf_path='.',
-    last_stage=True,
-    ):
-
+        func=None,
+        anat=None,
+        original_bold=None,
+        st_corrected_bold=None,
+        estimated_motion=None,
+        gm=None,
+        wm=None,
+        csf=None,
+        output_dir='/tmp',
+        subject_id="UNSPECIFIED!",
+        sessions=None,
+        tools_used=None,
+        fwhm=None,
+        did_bet=False,
+        did_slice_timing=False,
+        did_deleteorient=False,
+        did_realign=True,
+        did_coreg=True,
+        func_to_anat=False,
+        did_segment=True,
+        did_normalize=True,
+        cv_tc=True,
+        additional_preproc_undergone=None,
+        parent_results_gallery=None,
+        subject_progress_logger=None,
+        conf_path='.',
+        last_stage=True):
+    sessions = ['UNKNOWN_SESSION'] if sessions is None else sessions
     output = {}
-
-    # sanity
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -1076,17 +1042,13 @@ def generate_subject_preproc_report(
     for js_file in glob.glob(os.path.join(ROOT_DIR,
                                           "js/*.js")):
         shutil.copy(js_file, output_dir)
-    for css_file in glob.glob(os.path.join(ROOT_DIR,
-                                               "css/*.css")):
+    for css_file in glob.glob(os.path.join(ROOT_DIR, "css/*.css")):
         shutil.copy(css_file, output_dir)
-    for icon_file in glob.glob(os.path.join(ROOT_DIR,
-                                            "icons/*.gif")):
+    for icon_file in glob.glob(os.path.join(ROOT_DIR, "icons/*.gif")):
         shutil.copy(icon_file, output_dir)
-    for icon_file in glob.glob(os.path.join(ROOT_DIR,
-                                            "images/*.png")):
+    for icon_file in glob.glob(os.path.join(ROOT_DIR, "images/*.png")):
         shutil.copy(icon_file, output_dir)
-    for icon_file in glob.glob(os.path.join(ROOT_DIR,
-                                            "images/*.jpeg")):
+    for icon_file in glob.glob(os.path.join(ROOT_DIR, "images/*.jpeg")):
         shutil.copy(icon_file, output_dir)
 
     # initialize results gallery
@@ -1218,15 +1180,14 @@ def generate_subject_preproc_report(
 
 
 def generate_dataset_preproc_report(
-    subject_preproc_data,
-    output_dir="/tmp",
-    dataset_id="UNSPECIFIED!",
-    replace_in_path=None,
-    n_jobs=None,
-    preproc_undergone=None,
-    last_stage=True,
-    dataset_description=None
-    ):
+        subject_preproc_data,
+        output_dir="/tmp",
+        dataset_id="UNSPECIFIED!",
+        replace_in_path=None,
+        n_jobs=None,
+        preproc_undergone=None,
+        last_stage=True,
+        dataset_description=None):
     """Generates post-preproc reports for a dataset
 
     Parameters
@@ -1235,10 +1196,13 @@ def generate_dataset_preproc_report(
         .json filenames containing dicts, or dicts (one per
         subject) keys should be 'subject_id', 'func', 'anat', and
         optionally: 'estimated_motion'
+
     output_dir: string
         directory to where all output will be written
+
     dataset_id: string, optional (default None)
         a short description of the dataset (e.g "ABIDE")
+
     replace_in_path: array_like of pairs, optional (default None)
         things to replace in all paths for example [('/vaprofic',
         '/mnt'), ('NYU', 'ABIDE')] will replace, in all paths,
@@ -1246,6 +1210,7 @@ def generate_dataset_preproc_report(
         data was copied from one location to another (thus invalidating)
         all path references in the json files in subject_preproc_data,
         etc.
+
     preproc_undergone: string
         a string describing the preprocessing steps undergone. This
         maybe cleartext or basic html (the latter is adviced)
@@ -1314,7 +1279,7 @@ def generate_dataset_preproc_report(
     # factory to generate subjects
     def subject_factory():
         for j, s in zip(xrange(len(subject_preproc_data)),
-                               subject_preproc_data):
+                        subject_preproc_data):
             if isinstance(s, basestring):
                 # read dict from json file
                 json_data = json.load(open(s))

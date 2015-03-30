@@ -90,8 +90,6 @@ nibabel.save(fmri_glm.mask, mask_path)
 
 # compute bg unto which activation will be projected
 anat_img = nibabel.load(subject_data.anat)
-anat = anat_img.get_data()
-anat_affine = anat_img.get_affine()
 
 print "Computing contrasts .."
 z_maps = {}
@@ -138,9 +136,8 @@ generate_subject_stats_report(
     fmri_glm.mask,
     design_matrices=[design_matrix],
     subject_id=subject_data.subject_id,
-    anat=anat,
-    anat_affine=anat_affine,
-    slicer='ortho',
+    anat=anat_img,
+    display_mode='ortho',
     threshold=3.,
     cluster_th=50,  # we're only interested in this 'large' clusters
     start_time=stats_start_time,

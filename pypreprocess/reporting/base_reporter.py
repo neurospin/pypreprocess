@@ -3,8 +3,6 @@
 :Synopsis: basic utilities (functions, classes) for the reporting business
 :Author: dohmatob elvis dopgima
 
-XXX Write test(case)s for this module
-
 """
 
 import os
@@ -15,9 +13,7 @@ import time
 import matplotlib as mpl
 import pylab as pl
 import numpy as np
-from ..external.tempita import (HTMLTemplate,
-                        bunch
-                        )
+from ..external.tempita import HTMLTemplate, bunch
 
 # find package path
 ROOT_DIR = os.path.split(os.path.abspath(__file__))[0]
@@ -461,7 +457,7 @@ class ProgressReport(object):
         for filename in filenames:
             self.finish(filename)
 
-    def finish_all(self, filenames=[]):
+    def finish_all(self, filenames=None):
         """Stops the automatic re-loading of watched pages
 
         Parameters
@@ -477,6 +473,7 @@ class ProgressReport(object):
 
         """
 
+        filenames = [] if filenames is None else filenames
         self._finish_files(self.watched_files + filenames)
 
     def finish_dir(self, dirname, filename_wildcat="*.html"):
@@ -604,9 +601,8 @@ def get_subject_report_log_html_template(**kwargs):
 
     """
 
-    return _get_template(os.path.join(
-            ROOT_DIR, 'template_reports',
-            'subject_report_log_template.tmpl.html'),
+    return _get_template(os.path.join(ROOT_DIR, 'template_reports',
+                                      'subject_report_log_template.tmpl.html'),
                          **kwargs)
 
 
@@ -615,9 +611,8 @@ def get_subject_report_html_template(**kwargs):
 
     """
 
-    return _get_template(os.path.join(
-            ROOT_DIR, 'template_reports',
-            'subject_report_template.tmpl.html'),
+    return _get_template(os.path.join(ROOT_DIR, 'template_reports',
+                                      'subject_report_template.tmpl.html'),
                          **kwargs)
 
 
@@ -627,9 +622,8 @@ def get_subject_report_preproc_html_template(**kwargs):
     """
 
     return _get_template(os.path.join(
-            ROOT_DIR, 'template_reports',
-            'subject_report_preproc_template.tmpl.html'),
-                         **kwargs)
+        ROOT_DIR, 'template_reports',
+        'subject_report_preproc_template.tmpl.html'), **kwargs)
 
 
 def get_subject_report_stats_html_template(**kwargs):
@@ -638,9 +632,8 @@ def get_subject_report_stats_html_template(**kwargs):
     """
 
     return _get_template(os.path.join(
-                ROOT_DIR, 'template_reports',
-                'subject_report_stats_template.tmpl.html'),
-                         **kwargs)
+        ROOT_DIR, 'template_reports',
+        'subject_report_stats_template.tmpl.html'), **kwargs)
 
 
 def get_ica_html_template(**kwargs):
@@ -649,9 +642,8 @@ def get_ica_html_template(**kwargs):
     """
 
     return _get_template(os.path.join(
-                ROOT_DIR, 'template_reports',
-                'ica_report_template.tmpl.html'),
-                         **kwargs)
+        ROOT_DIR, 'template_reports',
+        'ica_report_template.tmpl.html'), **kwargs)
 
 
 def get_dataset_report_html_template(**kwargs):
@@ -670,9 +662,8 @@ def get_dataset_report_preproc_html_template(**kwargs):
     """
 
     return _get_template(os.path.join(
-            ROOT_DIR, 'template_reports',
-            'dataset_report_preproc_template.tmpl.html'),
-                         **kwargs)
+        ROOT_DIR, 'template_reports',
+        'dataset_report_preproc_template.tmpl.html'), **kwargs)
 
 
 def get_dataset_report_stats_html_template(**kwargs):
@@ -681,9 +672,8 @@ def get_dataset_report_stats_html_template(**kwargs):
     """
 
     return _get_template(os.path.join(
-            ROOT_DIR, 'template_reports',
-            'dataset_report_stats_template.tmpl.html'),
-                         **kwargs)
+        ROOT_DIR, 'template_reports',
+        'dataset_report_stats_template.tmpl.html'), **kwargs)
 
 
 def get_dataset_report_log_html_template(**kwargs):
@@ -692,9 +682,8 @@ def get_dataset_report_log_html_template(**kwargs):
     """
 
     return _get_template(os.path.join(
-            ROOT_DIR, 'template_reports',
-            'dataset_report_log_template.tmpl.html'),
-                         **kwargs)
+        ROOT_DIR, 'template_reports',
+        'dataset_report_log_template.tmpl.html'), **kwargs)
 
 
 def copy_failed_png(output_dir):
