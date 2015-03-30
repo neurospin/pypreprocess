@@ -82,7 +82,7 @@ def time_slice_diffs(img):
         means[dtpi + 1] = tp.mean()
         dtp_diff2 = (tp - last_tp) ** 2
         diff_mean_vol += dtp_diff2
-        sliceds[dtpi] = dtp_diff2.reshape(S, -1).mean(-1)
+        sliceds[dtpi] = dtp_diff2.mean(0).mean(0)
         # check whether we have found a highest-diff slice
         sdmx_higher = sliceds[dtpi] > slice_diff_maxes
         if any(sdmx_higher):
