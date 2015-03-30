@@ -15,21 +15,16 @@ from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
 from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
-from pypreprocess.datasets import fetch_spm_auditory_data
+from pypreprocess.datasets import fetch_spm_auditory
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
 
 # file containing configuration for preprocessing the data
 this_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
 jobfile = os.path.join(this_dir, "spm_auditory_preproc.ini")
 
-# set dataset dir
-if len(sys.argv) > 1:
-    dataset_dir = sys.argv[1]
-else:
-    dataset_dir = os.path.join(this_dir, "spm_auditory")
-
 # fetch spm auditory data
-sd = fetch_spm_auditory_data(dataset_dir)
+sd = fetch_spm_auditory()
+dataset_dir = os.path.dirname(os.path.dirname(os.path.dirname(sd.anat)))
 
 # construct experimental paradigm
 stats_start_time = time.ctime()

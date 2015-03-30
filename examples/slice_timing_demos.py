@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import nibabel
 from pypreprocess.slice_timing import STC, fMRISTC
 from pypreprocess.datasets import (fetch_nyu_rest,
-                                   fetch_spm_multimodal_fmri_data
+                                   fetch_spm_multimodal_fmri
                                    )
 from pypreprocess.reporting.preproc_reporter import generate_stc_thumbnails
 
@@ -261,12 +261,12 @@ def _fmri_demo_runner(subjects, dataset_id, **spm_slice_timing_kwargs):
             return nibabel.load(fmri_files).get_data()
         else:
             n_scans = len(fmri_files)
-            _first = _load_fmri_data(fmri_files[0])
+            _first = _load_fmri(fmri_files[0])
             data = np.ndarray(tuple(list(_first.shape[:3]
                                          ) + [n_scans]))
             data[..., 0] = _first
             for scan in xrange(1, n_scans):
-                data[..., scan] = _load_fmri_data(fmri_files[scan])
+                data[..., scan] = _load_fmri(fmri_files[scan])
 
             return data
 
@@ -312,9 +312,7 @@ def demo_localizer(output_dir="/tmp/localizer_output"):
     _fmri_demo_runner([subject_data], "localizer")
 
 
-def demo_spm_multimodal_fmri(data_dir="/tmp/spm_multimodal_fmri",
-                             output_dir="/tmp/spm_multimodal_fmri_output",
-                             ):
+def demo_spm_multimodal_fmri(output_dir="/tmp/spm_multimodal_fmri_output"):
     """Demo for SPM multimodal fmri (faces vs scrambled)
 
     Parameters
@@ -328,14 +326,13 @@ def demo_spm_multimodal_fmri(data_dir="/tmp/spm_multimodal_fmri",
     """
 
     # fetch data
-    spm_multimodal_fmri_data = fetch_spm_multimodal_fmri_data(
-        data_dir)
+    spm_multimodal_fmri = fetch_spm_multimodal_fmri()
 
     # subject data factory
     def subject_factory():
         subject_id = "sub001"
         yield SubjectData(subject_id=subject_id,
-                          func=spm_multimodal_fmri_data.func1,
+                          func=spm_multimodal_fmri.func1,
                           output_dir=os.path.join(output_dir, subject_id))
 
     # invoke demon to run de demo
@@ -391,7 +388,6 @@ if __name__ == '__main__':
 
     # demo on real data
     demo_localizer()
-    demo_spm_multimodal_fmri(data_dir=os.path.join(this_dir,
-                                                   "spm_multimodal_faces"))
+    demo_spm_multimodal_fmri()
 
     plt.show()

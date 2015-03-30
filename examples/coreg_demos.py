@@ -7,12 +7,9 @@
 import os
 import glob
 import matplotlib.pyplot as plt
-from pypreprocess.datasets import (fetch_spm_auditory_data,
-                                   fetch_nyu_rest)
+from pypreprocess.datasets import fetch_spm_auditory, fetch_nyu_rest
 from pypreprocess.reporting.check_preprocessing import plot_registration
 from pypreprocess.coreg import Coregister
-
-this_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
 
 
 def _run_demo(func, anat):
@@ -29,9 +26,7 @@ def _run_demo(func, anat):
 
 
 def _spm_auditory_factory():
-    sd = fetch_spm_auditory_data(os.path.join(
-            os.environ['HOME'], "CODE/datasets/spm_auditory"))
-
+    sd = fetch_spm_auditory()
     return sd.func[0], sd.anat
 
 
@@ -46,6 +41,7 @@ def _abide_factory(institute="KKI"):
                             "anat/resources/NIfTI/files/mprage.nii")
 
         yield subject_id, func, anat
+
 
 def _nyu_rest_factory(session=1):
     from pypreprocess.nipype_preproc_spm_utils import SubjectData
