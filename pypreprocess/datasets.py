@@ -4,14 +4,16 @@ import shutil
 import re
 import nibabel
 from nilearn.datasets import (_fetch_file, _fetch_files, _uncompress_file,
-                              Bunch)
+                              _get_dataset_dir, Bunch, fetch_nyu_rest)
 
 SPM_AUDITORY_DATA_FILES = ["fM00223/fM00223_%03i.img" % index
                            for index in xrange(4, 100)]
+FSL_FEEDS_DATA_FILES = ["fmri.nii.gz", "structural_brain.nii.gz"]
 SPM_AUDITORY_DATA_FILES.append("sM00223/sM00223_002.img")
 
 
-def fetch_spm_auditory_data(data_dir, subject_id="sub001"):
+def fetch_spm_auditory(data_dir=None, data_name='haxby2001',
+                       subject_id="sub001", verbose=1):
     """Function to fetch SPM auditory single-subject data.
 
     Parameters
@@ -34,7 +36,8 @@ def fetch_spm_auditory_data(data_dir, subject_id="sub001"):
         http://www.fil.ion.ucl.ac.uk/spm/data/auditory/
 
     """
-
+    data_dir = _get_dataset_dir(data_name, data_dir=data_dir,
+                                verbose=verbose)
     subject_dir = os.path.join(data_dir, subject_id)
 
     def _glob_spm_auditory_data():
@@ -96,12 +99,13 @@ def fetch_spm_auditory_data(data_dir, subject_id="sub001"):
         _uncompress_file(archive_path)
     except:
         print("Archive corrupted, trying to download it again.")
-        return fetch_spm_auditory_data(data_dir, subject_id=subject_id)
+        return fetch_spm_auditory(data_dir=data_dir, data_name="",
+                                  subject_id=subject_id)
 
     return _glob_spm_auditory_data()
 
 
-def fetch_fsl_feeds_data(data_dir):
+def fetch_fsl_feeds(data_dir=None, data_name="fsl_feeds", verbose=1):
     """Function to fetch FSL FEEDS dataset (single-subject)
 
     Parameters
@@ -119,8 +123,8 @@ def fetch_fsl_feeds_data(data_dir):
         - 'anat': string list. Path to anat image
 
     """
-
-    FSL_FEEDS_DATA_FILES = ["fmri.nii.gz", "structural_brain.nii.gz"]
+    data_dir = _get_dataset_dir(data_name, data_dir=data_dir,
+                                verbose=verbose)
 
     def _glob_fsl_feeds_data(subject_dir):
         """glob data from subject_dir.
@@ -170,12 +174,12 @@ def fetch_fsl_feeds_data(data_dir):
     except:
         print "Archive corrupted, trying to download it again."
         os.remove(archive_path)
-        return fetch_fsl_feeds_data(data_dir)
-
+        return fetch_fsl_feeds(data_dir=data_dir, data_name="")
     return _glob_fsl_feeds_data(data_dir)
 
 
-def fetch_spm_multimodal_fmri_data(data_dir, subject_id="sub001"):
+def fetch_spm_multimodal_fmri(data_dir=None, data_name="spm_multimodal_fmri",
+                              subject_id="sub001", verbose=1):
     """Function to fetch SPM auditory single-subject data.
 
     Parameters
@@ -202,13 +206,12 @@ def fetch_spm_multimodal_fmri_data(data_dir, subject_id="sub001"):
 
     """
 
+    data_dir = _get_dataset_dir(data_name, data_dir=data_dir,
+                                verbose=verbose)
     subject_dir = os.path.join(data_dir, subject_id)
 
     def _glob_spm_multimodal_fmri_data():
-        """glob data from subject_dir.
-
-        """
-
+        """glob data from subject_dir."""
         _subject_data = {'slice_order': 'descending'}
 
         for s in xrange(2):
@@ -269,7 +272,8 @@ def fetch_spm_multimodal_fmri_data(data_dir, subject_id="sub001"):
             _uncompress_file(archive_path)
         except:
             print("Archive corrupted, trying to download it again.")
-            return fetch_spm_multimodal_fmri_data(data_dir,
+            return fetch_spm_multimodal_fmri_data(data_dir=data_dir,
+                                                  data_name="",
                                                   subject_id=subject_id)
 
     return _glob_spm_multimodal_fmri_data()
