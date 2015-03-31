@@ -1,23 +1,16 @@
 import os
-import sys
 from collections import namedtuple
-import matplotlib.pyplot as plt
-
-from pypreprocess.realign import (
-    MRIMotionCorrection
-    )
+from pypreprocess.external.joblib import Memory
+from pypreprocess.realign import MRIMotionCorrection
 from pypreprocess.reporting.check_preprocessing import (
-    plot_spm_motion_parameters
-    )
+    plot_spm_motion_parameters)
 from pypreprocess.datasets import (
-    fetch_nyu_rest,
-    fetch_fsl_feeds_data,
-    fetch_spm_multimodal_fmri_data,
-    fetch_spm_auditory_data
-    )
+    fetch_nyu_rest, fetch_fsl_feeds, fetch_spm_multimodal_fmri,
+    fetch_spm_auditory)
 
 # datastructure for subject data
 SubjectData = namedtuple('SubjectData', 'subject_id func output_dir')
+mem = Memory()
 
 
 def _demo_runner(subjects, dataset_id, **spm_realign_kwargs):
@@ -54,18 +47,16 @@ def _demo_runner(subjects, dataset_id, **spm_realign_kwargs):
         mrimc.transform(subject_data.output_dir, reslice=True, concat=True)
 
         # plot results
-        for sess, rp_filename in zip(xrange(len(mrimc._rp_filenames_)),
-                                     mrimc._rp_filenames_):
+        for sess, rp_filename in zip(
+                xrange(len(mrimc.realignment_parameters_)),
+                mrimc.realignment_parameters_):
             plot_spm_motion_parameters(
                 rp_filename,
                 title="Estimated motion for %s (session %i) of '%s'" % (
                     subject_data.subject_id, sess, dataset_id))
 
-        plt.show()
 
-
-def demo_nyu_rest(data_dir="/tmp/nyu_data",
-                  output_dir="/tmp/nyu_mrimc_output",
+def demo_nyu_rest(output_dir="/tmp/nyu_mrimc_output",
                   ):
     """Demo for FSL Feeds data.
 
@@ -80,7 +71,7 @@ def demo_nyu_rest(data_dir="/tmp/nyu_data",
     """
 
     # fetch data
-    nyu_data = fetch_nyu_rest(data_dir=data_dir)
+    nyu_data = fetch_nyu_rest()
 
     # subject data factory
     def subject_factory(session=1):
@@ -88,8 +79,7 @@ def demo_nyu_rest(data_dir="/tmp/nyu_data",
 
         for subject_id in set([os.path.basename(
                     os.path.dirname
-                    (os.path.dirname(x)))
-                               for x in session_func]):
+                    (os.path.dirname(x))) for x in session_func]):
             # set func
             func = [
                 x for x in session_func if subject_id in x]
@@ -98,16 +88,14 @@ def demo_nyu_rest(data_dir="/tmp/nyu_data",
 
             yield SubjectData(subject_id=subject_id, func=func,
                               output_dir=os.path.join(
-                    output_dir,
-                    "session%i" % session, subject_id))
+                                  output_dir,
+                                  "session%i" % session, subject_id))
 
     # invoke demon to run de demo
-    _demo_runner(subject_factory(), "NYU resting state")
+    mem.cache(_demo_runner)(subject_factory(), "NYU resting state")
 
 
-def demo_fsl_feeds(data_dir="/tmp/fsl-feeds-data",
-                  output_dir="/tmp/fsl_feeds_mrimc_output",
-                  ):
+def demo_fsl_feeds(output_dir="/tmp/fsl_feeds_mrimc_output"):
     """Demo for FSL Feeds data.
 
     Parameters
@@ -121,23 +109,20 @@ def demo_fsl_feeds(data_dir="/tmp/fsl-feeds-data",
     """
 
     # fetch data
-    fsl_feeds_data = fetch_fsl_feeds_data(data_dir=data_dir)
+    fsl_feeds = fetch_fsl_feeds()
 
     # subject data factory
     def subject_factory():
-            subject_id = "sub001"
-
-            yield SubjectData(subject_id=subject_id,
-                              func=fsl_feeds_data.func,
-                              output_dir=os.path.join(output_dir, subject_id))
+        subject_id = "sub001"
+        yield SubjectData(subject_id=subject_id,
+                          func=fsl_feeds.func,
+                          output_dir=os.path.join(output_dir, subject_id))
 
     # invoke demon to run de demo
-    _demo_runner(subject_factory(), "FSL FEEDS")
+    mem.cache(_demo_runner)(subject_factory(), "FSL FEEDS")
 
 
-def demo_spm_multimodal_fmri(data_dir="/tmp/spm_multimodal_fmri",
-                             output_dir="/tmp/spm_multimodal_fmri_output",
-                             ):
+def demo_spm_multimodal_fmri(output_dir="/tmp/spm_multimodal_fmri_output"):
     """Demo for SPM multimodal fmri (faces vs scrambled)
 
     Parameters
@@ -151,26 +136,23 @@ def demo_spm_multimodal_fmri(data_dir="/tmp/spm_multimodal_fmri",
     """
 
     # fetch data
-    spm_multimodal_fmri_data = fetch_spm_multimodal_fmri_data(
-        data_dir)
+    spm_multimodal_fmri = fetch_spm_multimodal_fmri()
 
     # subject data factory
     def subject_factory():
-            subject_id = "sub001"
-
-            yield SubjectData(subject_id=subject_id,
-                              func=[spm_multimodal_fmri_data.func1,
-                                    spm_multimodal_fmri_data.func2],
-                              output_dir=os.path.join(output_dir, subject_id))
+        subject_id = "sub001"
+        yield SubjectData(subject_id=subject_id,
+                          func=[spm_multimodal_fmri.func1,
+                                spm_multimodal_fmri.func2],
+                          output_dir=os.path.join(output_dir, subject_id))
 
     # invoke demon to run de demo
-    _demo_runner(subject_factory(),
-          "SPM Multimodal fMRI faces vs scrambled", n_sessions=2)
+    mem.cache(_demo_runner)(subject_factory(),
+                            "SPM Multimodal fMRI faces vs scrambled",
+                            n_sessions=2)
 
 
-def demo_spm_auditory(data_dir="/tmp/spm_auditory_data",
-                             output_dir="/tmp/spm_auditory_output",
-                             ):
+def demo_spm_auditory(output_dir="/tmp/spm_auditory_output"):
     """Demo for SPM single-subject Auditory
 
     Parameters
@@ -184,20 +166,18 @@ def demo_spm_auditory(data_dir="/tmp/spm_auditory_data",
     """
 
     # fetch data
-    spm_auditory_data = fetch_spm_auditory_data(data_dir)
+    spm_auditory = fetch_spm_auditory()
 
     # subject data factory
     def subject_factory():
-            subject_id = "sub001"
-
-            yield SubjectData(subject_id=subject_id,
-                              func=[spm_auditory_data.func],
-                              output_dir=os.path.join(output_dir, subject_id))
+        subject_id = "sub001"
+        yield SubjectData(subject_id=subject_id,
+                          func=[spm_auditory.func],
+                          output_dir=os.path.join(output_dir, subject_id))
 
     # invoke demon to run demo
-    _demo_runner(subject_factory(), "SPM single-subject Auditory")
+    mem.cache(_demo_runner)(subject_factory(), "SPM single-subject Auditory")
 
-# main
 if __name__ == '__main__':
     # run spm multimodal demo
     demo_spm_auditory()

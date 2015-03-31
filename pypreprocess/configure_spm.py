@@ -13,10 +13,13 @@ from nipype.interfaces import spm
 import nipype
 
 # default paths
-DEFAULT_SPM_DIRS = ['/i2bm/local/spm8']
+DEFAULT_SPM_DIRS = ['/i2bm/local/spm8',
+                    os.path.join(os.environ['HOME'],
+                                 "spm8-standalone/spm8_mcr")]
 DEFAULT_MATLAB_EXECS = ["/neurospin/local/bin/matlab"]
 DEFAULT_SPM_MCRS = ["/i2bm/local/bin/spm8",
-                    "/storage/workspace/usr/local/spm8"]
+                    "/storage/workspace/usr/local/spm8",
+                    os.path.join(os.environ['HOME'], "spm8")]
 
 
 def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):

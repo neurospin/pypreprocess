@@ -7,38 +7,24 @@ Author: dohmatob elvis dopgima elvis[dot]dohmatob[at]inria[dot]fr
 """
 
 import os
-import sys
 import numpy as np
 from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
 import nibabel
 import time
-
-"""import utilities for preproc, reporting, and io"""
-from pypreprocess.nipype_preproc_spm_utils import SubjectData, do_subjects_preproc
+from pypreprocess.nipype_preproc_spm_utils import (SubjectData,
+                                                   do_subjects_preproc)
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
 from pypreprocess.reporting.base_reporter import ProgressReport
-from pypreprocess.datasets import fetch_fsl_feeds_data
+from pypreprocess.datasets import fetch_fsl_feeds
 from pypreprocess.io_utils import compute_mean_3D_image
 
 """MISC"""
 DATASET_DESCRIPTION = "FSL FEADS example data (single-subject)"
 
 """sanitize cmd line"""
-if len(sys.argv)  < 3:
-    print ("\r\nUsage: python %s <path to FSL feeds data directory>"
-           " <output_dir>\r\n") % sys.argv[0]
-    print ("Example:\r\npython %s /usr/share/fsl-feeds/data/"
-           " fsl_feeds_fmri_runs") % sys.argv[0]
-    data_dir = os.path.join(os.getcwd(), "spm_auditory")
-    output_dir = os.path.join(os.getcwd(), "spm_auditory_%s" % sys.argv[0])
-else:
-    """set data dir"""
-    data_dir = os.path.abspath(sys.argv[1])
-
-    """set output dir"""
-    output_dir = os.path.abspath(sys.argv[2])
+output_dir = "/tmp/fsl_feeds"
 
 """experimental setup"""
 stats_start_time = time.ctime()
@@ -70,7 +56,7 @@ design_matrix = make_dmtx(frametimes,
                           drift_model=drift_model, hfcut=hfcut)
 
 """fetch input data"""
-_subject_data = fetch_fsl_feeds_data(data_dir)
+_subject_data = fetch_fsl_feeds()
 subject_data = SubjectData()
 subject_data.subject_id = "sub001"
 subject_data.func = _subject_data.func
@@ -82,7 +68,6 @@ subject_data.output_dir = os.path.join(
 results = do_subjects_preproc(
     [subject_data],
     output_dir=output_dir,
-    fwhm=8,
     dataset_id="FSL FEEDS single-subject",
     dataset_description=DATASET_DESCRIPTION,
     do_shutdown_reloaders=False,
@@ -117,10 +102,6 @@ nibabel.save(fmri_glm.mask, mask_path)
 
 # compute bg unto which activation will be projected
 mean_fmri_files = compute_mean_3D_image(fmri_files)
-anat_img = nibabel.load(anat_file)
-anat = anat_img.get_data()
-anat_affine = anat_img.get_affine()
-
 print "Computing contrasts .."
 z_maps = {}
 for contrast_id, contrast_val in contrasts.iteritems():
@@ -164,8 +145,7 @@ generate_subject_stats_report(
     fmri_glm.mask,
     design_matrices=[design_matrix],
     subject_id=subject_data.subject_id,
-    anat=anat,
-    anat_affine=anat_affine,
+    anat=anat_file,
     cluster_th=50,  # we're only interested in this 'large' clusters
     start_time=stats_start_time,
 

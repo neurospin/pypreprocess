@@ -12,7 +12,7 @@ import numpy as np
 import pylab as pl
 import nibabel
 from nilearn.plotting import plot_img, plot_stat_map
-from nilearn.image import reorder_img
+from nilearn.image import reorder_img, mean_img
 from ..external import joblib
 from ..io_utils import load_4D_img, load_specific_vol
 
@@ -239,20 +239,17 @@ def plot_segmentation(img, gm_filename, wm_filename=None,
 
 
     """
-
-    # sanity
+    # misc
     if cmap is None:
         cmap = pl.cm.gray
-
     if cut_coords is None:
         cut_coords = (-10, -28, 17)
-
     if display_mode in ['x', 'y', 'z']:
         cut_coords = (cut_coords['xyz'.index(display_mode)],)
 
     # plot img
-    if hasattr(img, '__len__'):
-        img = reorder_img(img, resample="continuous")
+    img = mean_img(img)
+    img = reorder_img(img, resample="continuous")
     _slicer = plot_img(img, cut_coords=cut_coords, display_mode=display_mode,
                        cmap=cmap, black_bg=True)
 

@@ -20,7 +20,7 @@ from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.glm import FMRILinearModel
 
 # pypreprocess imports
-from pypreprocess.datasets import fetch_spm_multimodal_fmri_data
+from pypreprocess.datasets import fetch_spm_multimodal_fmri
 from pypreprocess.reporting.base_reporter import ProgressReport
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
 from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
@@ -37,7 +37,9 @@ else:
     dataset_dir = os.path.join(this_dir, "spm_multimodal_faces")
 
 # fetch spm multimodal_faces data
-subject_data = fetch_spm_multimodal_fmri_data(dataset_dir)
+subject_data = fetch_spm_multimodal_fmri()
+dataset_dir = os.path.dirname(os.path.dirname(os.path.dirname(
+    subject_data.anat)))
 
 # preprocess the data
 subject_id = "sub001"
