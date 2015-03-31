@@ -1,8 +1,5 @@
 """
-:Module: nipype_preproc_nyu_rest
-Synopsis: Minimal script for preprocessing single-subject data
-Author: dohmatob elvis dopgima elvis[dot]dohmatob[at]inria[dot]fr
-
+Preprocessing of NYU rest data.
 """
 
 # standard imports
