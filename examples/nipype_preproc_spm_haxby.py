@@ -1,18 +1,9 @@
 """
-:Module: nipype_preproc_spm_haxby
-:1;3201;0cSynopsis: SPM use-case for preprocessing HAXBY 2001 dataset
-:Author: dohmatob elvis dopgima
-
+Preprocessing of HAXBY 2001 dataset
 """
 
-# standard imports
 import os
-import sys
-
-# data-grabbing imports
 from pypreprocess.datasets import fetch_haxby
-
-# import spm preproc utilities
 from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
                                                    SubjectData)
 
@@ -49,8 +40,7 @@ def subject_factory():
 
     """
 
-    for subject_id in set([os.path.basename(
-                os.path.dirname(x))
+    for subject_id in set([os.path.basename(os.path.dirname(x))
                            for x in haxby_data.func]):
 
         # instantiate subject_data object
