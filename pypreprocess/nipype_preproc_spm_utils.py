@@ -10,10 +10,8 @@ import warnings
 import inspect
 import numpy as np
 import nibabel
-from matplotlib.pyplot import cm
 from slice_timing import get_slice_indices
 from conf_parser import _generate_preproc_pipeline
-
 import matplotlib
 matplotlib.use('Agg')
 
@@ -367,8 +365,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
                            matlab_exec=None, spm_mcr=None,
                            coreg_anat_to_func=False, caching=True,
-                           report=True, software="spm", hardlink_output=True,
-                           **kwargs):
+                           report=True, software="spm", hardlink_output=True):
     """
     Wrapper for running spm.Coregister with optional reporting.
 
@@ -678,7 +675,6 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
 
 def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                           spm_dir=None, matlab_exec=None, spm_mcr=None,
-                          smooth_software="spm",
                           func_write_voxel_sizes=[3, 3, 3],
                           anat_write_voxel_sizes=[1, 1, 1], report=True,
                           software="spm", hardlink_output=True):
@@ -768,9 +764,8 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
     subject_data.parameter_file = parameter_file
 
     # do normalization proper
-    for brain_name, brain, cmap in zip(
-        ['anat', 'func'], [subject_data.anat, subject_data.func],
-        [cm.gray, cm.spectral]):
+    for brain_name, brain in zip(
+        ['anat', 'func'], [subject_data.anat, subject_data.func]):
         if not brain: continue
         if segmented:
             if brain_name == 'func':
@@ -1435,7 +1430,6 @@ def _do_subjects_dartel(subjects,
                         output_modulated_tpms=False,
                         n_jobs=-1,
                         report=True,
-                        cv_tc=True,
                         parent_results_gallery=None,
                         ):
     """
@@ -1501,7 +1495,6 @@ def _do_subjects_dartel(subjects,
             _do_subject_dartelnorm2mni)(
                 subject_data,
                 report=report,
-                cv_tc=cv_tc,
                 parent_results_gallery=parent_results_gallery,
                 fwhm=fwhm, anat_fwhm=anat_fwhm,
                 func_write_voxel_sizes=func_write_voxel_sizes,
