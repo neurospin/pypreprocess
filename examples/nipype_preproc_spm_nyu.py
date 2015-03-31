@@ -1,8 +1,5 @@
 """
-:Module: nipype_preproc_nyu_rest
-Synopsis: Minimal script for preprocessing single-subject data
-Author: dohmatob elvis dopgima elvis[dot]dohmatob[at]inria[dot]fr
-
+Preprocessing of NYU rest data.
 """
 
 # standard imports
@@ -16,20 +13,15 @@ from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
 from pypreprocess.datasets import fetch_nyu_rest
 
 # file containing configuration for preprocessing the data
-this_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
 jobfile = os.path.join(os.path.dirname(sys.argv[0]),
                        "nyu_rest_preproc.ini")
 
-# set dataset dir
-if len(sys.argv) > 1:
-    dataset_dir = sys.argv[1]
-else:
-    dataset_dir = os.path.join(this_dir, "nyu_rest")
-
 
 # fetch spm auditory data
-fetch_nyu_rest(data_dir=dataset_dir)
+sd = fetch_nyu_rest()
 
 # preprocess the data
-results = do_subjects_preproc(jobfile, dataset_dir=os.path.join(
-    dataset_dir, "nyu_rest"))
+dataset_dir = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.dirname(
+        sd.anat_skull[0]))))
+results = do_subjects_preproc(jobfile, dataset_dir=dataset_dir)

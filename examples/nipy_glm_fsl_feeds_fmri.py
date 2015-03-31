@@ -134,8 +134,8 @@ for contrast_id, contrast_val in contrasts.iteritems():
     print
 
 """do stats report"""
-stats_report_filename = os.path.join(subject_data.output_dir,
-                                     "report_stats.html")
+reports_dir = os.path.join(subject_data.output_dir, "reports")
+stats_report_filename = os.path.join(reports_dir, "report_stats.html")
 contrasts = dict((contrast_id, contrasts[contrast_id])
                  for contrast_id in z_maps.keys())
 generate_subject_stats_report(

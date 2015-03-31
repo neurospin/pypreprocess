@@ -677,7 +677,8 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                           spm_dir=None, matlab_exec=None, spm_mcr=None,
                           func_write_voxel_sizes=[3, 3, 3],
                           anat_write_voxel_sizes=[1, 1, 1], report=True,
-                          software="spm", hardlink_output=True):
+                          software="spm", hardlink_output=True,
+                          smooth_software="spm"):
     """
     Wrapper for running spm.Segment with optional reporting.
 
@@ -859,8 +860,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
     if np.sum(fwhm) + np.sum(anat_fwhm) > 0:
         subject_data = _do_subject_smooth(
             subject_data, fwhm, anat_fwhm=anat_fwhm, caching=caching,
-            report=report
-            )
+            report=report, software=smooth_software)
 
     # commit output files
     if hardlink_output: subject_data.hardlink_output_files()
@@ -1358,11 +1358,8 @@ def do_subject_preproc(
     #####################################
     if segment:
         subject_data = _do_subject_segment(
-            subject_data, caching=caching,
-            normalize=normalize,
-            report=report,
-            hardlink_output=hardlink_output
-            )
+            subject_data, caching=caching, normalize=normalize, report=report,
+            hardlink_output=hardlink_output)
 
         # handle failed node
         if subject_data.failed:
@@ -1374,13 +1371,10 @@ def do_subject_preproc(
     ##########################
     if normalize:
         subject_data = _do_subject_normalize(
-            subject_data,
-            fwhm,  # smooth func after normalization
-            anat_fwhm=anat_fwhm,
+            subject_data, fwhm, anat_fwhm=anat_fwhm,
             func_write_voxel_sizes=func_write_voxel_sizes,
             anat_write_voxel_sizes=anat_write_voxel_sizes,
-            caching=caching,
-            report=report,
+            caching=caching, report=report,
             hardlink_output=hardlink_output,
             smooth_software=smooth_software
             )
