@@ -53,7 +53,6 @@ def test_ts_diff_ana():
 
     affine = np.eye(4)
     film = nibabel.Nifti1Image(film, affine)
-    nibabel.save(film, '/tmp/plop.nii')
 
     report = time_slice_diffs(film)
 
