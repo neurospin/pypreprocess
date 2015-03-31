@@ -131,7 +131,7 @@ def plot_tsdiffs(results, axes=None):
 
     if axes is None:
         fig, axes = plt.subplots(3, 2)
-        fig.set_size_inches(20, 10, forward=True)
+        fig.set_size_inches(12, 6, forward=True)
 
     def xmax_labels(ax, val, xlabel, ylabel):
         xlims = ax.axis()
