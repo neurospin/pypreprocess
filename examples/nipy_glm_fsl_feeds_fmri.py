@@ -68,7 +68,6 @@ subject_data.output_dir = os.path.join(
 results = do_subjects_preproc(
     [subject_data],
     output_dir=output_dir,
-    fwhm=8,
     dataset_id="FSL FEEDS single-subject",
     dataset_description=DATASET_DESCRIPTION,
     do_shutdown_reloaders=False,
@@ -103,10 +102,6 @@ nibabel.save(fmri_glm.mask, mask_path)
 
 # compute bg unto which activation will be projected
 mean_fmri_files = compute_mean_3D_image(fmri_files)
-anat_img = nibabel.load(anat_file)
-anat = anat_img.get_data()
-anat_affine = anat_img.get_affine()
-
 print "Computing contrasts .."
 z_maps = {}
 for contrast_id, contrast_val in contrasts.iteritems():
@@ -150,8 +145,7 @@ generate_subject_stats_report(
     fmri_glm.mask,
     design_matrices=[design_matrix],
     subject_id=subject_data.subject_id,
-    anat=anat,
-    anat_affine=anat_affine,
+    anat=anat_file,
     cluster_th=50,  # we're only interested in this 'large' clusters
     start_time=stats_start_time,
 
