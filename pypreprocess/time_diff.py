@@ -56,7 +56,7 @@ def time_slice_diffs(img):
         * 'slice_diff2_max_vol' : v[:] array
            volume, of same shape as input time point volumes, where each slice
            is is the slice from ``d2[t]`` for t in 0:T-1, that has the largest
-           variance across ``t``.  Thus each slice in the volume may well result
+           variance across ``t``. Thus each slice in the volume may well result
            from a different difference time point.
         * 'diff2_mean_vol`` : v[:] array
            volume with the mean of ``d2[t]`` across t for t in 0:T-1.
@@ -65,40 +65,44 @@ def time_slice_diffs(img):
     img = check_niimgs(img)
     shape = img.shape
     T = shape[-1]
-    S = shape[-2]  # to be reconsidered ?
+    S = shape[-2]  # presumably the slice axis -- to be reconsidered ?
 
     # loop over time points to save memory
-    volds = np.empty((T - 1,))
-    sliceds = np.empty((T - 1, S))
-    means = np.empty((T,))
+    # initialize the results
+    slice_squared_differences = np.empty((T - 1, S))
+    vol_mean = np.empty((T,))
     diff_mean_vol = np.zeros(shape[:3])
     slice_diff_max_vol = np.zeros(shape[:3])
-    slice_diff_maxes = np.zeros(S)
+    slice_diff_max = np.zeros(S)
     arr = img.get_data()  # inefficient ??
-    last_tp = arr[..., 0]
-    means[0] = last_tp.mean()
-    for dtpi in range(0, T - 1):
-        tp = arr[..., dtpi + 1]  # shape vol_shape
-        means[dtpi + 1] = tp.mean()
-        dtp_diff2 = (tp - last_tp) ** 2
-        diff_mean_vol += dtp_diff2
-        sliceds[dtpi] = dtp_diff2.mean(0).mean(0)
+    last_vol = arr[..., 0]
+    vol_mean[0] = last_vol.mean()
+
+    # loop over scans: increment statistics
+    for vol_index in range(0, T - 1):
+        current_vol = arr[..., vol_index + 1]  # shape vol_shape
+        vol_mean[vol_index + 1] = current_vol.mean()
+        squared_diff = (current_vol - last_vol) ** 2
+        diff_mean_vol += squared_diff
+        slice_squared_differences[vol_index] = squared_diff.mean(0).mean(0)
         # check whether we have found a highest-diff slice
-        sdmx_higher = sliceds[dtpi] > slice_diff_maxes
-        if any(sdmx_higher):
-            slice_diff_maxes[sdmx_higher] = sliceds[dtpi][sdmx_higher]
-            slice_diff_max_vol[..., sdmx_higher] = dtp_diff2[..., sdmx_higher]
-        last_tp = tp
-    volds = sliceds.mean(1)
+        larger_diff = slice_squared_differences[vol_index] > slice_diff_max
+        if any(larger_diff):
+            slice_diff_max[larger_diff] =\
+                slice_squared_differences[vol_index][larger_diff]
+            slice_diff_max_vol[..., larger_diff] =\
+                squared_diff[..., larger_diff]
+        last_vol = current_vol
+    vol_squared_differences = slice_squared_differences.mean(1)
     diff_mean_vol /= (T - 1)
 
     # Return the outputs as images
     affine = img.get_affine()
     diff2_mean_vol = nib.Nifti1Image(diff_mean_vol, affine)
     slice_diff2_max_vol = nib.Nifti1Image(slice_diff_max_vol, affine)
-    return {'volume_mean_diff2': volds,
-            'slice_mean_diff2': sliceds,
-            'volume_means': means,
+    return {'volume_mean_diff2': vol_squared_differences,
+            'slice_mean_diff2': slice_squared_differences,
+            'volume_means': vol_mean,
             'diff2_mean_vol': diff2_mean_vol,
             'slice_diff2_max_vol': slice_diff2_max_vol}
 

@@ -16,6 +16,7 @@ from ..time_diff import time_slice_diffs
 
 
 def test_ts_diff_ana_null():
+    """ Run ts_diff_ana on constant image sequence """
     # create basic L pattern
     n_scans = 3
     shape = (7, 8, 9, n_scans)
@@ -41,6 +42,7 @@ def test_ts_diff_ana_null():
                               np.zeros(shape[:3]))
 
 def test_ts_diff_ana():
+    """ Run ts_diff_ana on changing image sequence """
     # create basic L pattern
     n_scans = 4
     shape = (7, 8, 9, n_scans)
