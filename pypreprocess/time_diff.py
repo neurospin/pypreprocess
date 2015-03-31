@@ -192,9 +192,10 @@ def plot_tsdiffs(results, axes=None):
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
+    from nilearn import datasets
 
-    filename = '~/nilearn_data/nyu_rest/session1/sub22894/func/lfo.nii.gz'
-    filename = os.path.expanduser(filename)
+    nyu_rest_dataset = datasets.fetch_nyu_rest(n_subjects=1)
+    filename = nyu_rest_dataset.func[0]
     results = time_slice_diffs(filename)
     plot_tsdiffs(results)
     plt.show()
