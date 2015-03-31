@@ -10,7 +10,7 @@ from pypreprocess.datasets import (
 
 # datastructure for subject data
 SubjectData = namedtuple('SubjectData', 'subject_id func output_dir')
-mem = Memory()
+mem = Memory("demos_cache")
 
 
 def _demo_runner(subjects, dataset_id, **spm_realign_kwargs):

@@ -10,6 +10,9 @@ import matplotlib.pyplot as plt
 from pypreprocess.datasets import fetch_spm_auditory, fetch_nyu_rest
 from pypreprocess.reporting.check_preprocessing import plot_registration
 from pypreprocess.coreg import Coregister
+from pypreprocess.external.joblib import Memory
+
+mem = Memory("demos_cache")
 
 
 def _run_demo(func, anat):
@@ -46,17 +49,16 @@ def _abide_factory(institute="KKI"):
 def _nyu_rest_factory(session=1):
     from pypreprocess.nipype_preproc_spm_utils import SubjectData
 
-    nyu_data = fetch_nyu_rest(data_dir=os.path.join(
-            os.environ['HOME'], "CODE/datasets/nyu_rest/"),
+    nyu_data = fetch_nyu_rest(data_dir=os.path.join(os.environ['HOME'],
+                                                    "CODE/datasets/nyu_rest/"),
                               sessions=[session], n_subjects=7)
 
     session_func = [x for x in nyu_data.func if "session%i" % session in x]
     session_anat = [
         x for x in nyu_data.anat_skull if "session%i" % session in x]
 
-    for subject_id in set([os.path.basename(
-                os.path.dirname
-                (os.path.dirname(x)))
+    for subject_id in set([os.path.basename(os.path.dirname
+                                            (os.path.dirname(x)))
                            for x in session_func]):
         # instantiate subject_data object
         subject_data = SubjectData()
@@ -82,14 +84,14 @@ def _nyu_rest_factory(session=1):
                subject_data.anat)
 
 # spm auditory demo
-_run_demo(*_spm_auditory_factory())
+mem.cache(_run_demo)(*_spm_auditory_factory())
 
 # NYU rest demo
 for subject_id, func, anat in _nyu_rest_factory():
     print "%s +++NYU rest %s+++\r\n" % ("\t" * 5, subject_id)
-    _run_demo(func, anat)
+    mem.cache(_run_demo)(func, anat)
 
 # ABIDE demo
 for subject_id, func, anat in _abide_factory():
     print "%s +++ABIDE %s+++\r\n" % ("\t" * 5, subject_id)
-    _run_demo(func, anat)
+    mem.cache(_run_demo)(func, anat)
