@@ -12,8 +12,6 @@ This has been implemented in the Nipy package.
 We give here a simpler implementation with modified dependences
 
 '''
-import os
-
 import numpy as np
 
 import nibabel as nib
@@ -111,7 +109,7 @@ def time_slice_diffs(img):
             'slice_diff2_max_vol': slice_diff2_max_vol}
 
 
-def plot_tsdiffs(results, axes=None):
+def plot_tsdiffs(results, use_same_figure=True):
     ''' Plotting routine for time series difference metrics
 
     Requires matplotlib
@@ -119,8 +117,13 @@ def plot_tsdiffs(results, axes=None):
     Parameters
     ----------
     results : dict
-       Results of format returned from
-       :func:`pypreprocess.time_diff.time_slice_diff`
+        Results of format returned from
+        :func:`pypreprocess.time_diff.time_slice_diff`
+
+    use_same_figure : bool
+        Whether to put all the plots on the same figure. If False, one
+        figure will be created for each plot.
+
     '''
     import matplotlib.pyplot as plt
 
@@ -129,9 +132,17 @@ def plot_tsdiffs(results, axes=None):
     mean_means = np.mean(results['volume_means'])
     scaled_slice_diff = results['slice_mean_diff2'] / mean_means
 
-    if axes is None:
-        fig, axes = plt.subplots(3, 2)
+    n_plots = 6
+
+    if use_same_figure:
+        fig, axes = plt.subplots((n_plots + 1) // 2, 2)
+        # Slightly easier to flatten axes to treat the
+        # use_same_figure=False case in a similar fashion
+        axes = axes.T.reshape(-1)
         fig.set_size_inches(12, 6, forward=True)
+        fig.subplots_adjust(top=0.97, bottom=0.08, left=0.1, right=0.98, hspace=0.3, wspace=0.18)
+    else:
+        axes = [plt.figure(figsize=(6, 2)).add_subplot(111) for __ in range(n_plots)]
 
     def xmax_labels(ax, val, xlabel, ylabel):
         xlims = ax.axis()
@@ -139,13 +150,15 @@ def plot_tsdiffs(results, axes=None):
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
 
+    iter_axes = iter(axes)
+
     # plot of mean volume variance
-    ax = axes[0][0]
+    ax = next(iter_axes)
     ax.plot(results['volume_mean_diff2'] / mean_means)
     xmax_labels(ax, T - 1, 'Difference image number', 'Scaled variance')
 
     # plot of diff by slice
-    ax = axes[1][0]
+    ax = next(iter_axes)
     # Set up the color map for the different slices:
     X, Y = np.meshgrid(np.arange(scaled_slice_diff.shape[0]),
                        np.arange(scaled_slice_diff.shape[1]))
@@ -160,14 +173,14 @@ def plot_tsdiffs(results, axes=None):
                 'Slice by slice variance')
 
     # mean intensity
-    ax = axes[2][0]
+    ax = next(iter_axes)
     ax.plot(results['volume_means'] / mean_means)
     xmax_labels(ax, T,
                 'Image number',
                 'Scaled mean \n voxel intensity')
 
     # slice plots min max mean
-    ax = axes[0][1]
+    ax = next(iter_axes)
     ax.hold(True)
     ax.plot(np.mean(scaled_slice_diff, 0), 'k')
     ax.plot(np.min(scaled_slice_diff, 0), 'b')
@@ -177,12 +190,12 @@ def plot_tsdiffs(results, axes=None):
                 'Slice number',
                 'Max/mean/min \n slice variation')
 
-    ax = axes[1][1]
+    ax = next(iter_axes)
     plot_stat_map(results['diff2_mean_vol'], bg_img=None,
                   display_mode='z', cut_coords=5,
                   axes=ax, black_bg=True, title='diff2_mean_vol')
 
-    ax = axes[2][1]
+    ax = next(iter_axes)
     plot_stat_map(results['slice_diff2_max_vol'], bg_img=None,
                   display_mode='z', cut_coords=5,
                   axes=ax, black_bg=True, title='slice_diff2_max_vol')
@@ -198,4 +211,5 @@ if __name__ == '__main__':
     filename = nyu_rest_dataset.func[0]
     results = time_slice_diffs(filename)
     plot_tsdiffs(results)
+    plot_tsdiffs(results, use_same_figure=False)
     plt.show()
