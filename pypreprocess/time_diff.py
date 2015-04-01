@@ -184,9 +184,11 @@ def plot_tsdiffs(results, use_same_figure=True):
         # use_same_figure=False case in a similar fashion
         axes = axes.T.reshape(-1)
         fig.set_size_inches(12, 6, forward=True)
-        fig.subplots_adjust(top=0.97, bottom=0.08, left=0.1, right=0.98, hspace=0.3, wspace=0.18)
+        fig.subplots_adjust(top=0.97, bottom=0.08, left=0.1, right=0.98,
+                            hspace=0.3, wspace=0.18)
     else:
-        axes = [plt.figure(figsize=(6, 2)).add_subplot(111) for __ in range(n_plots)]
+        axes = [plt.figure(figsize=(6, 2)).add_subplot(111)
+                for __ in range(n_plots)]
 
     def xmax_labels(ax, val, xlabel, ylabel):
         xlims = ax.axis()
@@ -230,8 +232,7 @@ def plot_tsdiffs(results, use_same_figure=True):
     ax.plot(np.min(scaled_slice_diff, 0), 'b')
     ax.plot(np.max(scaled_slice_diff, 0), 'r')
     ax.hold(False)
-    xmax_labels(ax, S+1,
-                'Slice number',
+    xmax_labels(ax, S + 1, 'Slice number',
                 'Max/mean/min \n slice variation')
 
     ax = next(iter_axes)
@@ -250,11 +251,9 @@ def plot_tsdiffs(results, use_same_figure=True):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from nilearn import datasets
-
     nyu_rest_dataset = datasets.fetch_nyu_rest(n_subjects=2)
     filenames = nyu_rest_dataset.func
     results = multi_session_time_slice_diffs(filenames)
-    #results = time_slice_diffs(filename)
     plot_tsdiffs(results)
     plot_tsdiffs(results, use_same_figure=False)
     plt.show()
