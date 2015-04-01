@@ -1,7 +1,8 @@
 """
-:Synopsis: Demo script for coreg.py module
-:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
+Demo script for the coreg.py module (coregistration in pure python).
 
+It demos coregistration on a variety of datasets including:
+SPM single-subject auditory, NYU rest, ABIDE, etc.
 """
 
 import os
@@ -12,6 +13,7 @@ from pypreprocess.reporting.check_preprocessing import plot_registration
 from pypreprocess.coreg import Coregister
 from pypreprocess.external.joblib import Memory
 
+# misc
 mem = Memory("demos_cache")
 
 
