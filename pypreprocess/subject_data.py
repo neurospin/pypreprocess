@@ -22,6 +22,7 @@ from .reporting.base_reporter import (
     ProgressReport, get_subject_report_html_template,
     get_subject_report_preproc_html_template, copy_failed_png)
 from .reporting.preproc_reporter import (generate_cv_tc_thumbnail,
+                                         generate_tsdiffana_thumbnail,
                                          generate_realignment_thumbnails,
                                          generate_coregistration_thumbnails,
                                          generate_normalization_thumbnails,
@@ -456,7 +457,7 @@ class SubjectData(object):
                 setattr(self, item, tmp)
 
     def init_report(self, parent_results_gallery=None, cv_tc=True,
-                    preproc_undergone=None):
+                    tsdiffana=True, preproc_undergone=None):
         """
         This method is invoked to initialize the reports factory for the
         subject. It configures everything necessary for latter reporting:
@@ -475,7 +476,9 @@ class SubjectData(object):
         # misc
         self._set_session_ids()
         if not self.func:
-            cv_tc = False
+            tsdiffana = False
+
+        # make sure output_dir is OK
         self._sanitize_output_dirs()
 
         # misc for reporting
@@ -486,6 +489,7 @@ class SubjectData(object):
         self.results_gallery = None
         self.parent_results_gallery = parent_results_gallery
         self.cv_tc = cv_tc
+        self.tsdiffana = tsdiffana
 
         # report filenames
         self.report_log_filename = os.path.join(
@@ -560,6 +564,16 @@ class SubjectData(object):
                     self.func, self.session_ids, self.subject_id,
                     self.reports_output_dir, tooltip=cv_tc_tooltip,
                     results_gallery=self.results_gallery)
+
+            # generate tsdiffana plots
+            if self.tsdiffana:
+                generate_tsdiffana_thumbnail(
+                    self.func,
+                    self.session_id,
+                    self.subject_id,
+                    self.reports_output_dir,
+                    results_gallery=self.results_gallery)
+
 
         # shut down all watched report pages
         self.progress_logger.finish_all()
