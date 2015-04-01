@@ -64,6 +64,7 @@ can be found on the [wiki!](https://github.com/neurospin/pypreprocess/wiki/Examp
 The **examples** directory contains a set of scripts, each demoing an aspect of pypreprocessing. Some scripts even provide use-cases for the nipy-based GLM. The examples use publicly available sMRI and fMRI data. Data fetchers are based on the nilearn API.
 
 The main examples scripts can be summarized as follows:
+
 * **examples/nipype_preproc_spm_auditory.py**: demos preprocessing + first-level GLM (using nipy)  on the single-subject SPM auditory dataset.
 
 * **examples/nipype_preproc_spm_multimodal_faces.py**: demos preprocessing + first-level fixed-effects GLM on 
