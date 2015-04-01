@@ -18,6 +18,50 @@ import nibabel as nib
 
 from nilearn.plotting import plot_stat_map
 from nilearn._utils import check_niimgs
+from nilearn.image import mean_img
+
+
+def multi_session_time_slice_diffs(img_list):
+    """ time slice difference on several 4D images
+
+    Parameters
+    ----------
+    img_list: list of 4D Niimg-like
+        Input multi-session images
+
+    returns
+    -------
+    results : dict
+        see time_slice_diffs docstring for details.
+
+    note
+    ----
+    The results are accumulated across sessions
+    """
+    results = {}
+    for i, img in enumerate(img_list):
+        results_ = time_slice_diffs(img)
+        if i == 0:
+            for key, val in results_.items():
+                results[key] = val
+        else:
+            results['volume_mean_diff2'] = np.hstack((
+                    results['volume_mean_diff2'],
+                    results_['volume_mean_diff2']))
+            results['slice_mean_diff2'] = np.vstack((
+                    results['slice_mean_diff2'],
+                    results_['slice_mean_diff2']))
+            results['volume_means'] = np.hstack((
+                    results['volume_means'],
+                    results_['volume_means']))
+            results['diff2_mean_vol'] = mean_img(
+                [results['diff2_mean_vol'], results_['diff2_mean_vol']])
+            results['slice_diff2_max_vol'] = nib.Nifti1Image(
+                np.maximum(results_['slice_diff2_max_vol'].get_data(),
+                           results['slice_diff2_max_vol'].get_data()),
+                results['slice_diff2_max_vol'].get_affine()
+                )
+    return results
 
 
 def time_slice_diffs(img):
@@ -28,7 +72,7 @@ def time_slice_diffs(img):
 
     Parameters
     ----------
-    img: 4D Niimg-like,
+    img: 4D Niimg-like
          the input (4D) image
 
     Returns
@@ -207,9 +251,10 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from nilearn import datasets
 
-    nyu_rest_dataset = datasets.fetch_nyu_rest(n_subjects=1)
-    filename = nyu_rest_dataset.func[0]
-    results = time_slice_diffs(filename)
+    nyu_rest_dataset = datasets.fetch_nyu_rest(n_subjects=2)
+    filenames = nyu_rest_dataset.func
+    results = multi_session_time_slice_diffs(filenames)
+    #results = time_slice_diffs(filename)
     plot_tsdiffs(results)
     plot_tsdiffs(results, use_same_figure=False)
     plt.show()
