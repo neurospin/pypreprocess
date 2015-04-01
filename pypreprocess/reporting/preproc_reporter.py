@@ -21,6 +21,7 @@ from .check_preprocessing import (plot_registration,
                                   plot_segmentation,
                                   plot_spm_motion_parameters
                                   )
+from ..time_diff import plot_tsdiffs, multi_session_time_slice_diffs
 from ..io_utils import (compute_mean_3D_image,
                         is_3D,
                         is_niimg,
@@ -844,6 +845,69 @@ def generate_cv_tc_thumbnail(image_files, sessions, subject_id, output_dir,
     return thumbnail
 
 
+def generate_tsdiffana_thumbnail(image_files, sessions,
+                                 subject_id, output_dir,
+                                 results_gallery=None):
+    """Generate tsdiffana thumbnails
+
+    Parameters
+    ----------
+    image_files: list or strings or list
+        paths (4D case) to list of paths (3D case) of images under inspection
+
+    output_dir: string
+        dir to which all output whill be written
+
+    subject_id: string
+        id of subject under inspection
+
+    sessions: list
+        list of session ids, one per element of image_files
+
+    result_gallery: ResultsGallery instance (optional)
+        gallery to which thumbnails will be committed
+
+    """
+
+    qa_cache_dir = os.path.join(output_dir, "QA")
+    if not os.path.exists(qa_cache_dir):
+        os.makedirs(qa_cache_dir)
+    qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
+
+    # TODO: do we want to cache the plots
+    results = multi_session_time_slice_diffs(image_files)
+    axes = plot_tsdiffs(results, use_same_figure=False)
+    figures = [ax.get_figure() for ax in axes]
+
+    output_filename_template = os.path.join(
+        output_dir,
+        "tsdiffana_plot_{0}.png")
+    output_filenames = [output_filename_template.format(i)
+                        for i in range(len(figures))]
+
+    for fig, output_filename in zip(figures, output_filenames):
+        fig.savefig(output_filename)
+        pl.close(fig)
+
+    # create thumbnails
+    thumbnails = []
+    for output_filename in output_filenames:
+        thumbnail = Thumbnail()
+        thumbnail.a = a(
+            href=os.path.basename(output_filename))
+        thumbnail.img = img(
+            src=os.path.basename(output_filename), height="250px",
+            width="600px")
+        thumbnail.description = "tsdiffana ({0} sessions)".format(
+            len(sessions))
+        thumbnails.append(thumbnail)
+
+    if results_gallery:
+        results_gallery.commit_thumbnails(thumbnails)
+
+    return thumbnails
+
+
 def generate_realignment_thumbnails(
         estimated_motion, output_dir, sessions=None,
         execution_log_html_filename=None, results_gallery=None):
@@ -993,6 +1057,7 @@ def generate_subject_preproc_report(
         did_segment=True,
         did_normalize=True,
         cv_tc=True,
+        tsdiffana=True,
         additional_preproc_undergone=None,
         parent_results_gallery=None,
         subject_progress_logger=None,
@@ -1167,6 +1232,15 @@ def generate_subject_preproc_report(
     # generate cv tc plots
     if cv_tc:
         generate_cv_tc_thumbnail(
+            func,
+            sessions,
+            subject_id,
+            output_dir,
+            results_gallery=results_gallery)
+
+    # generate tsdiffana plots
+    if tsdiffana:
+        generate_tsdiffana_thumbnail(
             func,
             sessions,
             subject_id,
