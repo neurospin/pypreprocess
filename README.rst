@@ -65,12 +65,18 @@ The **examples** directory contains a set of scripts, each demoing an aspect of 
 
 The main examples scripts can be summarized as follows:
 * **examples/nipype_preproc_spm_auditory.py**: demos preprocessing + first-level GLM (using nipy)  on the single-subject SPM auditory dataset.
+
 * **examples/nipype_preproc_spm_multimodal_faces.py**: demos preprocessing + first-level fixed-effects GLM on 
 R. Henson's multi-modal face dataset (multiple sessions)
+
 * **examples/nipy_glm_fsl_feeds_fmri.py**: demos preprocessing + first-level GLM on FSL FEEDS dataset
+
 * **examples/slice_timing_demos.py, examples/realign_demos.py, examples/coreg_demos.py**: demos Slice-Timing Correction (STC), motion-correction, and coregistration on various datasets, using modules written in pure Python
+
 * **examples/purepython_preproc_demo.py**: demos intra-subject preprocessing using pure Python modules, on single-subject SPM auditory dataset
+
 * **examples/nipype_preproc_spm_nyu.py**: preprocessing of NYU resting-state dataset
+
 * **examples/nipype_preproc_spm_haxby.py**: preprocessing of the 'Haxby2001' visual recognition task fMRI dataset.
 
 
