@@ -181,7 +181,7 @@ def fetch_fsl_feeds(data_dir=None, data_name="fsl_feeds", verbose=1):
 
 def fetch_spm_multimodal_fmri(data_dir=None, data_name="spm_multimodal_fmri",
                               subject_id="sub001", verbose=1):
-    """Function to fetch SPM auditory single-subject data.
+    """Fetcher for Multi-modal Face Dataset.
 
     Parameters
     ----------
