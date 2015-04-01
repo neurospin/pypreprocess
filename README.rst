@@ -58,7 +58,8 @@ Then install pypreprocess itself by running:
 
 Use-case Examples
 =================
-We have written some examplary scripts for preprocessing some popular datasets.
+We have written some examplary scripts for preprocessing some popular datasets. More information about examples
+can be found on the [wiki!](https://github.com/neurospin/pypreprocess/wiki/Example-scripts)
 
 SPM auditory (single-subject)
 -----------------------------
