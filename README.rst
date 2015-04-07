@@ -113,9 +113,13 @@ When you invoke the `do_subjects_preproc(..)` API of [nipype_preproc_spm_utils.p
 Standard pipeline
 -----------------
 For each subject, the following preprocessing steps are undergone:
+
 * Motion correction is done to estimate and correct for subject's head motion during the acquisition.
+
 * The subject's anatomical image is coregistered against their fMRI images (precisely, to the mean thereof). Coregistration is important as it allows deformations of the anatomy to be directly applicable to the fMRI, or for ROIs to be defined on the anatomy.
+
 * Tissue Segmentation is then employed to segment the anatomical image into GM, WM, and CSF compartments by using TPMs (Tissue Probability Maps) as priors.
+
 * The segmented anatomical image are then warped into the MNI template space by applying the deformations learned during segmentation. The same deformations have been applied to the fMRI images.
 
 DARTEL pipeline
