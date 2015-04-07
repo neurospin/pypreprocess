@@ -123,7 +123,7 @@ Motion correction, and coregistration go on as for the standard pipeline. The on
 [nipype_preproc_spm_abide.py](https://github.com/neurospin/pypreprocess/blob/master/abide/nipype_preproc_spm_abide.py) is a script which uses this pipeline to preprocess the [ABIDE](http://fcon_1000.projects.nitrc.org/indi/abide/).
 
 Intra-subject preprocessing in pure Python (with no compiled code, etc.)
-------------------------------------------------------------------------
+========================================================================
 A couple of modules for intra-subject preprocessing (slice-timing correction, motion-correction, coregistration, etc.) in pure (only using builtins and numpy/scipy official stuff, no compiled code, no wrappers) Python.
 have been implemented. To demo this feature, cd to the pypreprocess/examples directory, and run the following command:
 
