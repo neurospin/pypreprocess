@@ -110,15 +110,18 @@ def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):
         # there is a problem with SPM / MATLAB; try to use precompiled SPM
         # instead
         if distutils.version.LooseVersion(
-            nipype.__version__).version >= [0, 9]:
-            if not spm_mcr is None:
-                if spm_mcr is None or not os.path.exists(spm_mcr):
-                    warnings.warn(
-                        "Specified spm_mcr '%s' doesn't exist!" % (
-                            spm_mcr))
-                    spm_mcr = None
+            nipype.__version__).version < [0, 9]:
+            warnings.warn(("Nipype version %s too old. No support for "
+                           "precompiled SPM!") % nipype.__version__)
+            return
 
-        # try using default MATLAB paths
+        if not spm_mcr is None and not os.path.exists(spm_mcr):
+            warnings.warn(
+                "Specified spm_mcr '%s' doesn't exist!" % (
+                    spm_mcr))
+            spm_mcr = None
+
+        # try using default MCR paths
         if spm_mcr is None:
             for spm_mcr in DEFAULT_SPM_MCRS:
                 if os.path.isfile(spm_mcr):
@@ -140,7 +143,7 @@ def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):
             if not spm_mcr is None:
                 cmd = ("spm.SPMCommand.set_mlab_paths("
                        "matlab_cmd='%s run script', use_mcr=True)" % (
-                        spm_mcr))
+                           spm_mcr))
                 warnings.warn("Setting SPM MCR backend with cmd: %s" % cmd)
                 eval(cmd)
 
