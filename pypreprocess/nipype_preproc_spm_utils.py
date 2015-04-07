@@ -1425,9 +1425,10 @@ def _do_subjects_dartel(subjects,
                         n_jobs=-1,
                         report=True,
                         parent_results_gallery=None,
+                        **kwargs
                         ):
     """
-    Runs NewSegment + DARTEL on given subjects.
+    Runs NewSegment + Dartel + DartelNorm2MNI on given subjects.
 
     """
 
