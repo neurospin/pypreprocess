@@ -124,8 +124,9 @@ Motion correction, and coregistration go on as for the standard pipeline. The on
 
 Intra-subject preprocessing in pure Python (with no compiled code, etc.)
 ========================================================================
-A couple of modules for intra-subject preprocessing (slice-timing correction, motion-correction, coregistration, etc.) in pure (only using builtins and numpy/scipy official stuff, no compiled code, no wrappers) Python.
-have been implemented. To demo this feature, cd to the pypreprocess/examples directory, and run the following command:
+A couple of modules for intra-subject preprocessing (slice-timing correction, motion-correction, coregistration, etc.)
+in pure (only using builtins and numpy/scipy official stuff, no compiled code, no wrappers) Python have been implemented.
+To demo this feature, cd to the **pypreprocess/examples** directory, and run the following command:
 
        python purepython_preproc_demo.py
 
