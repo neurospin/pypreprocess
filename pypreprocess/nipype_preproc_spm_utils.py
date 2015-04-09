@@ -1156,7 +1156,7 @@ def do_subject_preproc(
     smooth_software="spm",
     hardlink_output=True,
     report=True,
-    cv_tc=True,
+    tsdiffana=True,
     parent_results_gallery=None,
     last_stage=True,
     preproc_undergone=None,
@@ -1233,12 +1233,11 @@ def do_subject_preproc(
         nipype cache directories, to the subject's immediate output directory
         (subject_data.output_dir)
 
-    cv_tc: bool (optional)
-        if set, a summarizing the time-course of the coefficient of variation
-        in the preprocessed fMRI time-series will be generated
-
     report: bool, optional (default True)
         if set, then HTML reports will be generated
+
+    tsdiffana: bool, optional (default True)
+        if set, then TODO
 
     See also
     ========
@@ -1303,7 +1302,7 @@ def do_subject_preproc(
         # initialize report factory
         subject_data.init_report(parent_results_gallery=parent_results_gallery,
                                  preproc_undergone=preproc_undergone,
-                                 cv_tc=cv_tc)
+                                 tsdiffana=tsdiffana)
 
     #############################
     # Slice-Timing Correction
@@ -1435,7 +1434,7 @@ def _do_subjects_dartel(subjects,
                         output_modulated_tpms=False,
                         n_jobs=-1,
                         report=True,
-                        cv_tc=True,
+                        tsdiffana=True,
                         parent_results_gallery=None,
                         ):
     """
@@ -1501,7 +1500,7 @@ def _do_subjects_dartel(subjects,
             _do_subject_dartelnorm2mni)(
                 subject_data,
                 report=report,
-                cv_tc=cv_tc,
+                tsdiffana=tsdiffana,
                 parent_results_gallery=parent_results_gallery,
                 fwhm=fwhm, anat_fwhm=anat_fwhm,
                 func_write_voxel_sizes=func_write_voxel_sizes,
@@ -1676,7 +1675,7 @@ def do_subjects_preproc(subject_factory,
                     "dataset_description",
                     "report_filename",
                     "report",
-                    "cv_tc",
+                    "tsdiffana",
                     "shutdown_reloaders",
                     "subjects",
                     # add other args to exclude below
@@ -1753,7 +1752,7 @@ def do_subjects_preproc(subject_factory,
 
     # don't yet segment nor normalize if dartel enabled
     if dartel:
-        for item in ["segment", "normalize", "cv_tc", "last_stage"]:
+        for item in ["segment", "normalize", "tsdiffana", "last_stage"]:
             preproc_params[item] = False
 
     # run classic preproc

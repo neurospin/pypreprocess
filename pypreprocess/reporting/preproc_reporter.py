@@ -17,10 +17,10 @@ import pylab as pl
 import nibabel
 from ..external import joblib
 from .check_preprocessing import (plot_registration,
-                                  plot_cv_tc,
                                   plot_segmentation,
                                   plot_spm_motion_parameters
                                   )
+from ..time_diff import plot_tsdiffs, multi_session_time_slice_diffs
 from ..io_utils import (compute_mean_3D_image,
                         is_3D,
                         is_niimg,
@@ -784,9 +784,10 @@ def generate_segmentation_thumbnails(
     return output
 
 
-def generate_cv_tc_thumbnail(image_files, sessions, subject_id, output_dir,
-                             results_gallery=None):
-    """Generate cv tc thumbnails
+def generate_tsdiffana_thumbnail(image_files, sessions,
+                                 subject_id, output_dir,
+                                 results_gallery=None):
+    """Generate tsdiffana thumbnails
 
     Parameters
     ----------
@@ -812,36 +813,38 @@ def generate_cv_tc_thumbnail(image_files, sessions, subject_id, output_dir,
         os.makedirs(qa_cache_dir)
     qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
 
-    if isinstance(image_files, basestring) or is_niimg(image_files):
-        image_files = [image_files]
-    else:
-        if is_3D(image_files[0]):
-            image_files = [image_files]
+    # TODO: do we want to cache the plots
+    results = multi_session_time_slice_diffs(image_files)
+    axes = plot_tsdiffs(results, use_same_figure=False)
+    figures = [ax.get_figure() for ax in axes]
 
-    assert len(sessions) == len(image_files)
-
-    cv_tc_plot_output_file = os.path.join(
+    output_filename_template = os.path.join(
         output_dir,
-        "cv_tc_plot.png")
+        "tsdiffana_plot_{0}.png")
+    output_filenames = [output_filename_template.format(i)
+                        for i in range(len(figures))]
 
-    qa_mem.cache(
-        plot_cv_tc)(image_files, sessions, subject_id, _output_dir=output_dir,
-                    cv_tc_plot_outfile=cv_tc_plot_output_file)
+    for fig, output_filename in zip(figures, output_filenames):
+        fig.savefig(output_filename)
+        pl.close(fig)
 
-    # create thumbnail
-    thumbnail = Thumbnail()
-    thumbnail.a = a(
-        href=os.path.basename(cv_tc_plot_output_file))
-    thumbnail.img = img(
-        src=os.path.basename(cv_tc_plot_output_file), height="250px",
-        width="600px")
-    thumbnail.description = "Coefficient of Variation (%d sessions)" % (
-        len(sessions))
+    # create thumbnails
+    thumbnails = []
+    for output_filename in output_filenames:
+        thumbnail = Thumbnail()
+        thumbnail.a = a(
+            href=os.path.basename(output_filename))
+        thumbnail.img = img(
+            src=os.path.basename(output_filename), height="250px",
+            width="600px")
+        thumbnail.description = "tsdiffana ({0} sessions)".format(
+            len(sessions))
+        thumbnails.append(thumbnail)
 
     if results_gallery:
-        results_gallery.commit_thumbnails(thumbnail)
+        results_gallery.commit_thumbnails(thumbnails)
 
-    return thumbnail
+    return thumbnails
 
 
 def generate_realignment_thumbnails(
@@ -992,7 +995,7 @@ def generate_subject_preproc_report(
         func_to_anat=False,
         did_segment=True,
         did_normalize=True,
-        cv_tc=True,
+        tsdiffana=True,
         additional_preproc_undergone=None,
         parent_results_gallery=None,
         subject_progress_logger=None,
@@ -1164,9 +1167,9 @@ def generate_subject_preproc_report(
                 results_gallery=results_gallery,
                 )
 
-    # generate cv tc plots
-    if cv_tc:
-        generate_cv_tc_thumbnail(
+    # generate tsdiffana plots
+    if tsdiffana:
+        generate_tsdiffana_thumbnail(
             func,
             sessions,
             subject_id,
