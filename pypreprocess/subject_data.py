@@ -21,8 +21,8 @@ from .reporting.base_reporter import (
     ResultsGallery, Thumbnail, a, img, copy_web_conf_files,
     ProgressReport, get_subject_report_html_template,
     get_subject_report_preproc_html_template, copy_failed_png)
-from .reporting.preproc_reporter import (generate_cv_tc_thumbnail,
-                                         generate_tsdiffana_thumbnail,
+
+from .reporting.preproc_reporter import (generate_tsdiffana_thumbnail,
                                          generate_realignment_thumbnails,
                                          generate_coregistration_thumbnails,
                                          generate_normalization_thumbnails,
@@ -40,14 +40,15 @@ mc_tooltip = ("Motion parameters estimated during motion-"
 segment_acronyms = ("Acronyms: TPM means Tissue Probability Map; GM means "
                    "Grey-Matter;"
                    " WM means White-Matter; CSF means Cerebro-Spinal Fuild")
-cv_tc_tooltip = ("Coefficient of Variation (CoV) of the BOLD signal. "
-                 "The Coefficient of "
-                 "Variation is defined as the variance of the BOLD signal "
-                 "(over the voxels in the brain volume) divided by the mean "
-                 "thereof. Generally, if the CoV curve is below 1% (.01), then"
-                 " it's OK. Also, the CoV typically spikes at the end and the "
-                 "begining of the acquisition, due to saturation effects, "
-                 "scanner instability, etc.")
+# cv_tc_tooltip = ("Coefficient of Variation (CoV) of the BOLD signal. "
+#                  "The Coefficient of "
+#                  "Variation is defined as the variance of the BOLD signal "
+#                  "(over the voxels in the brain volume) divided by the mean "
+#                  "thereof. Generally, if the CoV curve is below 1% (.01), then"
+#                  " it's OK. Also, the CoV typically spikes at the end and the "
+#                  "begining of the acquisition, due to saturation effects, "
+#                  "scanner instability, etc.")
+tsdiffana_tooltip = ("TODO")
 reg_tooltip = ("The red contours should"
                " match the background image well. Otherwise, something might"
                " have gone wrong. Typically things that can go wrong include: "
@@ -456,7 +457,7 @@ class SubjectData(object):
             if final:
                 setattr(self, item, tmp)
 
-    def init_report(self, parent_results_gallery=None, cv_tc=True,
+    def init_report(self, parent_results_gallery=None,
                     tsdiffana=True, preproc_undergone=None):
         """
         This method is invoked to initialize the reports factory for the
@@ -467,10 +468,8 @@ class SubjectData(object):
 
         Parameters
         ----------
-        cv_tc: bool (optional)
-            if set, a summarizing the time-course of the coefficient of
-            variation in the preprocessed fMRI time-series will be
-            generated
+        tsdiffana: bool, optional
+            if set then TODO
 
         """
         # misc
@@ -488,7 +487,6 @@ class SubjectData(object):
         self.report = True
         self.results_gallery = None
         self.parent_results_gallery = parent_results_gallery
-        self.cv_tc = cv_tc
         self.tsdiffana = tsdiffana
 
         # report filenames
@@ -558,20 +556,13 @@ class SubjectData(object):
             self.final_thumbnail.description += (
                 ' (failed preprocessing)')
         else:
-            # geneate cv_tc plots
-            if self.cv_tc:
-                generate_cv_tc_thumbnail(
-                    self.func, self.session_ids, self.subject_id,
-                    self.reports_output_dir, tooltip=cv_tc_tooltip,
-                    results_gallery=self.results_gallery)
-
             # generate tsdiffana plots
             if self.tsdiffana:
                 generate_tsdiffana_thumbnail(
                     self.func,
-                    self.session_id,
+                    self.session_ids,
                     self.subject_id,
-                    self.reports_output_dir,
+                    self.reports_output_dir, tooltip=tsdiffana_tooltip,
                     results_gallery=self.results_gallery)
 
 

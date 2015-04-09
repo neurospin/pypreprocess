@@ -64,6 +64,7 @@ def compute_cv(data, mask_array=None):
     return cv
 
 
+<<<<<<< HEAD
 def plot_cv_tc(epi_imgs, session_ids, subject_id,
                do_plot=True, write_image=True, _output_dir=None,
                cv_tc_plot_outfile=None, close=False, **kwargs):
@@ -143,10 +144,12 @@ def plot_cv_tc(epi_imgs, session_ids, subject_id,
     return cv_tc
 
 
-def plot_registration(
-        reference_img, coregistered_img, title="untitled coregistration!",
-        cut_coords=None, display_mode='ortho', cmap=None, close=False,
-        output_filename=None):
+def plot_registration(reference_img, coregistered_img,
+                      title="untitled coregistration!",
+                      cut_coords=None,
+                      display_mode='ortho',
+                      cmap=None, close=False,
+                      output_filename=None):
     """Plots a coregistered source as bg/contrast for the reference image
 
     Parameters
