@@ -80,7 +80,7 @@ def _preprocess_and_analysis_subject(subject_data,
                                       do_realign=True,
                                       do_coreg=True,
                                       do_report=False,
-                                      do_cv_tc=False
+                                      do_tsdiffana=False
                                       )
     assert not subject_data.anat is None
 

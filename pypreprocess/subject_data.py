@@ -33,7 +33,6 @@ from .reporting.base_reporter import (
     copy_failed_png
     )
 from .reporting.preproc_reporter import (
-    generate_cv_tc_thumbnail,
     generate_tsdiffana_thumbnail,
     generate_realignment_thumbnails,
     generate_coregistration_thumbnails,
@@ -432,7 +431,7 @@ class SubjectData(object):
                         tmp.append(linked_filename)
             if final: setattr(self, item, tmp)
 
-    def init_report(self, parent_results_gallery=None, cv_tc=True,
+    def init_report(self, parent_results_gallery=None,
                     tsdiffana=True, preproc_undergone=None):
         """
         This method is invoked to initialize the reports factory for the
@@ -443,15 +442,12 @@ class SubjectData(object):
 
         Parameters
         ----------
-        cv_tc: bool (optional)
-            if set, a summarizing the time-course of the coefficient of
-            variation in the preprocessed fMRI time-series will be
-            generated
+        tsdiffana: bool, optional
+            if set then TODO
 
         """
 
         if not self.func:
-            cv_tc = False
             tsdiffana = False
 
         # make sure output_dir is OK
@@ -465,7 +461,6 @@ class SubjectData(object):
         self.report = True
         self.results_gallery = None
         self.parent_results_gallery = parent_results_gallery
-        self.cv_tc = cv_tc
         self.tsdiffana = tsdiffana
 
         # report filenames
@@ -541,16 +536,6 @@ class SubjectData(object):
             self.final_thumbnail.description += (
                 ' (failed preprocessing)')
         else:
-            # geneate cv_tc plots
-            if self.cv_tc:
-                generate_cv_tc_thumbnail(
-                    self.func,
-                    self.session_id,
-                    self.subject_id,
-                    self.reports_output_dir,
-                    results_gallery=self.results_gallery
-                    )
-
             # generate tsdiffana plots
             if self.tsdiffana:
                 generate_tsdiffana_thumbnail(

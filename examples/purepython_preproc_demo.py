@@ -14,4 +14,4 @@ sd.func = [sd.func]
 
 # preproc data
 do_subject_preproc(sd.__dict__, concat=False, coregister=True, stc=True,
-                   cv_tc=True, realign=True, report=True)
+                   tsdiffana=True, realign=True, report=True)

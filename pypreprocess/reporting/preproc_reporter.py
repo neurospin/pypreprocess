@@ -17,7 +17,6 @@ import pylab as pl
 import nibabel
 from ..external import joblib
 from .check_preprocessing import (plot_registration,
-                                  plot_cv_tc,
                                   plot_segmentation,
                                   plot_spm_motion_parameters
                                   )
@@ -785,66 +784,6 @@ def generate_segmentation_thumbnails(
     return output
 
 
-def generate_cv_tc_thumbnail(image_files, sessions, subject_id, output_dir,
-                             results_gallery=None):
-    """Generate cv tc thumbnails
-
-    Parameters
-    ----------
-    image_files: list or strings or list
-        paths (4D case) to list of paths (3D case) of images under inspection
-
-    output_dir: string
-        dir to which all output whill be written
-
-    subject_id: string
-        id of subject under inspection
-
-    sessions: list
-        list of session ids, one per element of image_files
-
-    result_gallery: ResultsGallery instance (optional)
-        gallery to which thumbnails will be committed
-
-    """
-
-    qa_cache_dir = os.path.join(output_dir, "QA")
-    if not os.path.exists(qa_cache_dir):
-        os.makedirs(qa_cache_dir)
-    qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
-
-    if isinstance(image_files, basestring) or is_niimg(image_files):
-        image_files = [image_files]
-    else:
-        if is_3D(image_files[0]):
-            image_files = [image_files]
-
-    assert len(sessions) == len(image_files)
-
-    cv_tc_plot_output_file = os.path.join(
-        output_dir,
-        "cv_tc_plot.png")
-
-    qa_mem.cache(
-        plot_cv_tc)(image_files, sessions, subject_id, _output_dir=output_dir,
-                    cv_tc_plot_outfile=cv_tc_plot_output_file)
-
-    # create thumbnail
-    thumbnail = Thumbnail()
-    thumbnail.a = a(
-        href=os.path.basename(cv_tc_plot_output_file))
-    thumbnail.img = img(
-        src=os.path.basename(cv_tc_plot_output_file), height="250px",
-        width="600px")
-    thumbnail.description = "Coefficient of Variation (%d sessions)" % (
-        len(sessions))
-
-    if results_gallery:
-        results_gallery.commit_thumbnails(thumbnail)
-
-    return thumbnail
-
-
 def generate_tsdiffana_thumbnail(image_files, sessions,
                                  subject_id, output_dir,
                                  results_gallery=None):
@@ -1056,7 +995,6 @@ def generate_subject_preproc_report(
         func_to_anat=False,
         did_segment=True,
         did_normalize=True,
-        cv_tc=True,
         tsdiffana=True,
         additional_preproc_undergone=None,
         parent_results_gallery=None,
@@ -1228,15 +1166,6 @@ def generate_subject_preproc_report(
                 brain="anat",
                 results_gallery=results_gallery,
                 )
-
-    # generate cv tc plots
-    if cv_tc:
-        generate_cv_tc_thumbnail(
-            func,
-            sessions,
-            subject_id,
-            output_dir,
-            results_gallery=results_gallery)
 
     # generate tsdiffana plots
     if tsdiffana:

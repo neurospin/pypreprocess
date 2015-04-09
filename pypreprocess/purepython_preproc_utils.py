@@ -258,7 +258,7 @@ def do_subject_preproc(subject_data,
                        realign=True,
                        coregister=True,
                        coreg_func_to_anat=True,
-                       cv_tc=True,
+                       tsdiffana=True,
                        fwhm=None,
                        write_output_images=2,
                        concat=False,
@@ -332,7 +332,7 @@ def do_subject_preproc(subject_data,
     """
 
     if not write_output_images:
-        cv_tc = False
+        tsdiffana = False
 
     dict_input = isinstance(subject_data, dict)
 
@@ -390,7 +390,7 @@ def do_subject_preproc(subject_data,
         # initialize reports factory
         subject_data.init_report(parent_results_gallery=parent_results_gallery,
                                  preproc_undergone=preproc_undergone,
-                                 cv_tc=cv_tc)
+                                 tsdiffana=tsdiffana)
 
     ############################
     # Slice-Timing Correction
