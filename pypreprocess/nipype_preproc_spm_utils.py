@@ -1044,8 +1044,8 @@ def _do_subject_dartelnorm2mni(subject_data,
     # into MNI space
     tricky_kwargs = {}
     if not anat_write_voxel_sizes is None:
-        tricky_kwargs['voxel_size'] = compute_output_voxel_size(
-           subject_data.anat, anat_write_voxel_sizes)
+        tricky_kwargs['voxel_size'] = tuple(compute_output_voxel_size(
+           subject_data.anat, anat_write_voxel_sizes))
     for tissue in ['gm', 'wm']:
         if hasattr(subject_data, tissue):
             dartelnorm2mni_result = dartelnorm2mni(
