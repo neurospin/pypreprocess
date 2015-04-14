@@ -715,7 +715,7 @@ def generate_segmentation_thumbnails(
             csf_filename=CSF_TEMPLATE,
             output_filename=template_compartments_contours,
             cmap=cmap,
-            title=("Template GM, WM, and CSF contours on "
+            title=("Template GM, WM, and CSF TPM contours on "
                    "subject's %s") % _brain)
 
         # create thumbnail
@@ -763,7 +763,7 @@ def generate_segmentation_thumbnails(
             csf_filename=subject_csf_file,
             output_filename=subject_compartments_contours,
             cmap=cmap,
-            title=("%s contours on "
+            title=("%s TPM contours on "
                "subject's %s") % (title_prefix, _brain))
 
         # create thumbnail

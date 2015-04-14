@@ -205,8 +205,7 @@ def plot_registration(reference_img, coregistered_img,
     _slicer.add_edges(reference_img)
 
     # misc
-    _slicer.title("%s (cmap: %s)" % (title, cmap.name), size=12, color='w',
-                  alpha=0)
+    _slicer.title(title, size=12, color='w', alpha=0)
 
     if not output_filename is None:
         try:
@@ -268,8 +267,7 @@ def plot_segmentation(img, gm_filename, wm_filename=None,
         _slicer.add_contours(csf_filename, levels=[.51], colors=['b'])
 
     # misc
-    _slicer.title("%s (cmap: %s)" % (title, cmap.name), size=12, color='w',
-                 alpha=0)
+    _slicer.title(title, size=12, color='w', alpha=0)
     if not output_filename is None:
         pl.savefig(output_filename, bbox_inches='tight', dpi=200,
                    facecolor="k",
