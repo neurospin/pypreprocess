@@ -13,7 +13,7 @@ FSL_FEEDS_DATA_FILES = ["fmri.nii.gz", "structural_brain.nii.gz"]
 SPM_AUDITORY_DATA_FILES.append("sM00223/sM00223_002.img")
 
 
-def fetch_spm_auditory(data_dir=None, data_name='haxby2001',
+def fetch_spm_auditory(data_dir=None, data_name='spm_auditory',
                        subject_id="sub001", verbose=1):
     """Function to fetch SPM auditory single-subject data.
 

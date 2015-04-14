@@ -92,13 +92,8 @@ effects_maps = {}
 for contrast_id, contrast_val in contrasts.iteritems():
     print "\tcontrast id: %s" % contrast_id
     z_map, t_map, eff_map, var_map = fmri_glm.contrast(
-        contrasts[contrast_id],
-        con_id=contrast_id,
-        output_z=True,
-        output_stat=True,
-        output_effects=True,
-        output_variance=True,
-        )
+        contrasts[contrast_id], con_id=contrast_id, output_z=True,
+        output_stat=True, output_effects=True, output_variance=True)
 
     # store stat maps to disk
     for dtype, out_map in zip(['z', 't', 'effects', 'variance'],
@@ -134,10 +129,8 @@ generate_subject_stats_report(
     anat=anat_img,
     display_mode='ortho',
     threshold=3.,
-    cluster_th=50,  # we're only interested in this 'large' clusters
+    cluster_th=50,  # 'large' clusters
     start_time=stats_start_time,
-
-    # additional ``kwargs`` for more informative report
     paradigm=paradigm.__dict__,
     TR=tr,
     nscans=nscans,

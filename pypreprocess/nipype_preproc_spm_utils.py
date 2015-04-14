@@ -1,6 +1,10 @@
 """
-:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
+Utility functions for single- and mult-subject preprocessing of fMRI
+
+The most useful functions are do_subject_preproc and do_subjects_preproc
 """
+
+# Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
 # standard imports
 import os
@@ -16,10 +20,7 @@ import matplotlib
 matplotlib.use('Agg')
 
 # import joblib API
-from joblib import (Parallel,
-                    delayed,
-                    Memory as JoblibMemory
-                    )
+from joblib import Parallel, delayed, Memory as JoblibMemory
 
 # import nipype API
 import nipype.interfaces.spm as spm
@@ -103,10 +104,9 @@ except AssertionError:
 
 def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
                              matlab_exec=None, spm_mcr=None, refslice=0,
-                             slice_order="ascending",
-                             interleaved=False, caching=True,
-                             report=True, software="spm",
-                             hardlink_output=True):
+                             slice_order="ascending", interleaved=False,
+                             caching=True, software="spm",
+                             hardlink_output=True, report=True):
     """
     Slice-Timing Correction.
 
@@ -200,17 +200,6 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
     # commit output files
     if hardlink_output:
         subject_data.hardlink_output_files()
-
-    # generate STC QA thumbs
-    if report:
-        generate_stc_thumbnails(
-            subject_data.func,
-            stc_func,
-            subject_data.reports_output_dir,
-            sessions=subject_data.session_id,
-            results_gallery=subject_data.results_gallery
-            )
-
     subject_data.func = stc_func
 
     return subject_data.sanitize()
@@ -1502,9 +1491,7 @@ def _do_subjects_dartel(subjects,
     return preproc_subject_data, newsegment_result
 
 
-def do_subjects_preproc(subject_factory,
-                        **preproc_params
-                        ):
+def do_subjects_preproc(subject_factory, **preproc_params):
     """
     This function does intra-subject preprocessing on a group of subjects.
 
