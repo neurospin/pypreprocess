@@ -95,8 +95,9 @@ def plot_cv_tc(epi_imgs, session_ids, subject_id,
         else:
             _output_dir = tempfile.mkdtemp()
 
-    cv_tc_ = []
-    for (session_id, fmri_file) in zip(session_ids, epi_imgs):
+    lengths = []
+    cv_tc = []
+    for session_id, fmri_file in zip(session_ids, epi_imgs):
         nim = load_4D_img(fmri_file)
         affine = nim.get_affine()
         if len(nim.shape) == 4:
@@ -121,10 +122,11 @@ def plot_cv_tc(epi_imgs, session_ids, subject_id,
 
         # compute the time course of cv
         data = data.reshape((-1, data.shape[-1]))
+        lengths.append(data.shape[-1])
         cv_tc_sess = np.median(np.sqrt((data.T / data.mean(axis=-1) - 1) ** 2),
                                axis=-1)
-        cv_tc_.append(cv_tc_sess)
-    cv_tc = np.concatenate(cv_tc_)
+        cv_tc.append(cv_tc_sess)
+    cv_tc = np.concatenate(cv_tc)
 
     # plot CV time-course
     if do_plot:
@@ -133,6 +135,10 @@ def plot_cv_tc(epi_imgs, session_ids, subject_id,
         pl.legend()
         pl.xlabel('time(scans)')
         pl.ylabel('Median coefficient of variation')
+        aux = 0.
+        for l in lengths[:-1]:
+            pl.axvline(aux + l, linestyle="--", c="k")
+            aux += l
         pl.axis('tight')
         if not cv_tc_plot_outfile is None:
             pl.savefig(cv_tc_plot_outfile,
