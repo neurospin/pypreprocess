@@ -45,9 +45,13 @@ Installation
 First install the above dependencies by running the following commands in a terminal:
 
        wget -O- http://neuro.debian.net/lists/precise.us-nh.libre | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
+       
        sudo apt-key adv --recv-keys --keyserver pgp.mit.edu 2649A5A9
+       
        sudo apt-get update
+       
        sudo apt-get install python-scipy python-nose python-nibabel python-sklearn python-sympy python-networkx python-nipy python-nipype
+       
        sudo apt-get install python-pip && pip install nilearn --user
 
 
