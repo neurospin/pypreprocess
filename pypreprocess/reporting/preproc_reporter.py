@@ -835,8 +835,8 @@ def generate_cv_tc_thumbnail(image_files, sessions, subject_id, output_dir,
     thumbnail.img = img(
         src=os.path.basename(cv_tc_plot_output_file), height="250px",
         width="600px")
-    thumbnail.description = "Coefficient of Variation (%d sessions)" % (
-        len(sessions))
+    thumbnail.description = ("Coefficient of Variation of BOLD signal "
+                             "(%d sessions)" % (len(sessions)))
 
     if results_gallery:
         results_gallery.commit_thumbnails(thumbnail)
