@@ -42,6 +42,26 @@ from .reporting.preproc_reporter import (
     )
 
 
+# misc
+mc_tooltip = ("Motion parameters estimated during motion-"
+              "correction. If motion is less than half a "
+              "voxel, it's generally OK. Moreover, it's "
+              "recommended to include this estimated motion "
+              "parameters as confounds (nuissance regressors) "
+              "in the the GLM.")
+segment_acronyms = ("Acronyms: TPM means Tissue Probability Map; GM means "
+                   "Grey-Matter;"
+                   " WM means White-Matter; CSF means Cerebro-Spinal Fuild")
+cv_tc_tooltip = ("Coefficient of Variation (CoV) of the BOLD signal. "
+                 "The Coefficient of "
+                 "Variation is defined as the variance of the BOLD signal "
+                 "(over the voxels in the brain volume) divided by the mean "
+                 "thereof. Generally, if the CoV curve is below 1% (.01), then"
+                 " it's OK. Also, the CoV typically spikes at the end and the "
+                 "begining of the acquisition, due to saturation effects, "
+                 "scanner instability, etc.")
+
+
 class SubjectData(object):
     """
     Encapsulation for subject data, relative to preprocessing.
@@ -540,12 +560,9 @@ class SubjectData(object):
             # geneate cv_tc plots
             if self.cv_tc:
                 generate_cv_tc_thumbnail(
-                    self.func,
-                    self.session_id,
-                    self.subject_id,
-                    self.reports_output_dir,
-                    results_gallery=self.results_gallery
-                    )
+                    self.func, self.session_id, self.subject_id,
+                    self.reports_output_dir, tooltip=cv_tc_tooltip,
+                    results_gallery=self.results_gallery)
 
         # shut down all watched report pages
         self.progress_logger.finish_all()
@@ -605,18 +622,17 @@ class SubjectData(object):
 
         thumbs = generate_realignment_thumbnails(
             getattr(self, 'realignment_parameters'),
-            self.reports_output_dir,
-            sessions=self.session_id,
+            self.reports_output_dir, sessions=self.session_id,
             execution_log_html_filename=execution_log_html if log
-            else None,
+            else None, tooltip=mc_tooltip,
             results_gallery=self.results_gallery
             )
 
         self.final_thumbnail.img.src = thumbs['rp_plot']
 
-    def generate_coregistration_thumbnails(
-        self, coreg_func_to_anat=True, log=True, comment=True, nipype=True):
-
+    def generate_coregistration_thumbnails(self, coreg_func_to_anat=True,
+                                           log=True, comment=True,
+                                           nipype=True):
         """
         Invoked to generate post-coregistration thumbnails.
 
@@ -632,7 +648,7 @@ class SubjectData(object):
             self.init_report()
 
         src, ref = self.func, self.anat
-        src_brain, ref_brain = "func", "anat"
+        src_brain, ref_brain = "functional image", "anatomical image"
         if not coreg_func_to_anat:
             src, ref = ref, src
             src_brain, ref_brain = ref_brain, src_brain
@@ -694,22 +710,18 @@ class SubjectData(object):
                 self.progress_logger.log('<hr/>')
 
         for brain_name, brain, cmap in zip(
-            ['anat', 'func'], [self.anat, self.func],
+            ['anatomical image', 'functional image'], [self.anat, self.func],
             [cm.gray, cm.spectral]):
             if not brain: continue
             thumbs = generate_segmentation_thumbnails(
-                brain,
-                self.reports_output_dir,
+                brain, self.reports_output_dir,
                 subject_gm_file=getattr(self, 'gm', None),
                 subject_wm_file=getattr(self, 'wm', None),
                 subject_csf_file=getattr(self, 'csf', None),
-                cmap=cmap,
-                brain=brain_name,
-                only_native=True,
+                cmap=cmap, brain=brain_name, only_native=True,
                 execution_log_html_filename=execution_log_html if log
-                else None,
-                results_gallery=self.results_gallery
-                )
+                else None, results_gallery=self.results_gallery,
+                tooltip=segment_acronyms)
 
             if brain_name == 'func':
                 self.final_thumbnail.img.src = thumbs['axial']
@@ -732,30 +744,24 @@ class SubjectData(object):
                 break
 
         for brain_name, brain, cmap in zip(
-            ['anat', 'func'], [self.anat, self.func],
+            ['anatomical image', 'functional image'], [self.anat, self.func],
             [cm.gray, cm.spectral]):
-
             if not brain: continue
 
             # generate segmentation thumbs
             if segmented:
                 thumbs = generate_segmentation_thumbnails(
-                    brain,
-                    self.reports_output_dir,
+                    brain, self.reports_output_dir,
                     subject_gm_file=getattr(self, 'mwgm', None),
                     subject_wm_file=getattr(self, 'mwwm', None),
                     subject_csf_file=getattr(self, 'mwcsf', None),
-                    cmap=cmap,
-                    brain=brain_name,
-                    comments="warped",
+                    cmap=cmap, brain=brain_name, comments="warped",
                     execution_log_html_filename=make_nipype_execution_log_html(
                         getattr(self, 'mwgm') or getattr(
-                            self, 'mwwm') or getattr(
-                            self, 'mwcsf'), "Segment",
+                            self, 'mwwm') or getattr(self, 'mwcsf'), "Segment",
                         self.reports_output_dir) if log else None,
-                    results_gallery=self.results_gallery
-                    )
-
+                    results_gallery=self.results_gallery,
+                    tooltip=segment_acronyms)
                 if brain_name == 'func' or not self.func:
                     self.final_thumbnail.img.src = thumbs['axial']
 
@@ -783,7 +789,6 @@ class SubjectData(object):
                 else None,
                 results_gallery=self.results_gallery,
                 )
-
             if not segmented and (brain_name == 'func' or not self.func):
                 self.final_thumbnail.img.src = thumbs['axial']
 

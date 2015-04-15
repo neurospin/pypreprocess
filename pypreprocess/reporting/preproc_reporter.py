@@ -16,35 +16,24 @@ import numpy as np
 import pylab as pl
 import nibabel
 from ..external import joblib
-from .check_preprocessing import (plot_registration,
-                                  plot_cv_tc,
+from .check_preprocessing import (plot_registration, plot_cv_tc,
                                   plot_segmentation,
-                                  plot_spm_motion_parameters
-                                  )
-from ..io_utils import (compute_mean_3D_image,
-                        is_3D,
-                        is_niimg,
-                        sanitize_fwhm
-                        )
-from .base_reporter import (Thumbnail,
-                            ResultsGallery,
-                            ProgressReport,
-                            a,
-                            img,
-                            lines2breaks,
+                                  plot_spm_motion_parameters)
+from ..io_utils import (compute_mean_3D_image, is_3D, is_niimg,
+                        sanitize_fwhm)
+from .base_reporter import (Thumbnail, ResultsGallery, ProgressReport,
+                            a, img, lines2breaks,
                             get_dataset_report_html_template,
                             get_dataset_report_preproc_html_template,
                             get_subject_report_html_template,
                             get_subject_report_preproc_html_template,
-                            PYPREPROCESS_URL,
-                            DARTEL_URL,
-                            ROOT_DIR,
+                            PYPREPROCESS_URL, DARTEL_URL, ROOT_DIR,
                             commit_subject_thumnbail_to_parent_gallery,
                             get_dataset_report_log_html_template,
-                            copy_web_conf_files
-                            )
+                            copy_web_conf_files)
 
 
+# misc
 SPM_DIR = '/i2bm/local/spm8'
 EPI_TEMPLATE = GM_TEMPLATE = T1_TEMPLATE = WM_TEMPLATE = CSF_TEMPLATE = None
 
@@ -620,18 +609,10 @@ def generate_coregistration_thumbnails(target,
 
 
 def generate_segmentation_thumbnails(
-    normalized_files,
-    output_dir,
-    subject_gm_file=None,
-    subject_wm_file=None,
-    subject_csf_file=None,
-    only_native=False,
-    brain='func',
-    comments="",
-    execution_log_html_filename=None,
-    cmap=None,
-    results_gallery=None,
-    ):
+        normalized_files, output_dir, subject_gm_file=None,
+        subject_wm_file=None, subject_csf_file=None, only_native=False,
+        brain='func', comments="", execution_log_html_filename=None,
+        cmap=None, tooltip=None, results_gallery=None):
     """Generates thumbnails after indirect normalization
     (segmentation + normalization)
 
@@ -662,17 +643,14 @@ def generate_segmentation_thumbnails(
         gallery to which thumbnails will be committed
 
     """
-
     if isinstance(normalized_files, basestring):
         normalized_file = normalized_files
     else:
         mean_normalized_file = os.path.join(output_dir,
                                             "%s.nii" % brain)
-
         compute_mean_3D_image(normalized_files,
                            output_filename=mean_normalized_file)
         normalized_file = mean_normalized_file
-
     output = {}
 
     # prepare for smart caching
@@ -686,7 +664,6 @@ def generate_segmentation_thumbnails(
         thumb_desc += (" (<a href=%s>see execution "
                        "log</a>)") % (os.path.basename(
                 execution_log_html_filename))
-
     _brain = "(%s) %s" % (comments, brain) if comments else brain
 
     # plot contours of template compartments on subject's brain
@@ -697,7 +674,6 @@ def generate_segmentation_thumbnails(
         template_compartments_contours_axial = os.path.join(
             output_dir,
             "template_compartments_contours_on_%s_axial.png" % _brain)
-
         qa_mem.cache(plot_segmentation)(
             normalized_file,
             GM_TEMPLATE,
@@ -707,7 +683,6 @@ def generate_segmentation_thumbnails(
             display_mode='z',
             cmap=cmap,
             title="template TPMs")
-
         qa_mem.cache(plot_segmentation)(
             normalized_file,
             gm_filename=GM_TEMPLATE,
@@ -720,7 +695,7 @@ def generate_segmentation_thumbnails(
 
         # create thumbnail
         if results_gallery:
-            thumbnail = Thumbnail()
+            thumbnail = Thumbnail(tooltip=tooltip)
             thumbnail.a = a(
                 href=os.path.basename(template_compartments_contours))
             thumbnail.img = img(
@@ -768,7 +743,7 @@ def generate_segmentation_thumbnails(
 
         # create thumbnail
         if results_gallery:
-            thumbnail = Thumbnail()
+            thumbnail = Thumbnail(tooltip=tooltip)
             thumbnail.a = a(
                 href=os.path.basename(subject_compartments_contours))
             thumbnail.img = img(
@@ -785,7 +760,7 @@ def generate_segmentation_thumbnails(
 
 
 def generate_cv_tc_thumbnail(image_files, sessions, subject_id, output_dir,
-                             results_gallery=None):
+                             tooltip=None, results_gallery=None):
     """Generate cv tc thumbnails
 
     Parameters
@@ -829,7 +804,7 @@ def generate_cv_tc_thumbnail(image_files, sessions, subject_id, output_dir,
                     cv_tc_plot_outfile=cv_tc_plot_output_file)
 
     # create thumbnail
-    thumbnail = Thumbnail()
+    thumbnail = Thumbnail(tooltip=tooltip)
     thumbnail.a = a(
         href=os.path.basename(cv_tc_plot_output_file))
     thumbnail.img = img(
@@ -845,7 +820,7 @@ def generate_cv_tc_thumbnail(image_files, sessions, subject_id, output_dir,
 
 
 def generate_realignment_thumbnails(
-        estimated_motion, output_dir, sessions=None,
+        estimated_motion, output_dir, sessions=None, tooltip=None,
         execution_log_html_filename=None, results_gallery=None):
     """Function generates thumbnails for realignment parameters."""
     sessions = [1] if sessions is None else sessions
@@ -875,13 +850,7 @@ def generate_realignment_thumbnails(
 
     # create thumbnail
     if results_gallery:
-        thumbnail = Thumbnail(
-            tooltip=("Motion parameters estimated during motion-"
-                     "correction. If motion is less than half a "
-                     "voxel, it's generally OK. Moreover, it's "
-                     "recommended to include this estimated motion "
-                     "parameters as confounds (nuissance regressors) "
-                     "in the the GLM."))
+        thumbnail = Thumbnail(tooltip=tooltip)
         thumbnail.a = a(href=os.path.basename(rp_plot))
         thumbnail.img = img(src=os.path.basename(rp_plot),
                             height="250px", width="600px")
