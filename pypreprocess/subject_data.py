@@ -46,7 +46,7 @@ from .reporting.preproc_reporter import (
 mc_tooltip = ("Motion parameters estimated during motion-"
               "correction. If motion is less than half a "
               "voxel, it's generally OK. Moreover, it's "
-              "recommended to include this estimated motion "
+              "recommended to include these estimated motion "
               "parameters as confounds (nuissance regressors) "
               "in the the GLM.")
 segment_acronyms = ("Acronyms: TPM means Tissue Probability Map; GM means "
