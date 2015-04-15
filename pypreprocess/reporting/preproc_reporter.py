@@ -112,10 +112,8 @@ def generate_preproc_undergone_docstring(
         preprocessing (useful if someone were to reproduce your results)
 
     """
-
     fwhm = sanitize_fwhm(fwhm)
     anat_fwhm = sanitize_fwhm(anat_fwhm)
-
     if dartel:
         normalize = False
         segment = False
@@ -124,15 +122,14 @@ def generate_preproc_undergone_docstring(
     if tools_used is None:
         tools_used = (
             'All preprocessing was done using <a href="%s">pypreprocess</a>,'
-            ' a collection of python tools (scripts, modules, etc.) for '
-            'preprocessing functional data.') % PYPREPROCESS_URL,
-
+            ' a collection of python scripts and modules for '
+            'preprocessing functional and anatomical MRI data.' % (
+                PYPREPROCESS_URL))
     preproc_undergone = "<p>%s</p>" % tools_used
 
     # what was actually typed at the command line ?
     if not command_line is None:
         preproc_undergone += "Command-line: <i>%s</i><br/>" % command_line
-
     preproc_undergone += (
         "<br>For each subject, the following preprocessing steps have "
         "been done:")
@@ -187,9 +184,8 @@ def generate_preproc_undergone_docstring(
                 )
         else:
             preproc_undergone += (
-            "The subject's anatomical image has been coregistered "
-            "against their functional images."
-                )
+                "The subject's anatomical image has been coregistered "
+                "against their functional images.")
         preproc_undergone += (
             " Coregistration is important as it allows: (1) segmentation of "
             "the functional via segmentation of the anatomical brain; "
@@ -226,9 +222,9 @@ def generate_preproc_undergone_docstring(
                     "images into standard space.</li>")
             else:
                 preproc_undergone += (
-                "<li>"
-                "The functional images have been warped from native to "
-                "standard space via classical normalization.</li>")
+                    "<li>"
+                    "The functional images have been warped from native to "
+                    "standard space via classical normalization.</li>")
     if dartel:
         preproc_undergone += (
             "<li>"
@@ -281,14 +277,12 @@ def generate_preproc_undergone_docstring(
 
     if additional_preproc_undergone:
         preproc_undergone += additional_preproc_undergone
-
     if np.sum(fwhm) > 0 and has_func:
         preproc_undergone += (
             "<li>"
             "The functional images have been "
             "smoothed with a %smm x %smm x %smm "
             "Gaussian kernel.</li>") % tuple(fwhm)
-
     if np.sum(anat_fwhm) > 0:
         preproc_undergone += (
             "<li>"
@@ -298,12 +292,10 @@ def generate_preproc_undergone_docstring(
         if segment:
             preproc_undergone += (
                 " Warped TPMs have been smoothed with the same kernel.")
-
     if not details_filename is None:
         preproc_undergone += (
             " <a href=%s>See complete configuration used for preprocessing"
             " here</a>") % os.path.basename(details_filename)
-
     preproc_undergone += "</ul>"
 
     return preproc_undergone

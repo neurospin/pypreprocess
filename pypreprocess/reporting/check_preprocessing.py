@@ -188,7 +188,7 @@ def plot_registration(reference_img, coregistered_img,
     coregistered_img = reorder_img(coregistered_img, resample="continuous")
 
     _slicer = plot_img(coregistered_img, cmap=cmap, cut_coords=cut_coords,
-              display_mode=display_mode, black_bg=True)
+              display_mode=display_mode, black_bg=False)
 
     # overlap the reference image
     if hasattr(reference_img, '__len__'):
@@ -251,7 +251,7 @@ def plot_segmentation(img, gm_filename, wm_filename=None,
     img = mean_img(img)
     img = reorder_img(img, resample="continuous")
     _slicer = plot_img(img, cut_coords=cut_coords, display_mode=display_mode,
-                       cmap=cmap, black_bg=True)
+                       cmap=cmap, black_bg=False)
 
     # add TPM contours
     gm = nibabel.load(gm_filename)
