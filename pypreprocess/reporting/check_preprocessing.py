@@ -46,16 +46,11 @@ def plot_spm_motion_parameters(parameter_file, title=None,
     pl.figure()
     pl.plot(motion)
     if not title is None:
-        pl.title(title, fontsize=10)
-    pl.xlabel('time(scans)', fontsize=10)
-    pl.legend(('Tx', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'), prop={"size": 12},
+        pl.title(title)
+    pl.legend(('TransX', 'TransY', 'TransZ', 'RotX', 'RotY', 'RotZ'),
               loc="upper left", ncol=2)
-    pl.ylabel('Estimated motion (mm/degrees)', fontsize=10)
-
-    # dump image unto disk
-    if not output_filename is None:
-        pl.savefig(output_filename, bbox_inches="tight", dpi=200)
-        pl.close()
+    pl.xlabel('time(scans)')
+    pl.ylabel('Estimated motion (mm/degrees)')
 
 
 def compute_cv(data, mask_array=None):
