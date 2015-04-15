@@ -37,7 +37,9 @@
       {{py: import os; loader=os.path.basename(results.loader_filename);}}
       $('#results').load("{{loader}}").fadeIn("slow");
     </script>
-    <b>Results</b> (click on a thumbnail to expand)<br/>
+    <b>Results</b><br/><br/>
+    (Hover over a thumbnail to get detailed info. Click on
+    the thumbnail to get a better view.)<br/>
     {{results.description | html}}<br/>
     <div id="results">
     </div>

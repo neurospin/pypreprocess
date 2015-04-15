@@ -42,7 +42,7 @@ from .reporting.preproc_reporter import (
     )
 
 
-# misc
+# tooltips for thumbnails in report pages
 mc_tooltip = ("Motion parameters estimated during motion-"
               "correction. If motion is less than half a "
               "voxel, it's generally OK. Moreover, it's "
@@ -60,6 +60,8 @@ cv_tc_tooltip = ("Coefficient of Variation (CoV) of the BOLD signal. "
                  " it's OK. Also, the CoV typically spikes at the end and the "
                  "begining of the acquisition, due to saturation effects, "
                  "scanner instability, etc.")
+reg_tooltip = ("If the registration worked well, then the red contours should"
+               " match the background image well.")
 
 
 class SubjectData(object):
@@ -668,15 +670,11 @@ class SubjectData(object):
 
         # generate thumbs proper
         thumbs = generate_coregistration_thumbnails(
-            (ref, ref_brain),
-            (src, src_brain),
+            (ref, ref_brain), (src, src_brain),
             self.reports_output_dir,
             execution_log_html_filename=execution_log_html if log
-            else None,
-            results_gallery=self.results_gallery,
-            comment=comment
-            )
-
+            else None, results_gallery=self.results_gallery,
+            comment=comment, tooltip=reg_tooltip)
         self.final_thumbnail.img.src = thumbs['axial']
 
     def generate_segmentation_thumbnails(self, log=True, nipype=True):
@@ -782,13 +780,10 @@ class SubjectData(object):
 
             # generate normalization thumbs proper
             thumbs = generate_normalization_thumbnails(
-                brain,
-                self.reports_output_dir,
-                brain=brain_name,
+                brain, self.reports_output_dir, brain=brain_name,
                 execution_log_html_filename=execution_log_html if log
-                else None,
-                results_gallery=self.results_gallery,
-                )
+                else None, results_gallery=self.results_gallery,
+                tooltip=reg_tooltip)
             if not segmented and (brain_name == 'func' or not self.func):
                 self.final_thumbnail.img.src = thumbs['axial']
 

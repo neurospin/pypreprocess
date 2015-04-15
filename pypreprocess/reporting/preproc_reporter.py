@@ -390,8 +390,7 @@ def nipype2htmlreport(nipype_report_filename):
         return lines2breaks(fd.readlines())
 
 
-def get_nipype_report(nipype_report_filename,
-                        ):
+def get_nipype_report(nipype_report_filename):
     if isinstance(nipype_report_filename, basestring):
         if os.path.isfile(nipype_report_filename):
             nipype_report_filenames = [nipype_report_filename]
@@ -413,13 +412,8 @@ def get_nipype_report(nipype_report_filename,
 
 
 def generate_registration_thumbnails(
-    target,
-    source,
-    procedure_name,
-    output_dir,
-    execution_log_html_filename=None,
-    results_gallery=None,
-    ):
+        target, source, procedure_name, output_dir, tooltip=None,
+        execution_log_html_filename=None, results_gallery=None):
     """
     Generates QA thumbnails post-registration.
 
@@ -442,7 +436,6 @@ def generate_registration_thumbnails(
         (e.g 'anat ==> func', etc.)
 
     """
-
     output = {}
 
     # prepare for smart caching
@@ -459,23 +452,16 @@ def generate_registration_thumbnails(
 
     # plot outline (edge map) of template on the
     # normalized image
-    outline = os.path.join(
-        output_dir,
-        "%s_on_%s_outline.png" % (target[1],
-                                  source[1]))
+    outline = os.path.join(output_dir,
+                           "%s_on_%s_outline.png" % (target[1], source[1]))
 
     qa_mem.cache(plot_registration)(
-        target[0],
-        source[0],
-        output_filename=outline,
-        title="Outline of %s on %s" % (
-            target[1],
-            source[1],
-            ))
+        target[0], source[0], output_filename=outline,
+        title="Outline of %s on %s" % (target[1], source[1]))
 
     # create thumbnail
     if results_gallery:
-        thumbnail = Thumbnail()
+        thumbnail = Thumbnail(tooltip=tooltip)
         thumbnail.a = a(href=os.path.basename(outline))
         thumbnail.img = img(
             src=os.path.basename(outline), height="250px")
@@ -491,50 +477,31 @@ def generate_registration_thumbnails(
         "%s_on_%s_outline.png" % (target[1],
                                   source[1]))
     outline_axial = os.path.join(
-        output_dir,
-        "%s_on_%s_outline_axial.png" % (target[1],
-                                        source[1]))
-
+        output_dir, "%s_on_%s_outline_axial.png" % (target[1], source[1]))
     qa_mem.cache(plot_registration)(
-        target[0],
-        source[0],
-        output_filename=outline_axial,
-        display_mode='z',
-        title="Outline of %s on %s" % (
-            target[1],
-            source[1]))
-
+        target[0], source[0], output_filename=outline_axial,
+        display_mode='z', title="Outline of %s on %s" % (target[1],
+                                                         source[1]))
     output['axial'] = outline_axial
-
     qa_mem.cache(plot_registration)(
-        target[0],
-        source[0],
-        output_filename=outline,
-        title="Outline of %s on %s" % (
-            target[1],
-            source[1],
-            ))
+        target[0], source[0], output_filename=outline,
+        title="Outline of %s on %s" % (target[1], source[1]))
 
     # create thumbnail
     if results_gallery:
-        thumbnail = Thumbnail()
+        thumbnail = Thumbnail(tooltip=tooltip)
         thumbnail.a = a(href=os.path.basename(outline))
         thumbnail.img = img(
             src=os.path.basename(outline), height="250px")
         thumbnail.description = thumb_desc
-
         results_gallery.commit_thumbnails(thumbnail)
 
     return output
 
 
 def generate_normalization_thumbnails(
-    normalized_files,
-    output_dir,
-    brain="EPI",
-    execution_log_html_filename=None,
-    results_gallery=None,
-    ):
+        normalized_files, output_dir, brain="EPI", tooltip=None,
+        execution_log_html_filename=None, results_gallery=None):
     """Generate thumbnails after spatial normalization or subject
 
     Parameters
@@ -552,30 +519,21 @@ def generate_normalization_thumbnails(
         gallery to which thumbnails will be committed
 
     """
-
     if isinstance(normalized_files, basestring):
         normalized = normalized_files
     else:
         mean_normalized_img = compute_mean_3D_image(normalized_files)
         normalized = mean_normalized_img
-
     return generate_registration_thumbnails(
-        (T1_TEMPLATE, 'template'),
-        (normalized, brain),
-        "Normalization of %s" % brain,
-        output_dir,
+        (T1_TEMPLATE, 'template'), (normalized, brain),
+        "Normalization of %s" % brain, output_dir,
         execution_log_html_filename=execution_log_html_filename,
-        results_gallery=results_gallery,
-        )
+        results_gallery=results_gallery, tooltip=tooltip)
 
 
-def generate_coregistration_thumbnails(target,
-                                       source,
-                                       output_dir,
-                                       execution_log_html_filename=None,
-                                       results_gallery=None,
-                                       comment=True
-                                       ):
+def generate_coregistration_thumbnails(
+        target, source, output_dir, execution_log_html_filename=None,
+        results_gallery=None, tooltip=None, comment=True):
     """
     Generates QA thumbnails post-coregistration.
 
@@ -596,16 +554,11 @@ def generate_coregistration_thumbnails(target,
             source image
 
     """
-
     comments = " %s == > %s" % (source[1], target[1]) if comment else ""
     return generate_registration_thumbnails(
-        target,
-        source,
-        "Coregistration %s" % comments,
-        output_dir,
-        execution_log_html_filename=execution_log_html_filename,
-        results_gallery=results_gallery,
-        )
+        target, source, "Coregistration %s" % comments,
+        output_dir, execution_log_html_filename=execution_log_html_filename,
+        results_gallery=results_gallery, tooltip=tooltip)
 
 
 def generate_segmentation_thumbnails(
