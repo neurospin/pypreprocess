@@ -336,7 +336,7 @@ powered by <a href="%s">nipy</a>.""" % (user_script_name,
             design_thumbs.commit_thumbnails(thumb)
 
     # create activation thumbs
-    for contrast_id in contrasts:
+    for contrast_id, contrast_val in contrasts.iteritems():
         z_map = z_maps[contrast_id]
 
         # load the map
@@ -367,7 +367,8 @@ powered by <a href="%s">nipy</a>.""" % (user_script_name,
         pl.close()
 
         # create thumbnail for activation
-        thumbnail = base_reporter.Thumbnail()
+        thumbnail = base_reporter.Thumbnail(
+            tooltip="Contrast vector: %s" % contrast_val)
         thumbnail.a = base_reporter.a(href=os.path.basename(stats_table))
         thumbnail.img = base_reporter.img(src=os.path.basename(z_map_plot),
                                           height="150px",)
