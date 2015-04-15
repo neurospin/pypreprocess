@@ -61,7 +61,10 @@ cv_tc_tooltip = ("Coefficient of Variation (CoV) of the BOLD signal. "
                  "begining of the acquisition, due to saturation effects, "
                  "scanner instability, etc.")
 reg_tooltip = ("If the registration worked well, then the red contours should"
-               " match the background image well.")
+               " match the background image well. Otherwise, something might"
+               " have gone wrong. Typically things than can go wrong include: "
+               "lesions (missing brain tissue); bad orientation headers; "
+               "non-brain tissues in anatomical image, etc.")
 
 
 class SubjectData(object):
