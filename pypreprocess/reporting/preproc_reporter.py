@@ -852,29 +852,45 @@ def generate_realignment_thumbnails(
     if isinstance(estimated_motion, basestring):
         estimated_motion = [estimated_motion]
     output = {}
+    if isinstance(estimated_motion, basestring):
+        estimated_motion = [estimated_motion]
+    tmp = []
+    for x in estimated_motion:
+        if isinstance(x, basestring):
+            x = np.loadtxt(x)
+        tmp.append(x)
+    lengths = map(len, tmp)
+    estimated_motion = np.vstack(tmp)
+    rp_plot = os.path.join(output_dir, 'rp_plot.png')
+    plot_spm_motion_parameters(
+        estimated_motion,
+        title="Plot of Estimated motion for %d sessions" % len(sessions),
+        output_filename=rp_plot)
+    aux = 0.
+    for l in lengths[:-1]:
+        pl.axvline(aux + l, linestyle="--", c="k")
+        aux += l
+    pl.savefig(rp_plot, bbox_inches="tight", dpi=200)
+    pl.close()
 
-    for session_id, rp in zip(sessions, estimated_motion):
-        rp_plot = os.path.join(
-            output_dir, 'rp_plot_%s.png' % session_id)
-        plot_spm_motion_parameters(
-            rp,
-            title="Plot of Estimated motion for session %s" % session_id,
-            output_filename=rp_plot)
-
-        # create thumbnail
-        if results_gallery:
-            thumbnail = Thumbnail()
-            thumbnail.a = a(href=os.path.basename(rp_plot))
-            thumbnail.img = img(src=os.path.basename(rp_plot),
-                                height="250px", width="600px")
-            thumbnail.description = "Motion Correction"
-            if not execution_log_html_filename is None:
-                thumbnail.description += (" (<a href=%s>see execution "
-                "log</a>)") % os.path.basename(
-                    execution_log_html_filename)
-
-            results_gallery.commit_thumbnails(thumbnail)
-
+    # create thumbnail
+    if results_gallery:
+        thumbnail = Thumbnail(
+            tooltip=("Motion parameters estimated during motion-"
+                     "correction. If motion is less than half a "
+                     "voxel, it's generally OK. Moreover, it's "
+                     "recommended to include this estimated motion "
+                     "parameters as confounds (nuissance regressors) "
+                     "in the the GLM."))
+        thumbnail.a = a(href=os.path.basename(rp_plot))
+        thumbnail.img = img(src=os.path.basename(rp_plot),
+                            height="250px", width="600px")
+        thumbnail.description = "Motion Correction"
+        if not execution_log_html_filename is None:
+            thumbnail.description += (" (<a href=%s>see execution "
+            "log</a>)") % os.path.basename(
+                execution_log_html_filename)
+        results_gallery.commit_thumbnails(thumbnail)
         output['rp_plot'] = rp_plot
 
     return output
