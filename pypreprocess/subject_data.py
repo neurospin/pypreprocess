@@ -60,11 +60,17 @@ cv_tc_tooltip = ("Coefficient of Variation (CoV) of the BOLD signal. "
                  " it's OK. Also, the CoV typically spikes at the end and the "
                  "begining of the acquisition, due to saturation effects, "
                  "scanner instability, etc.")
-reg_tooltip = ("If the registration worked well, then the red contours should"
+reg_tooltip = ("The red contours should"
                " match the background image well. Otherwise, something might"
                " have gone wrong. Typically things than can go wrong include: "
                "lesions (missing brain tissue); bad orientation headers; "
                "non-brain tissues in anatomical image, etc.")
+segment_tooltip = ("%s. The TPM contours shoud match the background image "
+                   "well. Otherwise, something might have gone wrong. "
+                   "Typically things than can go wrong include: "
+                   "lesions (missing brain tissue); bad orientation headers; "
+                   "non-brain tissue in anatomical image (i.e needs brain "
+                   "extraction), etc." % segment_acronyms)
 
 
 class SubjectData(object):
@@ -120,7 +126,6 @@ class SubjectData(object):
                  session_id=None, output_dir=None, session_output_dirs=None,
                  anat_output_dir=None, scratch=None, warpable=['anat', 'func'],
                  **kwargs):
-
         self.func = func
         self.anat = anat
         self.subject_id = subject_id
@@ -722,7 +727,7 @@ class SubjectData(object):
                 cmap=cmap, brain=brain_name, only_native=True,
                 execution_log_html_filename=execution_log_html if log
                 else None, results_gallery=self.results_gallery,
-                tooltip=segment_acronyms)
+                tooltip=segment_tooltip)
 
             if brain_name == 'func':
                 self.final_thumbnail.img.src = thumbs['axial']
@@ -762,7 +767,7 @@ class SubjectData(object):
                             self, 'mwwm') or getattr(self, 'mwcsf'), "Segment",
                         self.reports_output_dir) if log else None,
                     results_gallery=self.results_gallery,
-                    tooltip=segment_acronyms)
+                    tooltip=segment_tooltip)
                 if brain_name == 'func' or not self.func:
                     self.final_thumbnail.img.src = thumbs['axial']
 
