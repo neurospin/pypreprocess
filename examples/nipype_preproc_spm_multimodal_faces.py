@@ -1,10 +1,8 @@
 """
-:Module: nipype_preproc_spm_multimodal_faces
-Synopsis: Minimal script for preprocessing single-subject data +
-GLM with nipy
-Author: dohmatob elvis dopgima elvis[dot]dohmatob[at]inria[dot]fr
+Minimal script for preprocessing single-subject data + GLM with nipy
 
 """
+# Author: DOHMATOB Elvis
 
 # standard imports
 import sys
@@ -113,7 +111,7 @@ print "Saving mask image %s" % mask_path
 nibabel.save(fmri_glm.mask, mask_path)
 mask_images.append(mask_path)
 
-# compute contrasts
+# compute contrast maps
 z_maps = {}
 effects_maps = {}
 for contrast_id, contrast_val in contrasts.iteritems():
@@ -121,8 +119,6 @@ for contrast_id, contrast_val in contrasts.iteritems():
     z_map, t_map, effects_map, var_map = fmri_glm.contrast(
         [contrast_val] * 2, con_id=contrast_id, output_z=True,
         output_stat=True, output_effects=True, output_variance=True)
-
-    # store stat maps to disk
     for map_type, out_map in zip(['z', 't', 'effects', 'variance'],
                               [z_map, t_map, effects_map, var_map]):
         map_dir = os.path.join(
@@ -133,17 +129,14 @@ for contrast_id, contrast_val in contrasts.iteritems():
             map_dir, '%s.nii.gz' % contrast_id)
         print "\t\tWriting %s ..." % map_path
         nibabel.save(out_map, map_path)
-
-        # collect zmaps for contrasts we're interested in
         if map_type == 'z':
             z_maps[contrast_id] = map_path
         if map_type == 'effects':
             effects_maps[contrast_id] = map_path
 
-# do stats report
+# generate stats report
 anat_img = nibabel.load(subject_data.anat)
-stats_report_filename = os.path.join(subject_data.output_dir,
-                                     "reports",
+stats_report_filename = os.path.join(subject_data.output_dir, "reports",
                                      "report_stats.html")
 generate_subject_stats_report(
     stats_report_filename, contrasts, z_maps, fmri_glm.mask, anat=anat_img,
