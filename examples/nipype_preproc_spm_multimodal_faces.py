@@ -23,8 +23,8 @@ from nipy.modalities.fmri.glm import FMRILinearModel
 from pypreprocess.datasets import fetch_spm_multimodal_fmri
 from pypreprocess.reporting.base_reporter import ProgressReport
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
-from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
-                                                   SubjectData)
+from pypreprocess.nipype_preproc_spm_utils import do_subject_preproc
+from pypreprocess.subject_data import SubjectData
 
 # file containing configuration for preprocessing the data
 this_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -43,16 +43,13 @@ dataset_dir = os.path.dirname(os.path.dirname(os.path.dirname(
 
 # preprocess the data
 subject_id = "sub001"
-subject_data = SubjectData(output_dir=os.path.join(dataset_dir, "pypreprocess",
-                                                   subject_id),
-                           subject_id=subject_id,
-                           func=[subject_data.func1, subject_data.func2],
-                           anat=subject_data.anat,
-                           trials_ses1=subject_data.trials_ses1,
-                           trials_ses2=subject_data.trials_ses2)
-subject_data = do_subjects_preproc([subject_data], realign=True,
-                                  coregister=True, segment=True,
-                                  normalize=True)[0]
+subject_data = SubjectData(
+    output_dir=os.path.join(dataset_dir, "pypreprocess", subject_id),
+    subject_id=subject_id, func=[subject_data.func1, subject_data.func2],
+    anat=subject_data.anat, trials_ses1=subject_data.trials_ses1,
+    trials_ses2=subject_data.trials_ses2, session_ids=["Session1", "Session2"])
+subject_data = do_subject_preproc(subject_data, realign=True, coregister=True,
+                                  segment=True, normalize=True)
 
 # experimental paradigm meta-params
 stats_start_time = time.ctime()
@@ -85,13 +82,9 @@ for x in xrange(2):
     # build design matrix
     frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)
     design_matrix = make_dmtx(
-        frametimes,
-        paradigm, hrf_model=hrf_model,
-        drift_model=drift_model, hfcut=hfcut,
-        add_reg_names=['tx', 'ty', 'tz', 'rx', 'ry', 'rz'],
-        add_regs=np.loadtxt(subject_data.realignment_parameters[x])
-        )
-
+        frametimes, paradigm, hrf_model=hrf_model, drift_model=drift_model,
+        hfcut=hfcut, add_reg_names=['tx', 'ty', 'tz', 'rx', 'ry', 'rz'],
+        add_regs=np.loadtxt(subject_data.realignment_parameters[x]))
     design_matrices.append(design_matrix)
 
 # specify contrasts
@@ -102,25 +95,20 @@ for i in xrange(paradigm.n_conditions):
               ] = np.eye(n_columns)[2 * i]
 
 # more interesting contrasts
-contrasts['faces-scrambled'] = contrasts['faces'
-                                         ] - contrasts['scrambled']
+contrasts['faces-scrambled'] = contrasts['faces'] - contrasts['scrambled']
 contrasts['scrambled-faces'] = -contrasts['faces-scrambled']
-contrasts['effects_of_interest'] = contrasts['faces'
-                                             ] + contrasts['scrambled']
+contrasts['effects_of_interest'] = contrasts['faces'] + contrasts['scrambled']
 
 # fit GLM
 print 'Fitting a GLM (this takes time)...'
-fmri_glm = FMRILinearModel([nibabel.concat_images(x)
-                            for x in subject_data.func],
-                           [design_matrix.matrix
-                            for design_matrix in design_matrices],
-                           mask='compute'
-                           )
+fmri_glm = FMRILinearModel(
+    [nibabel.concat_images(x) for x in subject_data.func],
+    [design_matrix.matrix for design_matrix in design_matrices],
+    mask='compute')
 fmri_glm.fit(do_scaling=True, model='ar1')
 
 # save computed mask
-mask_path = os.path.join(subject_data.output_dir,
-                         "mask.nii.gz")
+mask_path = os.path.join(subject_data.output_dir, "mask.nii.gz")
 print "Saving mask image %s" % mask_path
 nibabel.save(fmri_glm.mask, mask_path)
 mask_images.append(mask_path)
@@ -131,13 +119,8 @@ effects_maps = {}
 for contrast_id, contrast_val in contrasts.iteritems():
     print "\tcontrast id: %s" % contrast_id
     z_map, t_map, effects_map, var_map = fmri_glm.contrast(
-        [contrast_val] * 2,
-        con_id=contrast_id,
-        output_z=True,
-        output_stat=True,
-        output_effects=True,
-        output_variance=True
-        )
+        [contrast_val] * 2, con_id=contrast_id, output_z=True,
+        output_stat=True, output_effects=True, output_variance=True)
 
     # store stat maps to disk
     for map_type, out_map in zip(['z', 't', 'effects', 'variance'],
@@ -163,27 +146,11 @@ stats_report_filename = os.path.join(subject_data.output_dir,
                                      "reports",
                                      "report_stats.html")
 generate_subject_stats_report(
-    stats_report_filename,
-    contrasts,
-    z_maps,
-    fmri_glm.mask,
-    anat=anat_img,
-    threshold=2.3,
-    cluster_th=15,
-    design_matrices=design_matrix,
-    subject_id="sub001",
-    start_time=stats_start_time,
-    title="GLM for subject %s" % subject_data.subject_id,
-
-    # additional ``kwargs`` for more informative report
-    paradigm=paradigm.__dict__,
-    TR=tr,
-    n_scans=n_scans,
-    hfcut=hfcut,
-    frametimes=frametimes,
-    drift_model=drift_model,
-    hrf_model=hrf_model,
-    )
-
+    stats_report_filename, contrasts, z_maps, fmri_glm.mask, anat=anat_img,
+    threshold=2.3, cluster_th=15, design_matrices=design_matrix, TR=tr,
+    subject_id="sub001", start_time=stats_start_time, n_scans=n_scans,
+    title="GLM for subject %s" % subject_data.subject_id, hfcut=hfcut,
+    paradigm=paradigm.__dict__, frametimes=frametimes,
+    drift_model=drift_model, hrf_model=hrf_model)
 ProgressReport().finish_dir(subject_data.output_dir)
 print "Statistic report written to %s\r\n" % stats_report_filename

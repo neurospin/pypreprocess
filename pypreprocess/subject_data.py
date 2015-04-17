@@ -443,9 +443,9 @@ class SubjectData(object):
             generated
 
         """
-        if not self.func: cv_tc = False
-
-        # make sure output_dir is OK
+        # misc
+        if not self.func:
+            cv_tc = False
         self._sanitize_output_dir()
 
         # misc for reporting
@@ -463,7 +463,7 @@ class SubjectData(object):
         self.report_preproc_filename = os.path.join(
             self.reports_output_dir, 'report_preproc.html')
         self.report_filename = os.path.join(self.reports_output_dir,
-                                                    'report.html')
+                                            'report.html')
 
         # clean report files
         open(self.report_log_filename, 'w').close()
