@@ -88,7 +88,7 @@ class SubjectData(object):
     subject_id: string, optional (default 'sub001')
         subject id
 
-    session_id: string or list of strings, optional (default None):
+    session_ids: string or list of strings, optional (default None):
         session ids for all sessions (i.e runs)
 
     output_dir: string, optional (default None)
@@ -110,7 +110,7 @@ class SubjectData(object):
     """
 
     def __init__(self, func=None, anat=None, subject_id="sub001",
-                 session_id=None, output_dir=None, session_output_dirs=None,
+                 session_ids=None, output_dir=None, session_output_dirs=None,
                  anat_output_dir=None, scratch=None, warpable=None,
                  **kwargs):
         if warpable is None:
@@ -118,7 +118,7 @@ class SubjectData(object):
         self.func = func
         self.anat = anat
         self.subject_id = subject_id
-        self.session_id = session_id
+        self.session_ids = session_ids
         self.output_dir = output_dir
         self.anat_output_dir = anat_output_dir
         self.session_output_dirs = session_output_dirs
@@ -180,7 +180,7 @@ class SubjectData(object):
             if sess_output_dir is None:
                 if self.n_sessions > 1:
                     sess_output_dir = os.path.join(
-                        self.output_dir, self.session_id[sess])
+                        self.output_dir, self.session_ids[sess])
                 else:
                     sess_output_dir = self.output_dir
             else:
@@ -328,21 +328,21 @@ class SubjectData(object):
         if not self.anat is None:
             assert os.path.isfile(self.anat)
 
-        # sanitize session_id
-        if self.session_id is None:
+        # sanitize session_ids
+        if self.session_ids is None:
             if len(self.func) < 10:
-                self.session_id = ["session_%i" % i
+                self.session_ids = ["session_%i" % i
                                    for i in xrange(len(self.func))]
             else:
-                self.session_id = ["session_0"]
+                self.session_ids = ["session_0"]
         else:
-            if isinstance(self.session_id, (basestring, int)):
+            if isinstance(self.session_ids, (basestring, int)):
                 assert len(self.func) == 1
-                self.session_id = [self.session_id]
+                self.session_ids = [self.session_ids]
             else:
-                assert len(self.session_id) == len(self.func), "%s != %s" % (
-                    self.session_id, len(self.func))
-        self.n_sessions = len(self.session_id)
+                assert len(self.session_ids) == len(self.func), "%s != %s" % (
+                    self.session_ids, len(self.func))
+        self.n_sessions = len(self.session_ids)
 
         # sanitize output_dir
         self._sanitize_output_dir()
@@ -362,7 +362,7 @@ class SubjectData(object):
 
         # get basenames
         self.basenames = [get_basenames(self.func[sess]) if not is_niimg(
-                self.func[sess]) else "%s.nii.gz" % self.session_id[sess]
+                self.func[sess]) else "%s.nii.gz" % self.session_ids[sess]
                         for sess in xrange(self.n_sessions)]
 
         return self
@@ -443,7 +443,6 @@ class SubjectData(object):
             generated
 
         """
-        # misc
         if not self.func:
             cv_tc = False
         self._sanitize_output_dir()
@@ -525,7 +524,7 @@ class SubjectData(object):
             # geneate cv_tc plots
             if self.cv_tc:
                 generate_cv_tc_thumbnail(
-                    self.func, self.session_id, self.subject_id,
+                    self.func, self.session_ids, self.subject_id,
                     self.reports_output_dir, tooltip=cv_tc_tooltip,
                     results_gallery=self.results_gallery)
 
@@ -585,7 +584,7 @@ class SubjectData(object):
         # generate thumbnails proper
         thumbs = generate_realignment_thumbnails(
             getattr(self, 'realignment_parameters'),
-            self.reports_output_dir, sessions=self.session_id,
+            self.reports_output_dir, sessions=self.session_ids,
             execution_log_html_filename=execution_log_html if log
             else None, tooltip=mc_tooltip,
             results_gallery=self.results_gallery)
