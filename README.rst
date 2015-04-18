@@ -41,7 +41,7 @@ Dependencies
 
 Installation
 ============
-First install the above dependencies by running the following commands in a terminal:
+First install the above dependencies by copy-pasting the following commands in a terminal:
 
       wget -O- http://neuro.debian.net/lists/precise.us-nh.libre | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
       && sudo apt-key adv --recv-keys --keyserver pgp.mit.edu 2649A5A9
