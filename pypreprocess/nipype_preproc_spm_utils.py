@@ -863,15 +863,12 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
     Input subject_data is modified.
 
     """
-
-    # sanitize software choice
+    # misc
     software = software.lower()
 
     if software == "python":
-        return _pp_do_subject_smooth(subject_data, fwhm, caching=caching,
-                                     report=report)
-
-    if software != "spm":
+        return _pp_do_subject_smooth(subject_data, fwhm, caching=caching)
+    elif software != "spm":
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # configure SPM back-end
@@ -897,8 +894,7 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
     subject_data.nipype_results['smooth'] = {}
 
     for brain_name, width in zip(
-        ['func', 'anat'],
-        [fwhm] + [anat_fwhm] * 7):
+            ['func', 'anat'], [fwhm] + [anat_fwhm] * 7):
         brain = getattr(subject_data, brain_name)
         if not brain: continue
         print brain_name
@@ -907,16 +903,12 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
         if brain_name == "func":
             in_files, file_types = ravel_filenames(brain)
         if brain_name == "anat":
-            anat_like = ['anat',
-                         'mwgm', 'mwwm', 'mwcsf'  # normalized TPMs
-                         ]
+            anat_like = ['anat', 'mwgm', 'mwwm', 'mwcsf']
             anat_like = [x for x in anat_like if hasattr(subject_data, x)]
             in_files = [getattr(subject_data, x) for x in anat_like]
 
-        smooth_result = smooth(in_files=in_files,
-                               fwhm=width,
-                               ignore_exception=False
-                               )
+        smooth_result = smooth(
+            in_files=in_files, fwhm=width, ignore_exception=False)
 
         # failed node ?
         subject_data.nipype_results['smooth'][brain_name] = smooth_result
@@ -1064,10 +1056,8 @@ def _do_subject_dartelnorm2mni(subject_data,
 
         # smooth func
         if np.sum(fwhm) > 0:
-            subject_data = _do_subject_smooth(subject_data, fwhm,
-                                              caching=caching,
-                                              report=report
-                                              )
+            subject_data = _do_subject_smooth(
+                subject_data, fwhm, caching=caching, report=report)
 
     # hardlink output files
     if hardlink_output: subject_data.hardlink_output_files()
