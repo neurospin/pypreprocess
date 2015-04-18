@@ -61,7 +61,7 @@ def execute_spm_auditory_glm(data, reg_motion=False):
     # specify contrasts
     contrasts = {}
     n_columns = len(design_matrix.names)
-    for i in xrange(paradigm.n_conditions):
+    for i in range(paradigm.n_conditions):
         contrasts['%s' % design_matrix.names[2 * i]] = np.eye(n_columns)[2 * i]
 
     # more interesting contrasts"""
@@ -92,7 +92,7 @@ def execute_spm_auditory_glm(data, reg_motion=False):
 
     print "Computing contrasts..."
     z_maps = {}
-    for contrast_id, contrast_val in contrasts.iteritems():
+    for contrast_id, contrast_val in contrasts.items():
         print "\tcontrast id: %s" % contrast_id
         z_map, t_map, eff_map, var_map = fmri_glm.contrast(
             contrasts[contrast_id],
@@ -165,7 +165,7 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
 
     # make design matrices
     design_matrices = []
-    for x in xrange(2):
+    for x in range(2):
         n_scans = data['func'][x].shape[-1]
 
         timing = scipy.io.loadmat(data['trials_ses%i' % (x + 1)],
@@ -200,7 +200,7 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
     # specify contrasts
     contrasts = {}
     n_columns = len(design_matrix.names)
-    for i in xrange(paradigm.n_conditions):
+    for i in range(paradigm.n_conditions):
         contrasts['%s' % design_matrix.names[2 * i]] = np.eye(n_columns)[2 * i]
 
     # more interesting contrasts
@@ -211,7 +211,7 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
 
     # we've thesame contrasts over sessions, so let's replicate
     contrasts = dict((contrast_id, [contrast_val] * 2)
-                     for contrast_id, contrast_val in contrasts.iteritems())
+                     for contrast_id, contrast_val in contrasts.items())
 
     # fit GLM
     print('\r\nFitting a GLM (this takes time)...')
@@ -238,7 +238,7 @@ def execute_spm_multimodal_fmri_glm(data, reg_motion=False):
 
     print "Computing contrasts .."
     z_maps = {}
-    for contrast_id, contrast_val in contrasts.iteritems():
+    for contrast_id, contrast_val in contrasts.items():
         print "\tcontrast id: %s" % contrast_id
         z_map, t_map, eff_map, var_map = fmri_glm.contrast(
             contrast_val,

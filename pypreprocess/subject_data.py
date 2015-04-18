@@ -132,7 +132,7 @@ class SubjectData(object):
         self._set_items(**kwargs)
 
     def _set_items(self, **kwargs):
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
             setattr(self, k, v)
 
     def _delete_orientation(self):
@@ -151,7 +151,7 @@ class SubjectData(object):
         # deleteorient for func
         self.func = [mem.cache(delete_orientation)(
             self.func[sess], self.session_output_dirs[sess])
-                    for sess in xrange(self.n_sessions)]
+                    for sess in range(self.n_sessions)]
 
         # deleteorient for anat
         if not self.anat is None:
@@ -207,7 +207,7 @@ class SubjectData(object):
         mem = Memory(cache_dir, verbose=100)
         self.func = [mem.cache(do_niigz2nii)(
             self.func[sess], output_dir=self.session_output_dirs[sess])
-                    for sess in xrange(self.n_sessions)]
+                    for sess in range(self.n_sessions)]
         if not self.anat is None:
             self.anat = mem.cache(do_niigz2nii)(
                 self.anat, output_dir=self.anat_output_dir)
@@ -235,7 +235,7 @@ class SubjectData(object):
 
         """
         # check that functional image abspaths are distinct across sessions
-        for sess1 in xrange(self.n_sessions):
+        for sess1 in range(self.n_sessions):
             if is_niimg(self.func[sess1]):
                 continue
 
@@ -271,7 +271,7 @@ class SubjectData(object):
 
             # functional images for sess1 shouldn't concide with any functional
             # image of any other session
-            for sess2 in xrange(sess1 + 1, self.n_sessions):
+            for sess2 in range(sess1 + 1, self.n_sessions):
                 if is_niimg(self.func[sess2]):
                     continue
                 if self.func[sess1] == self.func[sess2]:
@@ -336,7 +336,7 @@ class SubjectData(object):
             if len(self.func) > 10:
                 raise RuntimeError
             self.session_ids = ["Session%i" % (sess + 1)
-                                for sess in xrange(len(self.func))]
+                                for sess in range(len(self.func))]
         else:
             if isinstance(self.session_ids, (basestring, int)):
                 assert len(self.func) == 1
@@ -365,7 +365,7 @@ class SubjectData(object):
         # get basenames
         self.basenames = [get_basenames(self.func[sess]) if not is_niimg(
                 self.func[sess]) else "%s.nii.gz" % self.session_ids[sess]
-                        for sess in xrange(self.n_sessions)]
+                        for sess in range(self.n_sessions)]
 
         return self
 
@@ -373,7 +373,7 @@ class SubjectData(object):
         if not hasattr(self, "realignment_parameters"):
             return
         rp_filenames = []
-        for sess in xrange(self.n_sessions):
+        for sess in range(self.n_sessions):
             sess_rps = getattr(self, "realignment_parameters")[sess]
             if isinstance(sess_rps, basestring):
                 rp_filenames.append(sess_rps)
@@ -419,7 +419,7 @@ class SubjectData(object):
                 if isinstance(filenames, basestring):
                     assert self.n_sessions == 1, filenames
                     filenames = [filenames]
-                for sess in xrange(self.n_sessions):
+                for sess in range(self.n_sessions):
                     filename = filenames[sess]
                     if not filename is None:
                         linked_filename = hard_link(

@@ -142,7 +142,7 @@ def test_appy_realigment_and_extract_realignment_params_APIs():
     film = create_random_image(shape=[16, 16, 16, n_scans], affine=affine)
 
     # there should be no motion
-    for t in xrange(n_scans):
+    for t in range(n_scans):
         numpy.testing.assert_array_equal(extract_realignment_params(
                 load_specific_vol(film, t)[0],
                 load_specific_vol(film, 0)[0]),
@@ -150,7 +150,7 @@ def test_appy_realigment_and_extract_realignment_params_APIs():
 
     # now introduce motion into other vols relative to the first vol
     rp = np.ndarray((n_scans, 12))
-    for t in xrange(n_scans):
+    for t in range(n_scans):
         rp[t, ...] = get_initial_motion_params()
         rp[t, :3] += _make_vol_specific_translation(translation, n_scans, t)
         rp[t, 3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
@@ -159,7 +159,7 @@ def test_appy_realigment_and_extract_realignment_params_APIs():
     film = list(apply_realignment(film, rp))
 
     # check that motion has been induced
-    for t in xrange(n_scans):
+    for t in range(n_scans):
         _tmp = get_initial_motion_params()
         _tmp[:3] += _make_vol_specific_translation(translation, n_scans, t)
         _tmp[3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
@@ -187,14 +187,14 @@ def test_MRIMotionCorrection_fit():
                                         "test_data/spmmmfmri.mat"),
                            squeeze_me=True, struct_as_record=False)
     data = np.ndarray(list(vol['data'].shape) + [n_scans])
-    for t in xrange(n_scans):
+    for t in range(n_scans):
         data[..., t] = vol['data']
     film = nibabel.Nifti1Image(data, vol['affine'])
 
     # rigidly move other volumes w.r.t. the first
     rp = np.array([get_initial_motion_params()
-                   for _ in xrange(n_scans)])
-    for t in xrange(n_scans):
+                   for _ in range(n_scans)])
+    for t in range(n_scans):
         rp[t, ...][:3] += _make_vol_specific_translation(
             translation, n_scans, t)
         rp[t, ...][3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
@@ -211,7 +211,7 @@ def test_MRIMotionCorrection_fit():
 
     # check that we estimated the correct motion params
     # XXX refine the notion of "closeness" below
-    for t in xrange(n_scans):
+    for t in range(n_scans):
         _tmp = get_initial_motion_params()[:6]
 
         # check the estimated motion is well within our MAX_RE limit

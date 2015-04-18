@@ -1427,7 +1427,7 @@ def _do_subjects_dartel(subjects,
         image_files=dartel_input_images,)
     if dartel_result.outputs is None: return
 
-    for subject_data, j in zip(subjects, xrange(len(subjects))):
+    for subject_data, j in zip(subjects, range(len(subjects))):
         subject_data.gm = newsegment_result.outputs.dartel_input_images[0][j]
         subject_data.wm = newsegment_result.outputs.dartel_input_images[1][j]
         subject_data.dartel_flow_fields = dartel_result.outputs\

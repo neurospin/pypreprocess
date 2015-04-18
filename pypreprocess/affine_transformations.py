@@ -356,7 +356,7 @@ def apply_realignment(vols, rp, inverse=True):
 
     rvols = [apply_realignment_to_vol(vol, rp[t], inverse=inverse)
              for vol, t in zip(load_vols(vols),
-                               xrange(n_scans))]
+                               range(n_scans))]
 
     return rvols if n_scans > 1 or isinstance(vols, list) else rvols[0]
 

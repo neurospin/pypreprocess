@@ -16,7 +16,7 @@ from io_utils import _expand_path, get_relative_path
 
 def _del_nones_from_dict(some_dict):
     if isinstance(some_dict, dict):
-        for k, v in some_dict.iteritems():
+        for k, v in some_dict.items():
             if v is None: del some_dict[k]
             else: _del_nones_from_dict(v)
 
@@ -30,7 +30,7 @@ def _parse_job(jobfile, **replacements):
         val = section[key]
 
         if isinstance(val, basestring):
-            for k, v in replacements.iteritems():
+            for k, v in replacements.items():
                 val = val.replace("%" + k + "%", v)
 
         if key == "slice_order":

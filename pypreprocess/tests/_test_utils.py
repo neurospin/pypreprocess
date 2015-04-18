@@ -41,7 +41,7 @@ def make_dataset(n_subjects=1, n_scans=10, n_sessions=1,
         os.makedirs(output_dir)
 
     dataset = []
-    for i in xrange(n_subjects):
+    for i in range(n_subjects):
         subject_data = {"subject_id": "sub%03i" % (i + 1), "func": [],
                         'anat': '%s/anat.nii.gz' % DATA_DIR}
         nibabel.save(create_random_image(ndim=3),
@@ -50,14 +50,14 @@ def make_dataset(n_subjects=1, n_scans=10, n_sessions=1,
         if not os.path.exists(subject_data_dir):
             os.makedirs(subject_data_dir)
 
-        for j in xrange(n_sessions):
+        for j in range(n_sessions):
             session_dir = os.path.join(subject_data_dir,
                                        "session%03i" % (j + 1))
             if not os.path.exists(session_dir):
                 os.makedirs(session_dir)
             sfunc = []
             if threeD_filenames:
-                for k in xrange(n_scans):
+                for k in range(n_scans):
                     func_filename = os.path.join(session_dir,
                                                  "func%03i.%s" % (j + 1, ext))
                     nibabel.save(create_random_image(ndim=3),
@@ -88,7 +88,7 @@ def _make_sd(func_filenames=None, anat_filename=None, ext=".nii.gz",
              unique_func_names=False, output_dir="/tmp/titi"):
     if not func_filenames is None:
         n_sessions = len(func_filenames)
-    func = [create_random_image(ndim=4) for _ in xrange(n_sessions)]
+    func = [create_random_image(ndim=4) for _ in range(n_sessions)]
     anat = create_random_image(ndim=3)
     if anat_filename is None:
         anat_filename = '%s/anat%s' % (DATA_DIR, ext)
@@ -104,7 +104,7 @@ def _make_sd(func_filenames=None, anat_filename=None, ext=".nii.gz",
                     _save_img(x, y)
     else:
         func_filenames = []
-        for sess in xrange(n_sessions):
+        for sess in range(n_sessions):
             sess_dir = DATA_DIR if not make_sess_dirs else os.path.join(
                 DATA_DIR, "session%i" % sess)
             if not os.path.exists(sess_dir):

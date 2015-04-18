@@ -52,7 +52,7 @@ def _do_subject_slice_timing(subject_data, refslice=0,
     stc_output = []
     original_bold = subject_data.func
     for sess_func, sess_id in zip(subject_data.func,
-                                  xrange(subject_data.n_sessions)):
+                                  range(subject_data.n_sessions)):
         fmristc = runner(fMRISTC(slice_order=slice_order, refslice=refslice,
                                  interleaved=interleaved, verbose=True).fit)(
                                 raw_data=sess_func)
@@ -138,7 +138,7 @@ def _do_subject_coregister(
             func_basenames = [get_basenames(func)
                               for func in subject_data.func]
         coreg_func = []
-        for sess_func, sess_id in zip(subject_data.func, xrange(
+        for sess_func, sess_id in zip(subject_data.func, range(
                 subject_data.n_sessions)):
             coreg_func.append(runner(coreg.transform)(
                     sess_func, output_dir=subject_data.tmp_output_dir if (
@@ -180,7 +180,7 @@ def _do_subject_smooth(subject_data, fwhm, prefix=None,
         mem = Memory(cachedir=os.path.join(
                 subject_data.output_dir, 'cache_dir'), verbose=100)
     sfunc = []
-    for sess in xrange(subject_data.n_sessions):
+    for sess in range(subject_data.n_sessions):
         sess_func = subject_data.func[sess]
         _tmp = mem.cache(smooth_image)(sess_func,
                                    fwhm)
@@ -300,7 +300,7 @@ def do_subject_preproc(subject_data,
     func_basenames = [get_basenames(subject_data.func[sess]) if not is_niimg(
             subject_data.func[sess]) else "%s.nii.gz" % (
             subject_data.session_id[sess])
-                    for sess in xrange(subject_data.n_sessions)]
+                    for sess in range(subject_data.n_sessions)]
     if coregister:
         anat_basename = get_basenames(subject_data.anat)
 
@@ -388,7 +388,7 @@ def do_subject_preproc(subject_data,
         func_basenames = func_basenames[0] if (not isinstance(
                 func_basenames, basestring) and concat) else func_basenames
         _func = []
-        for sess in xrange(n_sessions):
+        for sess in range(n_sessions):
             sess_func = subject_data.func[sess]
             _func.append(mem.cache(save_vols)(
                     sess_func,

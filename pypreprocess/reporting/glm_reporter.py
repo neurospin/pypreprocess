@@ -296,7 +296,7 @@ powered by <a href="%s">nipy</a>.""" % (user_script_name,
             design_matrices = [design_matrices]
 
         for design_matrix, j in zip(design_matrices,
-                                    xrange(len(design_matrices))):
+                                    range(len(design_matrices))):
             # sanitize design_matrix type
             if isinstance(design_matrix, basestring):
                 if not isinstance(design_matrix, DesignMatrix):
@@ -313,7 +313,7 @@ powered by <a href="%s">nipy</a>.""" % (user_script_name,
             elif isinstance(design_matrix, np.ndarray) or isinstance(
                     design_matrix, list):
                 X = np.array(design_matrix)
-                conditions = ['%i' % i for i in xrange(X.shape[-1])]
+                conditions = ['%i' % i for i in range(X.shape[-1])]
                 design_matrix = DesignMatrix(X, conditions)
 
             # plot design_matrix proper

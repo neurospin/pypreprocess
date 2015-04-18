@@ -237,7 +237,7 @@ def make_dmtx_from_timing_files(timing_files, condition_ids=None,
             "Bad add_regs_file: %s (must contain a 2D array, each column "
             "representing the values of a single regressor)" % add_regs_file)
         if add_reg_names is None:
-            add_reg_names = ["R%i" % (col + 1) for col in xrange(
+            add_reg_names = ["R%i" % (col + 1) for col in range(
                     add_regs.shape[-1])]
         else:
             assert len(add_reg_names) == add_regs.shape[1], (

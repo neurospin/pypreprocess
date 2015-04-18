@@ -28,7 +28,7 @@ from .io_utils import (load_specific_vol,
 INFINITY = np.inf
 
 
-def _compute_rate_of_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
+def _compute_rate_of_change_of_chisq(M, coords, gradG, lkp=range(6)):
     """Constructs matrix of rate of change of chi2 w.r.t. parameter changes
 
     Parameters
@@ -55,7 +55,7 @@ def _compute_rate_of_change_of_chisq(M, coords, gradG, lkp=xrange(6)):
 
     # loop over parameters (this loop computes columns of A)
     A = np.ndarray((coords.shape[1], len(lkp)))
-    for i in xrange(len(lkp)):
+    for i in range(len(lkp)):
         pt = get_initial_motion_params()
 
         # regularization ith parameter
@@ -288,7 +288,7 @@ class MRIMotionCorrection(object):
             while det1 / det0 > quality:
                 # determine unimportant voxels to eliminate
                 dets = np.ndarray(A0.shape[0])
-                for t in xrange(A0.shape[0]):
+                for t in range(A0.shape[0]):
                     tmp = np.hstack((A0[t, ...], b[t])).reshape(
                         (1, A0.shape[1] + 1))
                     dets[t] = scipy.linalg.det(alpha - np.dot(tmp.T, tmp))
@@ -318,7 +318,7 @@ class MRIMotionCorrection(object):
         rp = np.ndarray((n_scans, 12))
         rp[0, ...] = get_initial_motion_params(
             )  # don't mov the reference image
-        for t in xrange(1, n_scans):
+        for t in range(1, n_scans):
             self._log("\tRegistering volume %i/%i..." % (
                     t + 1, n_scans))
 
@@ -344,7 +344,7 @@ class MRIMotionCorrection(object):
             dim = dim[:3]
             ss = INFINITY
             countdown = -1
-            for iteration in xrange(self.n_iterations):
+            for iteration in range(self.n_iterations):
                 # starting point
                 q = get_initial_motion_params()
 
@@ -465,7 +465,7 @@ class MRIMotionCorrection(object):
         # load first vol of each session
         first_vols = []
         n_scans_list = []
-        for sess in xrange(self.n_sessions):
+        for sess in range(self.n_sessions):
             vol_0, n_scans = load_specific_vol(self.vols_[sess], 0)
             first_vols.append(vol_0)
             n_scans_list.append(n_scans)
@@ -493,7 +493,7 @@ class MRIMotionCorrection(object):
 
         # realign all vols of each session with first vol of that session
         self.realignment_parameters_ = []
-        for sess in xrange(self.n_sessions):
+        for sess in range(self.n_sessions):
             self._log(
                 ("Intra-session registration: Realigning session"
                  " %i/%i...") % (sess + 1, self.n_sessions))
@@ -575,7 +575,7 @@ class MRIMotionCorrection(object):
                       output_dir is None else []
                   }
 
-        for sess in xrange(self.n_sessions):
+        for sess in range(self.n_sessions):
             concat_sess = concat
             if (isinstance(self.vols_[sess], basestring) or is_niimg(
                 self.vols_[sess])) and reslice:
@@ -622,7 +622,7 @@ class MRIMotionCorrection(object):
 
                         else:
                             sess_basenames = ["sess_%i_vol_%i" % (sess, i)
-                                         for i in xrange(n_scans)]
+                                         for i in range(n_scans)]
                 else:
                     assert len(basenames) == self.n_sessions
                     sess_basenames = basenames[sess]
@@ -646,7 +646,7 @@ class MRIMotionCorrection(object):
                                 sess_basenames,
                                 list) else sess_basenames,
                             ext=ext,
-                            prefix=prefix) for t in xrange(n_scans)]
+                            prefix=prefix) for t in range(n_scans)]
 
                 output['realigned_images'].append(sess_realigned_files)
 

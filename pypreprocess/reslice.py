@@ -48,7 +48,7 @@ def _get_mask(M, coords, dim, wrp=[1, 1, 0], tiny=5e-2):
     physical_coords = affine_transformations.get_physical_coords(M, coords)
     fov_mask = np.ones(physical_coords.shape[-1]).astype('bool')
 
-    for j in xrange(3):
+    for j in range(3):
         if not wrp[j]:
             fov_mask = fov_mask & (physical_coords[j] >= -tiny
                                    ) & (physical_coords[j] < dim[j] + tiny)
@@ -156,7 +156,7 @@ def reslice_vols(vols, target_affine=None, interp_order=3,
     # artefactual movement across volumes
     msk = np.ones(grid.shape[1]).astype('bool')
     if mask:
-        for t in xrange(len(vols)):
+        for t in range(len(vols)):
             # load vol
             vol = load_vol(vols[t])
 
@@ -177,7 +177,7 @@ def reslice_vols(vols, target_affine=None, interp_order=3,
 
     # loop on all vols, reslicing them one-by-one
     rvols = []
-    for t in xrange(n_scans):
+    for t in range(n_scans):
         _log('\tReslicing volume %i/%i...' % (t + 1, len(vols)))
 
         # load vol
