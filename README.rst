@@ -132,7 +132,7 @@ To demo this feature, cd to the **pypreprocess/examples** directory, and run the
 
 Development
 ===========
-You can check the latestC sources with the command::
+You can check the latest version of the code with the command::
 
        git clone git://github.com/neurospin/pypreprocess.git
 
