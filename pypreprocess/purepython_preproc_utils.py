@@ -33,7 +33,7 @@ PREPROC_OUTPUT_IMAGE_PREFICES = {'STC': 'a',
                                  }
 
 
-def _do_subject_slice_timing(subject_data, refslice=0,
+def _do_subject_slice_timing(subject_data, ref_slice=0,
                              slice_order="ascending", interleaved=False,
                              caching=True, write_output_images=2,
                              func_prefix=None, func_basenames=None,
@@ -53,7 +53,7 @@ def _do_subject_slice_timing(subject_data, refslice=0,
     original_bold = subject_data.func
     for sess_func, sess_id in zip(subject_data.func,
                                   range(subject_data.n_sessions)):
-        fmristc = runner(fMRISTC(slice_order=slice_order, refslice=refslice,
+        fmristc = runner(fMRISTC(slice_order=slice_order, ref_slice=ref_slice,
                                  interleaved=interleaved, verbose=True).fit)(
                                 raw_data=sess_func)
         stc_output.append(runner(fmristc.transform)(
@@ -196,7 +196,7 @@ def _do_subject_smooth(subject_data, fwhm, prefix=None,
 def do_subject_preproc(subject_data,
                        caching=True,
                        stc=False,
-                       refslice=0,
+                       ref_slice=0,
                        interleaved=False,
                        slice_order='ascending',
                        realign=True,
@@ -341,7 +341,7 @@ def do_subject_preproc(subject_data,
         print "\r\nNODE> Slice-Timing Correction"
         func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['STC'] + func_prefix
         subject_data = _do_subject_slice_timing(
-            subject_data, refslice=refslice, slice_order=slice_order,
+            subject_data, ref_slice=ref_slice, slice_order=slice_order,
             interleaved=interleaved, write_output_images=write_output_images,
             func_prefix=func_prefix, func_basenames=func_basenames)
 

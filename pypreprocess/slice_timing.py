@@ -102,7 +102,7 @@ class STC(object):
         if set, then slices were acquired in interleaved order,
         odd-numbered slices first, and then even-numbered slices
 
-    refslice: int (optional, default 0)
+    ref_slice: int (optional, default 0)
         the slice number to be taken as the reference slice
 
     verbose: int (optional, default 1)
@@ -117,13 +117,13 @@ class STC(object):
 
     def __init__(self, slice_order='ascending',
                  interleaved=False,
-                 refslice=0,
+                 ref_slice=0,
                  verbose=1):
 
         # slice acquisition info
         self.slice_order = slice_order
         self.interleaved = interleaved
-        self.refslice = refslice
+        self.ref_slice = ref_slice
 
         self.verbose = verbose
 
@@ -262,7 +262,7 @@ class STC(object):
                                                 )
 
         # fix ref slice index, to be consistent with the slice order
-        self.refslice = self.slice_indices[self.refslice]
+        self.ref_slice = self.slice_indices[self.ref_slice]
 
         # timing info (slice_TR is the time of acquisition of a single slice,
         # as a fractional multiple of the TR)
@@ -291,7 +291,7 @@ class STC(object):
 
             # compute time delta for shifting this slice w.r.t. the reference
             shift_amount = (
-                self.slice_indices[z] - self.refslice) * slice_TR
+                self.slice_indices[z] - self.ref_slice) * slice_TR
 
             # phi represents a range of phases up to the Nyquist
             # frequency
