@@ -114,8 +114,7 @@ class SubjectData(object):
 
     def __init__(self, func=None, anat=None, subject_id="sub001",
                  session_ids=None, output_dir=None, session_output_dirs=None,
-                 anat_output_dir=None, scratch=None, warpable=None,
-                 **kwargs):
+                 anat_output_dir=None, scratch=None, warpable=None, **kwargs):
         if warpable is None:
             warpable = ['anat', 'func']
         self.func = func
@@ -131,7 +130,6 @@ class SubjectData(object):
         self.warpable = warpable
         self.nipype_results = {}
         self._set_items(**kwargs)
-        self.sanitize()
 
     def _set_items(self, **kwargs):
         for k, v in kwargs.iteritems():
@@ -330,7 +328,8 @@ class SubjectData(object):
 
         # sanitize anat
         if not self.anat is None:
-            assert os.path.isfile(self.anat)
+            if not os.path.isfile(self.anat):
+                raise OSError("%s is not a file!" % self.anat)
 
         # sanitize session_ids
         if self.session_ids is None:
