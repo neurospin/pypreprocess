@@ -19,8 +19,7 @@ from .reporting.base_reporter import (
     commit_subject_thumnbail_to_parent_gallery,
     ResultsGallery, Thumbnail, a, img, copy_web_conf_files,
     ProgressReport, get_subject_report_html_template,
-    get_subject_report_preproc_html_template, copy_failed_png
-    )
+    get_subject_report_preproc_html_template, copy_failed_png)
 from .reporting.preproc_reporter import (generate_cv_tc_thumbnail,
                                          generate_realignment_thumbnails,
                                          generate_coregistration_thumbnails,
@@ -51,13 +50,17 @@ reg_tooltip = ("The red contours should"
                " match the background image well. Otherwise, something might"
                " have gone wrong. Typically things than can go wrong include: "
                "lesions (missing brain tissue); bad orientation headers; "
-               "non-brain tissues in anatomical image, etc.")
+               "non-brain tissue in anatomical image, etc. In rare cases, it "
+               "might be that the registration algorithm simply didn't "
+               "succeed.")
 segment_tooltip = ("%s. The TPM contours shoud match the background image "
                    "well. Otherwise, something might have gone wrong. "
                    "Typically things than can go wrong include: "
                    "lesions (missing brain tissue); bad orientation headers; "
                    "non-brain tissue in anatomical image (i.e needs brain "
-                   "extraction), etc." % segment_acronyms)
+                   "extraction), etc. In rare cases, it might be that the"
+                   " segmentation algorithm simply didn't succeed." % (
+                       segment_acronyms))
 
 
 class SubjectData(object):
@@ -128,6 +131,7 @@ class SubjectData(object):
         self.warpable = warpable
         self.nipype_results = {}
         self._set_items(**kwargs)
+        self.sanitize()
 
     def _set_items(self, **kwargs):
         for k, v in kwargs.iteritems():
@@ -330,11 +334,10 @@ class SubjectData(object):
 
         # sanitize session_ids
         if self.session_ids is None:
-            if len(self.func) < 10:
-                self.session_ids = ["session_%i" % i
-                                   for i in xrange(len(self.func))]
-            else:
-                self.session_ids = ["session_0"]
+            if len(self.func) > 10:
+                raise RuntimeError
+            self.session_ids = ["Session%i" % (sess + 1)
+                                for sess in xrange(len(self.func))]
         else:
             if isinstance(self.session_ids, (basestring, int)):
                 assert len(self.func) == 1
@@ -562,9 +565,7 @@ class SubjectData(object):
 
         """
         if not hasattr(self, 'realignment_parameters'):
-            print(
-                "self has no field 'realignment_parameters'; nothing to do")
-            return
+            raise ValueError("'realignment_parameters' attribute not set!")
         if not self.reporting_enabled():
             self.init_report()
 
@@ -606,7 +607,7 @@ class SubjectData(object):
         if not self.reporting_enabled():
             self.init_report()
         src, ref = self.func, self.anat
-        src_brain, ref_brain = "functional image", "anatomical image"
+        src_brain, ref_brain = "mean functional image", "anatomical image"
         if not coreg_func_to_anat:
             src, ref = ref, src
             src_brain, ref_brain = ref_brain, src_brain
@@ -664,8 +665,8 @@ class SubjectData(object):
 
         # generate thumbnails proper
         for brain_name, brain, cmap in zip(
-            ['anatomical image', 'functional image'], [self.anat, self.func],
-            [cm.gray, cm.spectral]):
+                ['anatomical image', 'mean functional image'],
+                [self.anat, self.func], [cm.gray, cm.spectral]):
             if not brain: continue
             thumbs = generate_segmentation_thumbnails(
                 brain, self.reports_output_dir,
@@ -695,8 +696,8 @@ class SubjectData(object):
 
         # generate thumbnails proper
         for brain_name, brain, cmap in zip(
-            ['anatomical image', 'functional image'], [self.anat, self.func],
-            [cm.gray, cm.spectral]):
+                ['anatomical image', 'mean functional image'],
+                [self.anat, self.func], [cm.gray, cm.spectral]):
             if not brain:
                 continue
 
@@ -744,7 +745,7 @@ class SubjectData(object):
     def generate_smooth_thumbnails(self):
         """
         Generate thumbnails post-smoothing.
-
+        XXX  unmainted function!!!
         """
         # misc
         if not self.reporting_enabled():
