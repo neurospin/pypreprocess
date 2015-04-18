@@ -152,7 +152,7 @@ def three_to_four(images):
                       dtype=vol_0.get_data().dtype)
     data[..., 0] = vol_0.get_data()
 
-    for t in xrange(1, len(images)):
+    for t in range(1, len(images)):
         vol_t = load_vol(images[t])
         assert vol_t.shape == vol_0.shape
 
@@ -272,11 +272,11 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
         else:
             if isinstance(basenames, basestring):
                 basenames = ["vol%i_%s" % (t, basenames)
-                             for t in xrange(len(vols))]
+                             for t in range(len(vols))]
             else:
                 assert len(set(basenames)) == len(vols), basenames
 
-        for t, vol in zip(xrange(n_vols), vols):
+        for t, vol in zip(range(n_vols), vols):
             if isinstance(vol, np.ndarray):
                 if affine is None:
                     raise ValueError(
@@ -791,14 +791,14 @@ def loaduint8(img, log=None):
     mx = -np.inf
     mn = np.inf
     _progress_bar("\tComputing min/max...")
-    for p in xrange(vol.shape[2]):
+    for p in range(vol.shape[2]):
         _img = _get_slice(p)
         mx = max(_img.max(), mx)
         mn = min(_img.min(), mn)
 
     # load data from file indicated by V into an array of unsigned bytes
     uint8_dat = np.ndarray(vol.shape, dtype='uint8')
-    for p in xrange(vol.shape[2]):
+    for p in range(vol.shape[2]):
         _img = _get_slice(p)
 
         # pth slice
@@ -992,7 +992,7 @@ def _expand_path(path, relative_to=None):
             match = re.match("(?P<head>(?:\.{2}\/)+)(?P<tail>.*)", _path)
             if match:
                 _path = os.getcwd()
-                for _ in xrange(len(match.group("head")) // 3):
+                for _ in range(len(match.group("head")) // 3):
                     _path = os.path.dirname(_path)
                 _path = os.path.join(_path, match.group("tail"))
             else:

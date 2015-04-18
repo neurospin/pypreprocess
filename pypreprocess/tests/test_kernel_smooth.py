@@ -50,7 +50,7 @@ def test_fwhm2sigma():
                                          np.array(
                 _fwhm) / np.sqrt(8. * np.log(2)))
 
-    for j in xrange(3):
+    for j in range(3):
         _fwhm = fwhm[j:]
         numpy.testing.assert_array_equal(fwhm2sigma(_fwhm),
                                          np.array(
@@ -65,7 +65,7 @@ def test_sigma2sigma():
                                          np.array(
                 _sigma) * np.sqrt(8. * np.log(2)))
 
-    for j in xrange(3):
+    for j in range(3):
         _sigma = sigma[j:]
         numpy.testing.assert_array_equal(sigma2fwhm(_sigma),
                                          np.array(

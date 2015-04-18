@@ -140,7 +140,7 @@ def _get_timeseries(data, row_mask, affine=None):
 
 
 def load_glm_params(doc):
-    # for i in xrange(0, len(doc['data']), 100):
+    # for i in range(0, len(doc['data']), 100):
     #     print doc['data'][i]
 
     params = {}
@@ -236,7 +236,7 @@ def execute_glm(doc, out_dir, contrast_definitions=None,
     beta_map_dir = os.path.join(subject_output_dir, 'beta_maps')
     if not os.path.exists(beta_map_dir):
         os.makedirs(beta_map_dir)
-    for j, glm in zip(xrange(len(fmri_glm.glms)), fmri_glm.glms):
+    for j, glm in zip(range(len(fmri_glm.glms)), fmri_glm.glms):
         # XXX save array in some compressed format
         np.savetxt(os.path.join(beta_map_dir, "beta_map_%i.txt" % j),
                    glm.get_beta(),  # array has shape (n_conditions, n_voxels)
@@ -364,7 +364,7 @@ def execute_glms(docs, out_dir, contrast_definitions=None,
                 _tmp = [x for session_fmri_files in subject_data.func
                               for x in session_fmri_files]
                 for fmri_filename in doc['raw_data']:
-                    for k in xrange(len(_tmp)):
+                    for k in range(len(_tmp)):
                         if fmri_filename == _tmp[k]:
                             perm.append(k)
                             break

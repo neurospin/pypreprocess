@@ -16,35 +16,24 @@ import numpy as np
 import pylab as pl
 import nibabel
 from ..external import joblib
-from .check_preprocessing import (plot_registration,
-                                  plot_cv_tc,
+from .check_preprocessing import (plot_registration, plot_cv_tc,
                                   plot_segmentation,
-                                  plot_spm_motion_parameters
-                                  )
-from ..io_utils import (compute_mean_3D_image,
-                        is_3D,
-                        is_niimg,
-                        sanitize_fwhm
-                        )
-from .base_reporter import (Thumbnail,
-                            ResultsGallery,
-                            ProgressReport,
-                            a,
-                            img,
-                            lines2breaks,
+                                  plot_spm_motion_parameters)
+from ..io_utils import (compute_mean_3D_image, is_3D, is_niimg,
+                        sanitize_fwhm)
+from .base_reporter import (Thumbnail, ResultsGallery, ProgressReport,
+                            a, img, lines2breaks,
                             get_dataset_report_html_template,
                             get_dataset_report_preproc_html_template,
                             get_subject_report_html_template,
                             get_subject_report_preproc_html_template,
-                            PYPREPROCESS_URL,
-                            DARTEL_URL,
-                            ROOT_DIR,
+                            PYPREPROCESS_URL, DARTEL_URL, ROOT_DIR,
                             commit_subject_thumnbail_to_parent_gallery,
                             get_dataset_report_log_html_template,
-                            copy_web_conf_files
-                            )
+                            copy_web_conf_files)
 
 
+# misc
 SPM_DIR = '/i2bm/local/spm8'
 EPI_TEMPLATE = GM_TEMPLATE = T1_TEMPLATE = WM_TEMPLATE = CSF_TEMPLATE = None
 
@@ -123,10 +112,8 @@ def generate_preproc_undergone_docstring(
         preprocessing (useful if someone were to reproduce your results)
 
     """
-
     fwhm = sanitize_fwhm(fwhm)
     anat_fwhm = sanitize_fwhm(anat_fwhm)
-
     if dartel:
         normalize = False
         segment = False
@@ -135,15 +122,14 @@ def generate_preproc_undergone_docstring(
     if tools_used is None:
         tools_used = (
             'All preprocessing was done using <a href="%s">pypreprocess</a>,'
-            ' a collection of python tools (scripts, modules, etc.) for '
-            'preprocessing functional data.') % PYPREPROCESS_URL,
-
+            ' a collection of python scripts and modules for '
+            'preprocessing functional and anatomical MRI data.' % (
+                PYPREPROCESS_URL))
     preproc_undergone = "<p>%s</p>" % tools_used
 
     # what was actually typed at the command line ?
     if not command_line is None:
         preproc_undergone += "Command-line: <i>%s</i><br/>" % command_line
-
     preproc_undergone += (
         "<br>For each subject, the following preprocessing steps have "
         "been done:")
@@ -198,9 +184,8 @@ def generate_preproc_undergone_docstring(
                 )
         else:
             preproc_undergone += (
-            "The subject's anatomical image has been coregistered "
-            "against their functional images."
-                )
+                "The subject's anatomical image has been coregistered "
+                "against their functional images.")
         preproc_undergone += (
             " Coregistration is important as it allows: (1) segmentation of "
             "the functional via segmentation of the anatomical brain; "
@@ -237,9 +222,9 @@ def generate_preproc_undergone_docstring(
                     "images into standard space.</li>")
             else:
                 preproc_undergone += (
-                "<li>"
-                "The functional images have been warped from native to "
-                "standard space via classical normalization.</li>")
+                    "<li>"
+                    "The functional images have been warped from native to "
+                    "standard space via classical normalization.</li>")
     if dartel:
         preproc_undergone += (
             "<li>"
@@ -292,14 +277,12 @@ def generate_preproc_undergone_docstring(
 
     if additional_preproc_undergone:
         preproc_undergone += additional_preproc_undergone
-
     if np.sum(fwhm) > 0 and has_func:
         preproc_undergone += (
             "<li>"
             "The functional images have been "
             "smoothed with a %smm x %smm x %smm "
             "Gaussian kernel.</li>") % tuple(fwhm)
-
     if np.sum(anat_fwhm) > 0:
         preproc_undergone += (
             "<li>"
@@ -309,12 +292,10 @@ def generate_preproc_undergone_docstring(
         if segment:
             preproc_undergone += (
                 " Warped TPMs have been smoothed with the same kernel.")
-
     if not details_filename is None:
         preproc_undergone += (
             " <a href=%s>See complete configuration used for preprocessing"
             " here</a>") % os.path.basename(details_filename)
-
     preproc_undergone += "</ul>"
 
     return preproc_undergone
@@ -401,8 +382,7 @@ def nipype2htmlreport(nipype_report_filename):
         return lines2breaks(fd.readlines())
 
 
-def get_nipype_report(nipype_report_filename,
-                        ):
+def get_nipype_report(nipype_report_filename):
     if isinstance(nipype_report_filename, basestring):
         if os.path.isfile(nipype_report_filename):
             nipype_report_filenames = [nipype_report_filename]
@@ -424,13 +404,8 @@ def get_nipype_report(nipype_report_filename,
 
 
 def generate_registration_thumbnails(
-    target,
-    source,
-    procedure_name,
-    output_dir,
-    execution_log_html_filename=None,
-    results_gallery=None,
-    ):
+        target, source, procedure_name, output_dir, tooltip=None,
+        execution_log_html_filename=None, results_gallery=None):
     """
     Generates QA thumbnails post-registration.
 
@@ -453,7 +428,6 @@ def generate_registration_thumbnails(
         (e.g 'anat ==> func', etc.)
 
     """
-
     output = {}
 
     # prepare for smart caching
@@ -470,23 +444,16 @@ def generate_registration_thumbnails(
 
     # plot outline (edge map) of template on the
     # normalized image
-    outline = os.path.join(
-        output_dir,
-        "%s_on_%s_outline.png" % (target[1],
-                                  source[1]))
+    outline = os.path.join(output_dir,
+                           "%s_on_%s_outline.png" % (target[1], source[1]))
 
     qa_mem.cache(plot_registration)(
-        target[0],
-        source[0],
-        output_filename=outline,
-        title="Outline of %s on %s" % (
-            target[1],
-            source[1],
-            ))
+        target[0], source[0], output_filename=outline,
+        title="Outline of %s on %s" % (target[1], source[1]))
 
     # create thumbnail
     if results_gallery:
-        thumbnail = Thumbnail()
+        thumbnail = Thumbnail(tooltip=tooltip)
         thumbnail.a = a(href=os.path.basename(outline))
         thumbnail.img = img(
             src=os.path.basename(outline), height="250px")
@@ -502,50 +469,31 @@ def generate_registration_thumbnails(
         "%s_on_%s_outline.png" % (target[1],
                                   source[1]))
     outline_axial = os.path.join(
-        output_dir,
-        "%s_on_%s_outline_axial.png" % (target[1],
-                                        source[1]))
-
+        output_dir, "%s_on_%s_outline_axial.png" % (target[1], source[1]))
     qa_mem.cache(plot_registration)(
-        target[0],
-        source[0],
-        output_filename=outline_axial,
-        display_mode='z',
-        title="Outline of %s on %s" % (
-            target[1],
-            source[1]))
-
+        target[0], source[0], output_filename=outline_axial,
+        display_mode='z', title="Outline of %s on %s" % (target[1],
+                                                         source[1]))
     output['axial'] = outline_axial
-
     qa_mem.cache(plot_registration)(
-        target[0],
-        source[0],
-        output_filename=outline,
-        title="Outline of %s on %s" % (
-            target[1],
-            source[1],
-            ))
+        target[0], source[0], output_filename=outline,
+        title="Outline of %s on %s" % (target[1], source[1]))
 
     # create thumbnail
     if results_gallery:
-        thumbnail = Thumbnail()
+        thumbnail = Thumbnail(tooltip=tooltip)
         thumbnail.a = a(href=os.path.basename(outline))
         thumbnail.img = img(
             src=os.path.basename(outline), height="250px")
         thumbnail.description = thumb_desc
-
         results_gallery.commit_thumbnails(thumbnail)
 
     return output
 
 
 def generate_normalization_thumbnails(
-    normalized_files,
-    output_dir,
-    brain="EPI",
-    execution_log_html_filename=None,
-    results_gallery=None,
-    ):
+        normalized_files, output_dir, brain="EPI", tooltip=None,
+        execution_log_html_filename=None, results_gallery=None):
     """Generate thumbnails after spatial normalization or subject
 
     Parameters
@@ -563,30 +511,21 @@ def generate_normalization_thumbnails(
         gallery to which thumbnails will be committed
 
     """
-
     if isinstance(normalized_files, basestring):
         normalized = normalized_files
     else:
         mean_normalized_img = compute_mean_3D_image(normalized_files)
         normalized = mean_normalized_img
-
     return generate_registration_thumbnails(
-        (T1_TEMPLATE, 'template'),
-        (normalized, brain),
-        "Normalization of %s" % brain,
-        output_dir,
+        (T1_TEMPLATE, 'template'), (normalized, brain),
+        "Normalization of %s" % brain, output_dir,
         execution_log_html_filename=execution_log_html_filename,
-        results_gallery=results_gallery,
-        )
+        results_gallery=results_gallery, tooltip=tooltip)
 
 
-def generate_coregistration_thumbnails(target,
-                                       source,
-                                       output_dir,
-                                       execution_log_html_filename=None,
-                                       results_gallery=None,
-                                       comment=True
-                                       ):
+def generate_coregistration_thumbnails(
+        target, source, output_dir, execution_log_html_filename=None,
+        results_gallery=None, tooltip=None, comment=True):
     """
     Generates QA thumbnails post-coregistration.
 
@@ -607,31 +546,18 @@ def generate_coregistration_thumbnails(target,
             source image
 
     """
-
     comments = " %s == > %s" % (source[1], target[1]) if comment else ""
     return generate_registration_thumbnails(
-        target,
-        source,
-        "Coregistration %s" % comments,
-        output_dir,
-        execution_log_html_filename=execution_log_html_filename,
-        results_gallery=results_gallery,
-        )
+        target, source, "Coregistration %s" % comments,
+        output_dir, execution_log_html_filename=execution_log_html_filename,
+        results_gallery=results_gallery, tooltip=tooltip)
 
 
 def generate_segmentation_thumbnails(
-    normalized_files,
-    output_dir,
-    subject_gm_file=None,
-    subject_wm_file=None,
-    subject_csf_file=None,
-    only_native=False,
-    brain='func',
-    comments="",
-    execution_log_html_filename=None,
-    cmap=None,
-    results_gallery=None,
-    ):
+        normalized_files, output_dir, subject_gm_file=None,
+        subject_wm_file=None, subject_csf_file=None, only_native=False,
+        brain='func', comments="", execution_log_html_filename=None,
+        cmap=None, tooltip=None, results_gallery=None):
     """Generates thumbnails after indirect normalization
     (segmentation + normalization)
 
@@ -662,17 +588,14 @@ def generate_segmentation_thumbnails(
         gallery to which thumbnails will be committed
 
     """
-
     if isinstance(normalized_files, basestring):
         normalized_file = normalized_files
     else:
         mean_normalized_file = os.path.join(output_dir,
                                             "%s.nii" % brain)
-
         compute_mean_3D_image(normalized_files,
                            output_filename=mean_normalized_file)
         normalized_file = mean_normalized_file
-
     output = {}
 
     # prepare for smart caching
@@ -686,7 +609,6 @@ def generate_segmentation_thumbnails(
         thumb_desc += (" (<a href=%s>see execution "
                        "log</a>)") % (os.path.basename(
                 execution_log_html_filename))
-
     _brain = "(%s) %s" % (comments, brain) if comments else brain
 
     # plot contours of template compartments on subject's brain
@@ -697,7 +619,6 @@ def generate_segmentation_thumbnails(
         template_compartments_contours_axial = os.path.join(
             output_dir,
             "template_compartments_contours_on_%s_axial.png" % _brain)
-
         qa_mem.cache(plot_segmentation)(
             normalized_file,
             GM_TEMPLATE,
@@ -707,7 +628,6 @@ def generate_segmentation_thumbnails(
             display_mode='z',
             cmap=cmap,
             title="template TPMs")
-
         qa_mem.cache(plot_segmentation)(
             normalized_file,
             gm_filename=GM_TEMPLATE,
@@ -720,7 +640,7 @@ def generate_segmentation_thumbnails(
 
         # create thumbnail
         if results_gallery:
-            thumbnail = Thumbnail()
+            thumbnail = Thumbnail(tooltip=tooltip)
             thumbnail.a = a(
                 href=os.path.basename(template_compartments_contours))
             thumbnail.img = img(
@@ -768,7 +688,7 @@ def generate_segmentation_thumbnails(
 
         # create thumbnail
         if results_gallery:
-            thumbnail = Thumbnail()
+            thumbnail = Thumbnail(tooltip=tooltip)
             thumbnail.a = a(
                 href=os.path.basename(subject_compartments_contours))
             thumbnail.img = img(
@@ -785,7 +705,7 @@ def generate_segmentation_thumbnails(
 
 
 def generate_cv_tc_thumbnail(image_files, sessions, subject_id, output_dir,
-                             results_gallery=None):
+                             tooltip=None, results_gallery=None):
     """Generate cv tc thumbnails
 
     Parameters
@@ -829,7 +749,7 @@ def generate_cv_tc_thumbnail(image_files, sessions, subject_id, output_dir,
                     cv_tc_plot_outfile=cv_tc_plot_output_file)
 
     # create thumbnail
-    thumbnail = Thumbnail()
+    thumbnail = Thumbnail(tooltip=tooltip)
     thumbnail.a = a(
         href=os.path.basename(cv_tc_plot_output_file))
     thumbnail.img = img(
@@ -845,36 +765,46 @@ def generate_cv_tc_thumbnail(image_files, sessions, subject_id, output_dir,
 
 
 def generate_realignment_thumbnails(
-        estimated_motion, output_dir, sessions=None,
+        estimated_motion, output_dir, sessions=None, tooltip=None,
         execution_log_html_filename=None, results_gallery=None):
     """Function generates thumbnails for realignment parameters."""
     sessions = [1] if sessions is None else sessions
     if isinstance(estimated_motion, basestring):
         estimated_motion = [estimated_motion]
     output = {}
+    if isinstance(estimated_motion, basestring):
+        estimated_motion = [estimated_motion]
+    tmp = []
+    for x in estimated_motion:
+        if isinstance(x, basestring):
+            x = np.loadtxt(x)
+        tmp.append(x)
+    lengths = map(len, tmp)
+    estimated_motion = np.vstack(tmp)
+    rp_plot = os.path.join(output_dir, 'rp_plot.png')
+    plot_spm_motion_parameters(
+        estimated_motion,
+        title="Plot of Estimated motion for %d sessions" % len(sessions),
+        output_filename=rp_plot)
+    aux = 0.
+    for l in lengths[:-1]:
+        pl.axvline(aux + l, linestyle="--", c="k")
+        aux += l
+    pl.savefig(rp_plot, bbox_inches="tight", dpi=200)
+    pl.close()
 
-    for session_id, rp in zip(sessions, estimated_motion):
-        rp_plot = os.path.join(
-            output_dir, 'rp_plot_%s.png' % session_id)
-        plot_spm_motion_parameters(
-            rp,
-            title="Plot of Estimated motion for session %s" % session_id,
-            output_filename=rp_plot)
-
-        # create thumbnail
-        if results_gallery:
-            thumbnail = Thumbnail()
-            thumbnail.a = a(href=os.path.basename(rp_plot))
-            thumbnail.img = img(src=os.path.basename(rp_plot),
-                                height="250px", width="600px")
-            thumbnail.description = "Motion Correction"
-            if not execution_log_html_filename is None:
-                thumbnail.description += (" (<a href=%s>see execution "
-                "log</a>)") % os.path.basename(
-                    execution_log_html_filename)
-
-            results_gallery.commit_thumbnails(thumbnail)
-
+    # create thumbnail
+    if results_gallery:
+        thumbnail = Thumbnail(tooltip=tooltip)
+        thumbnail.a = a(href=os.path.basename(rp_plot))
+        thumbnail.img = img(src=os.path.basename(rp_plot),
+                            height="250px", width="600px")
+        thumbnail.description = "Motion Correction"
+        if not execution_log_html_filename is None:
+            thumbnail.description += (" (<a href=%s>see execution "
+            "log</a>)") % os.path.basename(
+                execution_log_html_filename)
+        results_gallery.commit_thumbnails(thumbnail)
         output['rp_plot'] = rp_plot
 
     return output
@@ -1278,7 +1208,7 @@ def generate_dataset_preproc_report(
 
     # factory to generate subjects
     def subject_factory():
-        for j, s in zip(xrange(len(subject_preproc_data)),
+        for j, s in zip(range(len(subject_preproc_data)),
                         subject_preproc_data):
             if isinstance(s, basestring):
                 # read dict from json file

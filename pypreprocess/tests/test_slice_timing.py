@@ -134,7 +134,7 @@ def check_STC(true_signal, corrected_signal, ref_slice=0,
         corrected_signal[..., ref_slice, ...],
         true_signal[..., ref_slice, ...])
 
-    for z in xrange(1, n_slices):
+    for z in range(1, n_slices):
         # relative closeness
         if not rtol is None:
             numpy.testing.assert_allclose(true_signal[..., 1:-1],
@@ -190,8 +190,8 @@ def test_STC_for_sinusoidal_mixture(
     # acquire the signal at the corrupt sampled time points
     acquired_signal = np.array([
             [[my_sinusoid(shifted_acquisition_time[j])
-              for j in xrange(n_slices)]
-             for y in xrange(n_columns)] for x in xrange(n_rows)]
+              for j in range(n_slices)]
+             for y in range(n_columns)] for x in range(n_rows)]
                                )
 
     n_scans = len(acquisition_time)
@@ -204,8 +204,8 @@ def test_STC_for_sinusoidal_mixture(
     # truth
     true_signal = np.array([
             [[my_sinusoid(acquisition_time)
-              for j in xrange(n_slices)]
-             for y in xrange(n_columns)] for x in xrange(n_rows)]
+              for j in range(n_slices)]
+             for y in range(n_columns)] for x in range(n_rows)]
                                )
 
     # check
@@ -265,7 +265,7 @@ def test_STC_for_HRF():
     # acquire the signal at the corrupt sampled time points
     acquired_sample = np.array([_compute_hrf(
                 shifted_acquisition_time[j])
-                                for j in xrange(n_slices)])
+                                for j in range(n_slices)])
     acquired_sample = np.array([acquired_sample, ] * n_columns)
     acquired_sample = np.array([acquired_sample, ] * n_rows)
 
@@ -277,8 +277,8 @@ def test_STC_for_HRF():
     # truth
     true_signal = np.array([
             [[_compute_hrf(acquisition_time)
-              for j in xrange(n_slices)]
-             for y in xrange(n_columns)] for x in xrange(n_rows)]
+              for j in range(n_slices)]
+             for y in range(n_columns)] for x in range(n_rows)]
                                )
 
     # check
@@ -298,7 +298,7 @@ def test_transform():
     # filenames
     film_filename = os.path.join(output_dir, 'film.nii.gz')
     threeD_vols_filenames = [os.path.join(output_dir, 'fMETHODS-%06i' % i)
-                             for i in xrange(len(threeD_vols))]
+                             for i in range(len(threeD_vols))]
 
     for stuff in [film, threeD_vols]:
         for as_files in [False, True]:

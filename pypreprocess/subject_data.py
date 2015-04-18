@@ -1,45 +1,66 @@
 """
-:Synopsis: Encapsulation of subject data. Handles subject data logic
+Encapsulation of subject data. Handles subject data logic
 like filetypes, extensions, .nii.gz -> .nii conversions, setup and
-teardown for reports, etc., general sanitization, etc.
-:Author: DOHMATOB Elvis Dopgima
+teardown for reports, etc., general sanitization, etc. Also handles
+progressive report generatation for subject during preprocessing.
 
 """
+# Author: DOHMATOB Elvis Dopgima
 
 import numpy as np
 import os
 import time
 from matplotlib.pyplot import cm
 from pypreprocess.external.joblib import Memory
-from .io_utils import (niigz2nii as do_niigz2nii,
-                       dcm2nii as do_dcm2nii,
-                       isdicom,
-                       delete_orientation,
-                       hard_link,
-                       get_shape,
-                       is_4D, is_3D,
-                       get_basenames,
-                       is_niimg)
+from .io_utils import (niigz2nii as do_niigz2nii, dcm2nii as do_dcm2nii,
+                       isdicom, delete_orientation, hard_link, get_shape,
+                       is_4D, is_3D, get_basenames, is_niimg)
 from .reporting.base_reporter import (
     commit_subject_thumnbail_to_parent_gallery,
-    ResultsGallery,
-    Thumbnail,
-    a,
-    img,
-    copy_web_conf_files,
-    ProgressReport,
-    get_subject_report_html_template,
-    get_subject_report_preproc_html_template,
-    copy_failed_png
-    )
-from .reporting.preproc_reporter import (
-    generate_cv_tc_thumbnail,
-    generate_realignment_thumbnails,
-    generate_coregistration_thumbnails,
-    generate_normalization_thumbnails,
-    generate_segmentation_thumbnails,
-    make_nipype_execution_log_html,
-    )
+    ResultsGallery, Thumbnail, a, img, copy_web_conf_files,
+    ProgressReport, get_subject_report_html_template,
+    get_subject_report_preproc_html_template, copy_failed_png)
+from .reporting.preproc_reporter import (generate_cv_tc_thumbnail,
+                                         generate_realignment_thumbnails,
+                                         generate_coregistration_thumbnails,
+                                         generate_normalization_thumbnails,
+                                         generate_segmentation_thumbnails,
+                                         make_nipype_execution_log_html)
+
+
+# tooltips for thumbnails in report pages
+mc_tooltip = ("Motion parameters estimated during motion-"
+              "correction. If motion is less than half a "
+              "voxel, it's generally OK. Moreover, it's "
+              "recommended to include these estimated motion "
+              "parameters as confounds (nuissance regressors) "
+              "in the the GLM.")
+segment_acronyms = ("Acronyms: TPM means Tissue Probability Map; GM means "
+                   "Grey-Matter;"
+                   " WM means White-Matter; CSF means Cerebro-Spinal Fuild")
+cv_tc_tooltip = ("Coefficient of Variation (CoV) of the BOLD signal. "
+                 "The Coefficient of "
+                 "Variation is defined as the variance of the BOLD signal "
+                 "(over the voxels in the brain volume) divided by the mean "
+                 "thereof. Generally, if the CoV curve is below 1% (.01), then"
+                 " it's OK. Also, the CoV typically spikes at the end and the "
+                 "begining of the acquisition, due to saturation effects, "
+                 "scanner instability, etc.")
+reg_tooltip = ("The red contours should"
+               " match the background image well. Otherwise, something might"
+               " have gone wrong. Typically things than can go wrong include: "
+               "lesions (missing brain tissue); bad orientation headers; "
+               "non-brain tissue in anatomical image, etc. In rare cases, it "
+               "might be that the registration algorithm simply didn't "
+               "succeed.")
+segment_tooltip = ("%s. The TPM contours shoud match the background image "
+                   "well. Otherwise, something might have gone wrong. "
+                   "Typically things than can go wrong include: "
+                   "lesions (missing brain tissue); bad orientation headers; "
+                   "non-brain tissue in anatomical image (i.e needs brain "
+                   "extraction), etc. In rare cases, it might be that the"
+                   " segmentation algorithm simply didn't succeed." % (
+                       segment_acronyms))
 
 
 class SubjectData(object):
@@ -70,7 +91,7 @@ class SubjectData(object):
     subject_id: string, optional (default 'sub001')
         subject id
 
-    session_id: string or list of strings, optional (default None):
+    session_ids: string or list of strings, optional (default None):
         session ids for all sessions (i.e runs)
 
     output_dir: string, optional (default None)
@@ -92,14 +113,14 @@ class SubjectData(object):
     """
 
     def __init__(self, func=None, anat=None, subject_id="sub001",
-                 session_id=None, output_dir=None, session_output_dirs=None,
-                 anat_output_dir=None, scratch=None, warpable=['anat', 'func'],
-                 **kwargs):
-
+                 session_ids=None, output_dir=None, session_output_dirs=None,
+                 anat_output_dir=None, scratch=None, warpable=None, **kwargs):
+        if warpable is None:
+            warpable = ['anat', 'func']
         self.func = func
         self.anat = anat
         self.subject_id = subject_id
-        self.session_id = session_id
+        self.session_ids = session_ids
         self.output_dir = output_dir
         self.anat_output_dir = anat_output_dir
         self.session_output_dirs = session_output_dirs
@@ -107,14 +128,11 @@ class SubjectData(object):
         self.warpable = warpable
         self.failed = False
         self.warpable = warpable
-
-        # nipype outputs
         self.nipype_results = {}
-
         self._set_items(**kwargs)
 
     def _set_items(self, **kwargs):
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
             setattr(self, k, v)
 
     def _delete_orientation(self):
@@ -132,9 +150,8 @@ class SubjectData(object):
 
         # deleteorient for func
         self.func = [mem.cache(delete_orientation)(
-                self.func[sess],
-                self.session_output_dirs[sess])
-                     for sess in xrange(self.n_sessions)]
+            self.func[sess], self.session_output_dirs[sess])
+                    for sess in range(self.n_sessions)]
 
         # deleteorient for anat
         if not self.anat is None:
@@ -142,7 +159,6 @@ class SubjectData(object):
                 self.anat, self.anat_output_dir)
 
     def _sanitize_output_dir(self):
-
         # output dir
         assert not self.output_dir is None
         self.output_dir = os.path.abspath(self.output_dir)
@@ -166,15 +182,13 @@ class SubjectData(object):
             if sess_output_dir is None:
                 if self.n_sessions > 1:
                     sess_output_dir = os.path.join(
-                        self.output_dir, self.session_id[sess])
+                        self.output_dir, self.session_ids[sess])
                 else:
                     sess_output_dir = self.output_dir
             else:
                 sess_output_dir = os.path.abspath(sess_output_dir)
-
             if not os.path.exists(sess_output_dir):
                 os.makedirs(sess_output_dir)
-
             self.session_output_dirs[sess] = sess_output_dir
 
         # make tmp output dir
@@ -189,15 +203,11 @@ class SubjectData(object):
         Convert .nii.gz to .nii (crucial for SPM).
 
         """
-
         cache_dir = os.path.join(self.scratch, 'cache_dir')
         mem = Memory(cache_dir, verbose=100)
-
         self.func = [mem.cache(do_niigz2nii)(
-                self.func[sess],
-                output_dir=self.session_output_dirs[sess])
-                     for sess in xrange(self.n_sessions)]
-
+            self.func[sess], output_dir=self.session_output_dirs[sess])
+                    for sess in range(self.n_sessions)]
         if not self.anat is None:
             self.anat = mem.cache(do_niigz2nii)(
                 self.anat, output_dir=self.anat_output_dir)
@@ -207,7 +217,6 @@ class SubjectData(object):
         Convert DICOM to nifti.
 
         """
-
         self.isdicom = False
         if self.func:
             if not isinstance(self.func[0], basestring):
@@ -215,7 +224,6 @@ class SubjectData(object):
                     self.isdicom = isdicom(self.func[0][0])
             self.func = [do_dcm2nii(sess_func, output_dir=self.output_dir)[0]
                          for sess_func in self.func]
-
         if self.anat:
             self.anat = do_dcm2nii(self.anat, output_dir=self.output_dir)[0]
 
@@ -226,9 +234,8 @@ class SubjectData(object):
         string or list of)
 
         """
-
         # check that functional image abspaths are distinct across sessions
-        for sess1 in xrange(self.n_sessions):
+        for sess1 in range(self.n_sessions):
             if is_niimg(self.func[sess1]):
                 continue
 
@@ -264,16 +271,14 @@ class SubjectData(object):
 
             # functional images for sess1 shouldn't concide with any functional
             # image of any other session
-            for sess2 in xrange(sess1 + 1, self.n_sessions):
+            for sess2 in range(sess1 + 1, self.n_sessions):
                 if is_niimg(self.func[sess2]):
                     continue
-
                 if self.func[sess1] == self.func[sess2]:
                     raise RuntimeError(
                         ('The same image %s specified for session number %i '
                          'and %i' % (self.func[sess1], sess1 + 1,
                                      sess2 + 1)))
-
                 if isinstance(self.func[sess1], basestring):
                     if self.func[sess1] == self.func[sess2]:
                         raise RuntimeError(
@@ -317,31 +322,29 @@ class SubjectData(object):
             convert func and ant .nii.gz images to .nii
 
         """
-
         # sanitize func
         if isinstance(self.func, basestring):
             self.func = [self.func]
 
         # sanitize anat
         if not self.anat is None:
-            assert os.path.isfile(self.anat)
+            if not os.path.isfile(self.anat):
+                raise OSError("%s is not a file!" % self.anat)
 
-        # sanitize session_id
-        if self.session_id is None:
-            if len(self.func) < 10:
-                self.session_id = ["session_%i" % i
-                                   for i in xrange(len(self.func))]
-            else:
-                self.session_id = ["session_0"]
+        # sanitize session_ids
+        if self.session_ids is None:
+            if len(self.func) > 10:
+                raise RuntimeError
+            self.session_ids = ["Session%i" % (sess + 1)
+                                for sess in range(len(self.func))]
         else:
-            if isinstance(self.session_id, (basestring, int)):
+            if isinstance(self.session_ids, (basestring, int)):
                 assert len(self.func) == 1
-                self.session_id = [self.session_id]
+                self.session_ids = [self.session_ids]
             else:
-                assert len(self.session_id) == len(self.func), "%s != %s" % (
-                    self.session_id, len(self.func))
-
-        self.n_sessions = len(self.session_id)
+                assert len(self.session_ids) == len(self.func), "%s != %s" % (
+                    self.session_ids, len(self.func))
+        self.n_sessions = len(self.session_ids)
 
         # sanitize output_dir
         self._sanitize_output_dir()
@@ -349,6 +352,7 @@ class SubjectData(object):
         # .dcm, .ima -> .nii
         self._dcm2nii()
 
+        # delete orientation meta-data
         if deleteorient:
             self._delete_orientation()
 
@@ -360,17 +364,16 @@ class SubjectData(object):
 
         # get basenames
         self.basenames = [get_basenames(self.func[sess]) if not is_niimg(
-                self.func[sess]) else "%s.nii.gz" % self.session_id[sess]
-                          for sess in xrange(self.n_sessions)]
+                self.func[sess]) else "%s.nii.gz" % self.session_ids[sess]
+                        for sess in range(self.n_sessions)]
 
         return self
 
     def save_realignment_parameters(self, lkp=6):
         if not hasattr(self, "realignment_parameters"):
             return
-
         rp_filenames = []
-        for sess in xrange(self.n_sessions):
+        for sess in range(self.n_sessions):
             sess_rps = getattr(self, "realignment_parameters")[sess]
             if isinstance(sess_rps, basestring):
                 rp_filenames.append(sess_rps)
@@ -382,12 +385,9 @@ class SubjectData(object):
                 rp_filename = os.path.join(
                     self.tmp_output_dir,
                     "rp_" + sess_basename + ".txt")
-
                 np.savetxt(rp_filename, sess_rps[..., :lkp])
                 rp_filenames.append(rp_filename)
-
         setattr(self, "realignment_parameters", rp_filenames)
-
         return rp_filenames
 
     def hardlink_output_files(self, final=False):
@@ -401,13 +401,9 @@ class SubjectData(object):
             pipeline
 
         """
-
         # anat stuff
-        for item in [
-            "anat",
-            'gm', 'wm', 'csf',  # native
-            'wgm', 'wwm', 'wcsf',
-            'mwgm', 'mwwm', 'mwcsf']:
+        for item in ["anat", 'gm', 'wm', 'csf', 'wgm', 'wwm', 'wcsf',
+                     'mwgm', 'mwwm', 'mwcsf']:
             if hasattr(self, item):
                 filename = getattr(self, item)
                 if not filename is None:
@@ -423,13 +419,14 @@ class SubjectData(object):
                 if isinstance(filenames, basestring):
                     assert self.n_sessions == 1, filenames
                     filenames = [filenames]
-                for sess in xrange(self.n_sessions):
+                for sess in range(self.n_sessions):
                     filename = filenames[sess]
                     if not filename is None:
                         linked_filename = hard_link(
                             filename, self.session_output_dirs[sess])
                         tmp.append(linked_filename)
-            if final: setattr(self, item, tmp)
+            if final:
+                setattr(self, item, tmp)
 
     def init_report(self, parent_results_gallery=None, cv_tc=True,
                     preproc_undergone=None):
@@ -448,17 +445,14 @@ class SubjectData(object):
             generated
 
         """
-
-        if not self.func: cv_tc = False
-
-        # make sure output_dir is OK
+        if not self.func:
+            cv_tc = False
         self._sanitize_output_dir()
 
-        # make separate dir for reports
+        # misc for reporting
         self.reports_output_dir = os.path.join(self.output_dir, "reports")
         if not os.path.exists(self.reports_output_dir):
             os.makedirs(self.reports_output_dir)
-
         self.report = True
         self.results_gallery = None
         self.parent_results_gallery = parent_results_gallery
@@ -470,7 +464,7 @@ class SubjectData(object):
         self.report_preproc_filename = os.path.join(
             self.reports_output_dir, 'report_preproc.html')
         self.report_filename = os.path.join(self.reports_output_dir,
-                                                    'report.html')
+                                            'report.html')
 
         # clean report files
         open(self.report_log_filename, 'w').close()
@@ -501,16 +495,10 @@ class SubjectData(object):
 
         # html markup
         preproc = get_subject_report_preproc_html_template(
-            results=self.results_gallery,
-            start_time=time.ctime(),
-            preproc_undergone=preproc_undergone,
-            subject_id=self.subject_id,
-            )
+            results=self.results_gallery, start_time=time.ctime(),
+            preproc_undergone=preproc_undergone, subject_id=self.subject_id)
         main_html = get_subject_report_html_template(
-            start_time=time.ctime(),
-            subject_id=self.subject_id
-            )
-
+            start_time=time.ctime(), subject_id=self.subject_id)
         with open(self.report_preproc_filename, 'w') as fd:
             fd.write(str(preproc))
             fd.close()
@@ -523,10 +511,8 @@ class SubjectData(object):
         Finalizes the business of reporting.
 
         """
-
         if not self.reporting_enabled():
             return
-
         if parent_results_gallery is None:
             parent_results_gallery = self.parent_results_gallery
 
@@ -540,12 +526,9 @@ class SubjectData(object):
             # geneate cv_tc plots
             if self.cv_tc:
                 generate_cv_tc_thumbnail(
-                    self.func,
-                    self.session_id,
-                    self.subject_id,
-                    self.reports_output_dir,
-                    results_gallery=self.results_gallery
-                    )
+                    self.func, self.session_ids, self.subject_id,
+                    self.reports_output_dir, tooltip=cv_tc_tooltip,
+                    results_gallery=self.results_gallery)
 
         # shut down all watched report pages
         self.progress_logger.finish_all()
@@ -573,7 +556,6 @@ class SubjectData(object):
         Determines whether reporting is enabled for this subject
 
         """
-
         return hasattr(self, 'results_gallery')
 
     def generate_realignment_thumbnails(self, log=True, nipype=True):
@@ -581,12 +563,8 @@ class SubjectData(object):
         Invoked to generate post-realignment thumbnails.
 
         """
-
         if not hasattr(self, 'realignment_parameters'):
-            print(
-                "self has no field 'realignment_parameters'; nothing to do")
-            return
-
+            raise ValueError("'realignment_parameters' attribute not set!")
         if not self.reporting_enabled():
             self.init_report()
 
@@ -603,36 +581,32 @@ class SubjectData(object):
                 self.progress_logger.log(open(execution_log_html).read())
                 self.progress_logger.log('<hr/>')
 
+        # generate thumbnails proper
         thumbs = generate_realignment_thumbnails(
             getattr(self, 'realignment_parameters'),
-            self.reports_output_dir,
-            sessions=self.session_id,
+            self.reports_output_dir, sessions=self.session_ids,
             execution_log_html_filename=execution_log_html if log
-            else None,
-            results_gallery=self.results_gallery
-            )
-
+            else None, tooltip=mc_tooltip,
+            results_gallery=self.results_gallery)
         self.final_thumbnail.img.src = thumbs['rp_plot']
 
-    def generate_coregistration_thumbnails(
-        self, coreg_func_to_anat=True, log=True, comment=True, nipype=True):
-
+    def generate_coregistration_thumbnails(self, coreg_func_to_anat=True,
+                                           log=True, comment=True,
+                                           nipype=True):
         """
         Invoked to generate post-coregistration thumbnails.
 
         """
-
         # subject has anat ?
         if self.anat is None:
             print("Subject 'anat' field is None; nothing to do")
             return
 
-        # reporting enabled ?
+        # misc
         if not self.reporting_enabled():
             self.init_report()
-
         src, ref = self.func, self.anat
-        src_brain, ref_brain = "func", "anat"
+        src_brain, ref_brain = "mean functional image", "anatomical image"
         if not coreg_func_to_anat:
             src, ref = ref, src
             src_brain, ref_brain = ref_brain, src_brain
@@ -652,15 +626,11 @@ class SubjectData(object):
 
         # generate thumbs proper
         thumbs = generate_coregistration_thumbnails(
-            (ref, ref_brain),
-            (src, src_brain),
+            (ref, ref_brain), (src, src_brain),
             self.reports_output_dir,
             execution_log_html_filename=execution_log_html if log
-            else None,
-            results_gallery=self.results_gallery,
-            comment=comment
-            )
-
+            else None, results_gallery=self.results_gallery,
+            comment=comment, tooltip=reg_tooltip)
         self.final_thumbnail.img.src = thumbs['axial']
 
     def generate_segmentation_thumbnails(self, log=True, nipype=True):
@@ -668,17 +638,16 @@ class SubjectData(object):
         Invoked to generate post-segmentation thumbnails.
 
         """
-
-        # segmentation done ?
+        # misc
         segmented = False
         for item in ['gm', 'wm', 'csf']:
             if hasattr(self, item):
                 segmented = True
                 break
-        if not segmented: return
-
-        # reporting enabled ?
-        if not self.reporting_enabled(): self.init_report()
+        if not segmented:
+            return
+        if not self.reporting_enabled():
+            self.init_report()
 
         # log execution
         if log:
@@ -693,24 +662,20 @@ class SubjectData(object):
                 self.progress_logger.log(open(execution_log_html).read())
                 self.progress_logger.log('<hr/>')
 
+        # generate thumbnails proper
         for brain_name, brain, cmap in zip(
-            ['anat', 'func'], [self.anat, self.func],
-            [cm.gray, cm.spectral]):
+                ['anatomical image', 'mean functional image'],
+                [self.anat, self.func], [cm.gray, cm.spectral]):
             if not brain: continue
             thumbs = generate_segmentation_thumbnails(
-                brain,
-                self.reports_output_dir,
+                brain, self.reports_output_dir,
                 subject_gm_file=getattr(self, 'gm', None),
                 subject_wm_file=getattr(self, 'wm', None),
                 subject_csf_file=getattr(self, 'csf', None),
-                cmap=cmap,
-                brain=brain_name,
-                only_native=True,
+                cmap=cmap, brain=brain_name, only_native=True,
                 execution_log_html_filename=execution_log_html if log
-                else None,
-                results_gallery=self.results_gallery
-                )
-
+                else None, results_gallery=self.results_gallery,
+                tooltip=segment_tooltip)
             if brain_name == 'func':
                 self.final_thumbnail.img.src = thumbs['axial']
 
@@ -719,43 +684,36 @@ class SubjectData(object):
         Invoked to generate post-normalization thumbnails.
 
         """
-
-        # reporting enabled ?
+        # misc
         if not self.reporting_enabled():
             self.init_report()
-
-        # segmentation done ?
         segmented = False
         for item in ['mwgm', 'mwwm', 'mwcsf']:
             if hasattr(self, item):
                 segmented = True
                 break
 
+        # generate thumbnails proper
         for brain_name, brain, cmap in zip(
-            ['anat', 'func'], [self.anat, self.func],
-            [cm.gray, cm.spectral]):
-
-            if not brain: continue
+                ['anatomical image', 'mean functional image'],
+                [self.anat, self.func], [cm.gray, cm.spectral]):
+            if not brain:
+                continue
 
             # generate segmentation thumbs
             if segmented:
                 thumbs = generate_segmentation_thumbnails(
-                    brain,
-                    self.reports_output_dir,
+                    brain, self.reports_output_dir,
                     subject_gm_file=getattr(self, 'mwgm', None),
                     subject_wm_file=getattr(self, 'mwwm', None),
                     subject_csf_file=getattr(self, 'mwcsf', None),
-                    cmap=cmap,
-                    brain=brain_name,
-                    comments="warped",
+                    cmap=cmap, brain=brain_name, comments="warped",
                     execution_log_html_filename=make_nipype_execution_log_html(
                         getattr(self, 'mwgm') or getattr(
-                            self, 'mwwm') or getattr(
-                            self, 'mwcsf'), "Segment",
+                            self, 'mwwm') or getattr(self, 'mwcsf'), "Segment",
                         self.reports_output_dir) if log else None,
-                    results_gallery=self.results_gallery
-                    )
-
+                    results_gallery=self.results_gallery,
+                    tooltip=segment_tooltip)
                 if brain_name == 'func' or not self.func:
                     self.final_thumbnail.img.src = thumbs['axial']
 
@@ -776,24 +734,19 @@ class SubjectData(object):
 
             # generate normalization thumbs proper
             thumbs = generate_normalization_thumbnails(
-                brain,
-                self.reports_output_dir,
-                brain=brain_name,
+                brain, self.reports_output_dir, brain=brain_name,
                 execution_log_html_filename=execution_log_html if log
-                else None,
-                results_gallery=self.results_gallery,
-                )
-
+                else None, results_gallery=self.results_gallery,
+                tooltip=reg_tooltip)
             if not segmented and (brain_name == 'func' or not self.func):
                 self.final_thumbnail.img.src = thumbs['axial']
 
     def generate_smooth_thumbnails(self):
         """
         Generate thumbnails post-smoothing.
-
+        XXX  unmainted function!!!
         """
-
-        # reporting enabled ?
+        # misc
         if not self.reporting_enabled():
             self.init_report()
 
@@ -810,7 +763,7 @@ class SubjectData(object):
                 self.progress_logger.log(text)
             self.progress_logger.log('<hr/>')
 
-    def generate_report(self, **kwargs):
+    def generate_report(self):
         """
         Method invoked to generate all reports in one-go. This is useful
         for generating reports out-side the preproc logic: simply populate
@@ -818,19 +771,14 @@ class SubjectData(object):
         fields and then fire this method.
 
         """
-
-        # set items
+        # misc
         self._set_items()
-
-        # sanitiy
         self.sanitize()
 
-        # report
+        # report proper
         self.generate_realignment_thumbnails(log=False)
         self.generate_coregistration_thumbnails(log=False, comment=False)
         self.generate_normalization_thumbnails(log=False)
-
-        # finalize the business
         self.finalize_report(last_stage=True)
 
     def __repr__(self):

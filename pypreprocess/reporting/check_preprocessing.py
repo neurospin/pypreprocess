@@ -46,16 +46,11 @@ def plot_spm_motion_parameters(parameter_file, title=None,
     pl.figure()
     pl.plot(motion)
     if not title is None:
-        pl.title(title, fontsize=10)
-    pl.xlabel('time(scans)', fontsize=10)
-    pl.legend(('Tx', 'Ty', 'Tz', 'Rx', 'Ry', 'Rz'), prop={"size": 12},
+        pl.title(title)
+    pl.legend(('TransX', 'TransY', 'TransZ', 'RotX', 'RotY', 'RotZ'),
               loc="upper left", ncol=2)
-    pl.ylabel('Estimated motion (mm/degrees)', fontsize=10)
-
-    # dump image unto disk
-    if not output_filename is None:
-        pl.savefig(output_filename, bbox_inches="tight", dpi=200)
-        pl.close()
+    pl.xlabel('time(scans)')
+    pl.ylabel('Estimated motion (mm/degrees)')
 
 
 def compute_cv(data, mask_array=None):
@@ -193,7 +188,7 @@ def plot_registration(reference_img, coregistered_img,
     coregistered_img = reorder_img(coregistered_img, resample="continuous")
 
     _slicer = plot_img(coregistered_img, cmap=cmap, cut_coords=cut_coords,
-              display_mode=display_mode, black_bg=True)
+              display_mode=display_mode, black_bg=False)
 
     # overlap the reference image
     if hasattr(reference_img, '__len__'):
@@ -256,7 +251,7 @@ def plot_segmentation(img, gm_filename, wm_filename=None,
     img = mean_img(img)
     img = reorder_img(img, resample="continuous")
     _slicer = plot_img(img, cut_coords=cut_coords, display_mode=display_mode,
-                       cmap=cmap, black_bg=True)
+                       cmap=cmap, black_bg=False)
 
     # add TPM contours
     gm = nibabel.load(gm_filename)

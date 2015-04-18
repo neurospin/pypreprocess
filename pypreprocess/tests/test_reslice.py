@@ -39,8 +39,8 @@ def test_reslice_vols():
 
     # rigidly move other volumes w.r.t. the first
     rp = np.array([get_initial_motion_params()
-                   for _ in xrange(n_scans)])
-    for t in xrange(film.shape[-1]):
+                   for _ in range(n_scans)])
+    for t in range(film.shape[-1]):
         rp[t, ...][:3] += t / n_scans
         rp[t, ...][3:6] += np.pi * t
 

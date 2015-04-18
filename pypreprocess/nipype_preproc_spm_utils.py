@@ -6,7 +6,6 @@ The most useful functions are do_subject_preproc and do_subjects_preproc
 
 # Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
-# standard imports
 import os
 import sys
 import time
@@ -18,45 +17,22 @@ from slice_timing import get_slice_indices
 from conf_parser import _generate_preproc_pipeline
 import matplotlib
 matplotlib.use('Agg')
-
-# import joblib API
 from joblib import Parallel, delayed, Memory as JoblibMemory
-
-# import nipype API
 import nipype.interfaces.spm as spm
 from nipype.caching import Memory as NipypeMemory
 from configure_spm import _configure_spm
-
-# import API for i/o
-from .io_utils import (load_specific_vol,
-                       ravel_filenames,
-                       unravel_filenames,
-                       get_vox_dims,
-                       niigz2nii,
-                       resample_img,
-                       compute_output_voxel_size,
-                       sanitize_fwhm
-                       )
+from .io_utils import (
+    load_specific_vol, ravel_filenames, unravel_filenames, get_vox_dims,
+    niigz2nii, resample_img, compute_output_voxel_size, sanitize_fwhm)
 from subject_data import SubjectData
-
-# import API for reporting
 from .reporting.base_reporter import (
-    ResultsGallery,
-    ProgressReport,
-    copy_web_conf_files,
-    get_module_source_code,
-    dict_to_html_ul
-    )
+    ResultsGallery, ProgressReport, copy_web_conf_files,
+    get_module_source_code, dict_to_html_ul)
 from .reporting.preproc_reporter import (
-    _set_templates,
-    generate_preproc_undergone_docstring,
+    _set_templates, generate_preproc_undergone_docstring,
     get_dataset_report_log_html_template,
     get_dataset_report_preproc_html_template,
-    get_dataset_report_html_template,
-    generate_stc_thumbnails
-    )
-
-# import pure python preproc API
+    get_dataset_report_html_template)
 from purepython_preproc_utils import (
     _do_subject_slice_timing as _pp_do_subject_slice_timing,
     _do_subject_realign as _pp_do_subject_realign,
@@ -72,10 +48,8 @@ def _configure_backends(spm_dir=None, matlab_exec=None, spm_mcr=None,
                         critical=True):
     global SPM_DIR, EPI_TEMPLATE, SPM_T1_TEMPLATE, T1_TEMPLATE
     global GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE
-
     spm_dir = _configure_spm(spm_dir=spm_dir, matlab_exec=matlab_exec,
                       spm_mcr=spm_mcr)
-
     if spm_dir:
         if os.path.isdir(spm_dir):
             SPM_DIR = spm_dir
@@ -103,7 +77,7 @@ except AssertionError:
 
 
 def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
-                             matlab_exec=None, spm_mcr=None, refslice=0,
+                             matlab_exec=None, spm_mcr=None, ref_slice=0,
                              slice_order="ascending", interleaved=False,
                              caching=True, software="spm",
                              hardlink_output=True, report=True):
@@ -123,12 +97,10 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
        Time of Acaquisition
 
     """
-
     if not subject_data.func:
         warnings.warn("subject_data.func=%s (empty); skipping STC!" % (
                 subject_data.func))
         return subject_data
-
     software = software.lower()
 
     # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
@@ -136,7 +108,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
 
     # compute nslices
     nslices = load_specific_vol(subject_data.func[0], 0)[0].shape[2]
-    assert 1 <= refslice <= nslices, refslice
+    assert 1 <= ref_slice <= nslices, ref_slice
 
     # compute slice indices / order
     if not isinstance(slice_order, basestring):
@@ -146,9 +118,9 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
 
     # use pure python (pp) code ?
     if software == "python":
-        return _pp_do_subject_slice_timing(subject_data, refslice=refslice,
+        return _pp_do_subject_slice_timing(subject_data, ref_slice=ref_slice,
                                            slice_order=slice_order,
-                                           caching=caching, report=report)
+                                           caching=caching)
 
     # sanitize software choice
     if software != "spm":
@@ -186,7 +158,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
     for sess_func in subject_data.func:
         stc_result = stc(in_files=sess_func, time_repetition=TR,
                          time_acquisition=TA, num_slices=nslices,
-                         ref_slice=refslice + 1,
+                         ref_slice=ref_slice + 1,
                          slice_order=list(slice_order + 1),  # SPM
                          ignore_exception=False
                          )
@@ -891,15 +863,12 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
     Input subject_data is modified.
 
     """
-
-    # sanitize software choice
+    # misc
     software = software.lower()
 
     if software == "python":
-        return _pp_do_subject_smooth(subject_data, fwhm, caching=caching,
-                                     report=report)
-
-    if software != "spm":
+        return _pp_do_subject_smooth(subject_data, fwhm, caching=caching)
+    elif software != "spm":
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
 
     # configure SPM back-end
@@ -925,8 +894,7 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
     subject_data.nipype_results['smooth'] = {}
 
     for brain_name, width in zip(
-        ['func', 'anat'],
-        [fwhm] + [anat_fwhm] * 7):
+            ['func', 'anat'], [fwhm] + [anat_fwhm] * 7):
         brain = getattr(subject_data, brain_name)
         if not brain: continue
         print brain_name
@@ -935,16 +903,12 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
         if brain_name == "func":
             in_files, file_types = ravel_filenames(brain)
         if brain_name == "anat":
-            anat_like = ['anat',
-                         'mwgm', 'mwwm', 'mwcsf'  # normalized TPMs
-                         ]
+            anat_like = ['anat', 'mwgm', 'mwwm', 'mwcsf']
             anat_like = [x for x in anat_like if hasattr(subject_data, x)]
             in_files = [getattr(subject_data, x) for x in anat_like]
 
-        smooth_result = smooth(in_files=in_files,
-                               fwhm=width,
-                               ignore_exception=False
-                               )
+        smooth_result = smooth(
+            in_files=in_files, fwhm=width, ignore_exception=False)
 
         # failed node ?
         subject_data.nipype_results['smooth'][brain_name] = smooth_result
@@ -1092,10 +1056,8 @@ def _do_subject_dartelnorm2mni(subject_data,
 
         # smooth func
         if np.sum(fwhm) > 0:
-            subject_data = _do_subject_smooth(subject_data, fwhm,
-                                              caching=caching,
-                                              report=report
-                                              )
+            subject_data = _do_subject_smooth(
+                subject_data, fwhm, caching=caching, report=report)
 
     # hardlink output files
     if hardlink_output: subject_data.hardlink_output_files()
@@ -1118,7 +1080,7 @@ def do_subject_preproc(
     slice_timing=False,
     slice_order="ascending",
     interleaved=False,
-    refslice=1,
+    ref_slice=1,
     TR=None,
     TA=None,
     slice_timing_software="spm",
@@ -1294,7 +1256,7 @@ def do_subject_preproc(
     #############################
     if slice_timing:
         subject_data = _do_subject_slice_timing(
-            subject_data, TR, refslice=refslice,
+            subject_data, TR, ref_slice=ref_slice,
             TA=TA, slice_order=slice_order, interleaved=interleaved,
             report=report,  # post-stc reporting bugs like hell!
             software=slice_timing_software,
@@ -1465,7 +1427,7 @@ def _do_subjects_dartel(subjects,
         image_files=dartel_input_images,)
     if dartel_result.outputs is None: return
 
-    for subject_data, j in zip(subjects, xrange(len(subjects))):
+    for subject_data, j in zip(subjects, range(len(subjects))):
         subject_data.gm = newsegment_result.outputs.dartel_input_images[0][j]
         subject_data.wm = newsegment_result.outputs.dartel_input_images[1][j]
         subject_data.dartel_flow_fields = dartel_result.outputs\
@@ -1491,7 +1453,7 @@ def _do_subjects_dartel(subjects,
     return preproc_subject_data, newsegment_result
 
 
-def do_subjects_preproc(subject_factory, **preproc_params):
+def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     """
     This function does intra-subject preprocessing on a group of subjects.
 
@@ -1586,10 +1548,17 @@ def do_subjects_preproc(subject_factory, **preproc_params):
     for k, v in preproc_params.iteritems(): print "\t%s=%s" % (k, v)
 
     # generate subjects (if generator)
-    subject_factory = [subject_data for subject_data in subject_factory]
+    subjects = [subject_data for subject_data in subject_factory]
+    if not session_ids is None:
+        if not len(set(session_ids)) == len(session_ids):
+            raise ValueError(
+                "session_ids must be a list of unique strings. Got %s" % (
+                    session_ids))
+        for subject_data in subjects:
+            subject_data["session_ids"] = session_ids
 
     # DARTEL on 1 subject is senseless
-    dartel = dartel and (len(subject_factory) > 1)
+    dartel = dartel and (len(subjects) > 1)
 
     # configure number of jobs
     if n_jobs is None: n_jobs = 1
@@ -1603,9 +1572,6 @@ def do_subjects_preproc(subject_factory, **preproc_params):
         else: output_dir = os.path.join(os.getcwd(), "pypreprocess_results")
 
     if not os.path.exists(output_dir): os.makedirs(output_dir)
-
-    # generate list of subjects
-    subjects = [subject_data for subject_data in subject_factory]
 
     # ensure that we actually have data to preprocess
     assert len(subjects) > 0, "subject_factory is empty; nothing to do!"
@@ -1678,7 +1644,6 @@ def do_subjects_preproc(subject_factory, **preproc_params):
         preproc = get_dataset_report_preproc_html_template(
             results=parent_results_gallery,
             start_time=time.ctime(),
-            # preproc_undergone=preproc_undergone,
             dataset_description=dataset_description,
             source_code=user_source_code,
             source_script_name=user_script_name,

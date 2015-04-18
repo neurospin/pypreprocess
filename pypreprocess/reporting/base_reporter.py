@@ -1,9 +1,7 @@
 """
-:Module: base_reporter
-:Synopsis: basic utilities (functions, classes) for the reporting business
-:Author: dohmatob elvis dopgima
-
+Basic utilities (functions, classes) for the reporting business
 """
+# Author: dohmatob elvis dopgima
 
 import os
 import re
@@ -168,7 +166,10 @@ def get_gallery_html_markup():
     return HTMLTemplate(
         """
 {{for thumbnail in thumbnails}}
-<div class="img">
+<div class="img"
+        {{if thumbnail.tooltip}}
+        tooltip="{{thumbnail.tooltip}}"
+        {{endif}}>
   <a {{attr(**thumbnail.a)}}>
     <img {{attr(**thumbnail.img)}}/>
   </a>
@@ -263,6 +264,9 @@ class Thumbnail(_HTMLElement):
 
     Parameters
     ----------
+    tooltip: string, optional (default None)
+        Text for tooltip to be popped-up when the image is hovered.
+
     **kwargs: dict-like
         param-value dict of attributes for this HTML image element. Comulsary
         parameter-values are:
@@ -286,8 +290,9 @@ class Thumbnail(_HTMLElement):
 
     # _compulsary_params = ['description', 'a', 'img']
 
-    def __init__(self, **kwargs):
-        _HTMLElement.__init__(self, **kwargs)
+    def __init__(self, tooltip=None, **kwargs):
+        _HTMLElement.__init__(self, tooltip=tooltip,
+                              **kwargs)
 
 
 class ResultsGallery(object):

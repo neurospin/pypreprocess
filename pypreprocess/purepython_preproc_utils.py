@@ -33,15 +33,13 @@ PREPROC_OUTPUT_IMAGE_PREFICES = {'STC': 'a',
                                  }
 
 
-def _do_subject_slice_timing(subject_data, refslice=0,
+def _do_subject_slice_timing(subject_data, ref_slice=0,
                              slice_order="ascending", interleaved=False,
-                             caching=True, report=True,
-                             write_output_images=2, func_prefix=None,
-                             func_basenames=None, ext=None):
-
+                             caching=True, write_output_images=2,
+                             func_prefix=None, func_basenames=None,
+                             ext=None):
     if func_prefix is None:
         func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['STC']
-
     if func_basenames is None:
         func_basenames = [get_basenames(func)
                           for func in subject_data.func]
@@ -49,61 +47,36 @@ def _do_subject_slice_timing(subject_data, refslice=0,
     # prepare for smart caching
     if caching:
         mem = Memory(cachedir=os.path.join(
-                subject_data.output_dir, 'cache_dir'),
-                     verbose=100)
+            subject_data.output_dir, 'cache_dir'), verbose=100)
     runner = lambda handle: mem.cache(handle) if caching else handle
-
     stc_output = []
     original_bold = subject_data.func
     for sess_func, sess_id in zip(subject_data.func,
-                                  xrange(subject_data.n_sessions)):
-        fmristc = runner(fMRISTC(slice_order=slice_order,
-                                  interleaved=interleaved,
-                                  verbose=True
-                                  ).fit)(raw_data=sess_func)
-
+                                  range(subject_data.n_sessions)):
+        fmristc = runner(fMRISTC(slice_order=slice_order, ref_slice=ref_slice,
+                                 interleaved=interleaved, verbose=True).fit)(
+                                raw_data=sess_func)
         stc_output.append(runner(fmristc.transform)(
                 sess_func,
                 output_dir=subject_data.tmp_output_dir if (
                     write_output_images > 0) else None,
                 basenames=func_basenames[sess_id],
                 prefix=func_prefix, ext=ext))
-
     subject_data.func = stc_output
-
-    if report:
-        # generate STC QA thumbs
-        generate_stc_thumbnails(
-            original_bold,
-            stc_output,
-            subject_data.reports_output_dir,
-            sessions=xrange(subject_data.n_sessions),
-            results_gallery=subject_data.results_gallery
-            )
-
-    # gc
-    del original_bold
-
-    # garbage collection
-    del fmristc
-
+    del original_bold, fmristc
     if write_output_images > 1:
         subject_data.hardlink_output_files()
-
     return subject_data
 
 
 def _do_subject_realign(subject_data, reslice=True, register_to_mean=False,
-                        caching=True, hardlink_output=True,
+                        caching=True, hardlink_output=True, ext=None,
                         func_basenames=None, write_output_images=2,
-                        report=True, func_prefix=None, ext=None):
-
+                        report=True, func_prefix=None):
     if register_to_mean:
         raise NotImplementedError("Feature pending...")
-
     if func_prefix is None:
         func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['MC']
-
     if func_basenames is None:
         func_basenames = [get_basenames(func)
                           for func in subject_data.func]
@@ -111,24 +84,16 @@ def _do_subject_realign(subject_data, reslice=True, register_to_mean=False,
     # prepare for smart caching
     if caching:
         mem = Memory(cachedir=os.path.join(
-                subject_data.output_dir, 'cache_dir'),
-                     verbose=100
-                     )
+            subject_data.output_dir, 'cache_dir'), verbose=100)
     runner = lambda handle: mem.cache(handle) if caching else handle
-
     mrimc = runner(MRIMotionCorrection(
             n_sessions=subject_data.n_sessions, verbose=True).fit)(
         [sess_func for sess_func in subject_data.func])
-
     mrimc_output = runner(mrimc.transform)(
         reslice=reslice,
         output_dir=subject_data.tmp_output_dir if (
-            write_output_images == 2) else None,
-        prefix=func_prefix,
-        basenames=func_basenames,
-        ext=ext
-        )
-
+            write_output_images == 2) else None, ext=ext,
+        prefix=func_prefix, basenames=func_basenames)
     subject_data.func = mrimc_output['realigned_images']
     subject_data.realignment_parameters = mrimc_output[
         'realignment_parameters']
@@ -147,10 +112,9 @@ def _do_subject_realign(subject_data, reslice=True, register_to_mean=False,
 
 
 def _do_subject_coregister(
-    subject_data, coreg_func_to_anat=True, reslice=False, caching=True,
-    ext=False, write_output_images=2, func_basenames=None, func_prefix="",
+    subject_data, coreg_func_to_anat=True, caching=True,
+    ext=None, write_output_images=2, func_basenames=None, func_prefix="",
     anat_basename=None, anat_prefix="", report=True, verbose=True):
-
     ref_brain = 'func'
     src_brain = 'anat'
     ref = subject_data.func[0]
@@ -162,9 +126,7 @@ def _do_subject_coregister(
     # prepare for smart caching
     if caching:
         mem = Memory(cachedir=os.path.join(
-                subject_data.output_dir, 'cache_dir'),
-                     verbose=100
-                     )
+                subject_data.output_dir, 'cache_dir'), verbose=100)
     runner = lambda handle: mem.cache(handle) if caching else handle
 
     # estimate realignment (affine) params for coreg
@@ -175,9 +137,8 @@ def _do_subject_coregister(
         if func_basenames is None:
             func_basenames = [get_basenames(func)
                               for func in subject_data.func]
-
         coreg_func = []
-        for sess_func, sess_id in zip(subject_data.func, xrange(
+        for sess_func, sess_id in zip(subject_data.func, range(
                 subject_data.n_sessions)):
             coreg_func.append(runner(coreg.transform)(
                     sess_func, output_dir=subject_data.tmp_output_dir if (
@@ -190,61 +151,44 @@ def _do_subject_coregister(
     else:
         if anat_basename is None:
             anat_basename = get_basenames(subject_data.anat)
-
         subject_data.anat = runner(coreg.transform)(
             subject_data.anat, basename=anat_basename,
             output_dir=subject_data.tmp_output_dir if (
-                write_output_images == 2) else None, prefix=anat_prefix)
+                write_output_images == 2) else None, prefix=anat_prefix,
+            ext=ext)
         src = subject_data.anat
 
+    # generate coregistration QA thumbs
     if report:
-        # generate coregistration QA thumbs
         subject_data.generate_coregistration_thumbnails(
             coreg_func_to_anat=coreg_func_to_anat, nipype=False)
 
-    # garbage collection
     del coreg
-
     if write_output_images > 1:
         subject_data.hardlink_output_files()
-
     return subject_data
 
 
-def _do_subject_smooth(subject_data, fwhm, func_prefix=None,
+def _do_subject_smooth(subject_data, fwhm, prefix=None,
                        write_output_images=2, func_basenames=None,
-                       concat=False, caching=True, report=True):
-
-    if func_prefix is None:
-        func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['smoothing']
-
+                       concat=False, caching=True):
+    if prefix is None:
+        prefix = PREPROC_OUTPUT_IMAGE_PREFICES['smoothing']
     if func_basenames is None:
         func_basenames = [get_basenames(func) for func in subject_data.func]
-
-    # prepare for smart caching
     if caching:
         mem = Memory(cachedir=os.path.join(
                 subject_data.output_dir, 'cache_dir'), verbose=100)
-
     sfunc = []
-    for sess in xrange(subject_data.n_sessions):
+    for sess in range(subject_data.n_sessions):
         sess_func = subject_data.func[sess]
-
         _tmp = mem.cache(smooth_image)(sess_func,
                                    fwhm)
-
-        # save smoothed func
         if write_output_images == 2:
             _tmp = mem.cache(save_vols)(
-                _tmp,
-                subject_data.output_dir,
-                basenames=func_basenames[sess],
-                prefix=func_prefix,
-                concat=concat
-                )
-
+                _tmp, subject_data.output_dir, basenames=func_basenames[sess],
+                prefix=prefix, concat=concat)
         sfunc.append(_tmp)
-
     subject_data.func = sfunc
     return subject_data
 
@@ -252,7 +196,7 @@ def _do_subject_smooth(subject_data, fwhm, func_prefix=None,
 def do_subject_preproc(subject_data,
                        caching=True,
                        stc=False,
-                       refslice=0,
+                       ref_slice=0,
                        interleaved=False,
                        slice_order='ascending',
                        realign=True,
@@ -356,16 +300,14 @@ def do_subject_preproc(subject_data,
     func_basenames = [get_basenames(subject_data.func[sess]) if not is_niimg(
             subject_data.func[sess]) else "%s.nii.gz" % (
             subject_data.session_id[sess])
-                      for sess in xrange(subject_data.n_sessions)]
+                    for sess in range(subject_data.n_sessions)]
     if coregister:
         anat_basename = get_basenames(subject_data.anat)
 
     # prepare for smart caching
     if caching:
         mem = Memory(cachedir=os.path.join(
-                subject_data.output_dir, 'cache_dir'),
-                     verbose=100
-                     )
+            subject_data.output_dir, 'cache_dir'), verbose=100)
 
     # prefix for final output images
     func_prefix = ""
@@ -399,12 +341,9 @@ def do_subject_preproc(subject_data,
         print "\r\nNODE> Slice-Timing Correction"
         func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['STC'] + func_prefix
         subject_data = _do_subject_slice_timing(
-            subject_data, refslice=refslice,
-            slice_order=slice_order, interleaved=interleaved,
-            write_output_images=write_output_images,
-            func_prefix=func_prefix,
-            report=report,
-            func_basenames=func_basenames)
+            subject_data, ref_slice=ref_slice, slice_order=slice_order,
+            interleaved=interleaved, write_output_images=write_output_images,
+            func_prefix=func_prefix, func_basenames=func_basenames)
 
     ######################
     # Motion Correction
@@ -446,13 +385,10 @@ def do_subject_preproc(subject_data,
     # write final output images
     if write_output_images == 1:
         print "Saving preprocessed images unto disk..."
-
-        # save final func
         func_basenames = func_basenames[0] if (not isinstance(
                 func_basenames, basestring) and concat) else func_basenames
-
         _func = []
-        for sess in xrange(n_sessions):
+        for sess in range(n_sessions):
             sess_func = subject_data.func[sess]
             _func.append(mem.cache(save_vols)(
                     sess_func,
@@ -465,7 +401,6 @@ def do_subject_preproc(subject_data,
 
     # finalize
     subject_data.finalize_report(last_stage=shutdown_reloaders)
-
     if write_output_images:
         subject_data.hardlink_output_files(final=True)
 
