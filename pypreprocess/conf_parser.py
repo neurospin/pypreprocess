@@ -43,7 +43,7 @@ def _parse_job(jobfile, **replacements):
             elif val.lower() in ["none", "auto", "unspecified", "unknown"]:
                 val = None
 
-        if key in ["TR", "nslices", "refslice", "nsubjects", "nsessions",
+        if key in ["TR", "nslices", "ref_slice", "nsubjects", "nsessions",
                    "n_jobs"]:
             if not val is None: val = eval(val)
 

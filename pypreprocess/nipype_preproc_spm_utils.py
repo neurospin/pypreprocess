@@ -77,7 +77,7 @@ except AssertionError:
 
 
 def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
-                             matlab_exec=None, spm_mcr=None, refslice=0,
+                             matlab_exec=None, spm_mcr=None, ref_slice=0,
                              slice_order="ascending", interleaved=False,
                              caching=True, software="spm",
                              hardlink_output=True, report=True):
@@ -108,7 +108,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
 
     # compute nslices
     nslices = load_specific_vol(subject_data.func[0], 0)[0].shape[2]
-    assert 1 <= refslice <= nslices, refslice
+    assert 1 <= ref_slice <= nslices, ref_slice
 
     # compute slice indices / order
     if not isinstance(slice_order, basestring):
@@ -118,7 +118,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
 
     # use pure python (pp) code ?
     if software == "python":
-        return _pp_do_subject_slice_timing(subject_data, refslice=refslice,
+        return _pp_do_subject_slice_timing(subject_data, ref_slice=ref_slice,
                                            slice_order=slice_order,
                                            caching=caching)
 
@@ -158,7 +158,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
     for sess_func in subject_data.func:
         stc_result = stc(in_files=sess_func, time_repetition=TR,
                          time_acquisition=TA, num_slices=nslices,
-                         ref_slice=refslice + 1,
+                         ref_slice=ref_slice + 1,
                          slice_order=list(slice_order + 1),  # SPM
                          ignore_exception=False
                          )
@@ -1080,7 +1080,7 @@ def do_subject_preproc(
     slice_timing=False,
     slice_order="ascending",
     interleaved=False,
-    refslice=1,
+    ref_slice=1,
     TR=None,
     TA=None,
     slice_timing_software="spm",
@@ -1256,7 +1256,7 @@ def do_subject_preproc(
     #############################
     if slice_timing:
         subject_data = _do_subject_slice_timing(
-            subject_data, TR, refslice=refslice,
+            subject_data, TR, ref_slice=ref_slice,
             TA=TA, slice_order=slice_order, interleaved=interleaved,
             report=report,  # post-stc reporting bugs like hell!
             software=slice_timing_software,
