@@ -77,7 +77,7 @@ def get_slice_indices(n_slices, slice_order='ascending',
 
     slice_indices = np.array(slice_indices)
     slice_indices = np.array([np.nonzero(slice_indices == z)[0][0]
-                              for z in xrange(n_slices)])
+                              for z in range(n_slices)])
 
     return slice_indices
 
@@ -285,7 +285,7 @@ class STC(object):
             )
 
         # loop over slices (z axis)
-        for z in xrange(self.n_slices):
+        for z in range(self.n_slices):
             self._log(("STC: Estimating phase-shift transform for slice "
                        "%i/%i...") % (z + 1, self.n_slices))
 
@@ -297,7 +297,7 @@ class STC(object):
             # frequency
             phi = np.ndarray(N)
             phi[0] = 0.
-            for f in xrange(N / 2):
+            for f in range(N / 2):
                 phi[f + 1] = -1. * shift_amount * 2 * np.pi * (f + 1) / N
 
             # check if signal length is odd or even -- impacts how phases
@@ -364,7 +364,7 @@ class STC(object):
         self.output_data_ = 0 * raw_data
 
         # loop over slices (z axis)
-        for z in xrange(self.n_slices):
+        for z in range(self.n_slices):
             self._log(
                 "STC: Correcting acquisition delay in slice %i/%i..." % (
                     z + 1, self.n_slices))
@@ -373,7 +373,7 @@ class STC(object):
             shifter = np.array([self.kernel_[z], ] * n_rows).T
 
             # loop over columns of slice z (y axis)
-            for y in xrange(n_columns):
+            for y in range(n_columns):
                 # extract column y of slice z of all 3D volumes
                 stack[:self.n_scans, :] = raw_data[:, y, z, :].reshape(
                     (n_rows, self.n_scans)).T
@@ -381,7 +381,7 @@ class STC(object):
                 # fill-in continuous function to avoid edge effects (wrapping,
                 # etc.): simply linspace the displacement between the start
                 # and ending value of each BOLD response time-series
-                for x in xrange(stack.shape[1]):
+                for x in range(stack.shape[1]):
                     stack[self.n_scans:, x] = np.linspace(
                         stack[self.n_scans - 1, x], stack[0, x],
                         num=N - self.n_scans,).T
@@ -458,7 +458,7 @@ def _load_fmri_data(fmri_files, is_3D=False):
             data = np.ndarray(tuple(list(_first.shape
                                          ) + [n_scans]))
             data[..., 0] = _first
-            for scan in xrange(1, n_scans):
+            for scan in range(1, n_scans):
                 data[..., scan] = _load_fmri_data(fmri_files[scan],
                                                        is_3D=True)
 
@@ -514,7 +514,7 @@ class fMRISTC(STC):
             _raw_data[..., 0] = _first.get_data()
             self.affine_ = [_first.get_affine()]
 
-            for t in xrange(1, n_scans):
+            for t in range(1, n_scans):
                 vol = load_vol(raw_data[t])
                 _raw_data[..., t] = vol.get_data()
                 self.affine_.append(vol.get_affine())
@@ -550,7 +550,7 @@ class fMRISTC(STC):
             if isinstance(self.affine_, list):
                 self.output_data_  = [nibabel.Nifti1Image(
                             self.output_data_[..., t], self.affine_[t])
-                                                 for t in xrange(
+                                                 for t in range(
                             self.output_data_.shape[-1])]
                 if output_dir is None:
                     self.output_data_ = nibabel.concat_images(

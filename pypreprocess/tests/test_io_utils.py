@@ -99,7 +99,7 @@ def test_load_specific_vol():
     film = create_random_image(ndim=4, n_scans=n_scans)
 
     # test loading vol from nibabel image object
-    for t in xrange(n_scans):
+    for t in range(n_scans):
         _vol, _n_scans = load_specific_vol(film, t)
         assert_equal(_n_scans, n_scans)
         assert_true(isinstance(_vol, type(film)))
@@ -118,14 +118,14 @@ def test_load_specific_vol():
                 # save film as multiple filenames (3D vols), with ext extension
                 vols = nibabel.four_to_three(film)
                 film_filename = []
-                for t, vol in zip(xrange(n_scans), vols):
+                for t, vol in zip(range(n_scans), vols):
                     vol_filename = os.path.join(output_dir,
                                                 "vol_%i%s" % (t, ext))
                     nibabel.save(vol, vol_filename)
                     film_filename.append(vol_filename)
 
             # test loading proper
-            for t in xrange(n_scans):
+            for t in range(n_scans):
                 # note that .img loads as Nifti1Pair, not Nifti1Image
                 vol_type = nibabel.Nifti1Pair if ext == '.img' else \
                     nibabel.Nifti1Image
@@ -171,7 +171,7 @@ def test_save_vols():
     # save vols manually
     film_filename = os.path.join(output_dir, 'film.nii.gz')
     threeD_vols_filenames = [os.path.join(output_dir, 'fMETHODS-%06i' % i)
-                             for i in xrange(len(threeD_vols))]
+                             for i in range(len(threeD_vols))]
 
     # check saving seperate 3D vols
     for stuff in [film, threeD_vols]:
@@ -213,7 +213,7 @@ def test_save_vols_from_ndarray_with_affine():
 
     # create 4D film
     film = np.random.randn(5, 7, 11, n_scans)
-    threeD_vols = [film[..., t] for t in xrange(n_scans)]
+    threeD_vols = [film[..., t] for t in range(n_scans)]
 
     # check saving seperate 3D vols
     for stuff in [film, threeD_vols]:
@@ -284,7 +284,7 @@ def test_hardlink():
             return files[0]
         else:
             l = np.random.randint(1, n)
-            return [_make_filenames(n - l) for _ in xrange(l)]
+            return [_make_filenames(n - l) for _ in range(l)]
 
     filenames = _make_filenames()
     hl_filenames = hard_link(filenames, output_dir)
@@ -330,7 +330,7 @@ def test_get_basenames():
                             "file.nii.gz")
 
     assert_equal(get_basenames(["/path/to/file/file-%04i.nii.gz" % i
-                                           for i in xrange(10)])[3],
+                                           for i in range(10)])[3],
                             "file-0003.nii.gz")
 
 
@@ -435,7 +435,7 @@ def test_niigz2nii_with_filename():
 def test_niigz2nii_with_list_of_filenames():
     # creates and save .nii.gz image
     ifilenames = []
-    for i in xrange(4):
+    for i in range(4):
         img = create_random_image()
         ifilename = '/tmp/img%i.nii.gz' % i
         nibabel.save(img, ifilename)
@@ -446,14 +446,14 @@ def test_niigz2nii_with_list_of_filenames():
 
     # checks
     assert_equal(len(ifilenames), len(ofilenames))
-    for x in xrange(len(ifilenames)):
+    for x in range(len(ifilenames)):
         nibabel.load(ofilenames[x])
 
 
 def test_niigz2nii_with_list_of_lists_of_filenames():
     # creates and save .nii.gz image
     ifilenames = []
-    for i in xrange(4):
+    for i in range(4):
         img = create_random_image()
         ifilename = '/tmp/img%i.nii.gz' % i
         nibabel.save(img, ifilename)
@@ -464,7 +464,7 @@ def test_niigz2nii_with_list_of_lists_of_filenames():
 
     # checks
     assert_equal(1, len(ofilenames))
-    for x in xrange(len(ofilenames[0])):
+    for x in range(len(ofilenames[0])):
         nibabel.load(ofilenames[0][x])
 
 
@@ -523,7 +523,7 @@ def test_get_shape():
 
     shape = (34, 45, 65)
     n_scans = 10
-    img = [create_random_image(shape) for _ in xrange(n_scans)]
+    img = [create_random_image(shape) for _ in range(n_scans)]
     assert_equal(get_shape(img), tuple(list(shape) + [n_scans]))
 
 

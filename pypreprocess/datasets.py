@@ -8,7 +8,7 @@ from nilearn.datasets import (_fetch_file, _fetch_files, _uncompress_file,
                               fetch_haxby)
 
 SPM_AUDITORY_DATA_FILES = ["fM00223/fM00223_%03i.img" % index
-                           for index in xrange(4, 100)]
+                           for index in range(4, 100)]
 FSL_FEEDS_DATA_FILES = ["fmri.nii.gz", "structural_brain.nii.gz"]
 SPM_AUDITORY_DATA_FILES.append("sM00223/sM00223_002.img")
 
@@ -215,7 +215,7 @@ def fetch_spm_multimodal_fmri(data_dir=None, data_name="spm_multimodal_fmri",
         """glob data from subject_dir."""
         _subject_data = {'slice_order': 'descending'}
 
-        for s in xrange(2):
+        for s in range(2):
             # glob func data for session s + 1
             session_func = sorted(glob.glob(
                     os.path.join(

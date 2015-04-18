@@ -1208,7 +1208,7 @@ def generate_dataset_preproc_report(
 
     # factory to generate subjects
     def subject_factory():
-        for j, s in zip(xrange(len(subject_preproc_data)),
+        for j, s in zip(range(len(subject_preproc_data)),
                         subject_preproc_data):
             if isinstance(s, basestring):
                 # read dict from json file
