@@ -1183,7 +1183,8 @@ def do_subject_preproc(
         if set, then HTML reports will be generated
 
     tsdiffana: bool, optional (default True)
-        if set, then TODO
+        if set, six figures are added to characterize differences between
+        consecutive time points in the times series for artefact detection
 
     See also
     ========

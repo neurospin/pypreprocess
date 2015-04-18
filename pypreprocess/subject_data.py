@@ -468,8 +468,13 @@ class SubjectData(object):
 
         Parameters
         ----------
+        parent_results_gallery: reporting.base_reporter.ResultsGallery instance
+
         tsdiffana: bool, optional
-            if set then TODO
+            if set, six figures are added to characterize differences between
+            consecutive time points in the times series for artefact detection
+        preproc_undergone: list of srtings,
+            list of processing steps performed
 
         """
         # misc
