@@ -66,8 +66,8 @@ def test_not_unique_func_filenames_exception_thrown():
         pass
 
     sd = _make_sd(func_filenames=["/tmp/titi/session1/func.nii",
-                           "/tmp/titi/session1/func.nii"],
-                     output_dir="/tmp")
+                                  "/tmp/titi/session1/func.nii"],
+                  output_dir="/tmp")
     try:
         sd.sanitize()
         raise RuntimeError("Check failed!")
@@ -119,9 +119,3 @@ def test_issue_40():
         raise RuntimeError("Check failed!")
     except RuntimeError:
         pass
-
-# run all tests
-nose.runmodule(config=nose.config.Config(
-        verbose=2,
-        nocapture=True,
-        ))
