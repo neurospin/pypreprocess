@@ -1,13 +1,12 @@
 """ Test the cluster level thresholding utilities
 """
 import numpy as np
+from scipy.stats import norm
 from nose.tools import assert_true
 from numpy.testing import assert_array_almost_equal, assert_almost_equal
+import nibabel as nib
 from ..cluster_level_analysis import (empirical_pvalue, fdr_threshold,
                                       fdr_pvalues, cluster_stats)
-from scipy.stats import norm
-import nibabel as nib
-
 
 
 def test_empirical_pvalue():
@@ -21,7 +20,7 @@ def test_empirical_pvalue():
 
 def test_fdr():
     n = 100
-    x = np.linspace(0, 1, n) + .5 / n
+    x = np.linspace(.5 / n, 1. - .5 / n, n)
     x[:10] = .0005
     x = norm.isf(x)
     np.random.shuffle(x)
@@ -31,7 +30,7 @@ def test_fdr():
 
 def test_fdr_pvalues():
     n = 100
-    x = np.linspace(.5 / n, 1 - .5 / n, n)
+    x = np.linspace(.5 / n, 1. - .5 / n, n)
     x[:10] = .0005
     x = norm.isf(x)
     fdr = fdr_pvalues(x)
