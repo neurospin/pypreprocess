@@ -77,3 +77,21 @@ def test_cluster_stats():
     assert_true(len(clusters) == 1)
     cluster_ = clusters[0]
     assert_array_almost_equal(cluster['maxima'], cluster_['maxima'])
+
+    # test 5: fdr threshold
+    clusters, info = cluster_stats(
+        stat_img, mask_img, .05, height_control='bonferroni',
+        cluster_threshold=5)
+    assert_true(len(clusters) == 1)
+    cluster_ = clusters[0]
+    assert_array_almost_equal(cluster['maxima'], cluster_['maxima'])
+
+    # test 5: direct threshold
+    clusters, info = cluster_stats(
+        stat_img, mask_img, 5., height_control=None,
+        cluster_threshold=5)
+    assert_true(len(clusters) == 1)
+    cluster_ = clusters[0]
+    assert_array_almost_equal(cluster['maxima'], cluster_['maxima'])
+
+
