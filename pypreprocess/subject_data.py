@@ -676,7 +676,7 @@ class SubjectData(object):
                 execution_log_html_filename=execution_log_html if log
                 else None, results_gallery=self.results_gallery,
                 tooltip=segment_tooltip)
-            if brain_name == 'func':
+            if 'func' in brain_name:
                 self.final_thumbnail.img.src = thumbs['axial']
 
     def generate_normalization_thumbnails(self, log=True, nipype=True):
@@ -714,7 +714,7 @@ class SubjectData(object):
                         self.reports_output_dir) if log else None,
                     results_gallery=self.results_gallery,
                     tooltip=segment_tooltip)
-                if brain_name == 'func' or not self.func:
+                if 'func' in brain_name or not self.func:
                     self.final_thumbnail.img.src = thumbs['axial']
 
             # log execution
@@ -738,7 +738,7 @@ class SubjectData(object):
                 execution_log_html_filename=execution_log_html if log
                 else None, results_gallery=self.results_gallery,
                 tooltip=reg_tooltip)
-            if not segmented and (brain_name == 'func' or not self.func):
+            if not segmented and ("func" in brain_name or not self.func):
                 self.final_thumbnail.img.src = thumbs['axial']
 
     def generate_smooth_thumbnails(self):
