@@ -29,7 +29,7 @@ def fdr_pvalues(z_vals):
     order = np.argsort(- z_vals)
     p_vals = norm.sf(z_vals[order])
     n_samples = len(z_vals)
-    fdr = np.minimum(1, p_vals / np.linspace(1. / n_samples, 1, n_samples))
+    fdr = np.minimum(1, p_vals / np.linspace(1. / n_samples, 1., n_samples))
     for i in range(n_samples - 1, 0, -1):
         fdr[i - 1] = min(fdr[i - 1], fdr[i])
 
@@ -116,28 +116,6 @@ def cluster_stats(stat_img, mask_img, threshold, height_control='fpr',
     # FDR-corrected p-values
     max_fdr_pvalues = fdr_pvalues(stat_map[mask])[maxima_mask[mask]]
 
-    # Make list of clusters, each cluster being a dictionary
-    clusters = []
-    for k in range(n_labels):
-        cluster_size = np.sum(labels == k + 1)
-        if cluster_size >= cluster_threshold:
-            # get the position of the maxima that belong to that cluster
-            in_cluster = maxima_labels == k + 1
-            # sort them by decreasing statistical value
-            max_vals = maxima_values[in_cluster]
-            sorted = max_vals.argsort()[::-1]
-            clusters.append({'size': cluster_size,
-                             'maxima': maxima_coords[in_cluster][sorted],
-                             'peak_values': max_vals[sorted],
-                             'fdr_pvalue': max_fdr_pvalues[in_cluster][sorted],
-                             })
-            # Note: sorting could be done somewhere else
-
-    # XXX what happens if no cluster has significant size ?
-    # Sort clusters by descending size order
-    sizes = np.array([cluster['size'] for cluster in clusters])
-    clusters.sort(sizes, reverse=True)
-
     # Default "nulls"
     if not 'zmax' in nulls:
         nulls['zmax'] = 'bonferroni'
@@ -146,32 +124,57 @@ def cluster_stats(stat_img, mask_img, threshold, height_control='fpr',
     if not 's' in nulls:
         nulls['s'] = None
 
-    # Report significance levels in each cluster
-    for cluster in clusters:
-        z_score = cluster['peak_values']
-        pval = norm.sf(z_score)
-        cluster['zscore'] = z_score
-        cluster['pvalue'] = pval
+    # Make list of clusters, each cluster being a dictionary
+    clusters = []
+    for k in range(n_labels):
+        cluster_size = np.sum(labels == k + 1)
+        if cluster_size >= cluster_threshold:
 
-        # Voxel-level corrected p-values
-        fwer_pvalue = None
-        if nulls['zmax'] == 'bonferroni':
-            fwer_pvalue = np.minimum(1, pval * n_voxels)
-        elif isinstance(nulls['zmax'], np.ndarray):
-            fwer_pvalue = empirical_pvalue(z_score, nulls['zmax'])
-        cluster['fwer_pvalue'] = fwer_pvalue
+            # get the position of the maxima that belong to that cluster
+            in_cluster = maxima_labels == k + 1
 
-        # Cluster-level p-values (corrected)
-        cluster_fwer_pvalue = None
-        if isinstance(nulls['smax'], np.ndarray):
-            cluster_fwer_pvalue = empirical_pvalue(
-                cluste['size'], nulls['smax'])
-        cluster['cluster_fwer_pvalue'] = cluster_fwer_pvalue
+            # sort the maxima by decreasing statistical value
+            max_vals = maxima_values[in_cluster]
+            sorted = max_vals.argsort()[::-1]
 
-        # Cluster-level p-values (uncorrected)
-        cluster_pvalue = None
-        if isinstance(nulls['s'], np.ndarray):
-            cluster_pvalue = empirical_pvalue(cluster['size'], nulls['s'])
-        cluster['cluster_pvalue'] = cluster_pvalue
+            # Report significance levels in each cluster
+            z_score = max_vals[sorted]
+            p_values = norm.sf(z_score)
+
+            # Voxel-level corrected p-values
+            fwer_pvalue = None
+            if nulls['zmax'] == 'bonferroni':
+                fwer_pvalue = np.minimum(1, p_values * n_voxels)
+            elif isinstance(nulls['zmax'], np.ndarray):
+                fwer_pvalue = empirical_pvalue(
+                    clusters['zscore'], nulls['zmax'])
+
+            # Cluster-level p-values (corrected)
+            cluster_fwer_pvalue = None
+            if isinstance(nulls['smax'], np.ndarray):
+                cluster_fwer_pvalue = empirical_pvalue(
+                    cluster_size, nulls['smax'])
+
+            # Cluster-level p-values (uncorrected)
+            cluster_pvalue = None
+            if isinstance(nulls['s'], np.ndarray):
+                cluster_pvalue = empirical_pvalue(
+                    cluster_size, nulls['s'])
+
+            # write all this into the cluster structure
+            clusters.append({
+                    'size': cluster_size,
+                    'maxima': maxima_coords[in_cluster][sorted],
+                    'zscore': z_score,
+                    'fdr_pvalue': max_fdr_pvalues[in_cluster][sorted],
+                    'pvalue': p_values,
+                    'fwer_pvalue': fwer_pvalue,
+                    'cluster_fwer_pvalue': cluster_fwer_pvalue,
+                    'cluster_pvalue': cluster_pvalue
+                    })
+
+    # Sort clusters by descending size order
+    order = np.argsort(- np.array([cluster['size'] for cluster in clusters]))
+    clusters = [clusters[i] for i in order]
 
     return clusters, info

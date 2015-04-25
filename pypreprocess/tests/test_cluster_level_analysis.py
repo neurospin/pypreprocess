@@ -94,3 +94,21 @@ def test_cluster_stats():
     assert_array_almost_equal(cluster['maxima'], cluster_['maxima'])
 
 
+def test_multi_cluster_stats():
+    shape = (9, 10, 11)
+    data = np.random.randn(*shape)
+    threshold = norm.sf(data.max() + 1)
+    data[2:4, 5:7, 6:8] = np.maximum(10, data.max() + 2)
+    data[6:7, 8:9, 9:10] = np.maximum(11, data.max() + 1)
+    stat_img = nib.Nifti1Image(data, np.eye(4))
+    mask_img = nib.Nifti1Image(np.ones(shape), np.eye(4))
+
+    # test 1
+    clusters, _ = cluster_stats(
+        stat_img, mask_img, threshold, height_control='fpr',
+        cluster_threshold=0)
+    assert_true(len(clusters) == 2)
+    cluster = clusters[1]
+    assert_true(cluster['size'] == 1)
+    assert_array_almost_equal(cluster['zscore'], 11)
+    assert_array_almost_equal(cluster['maxima'], np.array([[6, 8, 9]]))
