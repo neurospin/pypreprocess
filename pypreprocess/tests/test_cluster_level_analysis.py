@@ -5,15 +5,15 @@ from scipy.stats import norm
 from nose.tools import assert_true
 from numpy.testing import assert_array_almost_equal, assert_almost_equal
 import nibabel as nib
-from ..cluster_level_analysis import (empirical_pvalue, fdr_threshold,
-                                      fdr_pvalues, cluster_stats)
+from ..cluster_level_analysis import (empirical_p_value, fdr_threshold,
+                                      fdr_p_values, cluster_stats)
 
 
-def test_empirical_pvalue():
+def test_empirical_p_value():
     ref = np.arange(100)
     np.random.shuffle(ref)
     z_score = np.array([-1, 18.6, 98.9, 100])
-    pvals_ = empirical_pvalue(z_score, ref)
+    pvals_ = empirical_p_value(z_score, ref)
     pvals = np.array([1., .81, .01, .0])
     assert_array_almost_equal(pvals, pvals_)
 
@@ -28,12 +28,12 @@ def test_fdr():
     assert_true(fdr_threshold(x, .001) == np.infty)
 
 
-def test_fdr_pvalues():
+def test_fdr_p_values():
     n = 100
     x = np.linspace(.5 / n, 1. - .5 / n, n)
     x[:10] = .0005
     x = norm.isf(x)
-    fdr = fdr_pvalues(x)
+    fdr = fdr_p_values(x)
     assert_array_almost_equal(fdr[:10], .005)
     assert_true((fdr[10:] > .95).all())
     assert_true(fdr.max() <= 1)

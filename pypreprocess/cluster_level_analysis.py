@@ -24,8 +24,8 @@ def fdr_threshold(z_vals, alpha):
         return np.infty
 
 
-def fdr_pvalues(z_vals):
-    """ return the fdr pvalues for the z-variate"""
+def fdr_p_values(z_vals):
+    """ return the fdr p_values for the z-variate"""
     order = np.argsort(- z_vals)
     p_vals = norm.sf(z_vals[order])
     n_samples = len(z_vals)
@@ -38,7 +38,7 @@ def fdr_pvalues(z_vals):
     return fdr[inv_order]
 
 
-def empirical_pvalue(z_score, ref):
+def empirical_p_value(z_score, ref):
     """ retrun the percentile """
     ranks = np.searchsorted(np.sort(ref), z_score)
     return 1 - ranks * 1. / ref.size
@@ -114,7 +114,7 @@ def cluster_stats(stat_img, mask_img, threshold, height_control='fpr',
     maxima_values = above_values[maxima_mask]
 
     # FDR-corrected p-values
-    max_fdr_pvalues = fdr_pvalues(stat_map[mask])[maxima_mask[mask]]
+    max_fdr_p_values = fdr_p_values(stat_map[mask])[maxima_mask[mask]]
 
     # Default "nulls"
     if not 'zmax' in nulls:
@@ -142,35 +142,35 @@ def cluster_stats(stat_img, mask_img, threshold, height_control='fpr',
             p_values = norm.sf(z_score)
 
             # Voxel-level corrected p-values
-            fwer_pvalue = None
+            fwer_p_value = None
             if nulls['zmax'] == 'bonferroni':
-                fwer_pvalue = np.minimum(1, p_values * n_voxels)
+                fwer_p_value = np.minimum(1, p_values * n_voxels)
             elif isinstance(nulls['zmax'], np.ndarray):
-                fwer_pvalue = empirical_pvalue(
-                    clusters['zscore'], nulls['zmax'])
+                fwer_p_value = empirical_p_value(
+                    clusters['z_score'], nulls['zmax'])
 
             # Cluster-level p-values (corrected)
-            cluster_fwer_pvalue = None
+            cluster_fwer_p_value = None
             if isinstance(nulls['smax'], np.ndarray):
-                cluster_fwer_pvalue = empirical_pvalue(
+                cluster_fwer_p_value = empirical_p_value(
                     cluster_size, nulls['smax'])
 
             # Cluster-level p-values (uncorrected)
-            cluster_pvalue = None
+            cluster_p_value = None
             if isinstance(nulls['s'], np.ndarray):
-                cluster_pvalue = empirical_pvalue(
+                cluster_p_value = empirical_p_value(
                     cluster_size, nulls['s'])
 
             # write all this into the cluster structure
             clusters.append({
                     'size': cluster_size,
                     'maxima': maxima_coords[in_cluster][sorted],
-                    'zscore': z_score,
-                    'fdr_pvalue': max_fdr_pvalues[in_cluster][sorted],
-                    'pvalue': p_values,
-                    'fwer_pvalue': fwer_pvalue,
-                    'cluster_fwer_pvalue': cluster_fwer_pvalue,
-                    'cluster_pvalue': cluster_pvalue
+                    'z_score': z_score,
+                    'fdr_p_value': max_fdr_p_values[in_cluster][sorted],
+                    'p_value': p_values,
+                    'fwer_p_value': fwer_p_value,
+                    'cluster_fwer_p_value': cluster_fwer_p_value,
+                    'cluster_p_value': cluster_p_value
                     })
 
     # Sort clusters by descending size order

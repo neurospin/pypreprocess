@@ -63,7 +63,8 @@ def generate_level1_stats_table(zmap, mask,
 
     """
     # Delayed import of nipy for more robustness when it is not present
-    import nipy.labs.statistical_mapping as sm
+    #import nipy.labs.statistical_mapping as sm
+    from cluster_level_analysis import  cluster_stats
 
     # sanity
     if isinstance(zmap, basestring):
@@ -74,31 +75,18 @@ def generate_level1_stats_table(zmap, mask,
     # Compute cluster statistics
     nulls = {'zmax': null_zmax, 'smax': null_smax, 's': null_s}
 
-    """
-    if null_smax is not None:
-        print "a"
-        clusters, info = sm.cluster_stats(zmap, mask, height_th=threshold,
-                                          nulls=nulls)
-        clusters = [c for c in clusters if c['cluster_pvalue']<cluster_pval]
-    else:
-        print "b"
-        clusters, info = sm.cluster_stats(zmap, mask, height_th=threshold,
-                                          height_control=method.lower(),
-                                          cluster_th=cluster_th, nulls=nulls)
-    """
-
     # do some sanity checks
     if title is None:
         title = "Level 1 Statistics"
 
-    # clusters, info = sm.cluster_stats(zmap, mask, height_th=p_threshold,
-    #                                   nulls=nulls, cluster_th=cluster_th,)
-
-    clusters, _ = sm.cluster_stats(zmap, mask, height_th=p_threshold,
-                                      nulls=nulls, cluster_th=cluster_th,)
+    #clusters, _ = sm.cluster_stats(zmap, mask, height_th=p_threshold,
+    #                                  nulls=nulls, cluster_th=cluster_th,)
+    clusters, _ = cluster_stats(zmap, mask, height_th=p_threshold,
+                                nulls=nulls, cluster_th=cluster_th)
+    
 
     if clusters is not None:
-        clusters = [c for c in clusters if c['cluster_pvalue'] < cluster_pval]
+        clusters = [c for c in clusters if c['cluster_p_value'] < cluster_pval]
 
     #if clusters == None or info == None:
     #    print "No results were written for %s" % zmap_file_path
@@ -123,10 +111,10 @@ def generate_level1_stats_table(zmap, mask,
         maxima = cluster['maxima']
         size = cluster['size']
         for j in range(min(len(maxima), nmaxima)):
-            temp = ["%.3f" % cluster['fwer_pvalue'][j]]
-            temp.append("%.3f" % cluster['fdr_pvalue'][j])
-            temp.append("%.2f" % cluster['zscore'][j])
-            temp.append("%.3f" % cluster['pvalue'][j])
+            temp = ["%.3f" % cluster['fwer_p_value'][j]]
+            temp.append("%.3f" % cluster['fdr_p_value'][j])
+            temp.append("%.2f" % cluster['z_score'][j])
+            temp.append("%.3f" % cluster['p_value'][j])
             for it in range(3):
                 temp.append("%.0f" % maxima[j][it])
             if j == 0:
