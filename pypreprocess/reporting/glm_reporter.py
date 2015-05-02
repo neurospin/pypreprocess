@@ -76,7 +76,6 @@ def generate_level1_stats_table(zmap, mask,
     # do some sanity checks
     if title is None:
         title = "Level 1 Statistics"
-    print p_threshold
     clusters, _ = cluster_stats(zmap, mask, p_threshold,
                                 nulls=nulls, cluster_th=cluster_th,
                                 height_control=height_control)
