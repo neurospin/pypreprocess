@@ -1,12 +1,11 @@
-""" Utilities to describe the result of cluster-level analysis of statistical maps.
+""" Utilities to describe the result of cluster-level analysis of statistical
+maps.
 
-Author: Bertrand Thirion, 2015 
+Author: Bertrand Thirion, 2015
 """
 import numpy as np
 from scipy.ndimage import label, maximum_filter
 from scipy.stats import norm
-
-from nibabel import load
 from nilearn.image.resampling import coord_transform
 from nilearn._utils.niimg_conversions import check_niimg, _check_same_fov
 
@@ -45,7 +44,7 @@ def empirical_p_value(z_score, ref):
 
 
 def cluster_stats(stat_img, mask_img, threshold, height_control='fpr',
-                  cluster_threshold=0, nulls={}):
+                  cluster_th=0, nulls={}):
     """
     Return a list of clusters, each cluster being represented by a
     dictionary. Clusters are sorted by descending size order. Within
@@ -62,7 +61,7 @@ def cluster_stats(stat_img, mask_img, threshold, height_control='fpr',
     height_control: string
         false positive control meaning of cluster forming
         threshold: 'fpr'|'fdr'|'bonferroni'|'none'
-    cluster_threshold: int or float,
+    cluster_th: int or float,
         cluster size threshold
     nulls: dictionary,
         statistics of the null distribution
@@ -82,22 +81,22 @@ def cluster_stats(stat_img, mask_img, threshold, height_control='fpr',
 
     # Thresholding
     if height_control == 'fpr':
-        z_threshold = norm.isf(threshold)
+        z_th = norm.isf(threshold)
     elif height_control == 'fdr':
-        z_threshold = fdr_threshold(stat_map[mask], threshold)
+        z_th = fdr_threshold(stat_map[mask], threshold)
     elif height_control == 'bonferroni':
-        z_threshold = norm.isf(threshold / n_voxels)
+        z_th = norm.isf(threshold / n_voxels)
     else:  # Brute-force thresholding
-        z_threshold = threshold
+        z_th = threshold
 
-    p_threshold = norm.sf(z_threshold)
+    p_th = norm.sf(z_th)
     # General info
     info = {'n_voxels': n_voxels,
-            'threshold_z': z_threshold,
-            'threshold_p': p_threshold,
-            'threshold_pcorr': np.minimum(1, p_threshold * n_voxels)}
+            'threshold_z': z_th,
+            'threshold_p': p_th,
+            'threshold_pcorr': np.minimum(1, p_th * n_voxels)}
 
-    above_th = stat_map > z_threshold
+    above_th = stat_map > z_th
     above_values = stat_map * above_th
     if (above_th == 0).all():
         return [], info
@@ -107,7 +106,7 @@ def cluster_stats(stat_img, mask_img, threshold, height_control='fpr',
 
     # Extract the local maxima anove the threshold
     maxima_mask = (above_values ==
-                   np.maximum(z_threshold, maximum_filter(above_values, 3)))
+                   np.maximum(z_th, maximum_filter(above_values, 3)))
     x, y, z = np.array(np.where(maxima_mask))
     maxima_coords = np.array(coord_transform(x, y, z, affine)).T
     maxima_labels = labels[maxima_mask]
@@ -128,17 +127,17 @@ def cluster_stats(stat_img, mask_img, threshold, height_control='fpr',
     clusters = []
     for k in range(n_labels):
         cluster_size = np.sum(labels == k + 1)
-        if cluster_size >= cluster_threshold:
+        if cluster_size >= cluster_th:
 
             # get the position of the maxima that belong to that cluster
             in_cluster = maxima_labels == k + 1
 
             # sort the maxima by decreasing statistical value
             max_vals = maxima_values[in_cluster]
-            sorted = max_vals.argsort()[::-1]
+            sorted_ = max_vals.argsort()[::-1]
 
             # Report significance levels in each cluster
-            z_score = max_vals[sorted]
+            z_score = max_vals[sorted_]
             p_values = norm.sf(z_score)
 
             # Voxel-level corrected p-values
@@ -164,9 +163,9 @@ def cluster_stats(stat_img, mask_img, threshold, height_control='fpr',
             # write all this into the cluster structure
             clusters.append({
                     'size': cluster_size,
-                    'maxima': maxima_coords[in_cluster][sorted],
+                    'maxima': maxima_coords[in_cluster][sorted_],
                     'z_score': z_score,
-                    'fdr_p_value': max_fdr_p_values[in_cluster][sorted],
+                    'fdr_p_value': max_fdr_p_values[in_cluster][sorted_],
                     'p_value': p_values,
                     'fwer_p_value': fwer_p_value,
                     'cluster_fwer_p_value': cluster_fwer_p_value,

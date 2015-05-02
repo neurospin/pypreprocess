@@ -15,15 +15,14 @@ def generate_level1_stats_table(zmap, mask,
                                 output_html_path,
                                 p_threshold=.001,
                                 z_threshold=None,
-                                method='fpr',
+                                height_control='fpr',
                                 cluster_th=15,
                                 null_zmax='bonferroni',
                                 null_smax=None,
                                 null_s=None,
                                 nmaxima=4,
                                 cluster_pval=.05,
-                                title=None,
-                                ):
+                                title=None):
     """Function to generate level 1 stats table for a contrast.
 
     Parameters
@@ -45,8 +44,9 @@ def generate_level1_stats_table(zmap, mask,
     z_threshold: float (optional, default None)
         Threshold that has been applied to Z map (input z_map)
 
-    method: string (optional, default 'fpr')
-        to be chosen as height_control in nipy.labs.statistical_mapping
+    height_control: string
+        false positive control meaning of cluster forming
+        threshold: 'fpr'|'fdr'|'bonferroni'|'none'
 
     cluster_th: int (optional, default 15)
         cluster size threshold (in # voxels)
@@ -76,8 +76,10 @@ def generate_level1_stats_table(zmap, mask,
     # do some sanity checks
     if title is None:
         title = "Level 1 Statistics"
-    clusters, _ = cluster_stats(zmap, mask, height_th=p_threshold,
-                                nulls=nulls, cluster_th=cluster_th)
+    print p_threshold
+    clusters, _ = cluster_stats(zmap, mask, p_threshold,
+                                nulls=nulls, cluster_th=cluster_th,
+                                height_control=height_control)
     if clusters is not None:
         clusters = [c for c in clusters if c['cluster_p_value'] < cluster_pval]
     else:
@@ -122,7 +124,7 @@ def generate_level1_stats_table(zmap, mask,
     # finish up
     page.write("</table>\n")
     page.write("Threshold Z: %.2f (%s control at %.3f)<br/>\n"
-               % (z_threshold, method, p_threshold))
+               % (z_threshold, height_control, p_threshold))
     page.write("Cluster level p-value threshold: %s<br/>\n" % cluster_pval)
     page.write("Cluster size threshold: %i voxels<br/>\n" % cluster_th)
     page.write("Number of voxels: %i<br>\n" % nvox)
@@ -301,8 +303,7 @@ powered by <a href="%s">nipy</a>.""" % (user_script_name,
                     if design_matrix.endswith('.npz'):
                         npz = np.load(design_matrix)
                         design_matrix = DesignMatrix(npz['X'],
-                                                     npz['conditions'],
-                                                     )
+                                                     npz['conditions'])
                 else:
                     # XXX handle case of .png, jpeg design matrix image
                     raise TypeError(
@@ -318,16 +319,14 @@ powered by <a href="%s">nipy</a>.""" % (user_script_name,
             ax = design_matrix.show(rescale=True)
             ax.set_position([.05, .25, .9, .65])
             dmat_outfile = os.path.join(output_dir,
-                                        'design_matrix_%i.png' % (j + 1),
-                                        )
+                                        'design_matrix_%i.png' % (j + 1))
             pl.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
             pl.close()
 
             thumb = base_reporter.Thumbnail()
             thumb.a = base_reporter.a(href=os.path.basename(dmat_outfile))
             thumb.img = base_reporter.img(src=os.path.basename(dmat_outfile),
-                                     height="500px",
-                                     )
+                                     height="500px")
             thumb.description = "Design Matrix"
             thumb.description += " %s" % (j + 1) if len(
                 design_matrices) > 1 else ""
