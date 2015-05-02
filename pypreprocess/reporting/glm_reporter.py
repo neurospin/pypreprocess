@@ -8,7 +8,7 @@ from nilearn.image import reorder_img
 from nipy.modalities.fmri.glm import FMRILinearModel
 from nipy.labs.mask import intersect_masks
 import base_reporter
-from cluster_level_analysis import  cluster_stats
+from ..cluster_level_analysis import cluster_stats
 
 
 def generate_level1_stats_table(zmap, mask,
