@@ -1,25 +1,14 @@
 import os
-import sys
 import numpy as np
 import nibabel
 import numpy.testing
-import nose
-import nose.tools
+from nose.tools import assert_equal, assert_true, raises, nottest
 import inspect
 
 # import APIs to be tested
-from ..slice_timing import (
-    STC,
-    fMRISTC,
-    get_slice_indices,
-    _load_fmri_data
-    )
-from ..datasets import (
-    fetch_spm_auditory_data
-    )
-from ..io_utils import (
-    save_vols
-    )
+from ..slice_timing import STC, fMRISTC, get_slice_indices, _load_fmri_data
+from ..datasets import fetch_spm_auditory
+from ..io_utils import save_vols
 
 # global setup
 this_file = os.path.basename(os.path.abspath(__file__)).split('.')[0]
@@ -56,7 +45,7 @@ def test_get_slice_indices_explicit():
         get_slice_indices(5, slice_order=slice_order), [4, 0, 3, 2, 1])
 
 
-@nose.tools.raises(ValueError)
+@raises(ValueError)
 def test_get_slice_indices_explicit_interleaved():
     slice_order = [1, 4, 3, 2, 0]
     numpy.testing.assert_array_equal(
@@ -101,29 +90,29 @@ def test_load_fmri_data_from_single_filename():
                                      (53, 63, 46, 128))
 
 
-@nose.tools.nottest
+@nottest
 def test_load_fmri_data_from_several_filenames():
     # fetch data
-    spm_auditory_data = fetch_spm_auditory_data('/tmp')
+    spm_auditory = fetch_spm_auditory('/tmp')
 
     numpy.testing.assert_array_equal(
-        _load_fmri_data(spm_auditory_data.func).shape, (64, 64, 64, 96))
+        _load_fmri_data(spm_auditory.func).shape, (64, 64, 64, 96))
 
 
 def test_STC_constructor():
     stc = STC()
 
-    nose.tools.assert_equal(stc.ref_slice, 0)
-    nose.tools.assert_equal(stc.interleaved, False)
-    nose.tools.assert_true(stc.verbose == 1)
+    assert_equal(stc.ref_slice, 0)
+    assert_equal(stc.interleaved, False)
+    assert_true(stc.verbose == 1)
 
 
 def test_fMRISTC_constructor():
     fmristc = fMRISTC()
 
-    nose.tools.assert_equal(fmristc.ref_slice, 0)
-    nose.tools.assert_equal(fmristc.interleaved, False)
-    nose.tools.assert_true(fmristc.verbose == 1)
+    assert_equal(fmristc.ref_slice, 0)
+    assert_equal(fmristc.interleaved, False)
+    assert_true(fmristc.verbose == 1)
 
 
 def check_STC(true_signal, corrected_signal, ref_slice=0,
@@ -133,8 +122,7 @@ def check_STC(true_signal, corrected_signal, ref_slice=0,
     numpy.testing.assert_array_almost_equal(
         corrected_signal[..., ref_slice, ...],
         true_signal[..., ref_slice, ...])
-
-    for z in range(1, n_slices):
+    for _ in range(1, n_slices):
         # relative closeness
         if not rtol is None:
             numpy.testing.assert_allclose(true_signal[..., 1:-1],
@@ -148,16 +136,14 @@ def check_STC(true_signal, corrected_signal, ref_slice=0,
                                           atol=atol)
 
 
-def test_STC_for_sinusoidal_mixture(
-                          ):
+def test_STC_for_sinusoidal_mixture():
     # setup
     n_slices = 10
     n_rows = 3
     n_columns = 2
     slice_indices = np.arange(n_slices, dtype=int)
     timescale = .01
-    sine_freq = [.5, .8, .11,
-                  .7]  # number of complete cycles per unit time
+    sine_freq = [.5, .8, .11, .7]
 
     def my_sinusoid(t):
         """Creates mixture of sinusoids with different frequencies
@@ -191,8 +177,7 @@ def test_STC_for_sinusoidal_mixture(
     acquired_signal = np.array([
             [[my_sinusoid(shifted_acquisition_time[j])
               for j in range(n_slices)]
-             for y in range(n_columns)] for x in range(n_rows)]
-                               )
+             for _ in range(n_columns)] for _ in range(n_rows)])
 
     n_scans = len(acquisition_time)
 
@@ -278,8 +263,7 @@ def test_STC_for_HRF():
     true_signal = np.array([
             [[_compute_hrf(acquisition_time)
               for j in range(n_slices)]
-             for y in range(n_columns)] for x in range(n_rows)]
-                               )
+             for _ in range(n_columns)] for _ in range(n_rows)])
 
     # check
     check_STC(true_signal, stc.output_data_, atol=.005)
@@ -290,7 +274,6 @@ def test_transform():
     output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-
     film = nibabel.Nifti1Image(np.random.rand(11, 13, 17, 19),
                                np.eye(4))
     threeD_vols = nibabel.four_to_three(film)
@@ -309,29 +292,20 @@ def test_transform():
                 else:
                     basenames = os.path.basename(film_filename)
                 stuff = save_vols(stuff, output_dir, basenames=basenames)
-
             fmristc = fMRISTC().fit(raw_data=stuff)
-
             output = fmristc.transform(output_dir=output_dir)
 
             # test output type, shape, etc.
             if isinstance(stuff, list):
-                nose.tools.assert_true(isinstance(
+                assert_true(isinstance(
                         output, list))
-                nose.tools.assert_equal(len(output),
-                                        film.shape[-1])
+                assert_equal(len(output),
+                             film.shape[-1])
 
                 if as_files:
-                    nose.tools.assert_equal(os.path.basename(output[7]),
-                                            'afMETHODS-000007.nii.gz')
+                    assert_equal(os.path.basename(output[7]),
+                                 'afMETHODS-000007.nii.gz')
             else:
                 if as_files:
-                    nose.tools.assert_equal(os.path.basename(output),
-                                            'afilm.nii.gz')                    
-
-
-# run all tests
-nose.runmodule(config=nose.config.Config(
-        verbose=2,
-        nocapture=True,
-        ))
+                    assert_equal(os.path.basename(output),
+                                 'afilm.nii.gz')                    

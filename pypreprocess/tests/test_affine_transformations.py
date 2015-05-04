@@ -1,26 +1,17 @@
-"""
-XXX only use nosetests command-line tool to run this test module!
-
-"""
-
 import numpy as np
 import nose.tools
-
-# import the APIs to be tested
 from ..affine_transformations import (
     get_initial_motion_params,
     spm_matrix,
     spm_imatrix,
     transform_coords,
-    apply_realignment
-    )
+    apply_realignment)
 from ._test_utils import create_random_image
 
 
 def test_get_initial_motion_params():
     # params for zero motion
     p = get_initial_motion_params()
-
     np.testing.assert_array_equal(p, [0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0])
 
 
@@ -69,9 +60,3 @@ def test_apply_realignment_3D_niimg():
 
     # apply realignment to vol
     rvol = apply_realignment(vol, [1, 2, 3, 4, 5, 6])
-
-# run all tests
-nose.runmodule(config=nose.config.Config(
-        verbose=2,
-        nocapture=True,
-        ))

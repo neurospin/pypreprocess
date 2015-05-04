@@ -4,7 +4,6 @@ import nibabel
 import os
 import tempfile
 import inspect
-import nose
 from nose.tools import assert_equal, assert_true, assert_false
 
 # import the APIIS to be tested
@@ -149,12 +148,12 @@ def test_save_vol():
     output_filename = save_vol(vol, output_dir=output_dir,
                                basename='123.nii.gz')
     assert_equal(os.path.basename(output_filename),
-                            '123.nii.gz')
+                 '123.nii.gz')
 
     output_filename = save_vol(vol, output_dir=output_dir, basename='123.img',
-                                prefix='s')
+                               prefix='s')
     assert_equal(os.path.basename(output_filename),
-                            's123.img')
+                 's123.img')
 
 
 def test_save_vols():
@@ -186,16 +185,16 @@ def test_save_vols():
                                                  output_dir,
                                                  ext='.nii.gz',
                                                  concat=concat,
-                                                 basenames=basenames
+                                                 basenames=bn
                                                  )
                 if not concat and isinstance(stuff, list):
-                        assert_true(isinstance(
-                                saved_vols_filenames, list))
-                        assert_equal(len(saved_vols_filenames),
-                                                n_scans)
-
+                    assert_true(isinstance(
+                        saved_vols_filenames, list))
+                    assert_equal(len(saved_vols_filenames),
+                                 n_scans)
+                    if not bn is None:
                         assert_equal(os.path.basename(saved_vols_filenames[7]),
-                                                'fMETHODS-000007.nii.gz')
+                                     'fMETHODS-000007.nii.gz')
                 else:
                     assert_true(isinstance(saved_vols_filenames, basestring))
                     assert_true(saved_vols_filenames.endswith('.nii.gz'),
@@ -539,15 +538,6 @@ def test_get_relative_path():
     assert_equal(get_relative_path("/toto/titi",
                                    "/toto/titI/tato/dada"),
                  None)
-
-
     assert_equal(get_relative_path("/toto/titi",
                                    "/toto/titi"),
                  "")
-
-
-# run all tests
-nose.runmodule(config=nose.config.Config(
-        verbose=2,
-        nocapture=True,
-        ))
