@@ -1,9 +1,10 @@
 import os
+import warnings
+import inspect
 import numpy as np
 import nibabel
 import numpy.testing
 from nose.tools import assert_equal, assert_true, raises, nottest
-import inspect
 
 # import APIs to be tested
 from ..slice_timing import STC, fMRISTC, get_slice_indices, _load_fmri_data
@@ -84,8 +85,8 @@ def test_load_fmri_data_from_single_filename():
         os.environ["HOME"],
         ".nipy/tests/data/s12069_swaloc1_corr.nii.gz")
     if not os.path.exists(data_path):
-        raise RuntimeError("You don't have nipy test data installed!")
-
+        warnings.warn("You don't have nipy test data installed!")
+        return
     numpy.testing.assert_array_equal(_load_fmri_data(data_path).shape,
                                      (53, 63, 46, 128))
 
@@ -94,14 +95,12 @@ def test_load_fmri_data_from_single_filename():
 def test_load_fmri_data_from_several_filenames():
     # fetch data
     spm_auditory = fetch_spm_auditory('/tmp')
-
     numpy.testing.assert_array_equal(
         _load_fmri_data(spm_auditory.func).shape, (64, 64, 64, 96))
 
 
 def test_STC_constructor():
     stc = STC()
-
     assert_equal(stc.ref_slice, 0)
     assert_equal(stc.interleaved, False)
     assert_true(stc.verbose == 1)
@@ -109,7 +108,6 @@ def test_STC_constructor():
 
 def test_fMRISTC_constructor():
     fmristc = fMRISTC()
-
     assert_equal(fmristc.ref_slice, 0)
     assert_equal(fmristc.interleaved, False)
     assert_true(fmristc.verbose == 1)
@@ -118,7 +116,6 @@ def test_fMRISTC_constructor():
 def check_STC(true_signal, corrected_signal, ref_slice=0,
               rtol=None, atol=None):
     n_slices = true_signal.shape[2]
-
     numpy.testing.assert_array_almost_equal(
         corrected_signal[..., ref_slice, ...],
         true_signal[..., ref_slice, ...])
@@ -280,7 +277,7 @@ def test_transform():
 
     # filenames
     film_filename = os.path.join(output_dir, 'film.nii.gz')
-    threeD_vols_filenames = [os.path.join(output_dir, 'fMETHODS-%06i' % i)
+    threeD_vols_filenames = [os.path.join(output_dir, 'fMETHODS-%06i.nii' % i)
                              for i in range(len(threeD_vols))]
 
     for stuff in [film, threeD_vols]:
@@ -301,11 +298,9 @@ def test_transform():
                         output, list))
                 assert_equal(len(output),
                              film.shape[-1])
-
                 if as_files:
                     assert_equal(os.path.basename(output[7]),
-                                 'afMETHODS-000007.nii.gz')
+                                 'afMETHODS-000007.nii')
             else:
                 if as_files:
-                    assert_equal(os.path.basename(output),
-                                 'afilm.nii.gz')                    
+                    assert_equal(os.path.basename(output), 'afilm.nii.gz')

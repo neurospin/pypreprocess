@@ -7,14 +7,13 @@
 
 import os
 import sys
+import warnings
 import re
 import shutil
 import commands
 import tempfile
 import numpy as np
-
 import nibabel
-
 from .external import joblib
 from nipype.interfaces.dcm2nii import Dcm2nii
 from nipype.caching import Memory
@@ -27,7 +26,6 @@ def is_niimg(img):
     Checks whether given img is nibabel image object.
 
     """
-
     if isinstance(img, (nibabel.Nifti1Image,
                         nibabel.Nifti1Pair,
                         nibabel.Spm2AnalyzeImage,
@@ -71,9 +69,8 @@ def load_vol(x):
             vol = nibabel.Nifti1Image(vol.get_data()[..., 0],
                                       vol.get_affine())
     elif len(vol.shape) > 4:
-            raise ValueError(
-                "Each volume must be 3D; got %iD" % len(vol.shape))
-
+        raise ValueError(
+            "Each volume must be 3D; got %iD" % len(vol.shape))
     return vol
 
 
@@ -90,8 +87,8 @@ def load_specific_vol(vols, t, strict=False):
 
     """
 
-    assert t >= 0
-
+    if t < 0:
+        raise RuntimeError
     if isinstance(vols, list):
         n_scans = len(vols)
         vol = load_vol(vols[t])
@@ -116,9 +113,8 @@ def load_specific_vol(vols, t, strict=False):
         vol = nibabel.Nifti1Image(vol.get_data()[..., ..., ..., 0],
                                   vol.get_affine())
 
-    assert is_niimg(vol)
-    assert is_3D(vol)
-
+    if not (is_niimg(vol) and is_3D(vol)):
+        raise RuntimeError
     return vol, n_scans
 
 
@@ -132,37 +128,6 @@ def load_vols(vols):
         return nibabel.four_to_three(vols)
     else:
         raise TypeError(type(vols))
-
-
-def three_to_four(images):
-    """
-    XXX It is this function actually used somewhere ?
-
-    """
-
-    if is_niimg(images):
-        return images
-
-    if isinstance(images, basestring):
-        return nibabel.load(images)
-
-    vol_0 = load_vol(images[0])
-
-    data = np.ndarray(list(vol_0.shape) + [len(images)],
-                      dtype=vol_0.get_data().dtype)
-    data[..., 0] = vol_0.get_data()
-
-    for t in range(1, len(images)):
-        vol_t = load_vol(images[t])
-        assert vol_t.shape == vol_0.shape
-
-        data[..., t] = vol_t.get_data()
-
-    if data.ndim == 5:
-        assert data.shape[-1] == 1
-        data = data[..., 0]
-
-    return nibabel.Nifti1Image(data, vol_0.get_affine())
 
 
 def save_vols(vols, output_dir, basenames=None, affine=None,
@@ -251,7 +216,8 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
             vols = nibabel.four_to_three(vols)
             filenames = []
             for vol, basename in zip(vols, basenames):
-                assert isinstance(basename, basestring)
+                if not isinstance(basename, basestring):
+                    raise RuntimeError
                 filename = os.path.join(output_dir, "%s%s" % (
                         prefix, basename))
                 nibabel.save(vol, filename)
@@ -265,7 +231,6 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
     else:
         n_vols = len(vols)
         filenames = []
-
         if basenames is None:
             if prefix:
                 prefix = prefix + "_"
@@ -274,8 +239,8 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
                 basenames = ["vol%i_%s" % (t, basenames)
                              for t in range(len(vols))]
             else:
-                assert len(set(basenames)) == len(vols), basenames
-
+                if len(set(basenames)) != len(vols):
+                    raise RuntimeError
         for t, vol in zip(range(n_vols), vols):
             if isinstance(vol, np.ndarray):
                 if affine is None:
@@ -291,7 +256,7 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
                     ext = ".nii.gz"
                 output_filename = os.path.join(output_dir,
                                                get_basename("%svol_%i" % (
-                            prefix, t), ext=ext))
+                                                   prefix, t), ext=ext))
             else:
                 basename = basenames if isinstance(
                     basenames, basestring) else basenames[t]
@@ -632,9 +597,6 @@ def hard_link(filenames, output_dir):
         the hard-linked filenames
 
     """
-
-    assert filenames
-
     if isinstance(filenames, basestring):
         filenames = [filenames]
         if filenames[0].endswith(".img"):
@@ -649,8 +611,8 @@ def hard_link(filenames, output_dir):
             if dst == src:
                 # same file
                 continue
-
-            assert os.path.isfile(src), "src file %s doesn't exist" % src
+            if not os.path.isfile(src):
+                raise OSError("src file %s doesn't exist" % src)
 
             # unlink if link already exists
             if os.path.exists(dst):
@@ -687,8 +649,9 @@ def get_basenames(x, ext=None):
     elif isinstance(x, basestring):
         return get_basenames([x], ext=ext)[0]
     else:
-        raise TypeError(
+        warnings.warn(
             "Input must be string or list of strings; got %s" % type(x))
+        return None
 
 
 def load_4D_img(img):
@@ -712,23 +675,26 @@ def load_4D_img(img):
     elif isinstance(img, list):
         img = nibabel.concat_images(img, check_affines=False)
     elif isinstance(img, tuple):
-        assert len(img) == 2
+        if len(img) != 2:
+            raise RuntimeError
         img = nibabel.Nifti1Image(*img)
     else:
-        assert is_niimg(img)
-
-    assert len(img.shape) > 3
+        if not is_niimg(img):
+            raise RuntimeError
+    if len(img.shape) <= 3:
+        raise RuntimeError
 
     if len(img.shape) > 4:
-        assert len(img.shape) == 5
+        if len(img.shape) != 5:
+            raise RuntimeError
         if img.shape[-1] == 1:
             img = nibabel.Nifti1Image(img.get_data()[..., 0],
                                       img.get_affine())
         else:
-            assert img.shape[3] == 1
+            if img.shape[3] != 1:
+                raise RuntimeError
             img = nibabel.Nifti1Image(img.get_data()[..., 0, ...],
                                       img.get_affine())
-
     return img
 
 
@@ -879,9 +845,10 @@ def niigz2nii(ifilename, output_dir=None):
     if isinstance(ifilename, list):
         return [niigz2nii(x, output_dir=output_dir) for x in ifilename]
     else:
-        assert isinstance(ifilename, basestring), (
-            "ifilename must be string or list of strings, got %s" % type(
-                ifilename))
+        if not isinstance(ifilename, basestring):
+            raise RuntimeError(
+                "ifilename must be string or list of strings, got %s" % type(
+                    ifilename))
 
     if not ifilename.endswith('.nii.gz'):
         return ifilename
@@ -978,9 +945,9 @@ def _expand_path(path, relative_to=None):
         relative_to = os.getcwd()
     else:
         relative_to = _expand_path(relative_to)
-        assert os.path.exists(relative_to), (
-            "Reference path %s doesn't exist" % relative_to)
-
+        if not os.path.exists(relative_to):
+            raise OSError(
+                "Reference path %s doesn't exist" % relative_to)
     old_cwd = os.getcwd()
     os.chdir(relative_to)
 
@@ -1085,6 +1052,7 @@ def sanitize_fwhm(fwhm):
     if len(fwhm) == 1:
         fwhm = list(fwhm) * 3
     else:
-        assert len(fwhm) == 3, ("fwhm must be float or list of 3 "
-                                "floats; got %s" % fwhm)
+        if len(fwhm) != 3:
+            raise ValueError("fwhm must be float or list of 3 "
+                             "floats; got %s" % fwhm)
     return fwhm

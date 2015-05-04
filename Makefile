@@ -35,7 +35,8 @@ test-code:
 	pypreprocess/tests/test_subject_data.py \
 	pypreprocess/tests/test_affine_transformations.py \
 	pypreprocess/tests/test_kernel_smooth.py \
-	pypreprocess/tests/test_reslice.py
+	pypreprocess/tests/test_reslice.py \
+	pypreprocess/tests/test_slice_timing.py
 
 
 
