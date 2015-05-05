@@ -18,3 +18,6 @@ install:
 script:
     - make clean
     - make test-code
+
+after_success:
+    - coveralls
