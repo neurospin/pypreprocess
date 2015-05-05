@@ -732,7 +732,7 @@ def generate_tsdiffana_thumbnail(image_files, sessions, subject_id,
     output_filenames = [output_filename_template.format(i)
                         for i in range(len(figures))]
     for fig, output_filename in zip(figures, output_filenames):
-        fig.savefig(output_filename)
+        fig.savefig(output_filename, bbox_inches="tight", dpi=200)
         pl.close(fig)
 
     # create thumbnails

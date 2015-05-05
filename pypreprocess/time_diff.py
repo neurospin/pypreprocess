@@ -12,6 +12,7 @@ This has been implemented in the Nipy package.
 We give here a simpler implementation with modified dependences
 
 '''
+import os
 import numpy as np
 import nibabel as nib
 from nilearn.plotting import plot_stat_map
@@ -173,7 +174,6 @@ def plot_tsdiffs(results, use_same_figure=True):
     S = results['slice_mean_diff2'].shape[1]
     mean_means = np.mean(results['volume_means'])
     scaled_slice_diff = results['slice_mean_diff2'] / mean_means
-
     n_plots = 6
 
     if use_same_figure:
@@ -185,8 +185,8 @@ def plot_tsdiffs(results, use_same_figure=True):
         fig.subplots_adjust(top=0.97, bottom=0.08, left=0.1, right=0.98,
                             hspace=0.3, wspace=0.18)
     else:
-        axes = [plt.figure(figsize=(6, 2)).add_subplot(111)
-                for _ in range(n_plots)]
+        axes = [plt.figure().add_subplot(111)
+                for _ in range(n_plots - 2)]
 
     def xmax_labels(ax, val, xlabel, ylabel):
         xlims = ax.axis()
@@ -233,13 +233,15 @@ def plot_tsdiffs(results, use_same_figure=True):
     xmax_labels(ax, S + 1, 'Slice number',
                 'Max/mean/min \n slice variation')
 
-    for which in ['diff2_mean_vol', 'slice_diff2_max_vol']:
-        ax = next(iter_axes)
+    kwargs = {}
+    for which in ["diff2_mean_vol", "slice_diff2_max_vol"]:
+        if use_same_figure:
+            kwargs["axes"] = next(iter_axes)
         stuff = reorder_img(results[which], resample="continuous")
         plot_stat_map(stuff, bg_img=None, display_mode='z', cut_coords=5,
-                      axes=ax,
-                      black_bg=True, title=which)
-        plt.show()
+                      black_bg=True, title=which, **kwargs)
+        if not use_same_figure:
+            axes.append(plt.gca())
     return axes
 
 
