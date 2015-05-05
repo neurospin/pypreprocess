@@ -13,12 +13,10 @@ We give here a simpler implementation with modified dependences
 
 '''
 import numpy as np
-
 import nibabel as nib
-
 from nilearn.plotting import plot_stat_map
 from nilearn.image.image import check_niimg_4d
-from nilearn.image import mean_img
+from nilearn.image import mean_img, reorder_img
 
 
 def multi_session_time_slice_diffs(img_list):
@@ -188,7 +186,7 @@ def plot_tsdiffs(results, use_same_figure=True):
                             hspace=0.3, wspace=0.18)
     else:
         axes = [plt.figure(figsize=(6, 2)).add_subplot(111)
-                for __ in range(n_plots)]
+                for _ in range(n_plots)]
 
     def xmax_labels(ax, val, xlabel, ylabel):
         xlims = ax.axis()
@@ -235,16 +233,13 @@ def plot_tsdiffs(results, use_same_figure=True):
     xmax_labels(ax, S + 1, 'Slice number',
                 'Max/mean/min \n slice variation')
 
-    ax = next(iter_axes)
-    plot_stat_map(results['diff2_mean_vol'], bg_img=None,
-                  display_mode='z', cut_coords=5,
-                  axes=ax, black_bg=True, title='diff2_mean_vol')
-
-    ax = next(iter_axes)
-    plot_stat_map(results['slice_diff2_max_vol'], bg_img=None,
-                  display_mode='z', cut_coords=5,
-                  axes=ax, black_bg=True, title='slice_diff2_max_vol')
-
+    for which in ['diff2_mean_vol', 'slice_diff2_max_vol']:
+        ax = next(iter_axes)
+        stuff = reorder_img(results[which], resample="continuous")
+        plot_stat_map(stuff, bg_img=None, display_mode='z', cut_coords=5,
+                      axes=ax,
+                      black_bg=True, title=which)
+        plt.show()
     return axes
 
 
