@@ -44,7 +44,7 @@ def empirical_p_value(z_score, ref):
 
 
 def cluster_stats(stat_img, mask_img, threshold, height_control='fpr',
-                  cluster_th=0, nulls={}):
+                  cluster_th=0, nulls=None):
     """
     Return a list of clusters, each cluster being represented by a
     dictionary. Clusters are sorted by descending size order. Within
@@ -70,6 +70,8 @@ def cluster_stats(stat_img, mask_img, threshold, height_control='fpr',
     -----
     If there is no cluster, an empty list is returned
     """
+    if nulls is None: nulls = {}
+
     # Masking
     mask_img, stat_img = check_niimg(mask_img), check_niimg(stat_img)
     if not _check_same_fov(mask_img, stat_img):

@@ -50,45 +50,45 @@ def test_cluster_stats():
     # test 1
     clusters, _ = cluster_stats(
         stat_img, mask_img, threshold, height_control='fpr',
-        cluster_threshold=0)
+        cluster_th=0)
     assert_true(len(clusters) == 1)
     cluster = clusters[0]
     assert_true(cluster['size'] == 8)
-    assert_array_almost_equal(cluster['zscore'], 10 * np.ones(8))
+    assert_array_almost_equal(cluster['z_score'], 10 * np.ones(8))
     assert_true(cluster['maxima'].shape == (8, 3))
 
     # test 2:excessive size threshold
     clusters, _ = cluster_stats(
         stat_img, mask_img, threshold, height_control='fpr',
-        cluster_threshold=10)
+        cluster_th=10)
     assert_true(clusters == [])
 
     # test 3: excessive cluster forming threshold
     clusters, _ = cluster_stats(
         stat_img, mask_img, 100, height_control='fpr',
-        cluster_threshold=0)
+        cluster_th=0)
     assert_true(clusters == [])
 
     # test 4: fdr threshold
-    clusters, info = cluster_stats(
+    clusters, _ = cluster_stats(
         stat_img, mask_img, .05, height_control='fdr',
-        cluster_threshold=5)
+        cluster_th=5)
     assert_true(len(clusters) == 1)
     cluster_ = clusters[0]
     assert_array_almost_equal(cluster['maxima'], cluster_['maxima'])
 
     # test 5: fdr threshold
-    clusters, info = cluster_stats(
+    clusters, _ = cluster_stats(
         stat_img, mask_img, .05, height_control='bonferroni',
-        cluster_threshold=5)
+        cluster_th=5)
     assert_true(len(clusters) == 1)
     cluster_ = clusters[0]
     assert_array_almost_equal(cluster['maxima'], cluster_['maxima'])
 
     # test 5: direct threshold
-    clusters, info = cluster_stats(
+    clusters, _ = cluster_stats(
         stat_img, mask_img, 5., height_control=None,
-        cluster_threshold=5)
+        cluster_th=5)
     assert_true(len(clusters) == 1)
     cluster_ = clusters[0]
     assert_array_almost_equal(cluster['maxima'], cluster_['maxima'])
@@ -106,9 +106,9 @@ def test_multi_cluster_stats():
     # test 1
     clusters, _ = cluster_stats(
         stat_img, mask_img, threshold, height_control='fpr',
-        cluster_threshold=0)
+        cluster_th=0)
     assert_true(len(clusters) == 2)
     cluster = clusters[1]
     assert_true(cluster['size'] == 1)
-    assert_array_almost_equal(cluster['zscore'], 11)
+    assert_array_almost_equal(cluster['z_score'], 11)
     assert_array_almost_equal(cluster['maxima'], np.array([[6, 8, 9]]))
