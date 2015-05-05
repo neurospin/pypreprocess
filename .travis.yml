@@ -12,6 +12,8 @@ before_install:
     - sudo apt-get update -qq
     - sudo apt-get install -qq python-scipy python-nose python-nibabel python-sklearn python-sympy python-networkx python-nipy python-nipype
     - sudo apt-get install -qq python-pip && pip install nilearn --user
+    - pip install coverage coveralls --user
+
 install:
     - python setup.py install
 
