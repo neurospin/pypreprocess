@@ -12,7 +12,6 @@ This has been implemented in the Nipy package.
 We give here a simpler implementation with modified dependences
 
 '''
-import os
 import numpy as np
 import nibabel as nib
 from nilearn.plotting import plot_stat_map
@@ -201,21 +200,6 @@ def plot_tsdiffs(results, use_same_figure=True):
     ax.plot(results['volume_mean_diff2'] / mean_means)
     xmax_labels(ax, T - 1, 'Difference image number', 'Scaled variance')
 
-    # plot of diff by slice
-    ax = next(iter_axes)
-    # Set up the color map for the different slices:
-    X, Y = np.meshgrid(np.arange(scaled_slice_diff.shape[0]),
-                       np.arange(scaled_slice_diff.shape[1]))
-
-    # Use HSV in order to code the slices from bottom to top:
-    ax.scatter(X.T.ravel(), scaled_slice_diff.ravel(),
-               c=Y.T.ravel(), cmap=plt.cm.hsv,
-               alpha=0.2)
-
-    xmax_labels(ax, T - 1,
-                'Difference image number',
-                'Slice by slice variance')
-
     # mean intensity
     ax = next(iter_axes)
     ax.plot(results['volume_means'] / mean_means)
@@ -233,15 +217,35 @@ def plot_tsdiffs(results, use_same_figure=True):
     xmax_labels(ax, S + 1, 'Slice number',
                 'Max/mean/min \n slice variation')
 
+    # plot of diff by slice
+    ax = next(iter_axes)
+    # Set up the color map for the different slices:
+    X, Y = np.meshgrid(np.arange(scaled_slice_diff.shape[0]),
+                       np.arange(scaled_slice_diff.shape[1]))
+
+    # Use HSV in order to code the slices from bottom to top:
+    ax.scatter(X.T.ravel(), scaled_slice_diff.ravel(),
+               c=Y.T.ravel(), cmap=plt.cm.hsv,
+               alpha=0.2)
+    xmax_labels(ax, T - 1,
+                'Difference image number',
+                'Slice by slice variance')
+
     kwargs = {}
     for which in ["diff2_mean_vol", "slice_diff2_max_vol"]:
         if use_same_figure:
             kwargs["axes"] = next(iter_axes)
         stuff = reorder_img(results[which], resample="continuous")
+
+        # XXX: Passing axes=ax param to plot_stat_map produces miracles!
         plot_stat_map(stuff, bg_img=None, display_mode='z', cut_coords=5,
                       black_bg=True, title=which, **kwargs)
         if not use_same_figure:
             axes.append(plt.gca())
+
+    # reorger subplots according to importance
+    if not use_same_figure:
+        axes = axes[:-3] + axes[-2:] + axes[-3:-2]
     return axes
 
 
