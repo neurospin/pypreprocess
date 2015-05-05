@@ -559,12 +559,9 @@ class SubjectData(object):
             # generate tsdiffana plots
             if self.tsdiffana:
                 generate_tsdiffana_thumbnail(
-                    self.func,
-                    self.session_ids,
-                    self.subject_id,
+                    self.func, self.session_ids, self.subject_id,
                     self.reports_output_dir, tooltip=tsdiffana_tooltip,
                     results_gallery=self.results_gallery)
-
 
         # shut down all watched report pages
         self.progress_logger.finish_all()

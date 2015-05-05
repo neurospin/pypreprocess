@@ -20,10 +20,7 @@ from .check_preprocessing import (plot_registration,
                                   plot_segmentation,
                                   plot_spm_motion_parameters)
 from ..time_diff import plot_tsdiffs, multi_session_time_slice_diffs
-from ..io_utils import (compute_mean_3D_image,
-                        is_3D,
-                        is_niimg,
-                        sanitize_fwhm)
+from ..io_utils import compute_mean_3D_image, is_niimg, sanitize_fwhm
 from .base_reporter import (Thumbnail,
                             ResultsGallery,
                             ProgressReport,
@@ -698,9 +695,9 @@ def generate_segmentation_thumbnails(
     return output
 
 
-def generate_tsdiffana_thumbnail(image_files, sessions,
-                                 subject_id, output_dir,
-                                 results_gallery=None):
+def generate_tsdiffana_thumbnail(image_files, sessions, subject_id,
+                                 output_dir, results_gallery=None,
+                                 tooltip=None):
     """Generate tsdiffana thumbnails
 
     Parameters
@@ -721,23 +718,19 @@ def generate_tsdiffana_thumbnail(image_files, sessions,
         gallery to which thumbnails will be committed
 
     """
-
+    # plot figures
     qa_cache_dir = os.path.join(output_dir, "QA")
     if not os.path.exists(qa_cache_dir):
         os.makedirs(qa_cache_dir)
     qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
-
-    # TODO: do we want to cache the plots
-    results = multi_session_time_slice_diffs(image_files)
+    results = qa_mem.cache(multi_session_time_slice_diffs)(image_files)
     axes = plot_tsdiffs(results, use_same_figure=False)
     figures = [ax.get_figure() for ax in axes]
-
     output_filename_template = os.path.join(
         output_dir,
         "tsdiffana_plot_{0}.png")
     output_filenames = [output_filename_template.format(i)
                         for i in range(len(figures))]
-
     for fig, output_filename in zip(figures, output_filenames):
         fig.savefig(output_filename)
         pl.close(fig)
@@ -745,7 +738,7 @@ def generate_tsdiffana_thumbnail(image_files, sessions,
     # create thumbnails
     thumbnails = []
     for output_filename in output_filenames:
-        thumbnail = Thumbnail()
+        thumbnail = Thumbnail(tooltip=tooltip)
         thumbnail.a = a(
             href=os.path.basename(output_filename))
         thumbnail.img = img(
@@ -754,10 +747,8 @@ def generate_tsdiffana_thumbnail(image_files, sessions,
         thumbnail.description = "tsdiffana ({0} sessions)".format(
             len(sessions))
         thumbnails.append(thumbnail)
-
     if results_gallery:
         results_gallery.commit_thumbnails(thumbnails)
-
     return thumbnails
 
 
