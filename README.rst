@@ -58,9 +58,7 @@ Then install pypreprocess itself by running:
 
 Use-case Examples
 =================
-We have written some examplary scripts for preprocessing some popular datasets. More information about examples
-can be found on the [wiki!](https://github.com/neurospin/pypreprocess/wiki/Example-scripts)
-
+We have written some examplary scripts for preprocessing some popular datasets.
 The **examples** directory contains a set of scripts, each demoing an aspect of pypreprocessing. Some scripts even provide use-cases for the nipy-based GLM. The examples use publicly available sMRI and fMRI data. Data fetchers are based on the nilearn API.
 The main examples scripts can be summarized as follows:
 
