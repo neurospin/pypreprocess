@@ -95,7 +95,10 @@ They should work 'out-of-the-box'.
 Using .ini configuration files to specify pipeline
 ==================================================
 It's possible (and recommended) to configure the preprocessing pipeline just by copying
-any of the `.ini` configuration files under the `examples` sub-directory and modifying it accordingly (usually, you only need to modify the `dataset_dir` paramter).
+any of the `.ini` configuration files under the `examples` sub-directory and modifying it accordingly (usually, you only need to modify the `dataset_dir` paramter),
+and then run
+
+      `python pypreprocess.py your.ini
 
 Pipelines
 =========
