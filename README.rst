@@ -99,6 +99,12 @@ any of the `.ini` configuration files under the `examples` sub-directory and mod
 and then run
 
       `python pypreprocess.py your.ini`
+      
+Also, you can do this
+
+      `do_subjects_preproc("your.ini", dataset_dir=dataset_dir)`
+
+where the optional `dataset_dir=dataset_dir` parameter (you can specify more optional parameters, BTW) simply overrides any value specified in the .ini file.
 
 Pipelines
 =========
