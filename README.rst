@@ -98,7 +98,7 @@ It's possible (and recommended) to configure the preprocessing pipeline just by 
 any of the `.ini` configuration files under the `examples` sub-directory and modifying it accordingly (usually, you only need to modify the `dataset_dir` paramter),
 and then run
 
-      `python pypreprocess.py your.ini
+      `python pypreprocess.py your.ini`
 
 Pipelines
 =========
