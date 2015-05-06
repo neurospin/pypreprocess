@@ -238,6 +238,7 @@ def plot_tsdiffs(results, use_same_figure=True):
         stuff = reorder_img(results[which], resample="continuous")
 
         # XXX: Passing axes=ax param to plot_stat_map produces miracles!
+        # XXX: As a quick fix, we simply plot and then do ax = plt.gca()
         plot_stat_map(stuff, bg_img=None, display_mode='z', cut_coords=5,
                 black_bg=True, title=which, **kwargs)
         if not use_same_figure:
