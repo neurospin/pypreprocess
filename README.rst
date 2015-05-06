@@ -104,7 +104,7 @@ Alternatively, you can do this
 
       `preproc_output = do_subjects_preproc("your.ini", dataset_dir=dataset_dir)`
 
-where the optional `dataset_dir=dataset_dir` parameter (you can specify more optional parameters, BTW) simply overrides any value specified in the .ini file.
+where the optional ```dataset_dir=dataset_dir``` parameter (you can specify more optional parameters, BTW) simply overrides any value specified in the .ini file.
 
 Pipelines
 =========
