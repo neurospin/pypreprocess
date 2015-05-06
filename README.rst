@@ -109,7 +109,7 @@ where the optional ``dataset_dir=dataset_dir`` parameter (you can specify more o
 Pipelines
 =========
 We have put in place two main pipelines for preprocessing: the *standard* pipeline, and the *DARTEL*-based pipeline. In the end of either method, each subject's EPI data has been corrected for artefacts, and placed into the same reference space (MNI).
-When you invoke the ``do_subjects_preproc(..)`` API of [nipype_preproc_spm_utils.py](https://github.com/neurospin/pypreprocess/blob/master/nipype_preproc_spm_utils.py) to preprocess a dataset (group of subjects), the default pipeline used is the standard one; passing the option `do_dartel=True` forces the DARTEL-based pipeline to be used.
+When you invoke the ``do_subjects_preproc(..)`` API of [nipype_preproc_spm_utils.py](https://github.com/neurospin/pypreprocess/blob/master/nipype_preproc_spm_utils.py) to preprocess a dataset (group of subjects), the default pipeline used is the standard one; passing the option ``do_dartel=True`` forces the DARTEL-based pipeline to be used.
 Also you can fine-tune your pipeline using the the various supported parameters in you .ini file (see the ``examples/`` subdirectory for examples).
 
 Standard pipeline
