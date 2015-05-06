@@ -240,7 +240,6 @@ def plot_tsdiffs(results, use_same_figure=True):
         # XXX: Passing axes=ax param to plot_stat_map produces miracles!
         plot_stat_map(stuff, bg_img=None, display_mode='z', cut_coords=5,
                 black_bg=True, title=which, **kwargs)
-        plt.show()
         if not use_same_figure:
             axes.append(plt.gca())
 
