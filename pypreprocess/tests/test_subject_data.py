@@ -1,8 +1,6 @@
 import os
-import nibabel
-from nose.tools import assert_equal, assert_true, assert_false
-import nose
-from ._test_utils import create_random_image, _make_sd, _save_img
+from nose.tools import assert_equal, assert_true
+from ._test_utils import _make_sd
 from pypreprocess.subject_data import SubjectData
 
 DATA_DIR = "test_tmp_data"
@@ -10,13 +8,13 @@ if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
 
 
-def test_sujectdata_init():
+def test_init():
     sd = SubjectData(anat='/tmp/anat.nii.gz', func='/tmp/func.nii.gz')
     assert_equal(sd.anat, "/tmp/anat.nii.gz")
     assert_equal(sd.func, "/tmp/func.nii.gz")
 
 
-def test_sujectdata_sanitize():
+def test_sanitize():
 
     sd = _make_sd(ext=".nii.gz")
     sd.sanitize()
@@ -74,48 +72,70 @@ def test_not_unique_func_filenames_exception_thrown():
     except RuntimeError:
         pass
 
-    sd = _make_sd(func_filenames=[["/tmp/titi/func/1.img",
-                                   "/tmp/titi/func/2.img"],
-                           ["/tmp/titi/func/1.img", "/tmp/titi/func/3.img"]],
-                     output_dir="/tmp")
+    sd = _make_sd(
+        func_filenames=[["/tmp/titi/func/1.img", "/tmp/titi/func/2.img"],
+                        ["/tmp/titi/func/1.img", "/tmp/titi/func/3.img"]],
+        output_dir="/tmp")
     try:
         sd.sanitize()
         raise RuntimeError("Check failed!")
     except RuntimeError:
         pass
 
-    sd = _make_sd(func_filenames=["/tmp/titi/func/1.img",
-                           ["/tmp/titi/func/1.img", "/tmp/titi/func/3.img"]],
-                     output_dir="/tmp")
+    sd = _make_sd(
+        func_filenames=["/tmp/titi/func/1.img",
+                        ["/tmp/titi/func/1.img", "/tmp/titi/func/3.img"]],
+        output_dir="/tmp")
     try:
         sd.sanitize()
         raise RuntimeError("Check failed!")
     except RuntimeError:
         pass
 
-    sd = _make_sd(func_filenames=[["/tmp/titi/func/1.img",
-                                   "/tmp/titi/func/2.img"],
-                           ["/tmp/titi/func/3.img", "/tmp/titi/func/4.img"]],
-                     output_dir="/tmp")
+    sd = _make_sd(
+        func_filenames=[["/tmp/titi/func/1.img", "/tmp/titi/func/2.img"],
+                        ["/tmp/titi/func/3.img", "/tmp/titi/func/4.img"]],
+        output_dir="/tmp")
     sd.sanitize()
 
     # abspaths of func images should be different with a session
-    sd = _make_sd(func_filenames=[["/tmp/titi/func/1.img",
-                            "/tmp/titi/func/1.img"],
-                           ["/tmp/titi/func/3.img",
-                            "/tmp/titi/func/4.img"]],
-                     output_dir="/tmp")
+    sd = _make_sd(
+        func_filenames=[["/tmp/titi/func/1.img", "/tmp/titi/func/1.img"],
+                        ["/tmp/titi/func/3.img", "/tmp/titi/func/4.img"]],
+        output_dir="/tmp")
     try:
         sd.sanitize()
         raise RuntimeError("Check failed!")
     except RuntimeError:
         pass
 
+
 def test_issue_40():
-    sd = _make_sd(func_filenames=[['/tmp/rob/ds005/pypreprocess_output/sub001/task001_run001/deleteorient_1_bold.nii', '/tmp/rob/ds005/pypreprocess_output/sub001/task001_run001/deleteorient_1_bold.nii', '/tmp/rob/ds005/pypreprocess_output/sub001/task001_run001/deleteorient_1_bold.nii']],
-                     output_dir="/tmp")
+    sd = _make_sd(
+        func_filenames=[[('/tmp/rob/ds005/pypreprocess_output/sub001/'
+                          'task001_run001/deleteorient_1_bold.nii'),
+                         ('/tmp/rob/ds005/pypreprocess_output/sub001/'
+                          'task001_run001/deleteorient_1_bold.nii'),
+                         ('/tmp/rob/ds005/pypreprocess_output/sub001/'
+                          'task001_run001/deleteorient_1_bold.nii')]],
+        output_dir="/tmp")
     try:
         sd.sanitize()
         raise RuntimeError("Check failed!")
     except RuntimeError:
         pass
+
+
+def test_opt_params():
+    # adression issue #104
+    subject_data = SubjectData()
+
+    for deleteorient in [True, False]:
+        for niigz2nii in [True, False]:
+            # this shouldn't crash
+            subject_data.sanitize(deleteorient=deleteorient,
+                                  niigz2nii=niigz2nii)
+
+    subject_data.output_dir = "/tmp/toto"
+    subject_data.sanitize()
+    assert_true(os.path.isdir(subject_data.output_dir))

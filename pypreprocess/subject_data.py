@@ -121,10 +121,12 @@ class SubjectData(object):
         self.anat = anat
         self.subject_id = subject_id
         self.session_ids = session_ids
+        self.n_sessions = None
         self.output_dir = output_dir
         self.anat_output_dir = anat_output_dir
         self.session_output_dirs = session_output_dirs
-        self.scratch = scratch if not scratch is None else output_dir
+        self.scratch = scratch
+        self.tmp_output_dir = None
         self.warpable = warpable
         self.failed = False
         self.warpable = warpable
@@ -158,26 +160,21 @@ class SubjectData(object):
             self.anat = mem.cache(delete_orientation)(
                 self.anat, self.anat_output_dir)
 
-    def _sanitize_output_dir(self):
-        # output dir
-        assert not self.output_dir is None
-        self.output_dir = os.path.abspath(self.output_dir)
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
+    def _sanitize_output_dir(self, output_dir):
+        if not output_dir is None:
+            output_dir = os.path.abspath(output_dir)
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+        return output_dir
 
-        # anat output dir
-        if self.anat_output_dir is None:
-            self.anat_output_dir = self.output_dir
-        else:
-            self.anat_output_dir = os.path.abspath(self.anat_output_dir)
-        if not os.path.exists(self.anat_output_dir):
-            os.makedirs(self.anat_output_dir)
-
-        # func output dirs (one per session)
+    def _sanitize_session_output_dirs(self):
+        """func output dirs (one per session)"""
         if self.session_output_dirs is None:
+            if self.n_sessions is None:
+                return
             self.session_output_dirs = [None] * self.n_sessions
 
-        # session-wise output directories
+        # session-wise func output directories
         for sess, sess_output_dir in enumerate(self.session_output_dirs):
             if sess_output_dir is None:
                 if self.n_sessions > 1:
@@ -186,17 +183,28 @@ class SubjectData(object):
                 else:
                     sess_output_dir = self.output_dir
             else:
-                sess_output_dir = os.path.abspath(sess_output_dir)
-            if not os.path.exists(sess_output_dir):
-                os.makedirs(sess_output_dir)
-            self.session_output_dirs[sess] = sess_output_dir
+                sess_output_dir = sess_output_dir
+            self.session_output_dirs[sess] = self._sanitize_output_dir(
+                sess_output_dir)
+
+    def _sanitize_output_dirs(self):
+        # output dir
+        self.output_dir = self._sanitize_output_dir(self.output_dir)
+
+        # anat output dir
+        if self.anat_output_dir is None:
+            self.anat_output_dir = self.output_dir
+        self.anat_output_dir = self._sanitize_output_dir(self.anat_output_dir)
+
+        # sanitize per-session func output dirs
+        self._sanitize_session_output_dirs()
 
         # make tmp output dir
         if self.scratch is None:
             self.scratch = self.output_dir
-        self.tmp_output_dir = os.path.join(self.scratch, "tmp")
-        if not os.path.exists(self.tmp_output_dir):
-            os.makedirs(self.tmp_output_dir)
+        if not self.scratch is None:
+            self.tmp_output_dir = os.path.join(self.scratch, "tmp")
+        self.tmp_output_dir = self._sanitize_output_dir(self.tmp_output_dir)
 
     def _niigz2nii(self):
         """
@@ -205,9 +213,11 @@ class SubjectData(object):
         """
         cache_dir = os.path.join(self.scratch, 'cache_dir')
         mem = Memory(cache_dir, verbose=100)
-        self.func = [mem.cache(do_niigz2nii)(
-            self.func[sess], output_dir=self.session_output_dirs[sess])
-                    for sess in range(self.n_sessions)]
+        self._sanitize_session_output_dirs()
+        if not None in [self.func, self.n_sessions, self.session_output_dirs]:
+            self.func = [mem.cache(do_niigz2nii)(
+                self.func[sess], output_dir=self.session_output_dirs[sess])
+                         for sess in range(self.n_sessions)]
         if not self.anat is None:
             self.anat = mem.cache(do_niigz2nii)(
                 self.anat, output_dir=self.anat_output_dir)
@@ -306,6 +316,23 @@ class SubjectData(object):
                                             'and %i' % (x, sess1 + 1,
                                                         sess2 + 1))
 
+    def _set_session_ids(self):
+        if self.func is None:
+            return
+        if self.session_ids is None:
+            if len(self.func) > 10:
+                raise RuntimeError
+            self.session_ids = ["Session%i" % (sess + 1)
+                                for sess in range(len(self.func))]
+        else:
+            if isinstance(self.session_ids, (basestring, int)):
+                assert len(self.func) == 1
+                self.session_ids = [self.session_ids]
+            else:
+                assert len(self.session_ids) == len(self.func), "%s != %s" % (
+                    self.session_ids, len(self.func))
+        self.n_sessions = len(self.session_ids)
+
     def sanitize(self, deleteorient=False, niigz2nii=False):
         """
         This method does basic sanitization of the `SubjectData` instance, like
@@ -322,6 +349,9 @@ class SubjectData(object):
             convert func and ant .nii.gz images to .nii
 
         """
+        # sanitize output_dir
+        self._sanitize_output_dirs()
+
         # sanitize func
         if isinstance(self.func, basestring):
             self.func = [self.func]
@@ -332,22 +362,9 @@ class SubjectData(object):
                 raise OSError("%s is not a file!" % self.anat)
 
         # sanitize session_ids
-        if self.session_ids is None:
-            if len(self.func) > 10:
-                raise RuntimeError
-            self.session_ids = ["Session%i" % (sess + 1)
-                                for sess in range(len(self.func))]
-        else:
-            if isinstance(self.session_ids, (basestring, int)):
-                assert len(self.func) == 1
-                self.session_ids = [self.session_ids]
-            else:
-                assert len(self.session_ids) == len(self.func), "%s != %s" % (
-                    self.session_ids, len(self.func))
-        self.n_sessions = len(self.session_ids)
-
-        # sanitize output_dir
-        self._sanitize_output_dir()
+        if self.func is None:
+            return self
+        self._set_session_ids()
 
         # .dcm, .ima -> .nii
         self._dcm2nii()
@@ -401,6 +418,8 @@ class SubjectData(object):
             pipeline
 
         """
+        self._set_session_ids()
+
         # anat stuff
         for item in ["anat", 'gm', 'wm', 'csf', 'wgm', 'wwm', 'wcsf',
                      'mwgm', 'mwwm', 'mwcsf']:
@@ -445,9 +464,11 @@ class SubjectData(object):
             generated
 
         """
+        # misc
+        self._set_session_ids()
         if not self.func:
             cv_tc = False
-        self._sanitize_output_dir()
+        self._sanitize_output_dirs()
 
         # misc for reporting
         self.reports_output_dir = os.path.join(self.output_dir, "reports")
@@ -511,6 +532,8 @@ class SubjectData(object):
         Finalizes the business of reporting.
 
         """
+        # misc
+        self._set_session_ids()
         if not self.reporting_enabled():
             return
         if parent_results_gallery is None:
@@ -563,6 +586,8 @@ class SubjectData(object):
         Invoked to generate post-realignment thumbnails.
 
         """
+        # misc
+        self._set_session_ids()
         if not hasattr(self, 'realignment_parameters'):
             raise ValueError("'realignment_parameters' attribute not set!")
         if not self.reporting_enabled():
@@ -597,7 +622,8 @@ class SubjectData(object):
         Invoked to generate post-coregistration thumbnails.
 
         """
-        # subject has anat ?
+        # misc
+        self._set_session_ids()
         if self.anat is None:
             print("Subject 'anat' field is None; nothing to do")
             return
@@ -639,6 +665,7 @@ class SubjectData(object):
 
         """
         # misc
+        self._set_session_ids()
         segmented = False
         for item in ['gm', 'wm', 'csf']:
             if hasattr(self, item):
@@ -685,6 +712,7 @@ class SubjectData(object):
 
         """
         # misc
+        self._set_session_ids()
         if not self.reporting_enabled():
             self.init_report()
         segmented = False
