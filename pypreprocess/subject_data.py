@@ -2,7 +2,7 @@
 Encapsulation of subject data. Handles subject data logic
 like filetypes, extensions, .nii.gz -> .nii conversions, setup and
 teardown for reports, etc., general sanitization, etc. Also handles
-progressive report generatation for subject during preprocessing.
+progressive report generation for subject during preprocessing.
 
 """
 # Author: DOHMATOB Elvis Dopgima
