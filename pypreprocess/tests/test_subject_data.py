@@ -15,7 +15,6 @@ def test_init():
 
 
 def test_sanitize():
-
     sd = _make_sd(ext=".nii.gz")
     sd.sanitize()
     assert_equal(os.path.basename(sd.func[0]), "func.nii.gz")
@@ -139,3 +138,4 @@ def test_opt_params():
     subject_data.output_dir = "/tmp/toto"
     subject_data.sanitize()
     assert_true(os.path.isdir(subject_data.output_dir))
+    subject_data._delete_orientation()

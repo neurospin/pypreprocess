@@ -7,9 +7,10 @@ progressive report generation for subject during preprocessing.
 """
 # Author: DOHMATOB Elvis Dopgima
 
-import numpy as np
 import os
 import time
+import warnings
+import numpy as np
 from matplotlib.pyplot import cm
 from pypreprocess.external.joblib import Memory
 from .io_utils import (niigz2nii as do_niigz2nii, dcm2nii as do_dcm2nii,
@@ -151,9 +152,14 @@ class SubjectData(object):
         mem = Memory(cachedir=cache_dir, verbose=5)
 
         # deleteorient for func
-        self.func = [mem.cache(delete_orientation)(
-            self.func[sess], self.session_output_dirs[sess])
-                    for sess in range(self.n_sessions)]
+        for attr in ['n_sessions', 'session_output_dirs']:
+            if getattr(self, attr) is None:
+                warnings.warn("'%s' attribute of is None! Skipping" % attr)
+                break
+        else:
+            self.func = [mem.cache(delete_orientation)(
+                self.func[sess], self.session_output_dirs[sess])
+                         for sess in range(self.n_sessions)]
 
         # deleteorient for anat
         if not self.anat is None:
