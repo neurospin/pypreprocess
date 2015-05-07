@@ -4,6 +4,9 @@
    :target: https://travis-ci.org/neurospin/pypreprocess
    :alt: Build Status
    
+.. image:: https://coveralls.io/repos/dohmatob/pypreprocess/badge.svg?branch=master
+   :target: https://coveralls.io/r/dohmatob/pypreprocess?branch=master
+   
 pypreprocess
 ============
 **pypreprocess** is a collection of python scripts for preprocessing (motion 
