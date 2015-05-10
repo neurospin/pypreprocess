@@ -12,10 +12,9 @@ References
 import numpy as np
 import scipy.linalg
 import nibabel
-from .io_utils import (load_specific_vol,
-                       load_vol,
-                       load_vols
-                       )
+from .io_utils import load_specific_vol
+from nilearn.image.image import check_niimg, check_niimgs
+from nilearn.image import iter_img
 
 # house-hold convenience naming
 MOTION_PARAMS_NAMES = {0x0: 'Tx',
@@ -47,22 +46,19 @@ def get_initial_motion_params():
     return p
 
 
-def spm_matrix(p, order='T*R*Z*S'):
-    """spm_matrix returns a matrix defining an orthogonal linear (translation,
-    rotation, scaling and/or shear) transformation given a vector of
-    parameters (p).  By default, the transformations are applied in the
-    following order (i.e., the opposite to which they are specified):
+def spm_matrix(p):
+    """spm_matrix returns a matrix defining a rigid-body transformation.
+
+    The transformation can be a translation, rotation, scaling and/or shear
+    (well the shears and scalings are not rigid, but it's customary to include
+    them in the model) transformation given a vector of parameters (p).
+    By default, the transformations are applied in the following order (i.e.,
+    the opposite to which they are specified):
 
     1) shear
     2) scale (zoom)
     3) rotation - yaw, roll & pitch
     4) translation
-
-    This order can be changed by calling spm_matrix with a string as a
-    second argument. This string may contain any valid MATLAB expression
-    that returns a 4x4 matrix after evaluation. The special characters 'S',
-    'Z', 'R', 'T' can be used to reference the transformations 1)-4)
-    above.
 
     Parameters
     ----------
@@ -80,8 +76,6 @@ def spm_matrix(p, order='T*R*Z*S'):
         p(9) - x shear
         p(10) - y shear
         p(11) - z shear
-    order: string optional (default 'T*R*Z*S')
-        application order of transformations.
 
     Returns
     -------
@@ -263,11 +257,10 @@ def nibabel2spm_affine(affine):
 
     """
 
-    assert affine.shape == (4, 4)
-
+    if affine.shape != (4, 4):
+        raise TypeError("Bad affine shape %s" % affine.shape)
     zero = [-1, -1, -1, 1]  # weird, huh ?
     affine[..., -1] = np.dot(affine, zero)
-
     return affine
 
 
@@ -298,7 +291,7 @@ def apply_realignment_to_vol(vol, q, inverse=True):
 
     """
 
-    vol = load_vol(vol)
+    vol = check_niimg(vol)
 
     # convert realigment params to affine transformation
     M_q = spm_matrix(q)
@@ -355,8 +348,7 @@ def apply_realignment(vols, rp, inverse=True):
         rp = np.array([rp] * n_scans)
 
     rvols = [apply_realignment_to_vol(vol, rp[t], inverse=inverse)
-             for vol, t in zip(load_vols(vols),
-                               range(n_scans))]
+             for vol, t in zip(iter_img(check_niimgs(vols)), range(n_scans))]
 
     return rvols if n_scans > 1 or isinstance(vols, list) else rvols[0]
 
