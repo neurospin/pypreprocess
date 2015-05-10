@@ -8,8 +8,6 @@ from nose.tools import assert_equal, assert_true, assert_false
 
 # import the APIIS to be tested
 from ..io_utils import (
-    load_vol,
-    load_specific_vol,
     do_3Dto4D_merge,
     save_vols,
     save_vol,
@@ -54,88 +52,6 @@ def create_random_image(shape=None,
         shape[-1] = n_scans
 
     return parent_class(np.random.randn(*shape), affine)
-
-
-def test_load_vol():
-    # setup
-    output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    # creat a volume
-    vol = create_random_image()
-
-    # test loading vol from nibabel object
-    _vol = load_vol(vol)
-    assert_true(isinstance(_vol, type(vol)))
-    assert_equal(_vol.shape, vol.shape)
-    numpy.testing.assert_array_equal(_vol.get_data(), vol.get_data())
-
-    # test loading vol by filename
-    for ext in IMAGE_EXTENSIONS:
-        # save vol with extension ext
-        vol_filename = os.path.join(output_dir, "vol%s" % ext)
-        nibabel.save(vol, vol_filename)
-
-        # note that .img loads as Nifti1Pair, not Nifti1Image
-        vol_type = nibabel.Nifti1Pair if ext == '.img' else nibabel.Nifti1Image
-
-        # load the vol by filename
-        _vol = load_vol(vol_filename)
-        assert_true(isinstance(_vol, vol_type))
-        assert_equal(_vol.shape, vol.shape)
-        numpy.testing.assert_array_equal(_vol.get_data(), vol.get_data())
-
-
-def test_load_specific_vol():
-    # setup
-    output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    n_scans = 23
-
-    # create 4D film
-    film = create_random_image(ndim=4, n_scans=n_scans)
-
-    # test loading vol from nibabel image object
-    for t in range(n_scans):
-        _vol, _n_scans = load_specific_vol(film, t)
-        assert_equal(_n_scans, n_scans)
-        assert_true(isinstance(_vol, type(film)))
-        assert_equal(_vol.shape, film.shape[:-1])
-        numpy.testing.assert_array_equal(_vol.get_data(),
-                                         film.get_data()[..., t])
-
-    # test loading vol from a single 4D filename
-    for ext in IMAGE_EXTENSIONS:
-        for film_filename_type in ['str', 'list']:
-            if film_filename_type == 'str':
-                # save film as single filename with extension ext
-                film_filename = os.path.join(output_dir, "4D%s" % ext)
-                nibabel.save(film, film_filename)
-            else:
-                # save film as multiple filenames (3D vols), with ext extension
-                vols = nibabel.four_to_three(film)
-                film_filename = []
-                for t, vol in zip(range(n_scans), vols):
-                    vol_filename = os.path.join(output_dir,
-                                                "vol_%i%s" % (t, ext))
-                    nibabel.save(vol, vol_filename)
-                    film_filename.append(vol_filename)
-
-            # test loading proper
-            for t in range(n_scans):
-                # note that .img loads as Nifti1Pair, not Nifti1Image
-                vol_type = nibabel.Nifti1Pair if ext == '.img' else \
-                    nibabel.Nifti1Image
-
-                # load specific 3D vol from 4D film by filename
-                _vol, _n_scans = load_specific_vol(film_filename, t)
-                assert_equal(_n_scans, n_scans)
-                assert_true(isinstance(_vol, vol_type))
-                assert_equal(_vol.shape, film.shape[:-1])
-                numpy.testing.assert_array_equal(_vol.get_data(),
-                                              film.get_data()[..., t])
 
 
 def test_save_vol():
@@ -217,20 +133,14 @@ def test_save_vols_from_ndarray_with_affine():
     # check saving seperate 3D vols
     for stuff in [film, threeD_vols]:
         for concat in [False, True]:
-            for affine in [None, np.eye(4)]:
-                saved_vols_filenames = save_vols(stuff,
-                                                  output_dir,
-                                                  ext='.nii.gz',
-                                                  affine=np.eye(4),
-                                                  concat=concat
-                                                  )
-                if not concat and isinstance(stuff, list):
-                        assert_true(isinstance(
-                                saved_vols_filenames, list))
-                        assert_equal(len(saved_vols_filenames),
-                                                n_scans)
-                else:
-                    assert_true(isinstance(saved_vols_filenames, basestring))
+            saved_vols_filenames = save_vols(
+                stuff, output_dir, ext='.nii.gz', affine=np.eye(4),
+                concat=concat)
+            if not concat and isinstance(stuff, list):
+                assert_true(isinstance(saved_vols_filenames, list))
+                assert_equal(len(saved_vols_filenames), n_scans)
+            else:
+                assert_true(isinstance(saved_vols_filenames, basestring))
 
 
 def test_do_3Dto4D_merge():

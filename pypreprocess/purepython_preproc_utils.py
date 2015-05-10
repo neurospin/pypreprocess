@@ -9,17 +9,10 @@
 import os
 import inspect
 from reporting.preproc_reporter import (
-    generate_stc_thumbnails,
-    generate_preproc_undergone_docstring
-    )
-
+    generate_preproc_undergone_docstring)
+from nilearn.image.image import check_niimg
 from .external.joblib import Memory
-from .io_utils import (get_basenames,
-                       save_vols,
-                       load_specific_vol,
-                       load_4D_img,
-                       is_niimg
-                       )
+from .io_utils import get_basenames, save_vols, load_4D_img, is_niimg
 from .subject_data import SubjectData
 from .slice_timing import fMRISTC
 from .realign import MRIMotionCorrection
@@ -29,8 +22,7 @@ from .coreg import Coregister
 # output image prefices
 PREPROC_OUTPUT_IMAGE_PREFICES = {'STC': 'a',
                                  'MC': 'r',
-                                 'smoothing': 's'
-                                 }
+                                 'smoothing': 's'}
 
 
 def _do_subject_slice_timing(subject_data, ref_slice=0,
@@ -315,9 +307,6 @@ def do_subject_preproc(subject_data,
 
     # cast all images to niimg
     subject_data.func = [load_4D_img(x) for x in subject_data.func]
-
-    # if 'anat' in output:
-    #     subject_data.anat = load_vol(subject_data.anat)
 
     if report:
         # generate explanation of preproc steps undergone by subject

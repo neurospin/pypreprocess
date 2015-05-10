@@ -1,14 +1,9 @@
 import os
-import warnings
 import inspect
 import numpy as np
 import nibabel
-import numpy.testing
-from nose.tools import assert_equal, assert_true, raises, nottest
-
-# import APIs to be tested
-from ..slice_timing import STC, fMRISTC, get_slice_indices, _load_fmri_data
-from ..datasets import fetch_spm_auditory
+from nose.tools import assert_equal, assert_true, raises
+from ..slice_timing import STC, fMRISTC, get_slice_indices
 from ..io_utils import save_vols
 
 # global setup
@@ -17,86 +12,41 @@ OUTPUT_DIR = "/tmp/%s" % this_file
 
 
 def test_get_slice_indices_ascending():
-    numpy.testing.assert_array_equal(
+    np.testing.assert_array_equal(
         get_slice_indices(5, slice_order="ascending"), [0, 1, 2, 3, 4])
 
 
 def test_get_slice_indices_ascending_interleaved():
-    numpy.testing.assert_array_equal(
+    np.testing.assert_array_equal(
         get_slice_indices(5, slice_order="ascending",
                           interleaved=True), [0, 3, 1, 4, 2])
 
 
 def test_get_slice_indices_descending():
     # descending
-    numpy.testing.assert_array_equal(
+    np.testing.assert_array_equal(
         get_slice_indices(5, slice_order="descending"), [4, 3, 2, 1, 0])
 
 
 def test_get_slice_indices_descending_interleaved():
     # descending and interleaved
-    numpy.testing.assert_array_equal(
+    np.testing.assert_array_equal(
         get_slice_indices(5, slice_order="descending",
                           interleaved=True), [4, 1, 3, 0, 2])
 
 
 def test_get_slice_indices_explicit():
     slice_order = [1, 4, 3, 2, 0]
-    numpy.testing.assert_array_equal(
+    np.testing.assert_array_equal(
         get_slice_indices(5, slice_order=slice_order), [4, 0, 3, 2, 1])
 
 
 @raises(ValueError)
 def test_get_slice_indices_explicit_interleaved():
     slice_order = [1, 4, 3, 2, 0]
-    numpy.testing.assert_array_equal(
+    np.testing.assert_array_equal(
         get_slice_indices(5, slice_order=slice_order,
                           interleaved=True), [2, 0, 4, 1, 3])
-
-
-def test_load_fmri_data_from_lists():
-    raw_data = [[[[1., 0.],
-                  [0., 1.]],
-
-                 [[1., 0.],
-                  [0., 1.]]],
-
-                [[[1., 0.],
-                  [0., 1.]],
-
-                 [[1., 0.],
-                  [0., 1.]]]]
-
-    numpy.testing.assert_array_equal(_load_fmri_data(raw_data), raw_data)
-
-
-def test_load_fmri_data_from_ndarray():
-    raw_data = np.ndarray((3, 5, 7))
-    numpy.testing.assert_array_equal(_load_fmri_data(raw_data), raw_data)
-
-    raw_data = np.ndarray((3, 5, 7, 1))
-    numpy.testing.assert_array_equal(_load_fmri_data(raw_data), raw_data)
-    numpy.testing.assert_array_equal(_load_fmri_data(raw_data, is_3D=True),
-                                     raw_data[..., 0])
-
-
-def test_load_fmri_data_from_single_filename():
-    data_path = os.path.join(
-        os.environ["HOME"],
-        ".nipy/tests/data/s12069_swaloc1_corr.nii.gz")
-    if not os.path.exists(data_path):
-        warnings.warn("You don't have nipy test data installed!")
-        return
-    numpy.testing.assert_array_equal(_load_fmri_data(data_path).shape,
-                                     (53, 63, 46, 128))
-
-
-@nottest
-def test_load_fmri_data_from_several_filenames():
-    # fetch data
-    spm_auditory = fetch_spm_auditory('/tmp')
-    numpy.testing.assert_array_equal(
-        _load_fmri_data(spm_auditory.func).shape, (64, 64, 64, 96))
 
 
 def test_STC_constructor():
@@ -116,21 +66,21 @@ def test_fMRISTC_constructor():
 def check_STC(true_signal, corrected_signal, ref_slice=0,
               rtol=None, atol=None):
     n_slices = true_signal.shape[2]
-    numpy.testing.assert_array_almost_equal(
+    np.testing.assert_array_almost_equal(
         corrected_signal[..., ref_slice, ...],
         true_signal[..., ref_slice, ...])
     for _ in range(1, n_slices):
         # relative closeness
         if not rtol is None:
-            numpy.testing.assert_allclose(true_signal[..., 1:-1],
-                                          corrected_signal[..., 1:-1],
-                                          rtol=rtol)
+            np.testing.assert_allclose(true_signal[..., 1:-1],
+                                       corrected_signal[..., 1:-1],
+                                       rtol=rtol)
 
         # relative closeness
         if not atol is None:
-            numpy.testing.assert_allclose(true_signal[..., 1:-1],
-                                          corrected_signal[..., 1:-1],
-                                          atol=atol)
+            np.testing.assert_allclose(true_signal[..., 1:-1],
+                                       corrected_signal[..., 1:-1],
+                                       atol=atol)
 
 
 def test_STC_for_sinusoidal_mixture():
@@ -185,10 +135,9 @@ def test_STC_for_sinusoidal_mixture():
 
     # truth
     true_signal = np.array([
-            [[my_sinusoid(acquisition_time)
-              for j in range(n_slices)]
-             for y in range(n_columns)] for x in range(n_rows)]
-                               )
+        [[my_sinusoid(acquisition_time)
+          for j in range(n_slices)] for _ in range(n_columns)]
+        for _ in range(n_rows)])
 
     # check
     check_STC(true_signal, stc.output_data_, rtol=1.)

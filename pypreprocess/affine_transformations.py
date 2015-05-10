@@ -12,7 +12,6 @@ References
 import numpy as np
 import scipy.linalg
 import nibabel
-from .io_utils import load_specific_vol
 from nilearn.image.image import check_niimg, check_niimgs
 from nilearn.image import iter_img
 
@@ -337,10 +336,12 @@ def apply_realignment(vols, rp, inverse=True):
     """
 
     # get number of scans
-    _, n_scans = load_specific_vol(vols, 0)
-
-    if n_scans == 1:
-        vols = [load_specific_vol(vols, 0)[0]]
+    try:
+        vols = check_niimgs(vols)
+        n_scans = vols.shape[-1]
+    except TypeError:
+        vols = [check_niimg(vols)]
+        n_scans = 1
 
     # sanitize rp
     rp = np.array(rp)
@@ -348,7 +349,7 @@ def apply_realignment(vols, rp, inverse=True):
         rp = np.array([rp] * n_scans)
 
     rvols = [apply_realignment_to_vol(vol, rp[t], inverse=inverse)
-             for vol, t in zip(iter_img(check_niimgs(vols)), range(n_scans))]
+             for vol, t in zip(iter_img(vols), range(n_scans))]
 
     return rvols if n_scans > 1 or isinstance(vols, list) else rvols[0]
 

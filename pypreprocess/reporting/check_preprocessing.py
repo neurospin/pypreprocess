@@ -14,7 +14,7 @@ import nibabel
 from nilearn.plotting import plot_img, plot_stat_map
 from nilearn.image import reorder_img, mean_img
 from ..external import joblib
-from ..io_utils import load_4D_img, load_specific_vol
+from nilearn.image import index_img
 
 EPS = np.finfo(float).eps
 
@@ -182,7 +182,7 @@ def plot_registration(reference_img, coregistered_img,
 
     # plot the coregistered image
     if hasattr(coregistered_img, '__len__'):
-        coregistered_img = load_specific_vol(coregistered_img, 0)[0]
+        coregistered_img = index_img(coregistered_img, 0)
 
     # XXX nilearn complains about rotations in affine, etc.
     coregistered_img = reorder_img(coregistered_img, resample="continuous")
@@ -192,7 +192,7 @@ def plot_registration(reference_img, coregistered_img,
 
     # overlap the reference image
     if hasattr(reference_img, '__len__'):
-        reference_img = load_specific_vol(reference_img, 0)[0]
+        reference_img = index_img(reference_img, 0)
 
     # XXX nilearn complains about rotations in affine, etc.
     reference_img = reorder_img(reference_img, resample="continuous")

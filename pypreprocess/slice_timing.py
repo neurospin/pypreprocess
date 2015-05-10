@@ -9,13 +9,9 @@ import os
 import nibabel
 import scipy
 import numpy as np
-import matplotlib.pyplot as plt
-from .io_utils import (load_specific_vol,
-                       load_vol,
-                       is_niimg,
-                       save_vols,
-                       get_basenames
-                       )
+from nilearn.image import index_img
+from nilearn.image.image import check_niimg
+from .io_utils import is_niimg, save_vols, get_basenames
 
 
 def get_slice_indices(n_slices, slice_order='ascending',
@@ -393,7 +389,7 @@ class STC(object):
                 # re-insert phase-shifted column y of slice z for all 3D
                 # volumes
                 self.output_data_[:, y, z, :] = stack[:self.n_scans,
-                                                       :].T.reshape(
+                                                      :].T.reshape(
                     (n_rows, self.n_scans))
 
         self._log("Done.")
@@ -415,58 +411,6 @@ class STC(object):
             raise Exception("transform(...) method not yet invoked!")
 
         return self.output_data_
-
-
-def _load_fmri_data(fmri_files, is_3D=False):
-    """
-    Helper function to load fmri data from filename /
-    ndarray or list of such.
-
-    Parameters
-    ----------
-    fmri_files: `np.ndarray` or string of list of strings, or list of
-    such, etc.
-        the data to be loaded. if string, it should be the filename of a
-        single 3D vol or 4D fmri film.
-
-    is_3D: boolean
-        flag specifying whether loaded data is in fact 3D. This is useful
-        for loading volumes with shapes like (25, 34, 56, 1), where the
-        last dimension can be ignored altogether
-
-    Returns
-    -------
-    data: `np.ndarray`
-        the loaded data
-
-    """
-
-    try:  # try to load as numeric ndarray
-        np.sum(fmri_files)
-        data = np.array(fmri_files)
-    except TypeError:  # ok, go the hard way
-        if isinstance(fmri_files, basestring):
-            data = nibabel.load(fmri_files).get_data()
-        else:
-            # assuming list of (perhaps list of ...) filenames (strings)
-            n_scans = fmri_files.shape[-1] if is_niimg(
-                fmri_files) or isinstance(fmri_files, np.ndarray
-                                          ) else  len(fmri_files)
-            _first = load_specific_vol(fmri_files, 0)[0]
-            if is_niimg(_first):
-                _first = _first.get_data()
-            data = np.ndarray(tuple(list(_first.shape
-                                         ) + [n_scans]))
-            data[..., 0] = _first
-            for scan in range(1, n_scans):
-                data[..., scan] = _load_fmri_data(fmri_files[scan],
-                                                       is_3D=True)
-
-    if is_3D:
-        if data.ndim == 4:
-            data = data[..., 0]
-
-    return data
 
 
 class fMRISTC(STC):
@@ -509,13 +453,13 @@ class fMRISTC(STC):
             if isinstance(raw_data[0], basestring):
                 self.basenames_ = [os.path.basename(x) for x in raw_data]
             n_scans = len(raw_data)
-            _first = load_vol(raw_data[0])
+            _first = check_niimg(raw_data[0])
             _raw_data = np.ndarray(list(_first.shape) + [n_scans])
             _raw_data[..., 0] = _first.get_data()
             self.affine_ = [_first.get_affine()]
 
             for t in range(1, n_scans):
-                vol = load_vol(raw_data[t])
+                vol = check_niimg(raw_data[t])
                 _raw_data[..., t] = vol.get_data()
                 self.affine_.append(vol.get_affine())
             raw_data = _raw_data
