@@ -22,7 +22,7 @@ import nipype.interfaces.spm as spm
 from nipype.caching import Memory as NipypeMemory
 from configure_spm import _configure_spm
 from .io_utils import (
-    load_specific_vol, ravel_filenames, unravel_filenames, get_vox_dims,
+    load_vols, ravel_filenames, unravel_filenames, get_vox_dims,
     niigz2nii, resample_img, compute_output_voxel_size, sanitize_fwhm)
 from subject_data import SubjectData
 from .reporting.base_reporter import (
@@ -107,7 +107,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
     subject_data.sanitize(niigz2nii=(software == spm))
 
     # compute nslices
-    nslices = load_specific_vol(subject_data.func[0], 0)[0].shape[2]
+    nslices = load_vols(subject_data.func[0])[0].shape[2]
     assert 1 <= ref_slice <= nslices, ref_slice
 
     # compute slice indices / order
@@ -450,9 +450,9 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
         if hasattr(subject_data, "mean_realigned_file"):
             coreg_source = subject_data.mean_realigned_file
         else:
-            ref_func = joblib_mem.cache(load_specific_vol)(
+            ref_func = joblib_mem.cache(load_vols)(
                 subject_data.func if isinstance(subject_data.func, basestring)
-                else subject_data.func[0], 0)[0]
+                else subject_data.func[0])[0]
             coreg_source = os.path.join(subject_data.tmp_output_dir,
                                         "_coreg_first_func_vol.nii")
 

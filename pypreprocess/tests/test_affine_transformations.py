@@ -1,11 +1,8 @@
 import numpy as np
-import nose.tools
+from nose.tools import assert_equal
 from ..affine_transformations import (
-    get_initial_motion_params,
-    spm_matrix,
-    spm_imatrix,
-    transform_coords,
-    apply_realignment)
+    get_initial_motion_params, spm_matrix, spm_imatrix, transform_coords,
+    apply_realignment, nibabel2spm_affine, get_physical_coords)
 from ._test_utils import create_random_image
 
 
@@ -50,7 +47,7 @@ def test_transform_coords():
     new_coords = transform_coords(p, M1, M2, coords)
 
     # coords shouldn't change
-    nose.tools.assert_equal(new_coords.shape, (3, 1))
+    assert_equal(new_coords.shape, (3, 1))
     np.testing.assert_array_equal(new_coords.ravel(), coords)
 
 
@@ -59,4 +56,20 @@ def test_apply_realignment_3D_niimg():
     vol = create_random_image(shape=(7, 11, 13))
 
     # apply realignment to vol
-    rvol = apply_realignment(vol, [1, 2, 3, 4, 5, 6])
+    apply_realignment(vol, [1, 2, 3, 4, 5, 6])
+
+
+def test_nibabel2spm_affine():
+    affine = np.eye(4)
+    np.testing.assert_array_equal(nibabel2spm_affine(affine)[:, -1],
+                                  [-1, -1, -1, 1])
+
+
+def test_physical_coords():
+    affine = np.eye(4)
+    affine[:-1, -1] = [1., -1., 1.]
+    coords = get_physical_coords(affine, [1, 2, 3])
+    assert_equal(coords.ndim, 2)
+    assert_equal(coords.shape[1], 1)
+    assert_equal(coords.shape[0], 3)
+    np.testing.assert_array_equal(coords.ravel(), [2., 1., 4.])

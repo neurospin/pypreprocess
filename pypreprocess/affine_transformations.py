@@ -12,10 +12,8 @@ References
 import numpy as np
 import scipy.linalg
 import nibabel
-from .io_utils import (load_specific_vol,
-                       load_vol,
-                       load_vols
-                       )
+from nilearn.image.image import check_niimg
+from .io_utils import load_vols
 
 # house-hold convenience naming
 MOTION_PARAMS_NAMES = {0x0: 'Tx',
@@ -35,34 +33,29 @@ MOTION_PARAMS_NAMES = {0x0: 'Tx',
 
 def get_initial_motion_params():
     """Returns an array of length 12 (3 translations, 3 rotations, 3 zooms,
-    and 3 shears) corresponding to the identity orthogonal transformation
-    eye(4). Thus this is precisely made of: no zeto translation, zero rotation,
+    and 3 shears) corresponding to the identity transformation eye(4).
+
+    Thus this is precisely made of: no zeto translation, zero rotation,
     a unit zoom of in each coordinate direction, and zero shear.
-
     """
-
-    p = np.zeros(12)  # zero everything
-    p[6:9] = 1.  # but unit zoom
-
+    p = np.zeros(12)
+    p[6:9] = 1.
     return p
 
 
-def spm_matrix(p, order='T*R*Z*S'):
-    """spm_matrix returns a matrix defining an orthogonal linear (translation,
-    rotation, scaling and/or shear) transformation given a vector of
-    parameters (p).  By default, the transformations are applied in the
-    following order (i.e., the opposite to which they are specified):
+def spm_matrix(p):
+    """spm_matrix returns a matrix defining a rigid-body transformation.
+
+    The transformation can be a translation, rotation, scaling and/or shear
+    (well the shears and scalings are not rigid, but it's customary to include
+    them in the model) transformation given a vector of parameters (p).
+    By default, the transformations are applied in the following order (i.e.,
+    the opposite to which they are specified):
 
     1) shear
     2) scale (zoom)
     3) rotation - yaw, roll & pitch
     4) translation
-
-    This order can be changed by calling spm_matrix with a string as a
-    second argument. This string may contain any valid MATLAB expression
-    that returns a 4x4 matrix after evaluation. The special characters 'S',
-    'Z', 'R', 'T' can be used to reference the transformations 1)-4)
-    above.
 
     Parameters
     ----------
@@ -80,8 +73,6 @@ def spm_matrix(p, order='T*R*Z*S'):
         p(9) - x shear
         p(10) - y shear
         p(11) - z shear
-    order: string optional (default 'T*R*Z*S')
-        application order of transformations.
 
     Returns
     -------
@@ -263,11 +254,10 @@ def nibabel2spm_affine(affine):
 
     """
 
-    assert affine.shape == (4, 4)
-
+    if affine.shape != (4, 4):
+        raise TypeError("Bad affine shape %s" % affine.shape)
     zero = [-1, -1, -1, 1]  # weird, huh ?
     affine[..., -1] = np.dot(affine, zero)
-
     return affine
 
 
@@ -297,22 +287,18 @@ def apply_realignment_to_vol(vol, q, inverse=True):
     Input is not modified.
 
     """
+    # misc
+    vol = check_niimg(vol)
+    # assert len(vol.shape) == 3, vol.shape
 
-    vol = load_vol(vol)
-
-    # convert realigment params to affine transformation
+    # convert realigment params to affine transformation matrix
     M_q = spm_matrix(q)
-
     if inverse:
         M_q = scipy.linalg.inv(M_q)
 
     # apply affine transformation
-    rvol = nibabel.Nifti1Image(vol.get_data(), np.dot(
-            M_q, vol.get_affine()))
-
-    rvol.get_data()
-
-    return rvol
+    return nibabel.Nifti1Image(vol.get_data(), np.dot(
+        M_q, vol.get_affine()))
 
 
 def apply_realignment(vols, rp, inverse=True):
@@ -344,21 +330,16 @@ def apply_realignment(vols, rp, inverse=True):
     """
 
     # get number of scans
-    _, n_scans = load_specific_vol(vols, 0)
-
-    if n_scans == 1:
-        vols = [load_specific_vol(vols, 0)[0]]
+    vols = load_vols(vols)
+    n_scans = len(vols)
 
     # sanitize rp
     rp = np.array(rp)
     if rp.ndim == 1:
         rp = np.array([rp] * n_scans)
 
-    rvols = [apply_realignment_to_vol(vol, rp[t], inverse=inverse)
-             for vol, t in zip(load_vols(vols),
-                               range(n_scans))]
-
-    return rvols if n_scans > 1 or isinstance(vols, list) else rvols[0]
+    return [apply_realignment_to_vol(vol, rp[t], inverse=inverse)
+            for t, vol in enumerate(vols)]
 
 
 def extract_realignment_params(ref_vol, vol):

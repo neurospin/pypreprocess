@@ -9,28 +9,20 @@
 import os
 import inspect
 from reporting.preproc_reporter import (
-    generate_stc_thumbnails,
-    generate_preproc_undergone_docstring
-    )
-
+    generate_preproc_undergone_docstring)
 from .external.joblib import Memory
-from .io_utils import (get_basenames,
-                       save_vols,
-                       load_specific_vol,
-                       load_4D_img,
-                       is_niimg
-                       )
+from .io_utils import get_basenames, save_vols, is_niimg, load_vols
 from .subject_data import SubjectData
 from .slice_timing import fMRISTC
 from .realign import MRIMotionCorrection
 from .kernel_smooth import smooth_image
 from .coreg import Coregister
+from .reslice import reslice_vols
 
 # output image prefices
 PREPROC_OUTPUT_IMAGE_PREFICES = {'STC': 'a',
                                  'MC': 'r',
-                                 'smoothing': 's'
-                                 }
+                                 'smoothing': 's'}
 
 
 def _do_subject_slice_timing(subject_data, ref_slice=0,
@@ -112,9 +104,9 @@ def _do_subject_realign(subject_data, reslice=True, register_to_mean=False,
 
 
 def _do_subject_coregister(
-    subject_data, coreg_func_to_anat=True, caching=True,
-    ext=None, write_output_images=2, func_basenames=None, func_prefix="",
-    anat_basename=None, anat_prefix="", report=True, verbose=True):
+        subject_data, coreg_func_to_anat=True, caching=True,
+        ext=None, write_output_images=2, func_basenames=None, func_prefix="",
+        anat_basename=None, anat_prefix="", report=True, verbose=True):
     ref_brain = 'func'
     src_brain = 'anat'
     ref = subject_data.func[0]
@@ -141,13 +133,12 @@ def _do_subject_coregister(
         for sess_func, sess_id in zip(subject_data.func, range(
                 subject_data.n_sessions)):
             coreg_func.append(runner(coreg.transform)(
-                    sess_func, output_dir=subject_data.tmp_output_dir if (
-                        write_output_images == 2) else None,
-                    basenames=func_basenames[sess_id] if coreg_func_to_anat
-                    else anat_basename, prefix=func_prefix
-                    ))
-            subject_data.func = coreg_func
-        src = load_specific_vol(subject_data.func[0], 0)[0]
+                sess_func, output_dir=subject_data.tmp_output_dir if (
+                    write_output_images == 2) else None,
+                basenames=func_basenames[sess_id] if coreg_func_to_anat
+                else anat_basename, prefix=func_prefix))
+        subject_data.func = coreg_func
+        src = load_vols(subject_data.func[0])[0]
     else:
         if anat_basename is None:
             anat_basename = get_basenames(subject_data.anat)
@@ -193,23 +184,12 @@ def _do_subject_smooth(subject_data, fwhm, prefix=None,
     return subject_data
 
 
-def do_subject_preproc(subject_data,
-                       caching=True,
-                       stc=False,
-                       ref_slice=0,
-                       interleaved=False,
-                       slice_order='ascending',
-                       realign=True,
-                       coregister=True,
-                       coreg_func_to_anat=True,
-                       cv_tc=True,
-                       fwhm=None,
-                       write_output_images=2,
-                       concat=False,
-                       report=True,
-                       parent_results_gallery=None,
-                       shutdown_reloaders=True
-                       ):
+def do_subject_preproc(
+        subject_data, caching=True, stc=False, ref_slice=0, interleaved=False,
+        slice_order='ascending', realign=True, coregister=True,
+        coreg_func_to_anat=True, cv_tc=True, fwhm=None, write_output_images=2,
+        concat=False, report=True, parent_results_gallery=None,
+        shutdown_reloaders=True, reslice=False):
     """
     API for preprocessing data from single subject (perhaps mutliple sessions)
 
@@ -265,6 +245,11 @@ def do_subject_preproc(subject_data,
         2: write output images after each stage/node of the preprocessing
            pipeline (similar to SPM)
 
+    reslice: bool, optional (default False)
+        If false, then output images will be resliced according to the
+        estimated transformations. Otherwise, only the headers are
+        modified.
+
     Returns
     -------
     dict of preproc output
@@ -293,13 +278,13 @@ def do_subject_preproc(subject_data,
     else:
         subject_data = SubjectData(**subject_data).sanitize()
 
-    n_sessions = len(subject_data.session_id)
+    n_sessions = len(subject_data.session_ids)
     coregister = coregister and not subject_data.anat is None
 
     # compute basenames of input images
     func_basenames = [get_basenames(subject_data.func[sess]) if not is_niimg(
             subject_data.func[sess]) else "%s.nii.gz" % (
-            subject_data.session_id[sess])
+            subject_data.session_ids[sess])
                     for sess in range(subject_data.n_sessions)]
     if coregister:
         anat_basename = get_basenames(subject_data.anat)
@@ -313,12 +298,7 @@ def do_subject_preproc(subject_data,
     func_prefix = ""
     anat_prefix = ""
 
-    # cast all images to niimg
-    subject_data.func = [load_4D_img(x) for x in subject_data.func]
-
-    # if 'anat' in output:
-    #     subject_data.anat = load_vol(subject_data.anat)
-
+    # prepare for reporting
     if report:
         # generate explanation of preproc steps undergone by subject
         preproc_undergone = generate_preproc_undergone_docstring(
@@ -382,21 +362,33 @@ def do_subject_preproc(subject_data,
             write_output_images=write_output_images,
             func_basenames=func_basenames, concat=concat)
 
-    # write final output images
-    if write_output_images == 1:
+    # reslice output images
+    if reslice:
+        _func = []
+        for sess in range(n_sessions):
+            subject_data.func[sess] = mem.cache(reslice_vols)(
+                subject_data.func[sess])
+            if write_output_images == 2:
+                _func.append(mem.cache(save_vols)(
+                    subject_data.func[sess],
+                    output_dir=subject_data.output_dir,
+                    basenames=func_basenames[sess], prefix=func_prefix,
+                    concat=concat))
+        if write_output_images == 2:
+            subject_data.func = _func
+    elif write_output_images == 1:
+        # write final output images
         print "Saving preprocessed images unto disk..."
         func_basenames = func_basenames[0] if (not isinstance(
                 func_basenames, basestring) and concat) else func_basenames
         _func = []
         for sess in range(n_sessions):
-            sess_func = subject_data.func[sess]
+            if reslice:
+                subject_data.func[sess] = reslice_vols(subject_data.func[sess])
             _func.append(mem.cache(save_vols)(
-                    sess_func,
-                    output_dir=subject_data.output_dir,
-                    basenames=func_basenames[sess],
-                    prefix=func_prefix,
-                    concat=concat
-                    ))
+                subject_data.func[sess], output_dir=subject_data.output_dir,
+                basenames=func_basenames[sess], prefix=func_prefix,
+                concat=concat))
         subject_data.func = _func
 
     # finalize

@@ -17,6 +17,8 @@ import nibabel
 from .external import joblib
 from nipype.interfaces.dcm2nii import Dcm2nii
 from nipype.caching import Memory
+from nilearn.image import iter_img
+from nilearn.image.image import check_niimg, check_niimg_4d
 
 DICOM_EXTENSIONS = [".dcm", ".ima", ".dicom"]
 
@@ -38,96 +40,35 @@ def is_niimg(img):
         return False
 
 
-def load_vol(x):
-    """
-    Loads a single 3D volume.
+def load_vols(niimgs):
+    """Loads a nifti image (or a bail of) into a list qof 3D volumes.
 
     Parameters
     ----------
-    x: string (existent filename) or nibabel image object
-        image to be loaded
+    niimgs: 3 or 4D Niimg-like object
+        If niimgs is an iterable, checks if data is really 4D. Then,
+        considering that it is a list of niimg and load them one by one.
+        If niimg is a string, consider it as a path to Nifti image and
+        call nibabel.load on it. If it is an object, check if get_data
+        and get_affine methods are present, raise an Exception otherwise.
 
     Returns
     -------
-    vol: nibabel image object
-
+    vols: list of nifti image objects
+        The loaded volumes.
     """
-
-    if isinstance(x, basestring):
-        vol = nibabel.load(x)
-    elif is_niimg(x):
-        vol = x
-    elif isinstance(x, list):
-        return load_vol(x[0])
+    try:
+        vols = check_niimg_4d(niimgs, return_iterator=True)
+    except TypeError:
+        vols = [check_niimg(niimgs)]
+    if is_niimg(vols):
+        if vols.shape[-1] == 1:
+            return [nibabel.Nifti1Image(vols.get_data()[:, :, :, 0],
+                                        vols.get_affine())]
+        else:
+            return list(iter_img(vols))
     else:
-        raise TypeError(
-            ("Each volume must be string or image object; got:"
-             " %s") % type(x))
-
-    if len(vol.shape) == 4:
-        if vol.shape[-1] == 1:
-            vol = nibabel.Nifti1Image(vol.get_data()[..., 0],
-                                      vol.get_affine())
-    elif len(vol.shape) > 4:
-        raise ValueError(
-            "Each volume must be 3D; got %iD" % len(vol.shape))
-    return vol
-
-
-def load_specific_vol(vols, t, strict=False):
-    """
-    Utility function for loading specific volume on demand.
-
-    Parameters
-    ----------
-    vols: string(s) or nibabel image object(s)
-        input volumes or single 4D film
-    t: int
-        index of requested volume in the film
-
-    """
-
-    if t < 0:
-        raise RuntimeError
-    if isinstance(vols, list):
-        n_scans = len(vols)
-        vol = load_vol(vols[t])
-    elif is_niimg(vols) or isinstance(vols, basestring):
-        _vols = nibabel.load(vols) if isinstance(vols, basestring) else vols
-        if len(_vols.shape) != 4:
-            if strict:
-                raise ValueError(
-                    "Expecting 4D image, got %iD" % len(_vols.shape))
-            else:
-                return _vols, 1
-
-        n_scans = _vols.shape[-1]
-        vol = nibabel.four_to_three(_vols)[t]
-    else:  # unhandled type
-        raise TypeError(
-            ("vols must be string, image object, or list of such; "
-             "got %s" % type(vols)))
-
-    # delete trivial dimension
-    if len(vol.shape) == 4:
-        vol = nibabel.Nifti1Image(vol.get_data()[..., ..., ..., 0],
-                                  vol.get_affine())
-
-    if not (is_niimg(vol) and is_3D(vol)):
-        raise RuntimeError
-    return vol, n_scans
-
-
-def load_vols(vols):
-    if isinstance(vols, list):
-        return [load_vol(vol) if isinstance(vol, basestring)
-                else vol for vol in vols]
-    elif isinstance(vols, basestring):
-        return nibabel.four_to_three(nibabel.load(vols))
-    elif is_niimg(vols):
-        return nibabel.four_to_three(vols)
-    else:
-        raise TypeError(type(vols))
+        return list(iter_img(list(vols)))
 
 
 def save_vols(vols, output_dir, basenames=None, affine=None,
@@ -262,10 +203,9 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
                     basenames, basestring) else basenames[t]
                 output_filename = os.path.join(output_dir,
                                                get_basenames("%s%s" % (
-                            prefix, basename), ext=ext))
+                                                   prefix, basename), ext=ext))
 
-            vol = load_vol(vol) if not is_niimg(vol) else vol
-
+            vol = check_niimg(vol)
             nibabel.save(vol, output_filename)
 
             # update rvols and filenames
@@ -298,7 +238,7 @@ def save_vol(vol, output_filename=None, output_dir=None, basename=None,
 
     # delegate to legacy save_vols
     return save_vols([vol], output_dir, basenames=basename,
-                      concat=False, **kwargs)[0]
+                     concat=concat, **kwargs)[0]
 
 
 def is_3D(image):
@@ -654,50 +594,6 @@ def get_basenames(x, ext=None):
         return None
 
 
-def load_4D_img(img):
-    """
-    Loads a single 4D image or list of 3D images into a single 4D niimg.
-
-    Parameters
-    ----------
-    img: string, list of strings, nibabel image object, or list of
-    nibabel image objects.
-        image(s) to load
-
-    Returns
-    -------
-    4D nibabel image object
-
-    """
-
-    if isinstance(img, basestring):
-        img = nibabel.load(img)
-    elif isinstance(img, list):
-        img = nibabel.concat_images(img, check_affines=False)
-    elif isinstance(img, tuple):
-        if len(img) != 2:
-            raise RuntimeError
-        img = nibabel.Nifti1Image(*img)
-    else:
-        if not is_niimg(img):
-            raise RuntimeError
-    if len(img.shape) <= 3:
-        raise RuntimeError
-
-    if len(img.shape) > 4:
-        if len(img.shape) != 5:
-            raise RuntimeError
-        if img.shape[-1] == 1:
-            img = nibabel.Nifti1Image(img.get_data()[..., 0],
-                                      img.get_affine())
-        else:
-            if img.shape[3] != 1:
-                raise RuntimeError
-            img = nibabel.Nifti1Image(img.get_data()[..., 0, ...],
-                                      img.get_affine())
-    return img
-
-
 def loaduint8(img, log=None):
     """Load data from file indicated by V into array of unsigned bytes.
 
@@ -727,7 +623,7 @@ def loaduint8(img, log=None):
     _progress_bar("Loading %s..." % img)
 
     # load volume into memory
-    img = load_specific_vol(img, 0)[0]
+    img = load_vols(img)[0]
     vol = img.get_data()
 
     # if isinstance(img, np.ndarray) or isinstance(img, list):
