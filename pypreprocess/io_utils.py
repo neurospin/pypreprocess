@@ -264,13 +264,13 @@ def is_4D(image):
     return len(image.shape) == 4
 
 
-def get_vox_dims(volume):
+def get_vox_dims(niimg):
     """
     Infer voxel dimensions of a nifti image.
 
     Parameters
     ----------
-    volume: string or nibabel image object
+    volume: string or nibabel image object, or list of
         input image whose voxel dimensions are to be computed
 
     Returns
@@ -278,17 +278,8 @@ def get_vox_dims(volume):
     list of three floats
 
     """
-
-    if isinstance(volume, basestring) or is_niimg(volume):
-        niimg = nibabel.load(volume) if isinstance(
-            volume, basestring) else volume
-
-        return [float(j) for j in niimg.get_header().get_zooms()[:3]]
-    elif isinstance(volume, list):
-        return get_vox_dims(volume[0])
-    else:
-        raise TypeError(
-            "Input must be string or niimg object, got %s" % type(volume))
+    niimg = load_vols(niimg)[0]
+    return [float(j) for j in niimg.get_header().get_zooms()[:3]]
 
 
 def delete_orientation(imgs, output_dir, output_tag=''):

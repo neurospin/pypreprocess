@@ -149,8 +149,8 @@ class MRIMotionCorrection(object):
     """
 
     def __init__(self, sep=4, interp=3, fwhm=5., quality=.9, tol=1e-8,
-                 lkp=[0, 1, 2, 3, 4, 5], verbose=1, n_iterations=64,
-                 n_sessions=1):
+                 lkp=None, verbose=1, n_iterations=64, n_sessions=1):
+        lkp = [0, 1, 2, 3, 4, 5] if lkp is None else lkp
         self.sep = sep
         self.interp = interp
         self.fwhm = fwhm
