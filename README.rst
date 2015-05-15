@@ -39,7 +39,7 @@ Dependencies
 * nipype >= 0.8.0
 * nipy >= 0.3.0	
 * configobj >= 5.0.6
-* nilearn >= 0.1.1
+* nilearn >= 0.1.3
 
 
 Installation
