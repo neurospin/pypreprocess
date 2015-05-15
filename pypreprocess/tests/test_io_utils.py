@@ -4,7 +4,7 @@ import inspect
 import numpy as np
 from nose.tools import assert_equal, assert_true, assert_false
 import nibabel
-from nilearn.image.image import check_niimgs
+from nilearn.image.image import check_niimg_4d
 from ..io_utils import (
     do_3Dto4D_merge, load_vols, save_vols, save_vol, hard_link,
     get_basename, get_basenames, is_niimg, is_4D, is_3D, get_vox_dims,
@@ -98,7 +98,7 @@ def test_save_vols():
                     assert_true(isinstance(saved_vols_filenames, basestring))
                     assert_true(saved_vols_filenames.endswith('.nii.gz'),
                                 msg=saved_vols_filenames)
-                    assert_true(is_4D(check_niimgs(
+                    assert_true(is_4D(check_niimg_4d(
                                 saved_vols_filenames)))
 
 

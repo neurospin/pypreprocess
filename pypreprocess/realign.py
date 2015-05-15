@@ -10,7 +10,6 @@ import numpy as np
 import scipy.ndimage as ndimage
 import scipy.linalg
 import nibabel
-from nilearn.image.image import check_niimg, check_niimgs
 from .kernel_smooth import smooth_image
 from .affine_transformations import (
     get_initial_motion_params, transform_coords, apply_realignment_to_vol,
@@ -210,14 +209,13 @@ class MRIMotionCorrection(object):
             affine_correction = np.eye(4)
 
         # load first vol
-        vols = list(check_niimgs(vols, return_iterator=True))
+        vols = load_vols(vols)
         n_scans = len(vols)
         vol_0 = vols[0]
 
         # single vol ?
         if n_scans < 2:
-            return np.array(
-                [get_initial_motion_params()])
+            return np.array([get_initial_motion_params()])
 
         # affine correction
         vol_0 = nibabel.Nifti1Image(
@@ -467,7 +465,7 @@ class MRIMotionCorrection(object):
                 self.vols_[sess] = load_vols(self.vols_[sess])
             except ValueError:
                 pass
-            vol_0 = check_niimg(self.vols_[sess][0])
+            vol_0 = self.vols_[sess][0]
             n_scans = len(self.vols_[sess])
             first_vols.append(vol_0)
             n_scans_list.append(n_scans)

@@ -10,7 +10,6 @@ import os
 import inspect
 from reporting.preproc_reporter import (
     generate_preproc_undergone_docstring)
-from nilearn.image.image import check_niimgs
 from .external.joblib import Memory
 from .io_utils import get_basenames, save_vols, is_niimg, load_vols
 from .subject_data import SubjectData
@@ -299,9 +298,7 @@ def do_subject_preproc(
     func_prefix = ""
     anat_prefix = ""
 
-    # # cast all images to niimg
-    # subject_data.func = [check_niimgs(x) for x in subject_data.func]
-
+    # prepare for reporting
     if report:
         # generate explanation of preproc steps undergone by subject
         preproc_undergone = generate_preproc_undergone_docstring(

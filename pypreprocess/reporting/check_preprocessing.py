@@ -12,9 +12,9 @@ import numpy as np
 import pylab as pl
 import nibabel
 from nilearn.plotting import plot_img, plot_stat_map
-from nilearn.image import reorder_img, mean_img, index_img
+from nilearn.image import reorder_img, mean_img
+from nilearn.image.image import check_niimg_4d
 from ..external import joblib
-from nilearn.image.image import check_niimgs
 from ..io_utils import load_vols, is_niimg
 EPS = np.finfo(float).eps
 
@@ -100,7 +100,7 @@ def plot_cv_tc(epi_imgs, session_ids, subject_id,
     lengths = []
     cv_tc = []
     for session_id, fmri_file in zip(session_ids, epi_imgs):
-        nim = check_niimgs(fmri_file)
+        nim = check_niimg_4d(fmri_file)
         affine = nim.get_affine()
         if len(nim.shape) == 4:
             data = nim.get_data()

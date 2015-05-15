@@ -17,8 +17,8 @@ import nibabel
 from .external import joblib
 from nipype.interfaces.dcm2nii import Dcm2nii
 from nipype.caching import Memory
-from nilearn.image import iter_img, index_img
-from nilearn.image.image import check_niimg, check_niimgs
+from nilearn.image import iter_img
+from nilearn.image.image import check_niimg, check_niimg_4d
 
 DICOM_EXTENSIONS = [".dcm", ".ima", ".dicom"]
 
@@ -57,7 +57,10 @@ def load_vols(niimgs):
     vols: list of nifti image objects
         The loaded volumes.
     """
-    vols = check_niimgs(niimgs, return_iterator=True, accept_3d=True)
+    try:
+        vols = check_niimg_4d(niimgs, return_iterator=True)
+    except TypeError:
+        vols = [check_niimg(niimgs)]
     if is_niimg(vols):
         if vols.shape[-1] == 1:
             return [nibabel.Nifti1Image(vols.get_data()[:, :, :, 0],
