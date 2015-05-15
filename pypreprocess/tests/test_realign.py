@@ -1,26 +1,13 @@
-"""
-XXX only use nosetests command-line tool to run this test module!
-
-"""
-
 import os
 import inspect
 import numpy as np
-import nibabel
 import scipy.io
-import nose
-import nose.tools
-import numpy.testing
-
-# import the APIs to be tested
-from ..io_utils import load_specific_vol
-from ..realign import (_compute_rate_of_change_of_chisq,
-                       MRIMotionCorrection
-                       )
-from ..affine_transformations import (apply_realignment,
-                                      extract_realignment_params,
-                                      get_initial_motion_params
-                                      )
+from nose.tools import assert_true, nottest
+import nibabel
+from nilearn.image import index_img
+from ..realign import _compute_rate_of_change_of_chisq, MRIMotionCorrection
+from ..affine_transformations import (
+    apply_realignment, extract_realignment_params, get_initial_motion_params)
 from ._test_utils import create_random_image
 
 # global setup
@@ -124,8 +111,8 @@ def test_compute_rate_of_change_of_chisq():
     A = _compute_rate_of_change_of_chisq(M, grid, gradG, lkp=lkp)
 
     # compare A with true_A (from spm implementation)
-    numpy.testing.assert_array_almost_equal(A, true_A,
-                                            decimal=decimal_precision)
+    np.testing.assert_array_almost_equal(A, true_A,
+                                         decimal=decimal_precision)
 
 
 def test_appy_realigment_and_extract_realignment_params_APIs():
@@ -143,10 +130,9 @@ def test_appy_realigment_and_extract_realignment_params_APIs():
 
     # there should be no motion
     for t in range(n_scans):
-        numpy.testing.assert_array_equal(extract_realignment_params(
-                load_specific_vol(film, t)[0],
-                load_specific_vol(film, 0)[0]),
-                                      get_initial_motion_params())
+        np.testing.assert_array_equal(
+            extract_realignment_params(index_img(film, t), index_img(film, 0)),
+            get_initial_motion_params())
 
     # now introduce motion into other vols relative to the first vol
     rp = np.ndarray((n_scans, 12))
@@ -156,7 +142,7 @@ def test_appy_realigment_and_extract_realignment_params_APIs():
         rp[t, 3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
 
     # apply motion (noise)
-    film = list(apply_realignment(film, rp))
+    film = apply_realignment(film, rp)[0]
 
     # check that motion has been induced
     for t in range(n_scans):
@@ -164,10 +150,9 @@ def test_appy_realigment_and_extract_realignment_params_APIs():
         _tmp[:3] += _make_vol_specific_translation(translation, n_scans, t)
         _tmp[3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
 
-        numpy.testing.assert_array_almost_equal(extract_realignment_params(
-                load_specific_vol(film, t)[0],
-                load_specific_vol(film, 0)[0]),
-                                             _tmp)
+        np.testing.assert_array_almost_equal(
+            extract_realignment_params(index_img(film, t), index_img(film, 0)),
+            _tmp)
 
 
 def test_MRIMotionCorrection_fit():
@@ -199,15 +184,14 @@ def test_MRIMotionCorrection_fit():
             translation, n_scans, t)
         rp[t, ...][3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
 
-    film = list(apply_realignment(film, rp))
+    film = apply_realignment(film, rp)
 
     # instantiate object
     mrimc = MRIMotionCorrection(quality=1., lkp=lkp).fit([film])
 
     # check shape of realignment params
-    numpy.testing.assert_array_equal(np.array(
-            mrimc.realignment_parameters_).shape,
-                                     [1] + [n_scans, 6])
+    np.testing.assert_array_equal(np.array(
+        mrimc.realignment_parameters_).shape, [1] + [n_scans, 6])
 
     # check that we estimated the correct motion params
     # XXX refine the notion of "closeness" below
@@ -218,11 +202,11 @@ def test_MRIMotionCorrection_fit():
         _tmp[:3] += _make_vol_specific_translation(translation, n_scans, t)
         _tmp[3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
         if t > 0:
-            numpy.testing.assert_allclose(
+            np.testing.assert_allclose(
                 mrimc.realignment_parameters_[0][t][lkp],
                 _tmp[lkp], rtol=MAX_RE)
         else:
-            numpy.testing.assert_array_equal(
+            np.testing.assert_array_equal(
                 mrimc.realignment_parameters_[0][t],
                 get_initial_motion_params()[:6])
 
@@ -230,13 +214,13 @@ def test_MRIMotionCorrection_fit():
     # check transform
     ####################
     mrimc_output = mrimc.transform(output_dir)
+    assert_true(isinstance(mrimc_output['realigned_images'], basestring))
 
-    nose.tools.assert_true(mrimc_output['realigned_images'], basestring)
 
-
+@nottest
 def test_bug_fix_issue_36_on_realign():
-    from pypreprocess.datasets import fetch_spm_auditory_data
-    sd = fetch_spm_auditory_data("/tmp/spm_auditory/")
+    from pypreprocess.datasets import fetch_spm_auditory
+    sd = fetch_spm_auditory("/tmp/spm_auditory/")
 
     # shouldn't throw an IndexError
     MRIMotionCorrection(n_sessions=8, quality=1.).fit(

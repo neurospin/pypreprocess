@@ -5,24 +5,18 @@
 
 """
 
-import nibabel
 import os
 import numpy as np
-import scipy.ndimage as sndi
+import scipy.ndimage as ndimage
 import scipy.linalg
+import nibabel
+from nilearn.image.image import check_niimg, check_niimgs
 from .kernel_smooth import smooth_image
-from .affine_transformations import (get_initial_motion_params,
-                                     transform_coords,
-                                     apply_realignment_to_vol,
-                                     apply_realignment
-                                     )
+from .affine_transformations import (
+    get_initial_motion_params, transform_coords, apply_realignment_to_vol,
+    apply_realignment)
 from .reslice import reslice_vols
-from .io_utils import (load_specific_vol,
-                       save_vol,
-                       save_vols,
-                       get_basenames,
-                       is_niimg
-                       )
+from .io_utils import save_vol, save_vols, get_basenames, is_niimg, load_vols
 
 # useful constants
 INFINITY = np.inf
@@ -63,8 +57,7 @@ def _compute_rate_of_change_of_chisq(M, coords, gradG, lkp=range(6)):
 
         # map cartesian coordinate space according to motion
         # parameters pt (using jacobian associated with the transformation)
-        transformed_coords  = transform_coords(pt, M, M,
-                                                                      coords)
+        transformed_coords  = transform_coords(pt, M, M, coords)
 
         # compute change in cartesian coordinates as a result of change in
         # motion parameters
@@ -157,11 +150,8 @@ class MRIMotionCorrection(object):
     """
 
     def __init__(self, sep=4, interp=3, fwhm=5., quality=.9, tol=1e-8,
-                 lkp=[0, 1, 2, 3, 4, 5], verbose=1,
-                 n_iterations=64,
-                 n_sessions=1
-                 ):
-
+                 lkp=[0, 1, 2, 3, 4, 5], verbose=1, n_iterations=64,
+                 n_sessions=1):
         self.sep = sep
         self.interp = interp
         self.fwhm = fwhm
@@ -220,7 +210,9 @@ class MRIMotionCorrection(object):
             affine_correction = np.eye(4)
 
         # load first vol
-        vol_0, n_scans = load_specific_vol(vols, 0)
+        vols = list(check_niimgs(vols, return_iterator=True))
+        n_scans = len(vols)
+        vol_0 = vols[0]
 
         # single vol ?
         if n_scans < 2:
@@ -228,9 +220,8 @@ class MRIMotionCorrection(object):
                 [get_initial_motion_params()])
 
         # affine correction
-        vol_0 = nibabel.Nifti1Image(vol_0.get_data(),
-                                    np.dot(affine_correction,
-                                           vol_0.get_affine()))
+        vol_0 = nibabel.Nifti1Image(
+            vol_0.get_data(), np.dot(affine_correction, vol_0.get_affine()))
 
         # voxel dimensions on the working grid
         skip = np.sqrt(np.sum(vol_0.get_affine()[:3, :3] ** 2, axis=0)
@@ -243,22 +234,21 @@ class MRIMotionCorrection(object):
                               0:dim[2] - .5 - 1:skip[2]].reshape((3, -1))
 
         # smooth 0th volume to absorb noise before differentiating
-        sref_vol = smooth_image(vol_0,
-                                              self.fwhm).get_data()
+        sref_vol = smooth_image(vol_0, self.fwhm).get_data()
 
         # resample the smoothed reference volume unto doped working grid
-        G = sndi.map_coordinates(sref_vol, [x1, x2, x3], order=self.interp,
+        G = ndimage.map_coordinates(sref_vol, [x1, x2, x3], order=self.interp,
                                  mode='wrap',).reshape(x1.shape)
 
         # compute gradient of reference volume
         Gx, Gy, Gz = np.gradient(sref_vol)
 
         # resample gradient unto working grid
-        Gx = sndi.map_coordinates(Gx, [x1, x2, x3], order=self.interp,
+        Gx = ndimage.map_coordinates(Gx, [x1, x2, x3], order=self.interp,
                                   mode='wrap',).reshape(x1.shape)
-        Gy = sndi.map_coordinates(Gy, [x1, x2, x3], order=self.interp,
+        Gy = ndimage.map_coordinates(Gy, [x1, x2, x3], order=self.interp,
                                   mode='wrap',).reshape(x1.shape)
-        Gz = sndi.map_coordinates(Gz, [x1, x2, x3], order=self.interp,
+        Gz = ndimage.map_coordinates(Gz, [x1, x2, x3], order=self.interp,
                                   mode='wrap',).reshape(x1.shape)
 
         # compute rate of change of chi2 w.r.t. parameters
@@ -323,7 +313,7 @@ class MRIMotionCorrection(object):
                     t + 1, n_scans))
 
             # load volume t
-            vol, _ = load_specific_vol(vols, t)
+            vol = vols[t]
             vol = nibabel.Nifti1Image(vol.get_data(),
                                       np.dot(affine_correction,
                                              vol.get_affine()))
@@ -344,6 +334,7 @@ class MRIMotionCorrection(object):
             dim = dim[:3]
             ss = INFINITY
             countdown = -1
+            iteration = None
             for iteration in range(self.n_iterations):
                 # starting point
                 q = get_initial_motion_params()
@@ -364,11 +355,11 @@ class MRIMotionCorrection(object):
                     raise RuntimeError(
                         ("Almost all voxels have fallen out of the FOV. Only "
                          "%i voxels survived. Registration can't work." % len(
-                                msk)))
+                             msk)))
 
                 # warp: resample volume t on this new grid
-                F = sndi.map_coordinates(V, [y1[msk], y2[msk], y3[msk]],
-                                         order=self.interp, mode='wrap')
+                F = ndimage.map_coordinates(V, [y1[msk], y2[msk], y3[msk]],
+                                            order=self.interp, mode='wrap')
 
                 # formulate and solve LS problem for updating p
                 A = A0[msk, ...].copy()
@@ -453,7 +444,7 @@ class MRIMotionCorrection(object):
 
         # sanitize vols and n_sessions
         if isinstance(vols, basestring) or isinstance(
-            vols, nibabel.Nifti1Image):
+                vols, nibabel.Nifti1Image):
             vols = [vols]
         if len(vols) != self.n_sessions:
             raise RuntimeError(
@@ -461,12 +452,23 @@ class MRIMotionCorrection(object):
                 % (len(vols), self.n_sessions))
 
         self.vols_ = vols
+        self.vols = [vols] if isinstance(vols, basestring) else list(vols)
+        if len(self.vols) != self.n_sessions:
+            if self.n_sessions == 1:
+                self.vols = [self.vols]
+            else:
+                raise ValueError
 
         # load first vol of each session
         first_vols = []
         n_scans_list = []
         for sess in range(self.n_sessions):
-            vol_0, n_scans = load_specific_vol(self.vols_[sess], 0)
+            try:
+                self.vols_[sess] = load_vols(self.vols_[sess])
+            except ValueError:
+                pass
+            vol_0 = check_niimg(self.vols_[sess][0])
+            n_scans = len(self.vols_[sess])
             first_vols.append(vol_0)
             n_scans_list.append(n_scans)
         self.n_scans_list = n_scans_list
@@ -482,11 +484,8 @@ class MRIMotionCorrection(object):
             quality=1.  # only a few vols, we can thus allow this lux
             )
 
-        rfirst_vols = apply_realignment(
-            first_vols,
-            self.first_vols_realignment_parameters_,
-            inverse=False
-            )
+        rfirst_vols = apply_realignment(first_vols,
+            self.first_vols_realignment_parameters_, inverse=False)
 
         if self.n_sessions > 1:
             self._log('...done (inter-session registration).\r\n')
@@ -501,7 +500,7 @@ class MRIMotionCorrection(object):
             # affine correction, for inter-session realignment
             affine_correction = np.dot(rfirst_vols[sess].get_affine(),
                                   scipy.linalg.inv(
-                    rfirst_vols[0].get_affine()))
+                                      rfirst_vols[0].get_affine()))
 
             sess_rp = self._single_session_fit(
                 self.vols_[sess],
@@ -558,10 +557,8 @@ class MRIMotionCorrection(object):
                 full paths of the realigned files
 
             realignment_parameters_: string
-                full path of text file containing realignment parameters
-
+                full patsh of text file containing realignment parameters
         """
-
         # make sure object has been fitted
         if not hasattr(self, 'realignment_parameters_'):
             raise RuntimeError("fit(...) method not yet invoked.")
@@ -571,15 +568,14 @@ class MRIMotionCorrection(object):
 
         # output dict
         output = {"realigned_images": [],
-                  "realignment_parameters": self.realignment_parameters_ if \
-                      output_dir is None else []
-                  }
+                  "realignment_parameters": self.realignment_parameters_
+                  if output_dir is None else []}
 
         for sess in range(self.n_sessions):
             concat_sess = concat
             if (isinstance(self.vols_[sess], basestring) or is_niimg(
-                self.vols_[sess])) and reslice:
-                    concat_sess = True
+                    self.vols_[sess])) and reslice:
+                concat_sess = True
 
             n_scans = len(self.realignment_parameters_[sess])
             sess_realigned_files = []
@@ -609,15 +605,15 @@ class MRIMotionCorrection(object):
                 # make basenames for output files
                 sess_basenames = None
                 if basenames is None:
-                    if isinstance(self.vols_[sess], basestring):
-                        sess_basenames = get_basenames(self.vols_[sess],
+                    if isinstance(self.vols[sess], basestring):
+                        sess_basenames = get_basenames(self.vols[sess],
                                                        ext=ext)
-                    elif isinstance(self.vols_[sess], list):
-                        if isinstance(self.vols_[sess][0], basestring):
-                            sess_basenames = get_basenames(self.vols_[sess],
+                    elif isinstance(self.vols[sess], list):
+                        if isinstance(self.vols[sess][0], basestring):
+                            sess_basenames = get_basenames(self.vols[sess],
                                                            ext=ext)
                     else:
-                        if not isinstance(self.vols_, list) or concat:
+                        if not isinstance(self.vols, list) or concat:
                             sess_basenames = "vols"
 
                         else:
@@ -634,9 +630,7 @@ class MRIMotionCorrection(object):
                         output_dir,
                         basenames=sess_basenames if isinstance(
                             sess_basenames, basestring)
-                        else sess_basenames[0],
-                        concat=concat_sess,
-                        ext=ext,
+                        else sess_basenames[0], concat=concat_sess, ext=ext,
                         prefix=prefix)
                 else:
                     sess_realigned_files = [save_vol(

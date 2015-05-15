@@ -12,8 +12,8 @@ References
 import numpy as np
 import scipy.linalg
 import nibabel
-from nilearn.image.image import check_niimg, check_niimgs
-from nilearn.image import iter_img
+from nilearn.image.image import check_niimg
+from .io_utils import load_vols
 
 # house-hold convenience naming
 MOTION_PARAMS_NAMES = {0x0: 'Tx',
@@ -33,15 +33,13 @@ MOTION_PARAMS_NAMES = {0x0: 'Tx',
 
 def get_initial_motion_params():
     """Returns an array of length 12 (3 translations, 3 rotations, 3 zooms,
-    and 3 shears) corresponding to the identity orthogonal transformation
-    eye(4). Thus this is precisely made of: no zeto translation, zero rotation,
+    and 3 shears) corresponding to the identity transformation eye(4).
+
+    Thus this is precisely made of: no zeto translation, zero rotation,
     a unit zoom of in each coordinate direction, and zero shear.
-
     """
-
-    p = np.zeros(12)  # zero everything
-    p[6:9] = 1.  # but unit zoom
-
+    p = np.zeros(12)
+    p[6:9] = 1.
     return p
 
 
@@ -289,22 +287,18 @@ def apply_realignment_to_vol(vol, q, inverse=True):
     Input is not modified.
 
     """
-
+    # misc
     vol = check_niimg(vol)
+    # assert len(vol.shape) == 3, vol.shape
 
-    # convert realigment params to affine transformation
+    # convert realigment params to affine transformation matrix
     M_q = spm_matrix(q)
-
     if inverse:
         M_q = scipy.linalg.inv(M_q)
 
     # apply affine transformation
-    rvol = nibabel.Nifti1Image(vol.get_data(), np.dot(
-            M_q, vol.get_affine()))
-
-    rvol.get_data()
-
-    return rvol
+    return nibabel.Nifti1Image(vol.get_data(), np.dot(
+        M_q, vol.get_affine()))
 
 
 def apply_realignment(vols, rp, inverse=True):
@@ -336,22 +330,16 @@ def apply_realignment(vols, rp, inverse=True):
     """
 
     # get number of scans
-    try:
-        vols = check_niimgs(vols)
-        n_scans = vols.shape[-1]
-    except TypeError:
-        vols = [check_niimg(vols)]
-        n_scans = 1
+    vols = load_vols(vols)
+    n_scans = len(vols)
 
     # sanitize rp
     rp = np.array(rp)
     if rp.ndim == 1:
         rp = np.array([rp] * n_scans)
 
-    rvols = [apply_realignment_to_vol(vol, rp[t], inverse=inverse)
-             for vol, t in zip(iter_img(vols), range(n_scans))]
-
-    return rvols if n_scans > 1 or isinstance(vols, list) else rvols[0]
+    return [apply_realignment_to_vol(vol, rp[t], inverse=inverse)
+            for t, vol in enumerate(vols)]
 
 
 def extract_realignment_params(ref_vol, vol):

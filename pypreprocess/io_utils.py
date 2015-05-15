@@ -18,7 +18,7 @@ from .external import joblib
 from nipype.interfaces.dcm2nii import Dcm2nii
 from nipype.caching import Memory
 from nilearn.image import iter_img, index_img
-from nilearn.image.image import check_niimg
+from nilearn.image.image import check_niimg, check_niimgs
 
 DICOM_EXTENSIONS = [".dcm", ".ima", ".dicom"]
 
@@ -40,8 +40,32 @@ def is_niimg(img):
         return False
 
 
-def load_vols(vols):
-    return list(iter_img(vols))
+def load_vols(niimgs):
+    """Loads a nifti image (or a bail of) into a list qof 3D volumes.
+
+    Parameters
+    ----------
+    niimgs: 3 or 4D Niimg-like object
+        If niimgs is an iterable, checks if data is really 4D. Then,
+        considering that it is a list of niimg and load them one by one.
+        If niimg is a string, consider it as a path to Nifti image and
+        call nibabel.load on it. If it is an object, check if get_data
+        and get_affine methods are present, raise an Exception otherwise.
+
+    Returns
+    -------
+    vols: list of nifti image objects
+        The loaded volumes.
+    """
+    vols = check_niimgs(niimgs, return_iterator=True, accept_3d=True)
+    if is_niimg(vols):
+        if vols.shape[-1] == 1:
+            return [nibabel.Nifti1Image(vols.get_data()[:, :, :, 0],
+                                        vols.get_affine())]
+        else:
+            return list(iter_img(vols))
+    else:
+        return list(iter_img(list(vols)))
 
 
 def save_vols(vols, output_dir, basenames=None, affine=None,
@@ -567,50 +591,6 @@ def get_basenames(x, ext=None):
         return None
 
 
-def load_4D_img(img):
-    """
-    Loads a single 4D image or list of 3D images into a single 4D niimg.
-
-    Parameters
-    ----------
-    img: string, list of strings, nibabel image object, or list of
-    nibabel image objects.
-        image(s) to load
-
-    Returns
-    -------
-    4D nibabel image object
-
-    """
-
-    if isinstance(img, basestring):
-        img = nibabel.load(img)
-    elif isinstance(img, list):
-        img = nibabel.concat_images(img, check_affines=False)
-    elif isinstance(img, tuple):
-        if len(img) != 2:
-            raise RuntimeError
-        img = nibabel.Nifti1Image(*img)
-    else:
-        if not is_niimg(img):
-            raise RuntimeError
-    if len(img.shape) <= 3:
-        raise RuntimeError
-
-    if len(img.shape) > 4:
-        if len(img.shape) != 5:
-            raise RuntimeError
-        if img.shape[-1] == 1:
-            img = nibabel.Nifti1Image(img.get_data()[..., 0],
-                                      img.get_affine())
-        else:
-            if img.shape[3] != 1:
-                raise RuntimeError
-            img = nibabel.Nifti1Image(img.get_data()[..., 0, ...],
-                                      img.get_affine())
-    return img
-
-
 def loaduint8(img, log=None):
     """Load data from file indicated by V into array of unsigned bytes.
 
@@ -640,7 +620,7 @@ def loaduint8(img, log=None):
     _progress_bar("Loading %s..." % img)
 
     # load volume into memory
-    img = index_img(img, 0)
+    img = load_vols(img)[0]
     vol = img.get_data()
 
     # if isinstance(img, np.ndarray) or isinstance(img, list):

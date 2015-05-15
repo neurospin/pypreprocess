@@ -12,11 +12,18 @@ import numpy as np
 import pylab as pl
 import nibabel
 from nilearn.plotting import plot_img, plot_stat_map
-from nilearn.image import reorder_img, mean_img
+from nilearn.image import reorder_img, mean_img, index_img
 from ..external import joblib
-from nilearn.image import index_img
-
+from nilearn.image.image import check_niimgs
+from ..io_utils import load_vols, is_niimg
 EPS = np.finfo(float).eps
+
+
+def _just_one_vol(stuff):
+    """Load just one volume from a nasty pile."""
+    if not (isinstance(stuff, basestring) or is_niimg(stuff)):
+        stuff = load_vols(stuff[0])[0]
+    return stuff
 
 
 def plot_spm_motion_parameters(parameter_file, title=None,
@@ -93,7 +100,7 @@ def plot_cv_tc(epi_imgs, session_ids, subject_id,
     lengths = []
     cv_tc = []
     for session_id, fmri_file in zip(session_ids, epi_imgs):
-        nim = load_4D_img(fmri_file)
+        nim = check_niimgs(fmri_file)
         affine = nim.get_affine()
         if len(nim.shape) == 4:
             data = nim.get_data()
@@ -169,10 +176,12 @@ def plot_registration(reference_img, coregistered_img,
         path where plot will be stored
 
     """
-
     # sanity
     if cmap is None:
         cmap = pl.cm.gray  # registration QA always gray cmap!
+
+    reference_img = _just_one_vol(reference_img)
+    coregistered_img = _just_one_vol(coregistered_img)
 
     if cut_coords is None:
         cut_coords = (-10, -28, 17)
@@ -180,19 +189,11 @@ def plot_registration(reference_img, coregistered_img,
     if display_mode in ['x', 'y', 'z']:
         cut_coords = (cut_coords['xyz'.index(display_mode)],)
 
-    # plot the coregistered image
-    if hasattr(coregistered_img, '__len__'):
-        coregistered_img = index_img(coregistered_img, 0)
-
     # XXX nilearn complains about rotations in affine, etc.
     coregistered_img = reorder_img(coregistered_img, resample="continuous")
 
     _slicer = plot_img(coregistered_img, cmap=cmap, cut_coords=cut_coords,
               display_mode=display_mode, black_bg=False)
-
-    # overlap the reference image
-    if hasattr(reference_img, '__len__'):
-        reference_img = index_img(reference_img, 0)
 
     # XXX nilearn complains about rotations in affine, etc.
     reference_img = reorder_img(reference_img, resample="continuous")
@@ -205,9 +206,7 @@ def plot_registration(reference_img, coregistered_img,
     if not output_filename is None:
         try:
             pl.savefig(output_filename, dpi=200, bbox_inches='tight',
-                       facecolor="k",
-                       edgecolor="k"
-                       )
+                       facecolor="k", edgecolor="k")
             pl.close()
         except AttributeError:
             # XXX TODO: handle this case!!

@@ -1,29 +1,15 @@
-import numpy as np
-import numpy.testing
-import nibabel
 import os
 import tempfile
 import inspect
+import numpy as np
 from nose.tools import assert_equal, assert_true, assert_false
-
-# import the APIIS to be tested
+import nibabel
+from nilearn.image.image import check_niimgs
 from ..io_utils import (
-    do_3Dto4D_merge,
-    save_vols,
-    save_vol,
-    hard_link,
-    get_basename,
-    get_basenames,
-    load_4D_img,
-    is_niimg,
-    is_4D, is_3D,
-    get_vox_dims,
-    niigz2nii,
-    _expand_path,
-    isdicom,
-    get_shape,
-    get_relative_path
-    )
+    do_3Dto4D_merge, load_vols, save_vols, save_vol, hard_link,
+    get_basename, get_basenames, is_niimg, is_4D, is_3D, get_vox_dims,
+    niigz2nii, _expand_path, isdicom, get_shape, get_relative_path,
+    loaduint8)
 
 # global setup
 this_file = os.path.basename(os.path.abspath(__file__)).split('.')[0]
@@ -31,10 +17,7 @@ OUTPUT_DIR = "/tmp/%s" % this_file
 IMAGE_EXTENSIONS = [".nii", ".nii.gz", ".img"]
 
 
-def create_random_image(shape=None,
-                        ndim=3,
-                        n_scans=None,
-                        affine=np.eye(4),
+def create_random_image(shape=None, ndim=3, n_scans=None, affine=np.eye(4),
                         parent_class=nibabel.Nifti1Image):
     """
     Creates a random image of prescribed shape
@@ -115,7 +98,7 @@ def test_save_vols():
                     assert_true(isinstance(saved_vols_filenames, basestring))
                     assert_true(saved_vols_filenames.endswith('.nii.gz'),
                                 msg=saved_vols_filenames)
-                    assert_true(is_4D(load_4D_img(
+                    assert_true(is_4D(check_niimgs(
                                 saved_vols_filenames)))
 
 
@@ -224,60 +207,23 @@ def test_hardlink():
 
 def test_get_basename():
     assert_equal(get_basename("/tmp/toto/titi.nii.gz", ext=".img"),
-                              "titi.img")
+                 "titi.img")
     assert_equal(get_basename("/tmp/toto/titi.nii.gz"),
-                              "titi.nii.gz")
+                 "titi.nii.gz")
 
     assert_equal(get_basename("/tmp/toto/titi.nii", ext=".img"),
-                              "titi.img")
+                 "titi.img")
     assert_equal(get_basename("/tmp/toto/titi.nii"),
-                              "titi.nii")
+                 "titi.nii")
 
 
 def test_get_basenames():
     assert_equal(get_basenames("/path/to/file/file.nii.gz"),
-                            "file.nii.gz")
+                 "file.nii.gz")
 
     assert_equal(get_basenames(["/path/to/file/file-%04i.nii.gz" % i
-                                           for i in range(10)])[3],
-                            "file-0003.nii.gz")
-
-
-def test_load_4D_img():
-    # setup
-    output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    # try loading from 4D niimg
-    film = create_random_image(n_scans=10)
-    loaded_4D_img = load_4D_img(film)
-    assert_true(is_niimg(loaded_4D_img))
-    assert_equal(loaded_4D_img.shape, film.shape)
-
-    # try loading from 4D image file
-    film = create_random_image(n_scans=10)
-    saved_img_filename = os.path.join(output_dir, "4D.nii.gz")
-    nibabel.save(film, saved_img_filename)
-    loaded_4D_img = load_4D_img(saved_img_filename)
-    assert_true(is_niimg(loaded_4D_img))
-    assert_equal(loaded_4D_img.shape, film.shape)
-
-    # try loading from list of 3D niimgs
-    film = create_random_image(n_scans=10)
-    loaded_4D_img = load_4D_img(nibabel.four_to_three(film))
-    assert_true(is_niimg(loaded_4D_img))
-    assert_equal(loaded_4D_img.shape, film.shape)
-
-    # try loading from list of 3D image files
-    film = create_random_image(n_scans=10)
-    saved_vols_filenames = save_vols(film,
-                                     output_dir,
-                                     ext='.nii.gz',
-                                     )
-    loaded_4D_img = load_4D_img(saved_vols_filenames)
-    assert_true(is_niimg(loaded_4D_img))
-    assert_equal(loaded_4D_img.shape, film.shape)
+                                for i in range(10)])[3],
+                 "file-0003.nii.gz")
 
 
 def test_get_vox_dims():
@@ -291,22 +237,22 @@ def test_get_vox_dims():
 
     # 3D vol
     vol = create_random_image(affine=affine)
-    numpy.testing.assert_array_equal(get_vox_dims(vol), [3, 3, 3])
+    np.testing.assert_array_equal(get_vox_dims(vol), [3, 3, 3])
 
     # 3D image file
     saved_img_filename = os.path.join(output_dir, "vol.nii.gz")
     nibabel.save(vol, saved_img_filename)
-    numpy.testing.assert_array_equal(get_vox_dims(vol), [3, 3, 3])
+    np.testing.assert_array_equal(get_vox_dims(vol), [3, 3, 3])
 
     # 4D niimg
     film = create_random_image(n_scans=10, affine=affine)
-    numpy.testing.assert_array_equal(get_vox_dims(film), [3, 3, 3])
+    np.testing.assert_array_equal(get_vox_dims(film), [3, 3, 3])
 
     # 4D image file
     film = create_random_image(n_scans=10, affine=affine)
     saved_img_filename = os.path.join(output_dir, "4D.nii.gz")
     nibabel.save(film, saved_img_filename)
-    numpy.testing.assert_array_equal(get_vox_dims(film), [3, 3, 3])
+    np.testing.assert_array_equal(get_vox_dims(film), [3, 3, 3])
 
 
 def test_is_niimg():
@@ -451,3 +397,22 @@ def test_get_relative_path():
     assert_equal(get_relative_path("/toto/titi",
                                    "/toto/titi"),
                  "")
+
+
+def test_load_vols():
+    vol = nibabel.Nifti1Image(np.zeros((3, 3, 3)), np.eye(4))
+    assert_equal(len(load_vols([vol])), 1)
+
+    vols = load_vols(vol)
+
+    # all loaded vols should be 3-dimensional
+    for v in vols:
+        assert_equal(len(v.shape), 3)
+
+    assert_equal(len(vols), 1)
+
+
+def test_loaduint8():
+    # bullet-proof for a certain crash
+    vol = nibabel.Nifti1Image(np.zeros((4, 4, 4)), np.eye(4))
+    loaduint8(vol)

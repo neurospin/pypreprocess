@@ -49,7 +49,7 @@ cv_tc_tooltip = ("Coefficient of Variation (CoV) of the BOLD signal. "
                  "scanner instability, etc.")
 reg_tooltip = ("The red contours should"
                " match the background image well. Otherwise, something might"
-               " have gone wrong. Typically things than can go wrong include: "
+               " have gone wrong. Typically things that can go wrong include: "
                "lesions (missing brain tissue); bad orientation headers; "
                "non-brain tissue in anatomical image, etc. In rare cases, it "
                "might be that the registration algorithm simply didn't "
@@ -390,6 +390,7 @@ class SubjectData(object):
                 self.func[sess]) else "%s.nii.gz" % self.session_ids[sess]
                         for sess in range(self.n_sessions)]
 
+        self._set_session_ids()
         return self
 
     def save_realignment_parameters(self, lkp=6):

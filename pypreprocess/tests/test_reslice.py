@@ -1,8 +1,7 @@
 import numpy as np
-import nibabel
 from nose.tools import assert_false
-
-# import the APIs to be tested
+import nibabel
+from nilearn.image import iter_img
 from ..reslice import reslice_vols
 from ..affine_transformations import (
     get_initial_motion_params, apply_realignment)
@@ -32,14 +31,13 @@ def test_reslice_vols():
         rp[t, ...][:3] += t / n_scans
         rp[t, ...][3:6] += np.pi * t
 
-    film = list(apply_realignment(film, rp))
+    film = apply_realignment(film, rp)
 
     # affines are not the same
     assert_false(np.all(
         film[1].get_affine() == film[0].get_affine()))
 
     # reslice vols
-
     film = list(reslice_vols(film))
 
     # affines are now the same
