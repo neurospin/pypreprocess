@@ -56,7 +56,7 @@ reg_tooltip = ("The red contours should"
                "succeed.")
 segment_tooltip = ("%s. The TPM contours shoud match the background image "
                    "well. Otherwise, something might have gone wrong. "
-                   "Typically things than can go wrong include: "
+                   "Typically things that can go wrong include: "
                    "lesions (missing brain tissue); bad orientation headers; "
                    "non-brain tissue in anatomical image (i.e needs brain "
                    "extraction), etc. In rare cases, it might be that the"
