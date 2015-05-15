@@ -54,21 +54,30 @@ def load_vols(niimgs):
 
     Returns
     -------
-    vols: list of nifti image objects
+    niimgs_: list of nifti image objects
         The loaded volumes.
     """
     try:
-        vols = check_niimg_4d(niimgs, return_iterator=True)
+        # try loading volumes one-by-one
+        niimgs = list(niimgs)
+        return [check_niimg(niimg, ensure_ndim=3) for niimg in niimgs]
     except TypeError:
-        vols = [check_niimg(niimgs)]
-    if is_niimg(vols):
-        if vols.shape[-1] == 1:
-            return [nibabel.Nifti1Image(vols.get_data()[:, :, :, 0],
-                                        vols.get_affine())]
+        pass
+    try:
+        # try loading 4d
+        niimgs = check_niimg_4d(niimgs, return_iterator=True)
+    except TypeError:
+        niimgs = [check_niimg(niimgs)]
+    if is_niimg(niimgs):
+        # should be 3d, squash 4th dimension otherwise
+        if niimgs.shape[-1] == 1:
+            return [nibabel.Nifti1Image(niimgs.get_data()[:, :, :, 0],
+                                        niimgs.get_affine())]
         else:
-            return list(iter_img(vols))
+            return list(iter_img(niimgs))
     else:
-        return list(iter_img(list(vols)))
+        # notice the the 2 calls to list(...) !!!
+        return list(iter_img(list(niimgs)))
 
 
 def save_vols(vols, output_dir, basenames=None, affine=None,

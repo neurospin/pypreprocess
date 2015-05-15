@@ -416,3 +416,15 @@ def test_loaduint8():
     # bullet-proof for a certain crash
     vol = nibabel.Nifti1Image(np.zeros((4, 4, 4)), np.eye(4))
     loaduint8(vol)
+
+
+def test_load_vols_different_affine():
+    # check_niimg_4d crashes when loading list of 3d vols with different
+    # affines
+    i1 = np.eye(4)
+    i2 = np.eye(4)
+    i2[:-1, -1] = 5.
+    vol1 = nibabel.Nifti1Image(np.zeros((3, 3, 3)), i1)
+    vol2 = nibabel.Nifti1Image(np.zeros((3, 3, 3)), i2)
+    load_vols([vol1, vol2])
+
