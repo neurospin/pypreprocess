@@ -19,6 +19,10 @@ These days, it also contains pure-Python (no C extensions, no compiled code, jus
 modules and scripts for slice-timing correction, motion correction, coregistration,
 and smoothing, without need for nipype or matlab.
 
+License
+=======
+All material is Free Software: BSD license (3 clause).
+
 
 Important links
 ===============
