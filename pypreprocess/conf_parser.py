@@ -22,8 +22,9 @@ def _del_nones_from_dict(some_dict):
     return some_dict
 
 
-def _parse_job(jobfile, **replacements):
-    assert os.path.isfile(jobfile), jobfile
+def _parse_job(config_file, **replacements):
+    if not os.path.isfile(config_file):
+        raise OSError("Configuration file '%s' doesn't exist!" % config_file)
 
     def sanitize(section, key):
         val = section[key]
@@ -53,12 +54,12 @@ def _parse_job(jobfile, **replacements):
             if len(val) == 1: val = val[0]
         section[key] = val
 
-    cobj = ConfigObj(jobfile)
+    cobj = ConfigObj(config_file)
     cobj.walk(sanitize, call_on_sections=True)
     return cobj['config']
 
 
-def _generate_preproc_pipeline(jobfile, dataset_dir=None, output_dir=None,
+def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
                                options_callback=None, **kwargs):
     """
     Generate pipeline (i.e subject factor + preproc params) from
@@ -74,8 +75,8 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None, output_dir=None,
 
     """
     # read config file
-    jobfile = os.path.abspath(jobfile)
-    options = _parse_job(jobfile, **kwargs)
+    config_file = os.path.abspath(config_file)
+    options = _parse_job(config_file, **kwargs)
     options = _del_nones_from_dict(options)
 
     # sanitize output_dir and dataset_dir
@@ -83,7 +84,7 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None, output_dir=None,
         if eval(item) is None:
             if not item in options:
                 raise ValueError(
-                    ("%s not specified (neither in jobfile"
+                    ("%s not specified (neither in config_file"
                      " nor in this function call)") % item)
     options["dataset_dir"] = dataset_dir = (
         dataset_dir if not dataset_dir is None else options["dataset_dir"])
@@ -94,9 +95,8 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None, output_dir=None,
 
     # load data from multiple dataset_dirs
     if not isinstance(dataset_dir, basestring):
-        assert 0, dataset_dir
         kwargs["output_dir"] = output_dir
-        tmp = [_generate_preproc_pipeline(jobfile, dataset_dir=dsd,
+        tmp = [_generate_preproc_pipeline(config_file, dataset_dir=dsd,
                                           options_callback=options_callback,
                                           **kwargs) for dsd in dataset_dir]
         subjects = [subject for x in tmp for subject in x[0]]
@@ -118,7 +118,7 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None, output_dir=None,
     if output_dir is None:
         raise OSError(
             ("Could not expand 'output_dir' specified in %s: invalid"
-             " path %s (relative to directory %s)") % (jobfile,
+             " path %s (relative to directory %s)") % (config_file,
                                                        options["output_dir"],
                                                        dataset_dir))
 
