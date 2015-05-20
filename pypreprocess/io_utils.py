@@ -8,6 +8,7 @@
 import os
 import sys
 import warnings
+import types
 import re
 import shutil
 import commands
@@ -57,17 +58,23 @@ def load_vols(niimgs):
     niimgs_: list of nifti image objects
         The loaded volumes.
     """
+    # try loading 4d
+    try:
+        niimgs = list(check_niimg_4d(niimgs, return_iterator=True))
+    except TypeError:
+        # probably not 4d
+        niimgs = [check_niimg(niimgs)]
+    except ValueError:
+        # probably inconsisten affines
+        pass
     try:
         # try loading volumes one-by-one
-        niimgs = list(niimgs)
+        if isinstance(niimgs, basestring): niimgs = [niimgs]
         return [check_niimg(niimg, ensure_ndim=3) for niimg in niimgs]
     except TypeError:
         pass
-    try:
-        # try loading 4d
-        niimgs = check_niimg_4d(niimgs, return_iterator=True)
-    except TypeError:
-        niimgs = [check_niimg(niimgs)]
+
+    # collect the loaded volumes into a list
     if is_niimg(niimgs):
         # should be 3d, squash 4th dimension otherwise
         if niimgs.shape[-1] == 1:
@@ -77,6 +84,8 @@ def load_vols(niimgs):
             return list(iter_img(niimgs))
     else:
         # notice the the 2 calls to list(...) !!!
+        niimgs = list(niimgs)
+        assert 0, niimgs[0].shape
         return list(iter_img(list(niimgs)))
 
 

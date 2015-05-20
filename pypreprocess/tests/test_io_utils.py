@@ -23,17 +23,13 @@ def create_random_image(shape=None, ndim=3, n_scans=None, affine=np.eye(4),
     Creates a random image of prescribed shape
 
     """
-
     if not n_scans is None:
         ndim = 4
-
     if shape is None:
         shape = np.random.random_integers(20, size=ndim)
-
     ndim = len(shape)
     if not n_scans is None and ndim == 4:
         shape[-1] = n_scans
-
     return parent_class(np.random.randn(*shape), affine)
 
 
@@ -41,14 +37,11 @@ def test_save_vol():
     output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-
     vol = create_random_image(ndim=3)
-
     output_filename = save_vol(vol, output_dir=output_dir,
                                basename='123.nii.gz')
     assert_equal(os.path.basename(output_filename),
                  '123.nii.gz')
-
     output_filename = save_vol(vol, output_dir=output_dir, basename='123.img',
                                prefix='s')
     assert_equal(os.path.basename(output_filename),
@@ -329,9 +322,8 @@ def test_expand_path():
                  "/tmp/my/funky/brakes")
 
     # paths with .. (parent directory)
-    assert_equal(_expand_path("../my/funky/brakes",
-                                         relative_to="/tmp"),
-                            "/my/funky/brakes")
+    assert_equal(_expand_path("../my/funky/brakes", relative_to="/tmp"),
+                 "/my/funky/brakes")
     assert_equal(_expand_path(".../my/funky/brakes", relative_to="/tmp"),
                  None)
 
@@ -388,15 +380,12 @@ def test_get_relative_path():
     assert_equal(get_relative_path("/toto/titi",
                                    "/toto/titi/tata/test.txt"),
                  "tata/test.txt")
-    assert_equal(get_relative_path("/toto/titi",
-                                   "/toto/titi/tata/"),
+    assert_equal(get_relative_path("/toto/titi", "/toto/titi/tata/"),
                  "tata")
     assert_equal(get_relative_path("/toto/titi",
                                    "/toto/titI/tato/dada"),
                  None)
-    assert_equal(get_relative_path("/toto/titi",
-                                   "/toto/titi"),
-                 "")
+    assert_equal(get_relative_path("/toto/titi", "/toto/titi"), "")
 
 
 def test_load_vols():
@@ -428,3 +417,12 @@ def test_load_vols_different_affine():
     vol2 = nibabel.Nifti1Image(np.zeros((3, 3, 3)), i2)
     load_vols([vol1, vol2])
 
+
+def test_load_vols_from_single_filename():
+    for flim in [True, False][0:]:
+        shape = [2, 3, 4]
+        if flim: shape += [5]
+        vols = nibabel.Nifti1Image(np.zeros(shape), np.eye(4))
+        vols.to_filename("/tmp/test.nii.gz")
+        vols = load_vols("/tmp/test.nii.gz")
+        for vol in vols: assert_equal(vol.shape, tuple(shape[:3]))
