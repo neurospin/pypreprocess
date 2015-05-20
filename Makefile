@@ -37,7 +37,8 @@ test-code:
 	pypreprocess/tests/test_kernel_smooth.py \
 	pypreprocess/tests/test_reslice.py \
 	pypreprocess/tests/test_slice_timing.py \
-	pypreprocess/tests/test_cluster_level_analysis.py
+	pypreprocess/tests/test_cluster_level_analysis.py \
+	pypreprocess/tests/test_conf_parser.py
 
 
 
