@@ -345,19 +345,25 @@ def apply_realignment(vols, rp, inverse=True):
             for t, vol in enumerate(vols)]
 
 
-def extract_realignment_matrix(ref_vol, vol, inverse=False):
+def extract_realignment_matrix(target, source, inverse=False):
     """
-    Extracts realignment matrix for vol -> ref_vol rigid body registration
+    Extracts realignment matrix for source -> target rigid body registration.
+
+    If `inverse` is True, then the matrix for the inverse transformation is
+    returned instead.
     """
-    if inverse: ref_vol, vol = vol, ref_vol
-    ref_vol = load_vols(ref_vol)[0]
-    vol = load_vols(vol)[0]
-    return np.dot(vol.get_affine(), scipy.linalg.inv(ref_vol.get_affine()))
+    if inverse: target, source = source, target
+    target = load_vols(target)[0]
+    source = load_vols(source)[0]
+    return np.dot(source.get_affine(), scipy.linalg.inv(target.get_affine()))
 
 
-def extract_realignment_params(ref_vol, vol, inverse=False):
+def extract_realignment_params(target, source, inverse=False):
     """
-    Extracts realignment parameters for vol -> ref_vol rigid body registration
+    Extracts realignment params for source -> target rigid body registration.
+
+    If `inverse` is True, then the matrix for the inverse transformation is
+    returned instead.
     """
-    return spm_imatrix(extract_realignment_matrix(ref_vol, vol,
+    return spm_imatrix(extract_realignment_matrix(target, source,
                                                   inverse=inverse))
