@@ -359,6 +359,13 @@ def extract_realignment_matrix(target, source, inverse=False):
 
 
 def extract_realignment_params(target, source, inverse=False):
+    if inverse: ref_vol, vol = vol, ref_vol
+    ref_vol = load_vols(ref_vol)[0]
+    vol = load_vols(vol)[0]
+    return np.dot(vol.get_affine(), scipy.linalg.inv(ref_vol.get_affine()))
+
+
+def extract_realignment_params(target, source, inverse=False):
     """
     Extracts realignment params for source -> target rigid body registration.
 
