@@ -779,24 +779,22 @@ class SubjectData(object):
     def generate_smooth_thumbnails(self):
         """
         Generate thumbnails post-smoothing.
-        XXX  unmainted function!!!
         """
         # misc
+        if self.func is None: return
         if not self.reporting_enabled():
             self.init_report()
 
         # log execution
-        for brain_name, brain in zip(['func', 'anat'], [self.func, self.anat]):
-            if not brain: continue
-            execution_log_html = make_nipype_execution_log_html(
-                    brain, "%s Smooth" % brain_name,
-                    self.reports_output_dir)
-            self.progress_logger.log(
-                "<b>%s Smooth</b><br/>" % brain_name)
-            text = open(execution_log_html).read()
-            if "smoothed_files" in text:
-                self.progress_logger.log(text)
-            self.progress_logger.log('<hr/>')
+        title = "func smooth"
+        execution_log_html = make_nipype_execution_log_html(
+            self.func, title, self.reports_output_dir)
+        self.progress_logger.log(
+            "%s</b><br/>" % title)
+        text = open(execution_log_html).read()
+        if "smoothed_files" in text:
+            self.progress_logger.log(text)
+        self.progress_logger.log('<hr/>')
 
     def generate_report(self):
         """
