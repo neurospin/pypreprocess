@@ -123,8 +123,11 @@ def spm_matrix(p):
 
 
 def spm_imatrix(M):
-    """Returns parameters the 12 parameters for creating a given affine
+    """Returns parameters the 12 parameters for a given affine
     transformation.
+
+    This function does the inverse operation of the `spm_matrix`
+    function.
 
     Parameters
     ----------
@@ -342,13 +345,17 @@ def apply_realignment(vols, rp, inverse=True):
             for t, vol in enumerate(vols)]
 
 
+def extract_realignment_matrix(ref_vol, vol):
+    """
+    Extracts realignment matrix for vol -> ref_vol rigid body registration
+    """
+    ref_vol = load_vols(ref_vol)[0]
+    vol = load_vols(vol)[0]
+    return np.dot(vol.get_affine(), scipy.linalg.inv(ref_vol.get_affine()))
+
+
 def extract_realignment_params(ref_vol, vol):
     """
-    Extracts realignment param for vol -> ref_vol rigid body registration
-
+    Extracts realignment parameters for vol -> ref_vol rigid body registration
     """
-
-   # store estimated motion for volume t
-    return spm_imatrix(
-        np.dot(vol.get_affine(), scipy.linalg.inv(ref_vol.get_affine()))
-               )
+    return spm_imatrix(extract_realignment_matrix(ref_vol, vol))

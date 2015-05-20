@@ -1,8 +1,10 @@
 import numpy as np
 from nose.tools import assert_equal
+import nibabel
 from ..affine_transformations import (
     get_initial_motion_params, spm_matrix, spm_imatrix, transform_coords,
-    apply_realignment, nibabel2spm_affine, get_physical_coords)
+    apply_realignment, nibabel2spm_affine, get_physical_coords,
+    extract_realignment_params)
 from ._test_utils import create_random_image
 
 
@@ -73,3 +75,13 @@ def test_physical_coords():
     assert_equal(coords.shape[1], 1)
     assert_equal(coords.shape[0], 3)
     np.testing.assert_array_equal(coords.ravel(), [2., 1., 4.])
+
+
+def test_extract_realigment_params():
+    affine1 = np.eye(4)
+    affine2 = np.eye(4)
+    affine2[-2, -1] += 2.
+    vol1 = nibabel.Nifti1Image(np.zeros((2, 2, 2)), affine1)
+    vol2 = nibabel.Nifti1Image(np.zeros((2, 2, 2)), affine2)
+    rp = extract_realignment_params(vol1, vol2)
+    np.testing.assert_array_equal(rp, [0, 0, 2, 0, 0, 0, 1, 1, 1, 0, 0, 0])
