@@ -4,7 +4,7 @@ import nibabel
 from ..affine_transformations import (
     get_initial_motion_params, spm_matrix, spm_imatrix, transform_coords,
     apply_realignment, nibabel2spm_affine, get_physical_coords,
-    extract_realignment_params)
+    extract_realignment_params, extract_realignment_matrix)
 from ._test_utils import create_random_image
 
 
@@ -80,8 +80,29 @@ def test_physical_coords():
 def test_extract_realigment_params():
     affine1 = np.eye(4)
     affine2 = np.eye(4)
-    affine2[-2, -1] += 2.
+    affine2[-2, -1] += 2.  # translation along +z
     vol1 = nibabel.Nifti1Image(np.zeros((2, 2, 2)), affine1)
     vol2 = nibabel.Nifti1Image(np.zeros((2, 2, 2)), affine2)
-    rp = extract_realignment_params(vol1, vol2)
-    np.testing.assert_array_equal(rp, [0, 0, 2, 0, 0, 0, 1, 1, 1, 0, 0, 0])
+    np.testing.assert_array_equal(extract_realignment_params(vol1, vol2),
+                                  [0, 0, 2, 0, 0, 0, 1, 1, 1, 0, 0, 0])
+    for inverse in [True, False]:
+        salt = -2 if inverse else 2
+        np.testing.assert_array_equal(
+            extract_realignment_params(vol1, vol2, inverse=inverse),
+            [0, 0, salt, 0, 0, 0, 1, 1, 1, 0, 0, 0])
+
+
+def test_extract_realigment_matrix():
+    affine1 = np.eye(4)
+    affine2 = np.eye(4)
+    affine2[-2, -1] += -7.  # translation in direction -z
+    vol1 = nibabel.Nifti1Image(np.zeros((2, 2, 2)), affine1)
+    vol2 = nibabel.Nifti1Image(np.zeros((2, 2, 2)), affine2)
+    np.testing.assert_array_equal(
+        extract_realignment_matrix(vol1, vol2),
+        [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, -7], [0, 0, 0, 1]])
+    for inverse in [True, False]:
+        salt = 7 if inverse else -7
+        np.testing.assert_array_equal(
+            extract_realignment_matrix(vol1, vol2, inverse=inverse),
+            [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, salt], [0, 0, 0, 1]])
