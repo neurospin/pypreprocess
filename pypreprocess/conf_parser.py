@@ -19,7 +19,6 @@ def _del_nones_from_dict(some_dict):
         for k, v in some_dict.items():
             if v is None: del some_dict[k]
             else: _del_nones_from_dict(v)
-
     return some_dict
 
 
@@ -28,46 +27,38 @@ def _parse_job(jobfile, **replacements):
 
     def sanitize(section, key):
         val = section[key]
-
         if isinstance(val, basestring):
             for k, v in replacements.items():
                 val = val.replace("%" + k + "%", v)
-
         if key == "slice_order":
             if isinstance(val, basestring): return
-
         if isinstance(val, basestring):
             if val.lower() in ["true", "yes"]: val = True
             elif val.lower() in ["false", "no"]: val = False
             elif key == "slice_order": val = val.lower()
             elif val.lower() in ["none", "auto", "unspecified", "unknown"]:
                 val = None
-
         if key in ["TR", "nslices", "ref_slice", "nsubjects", "nsessions",
                    "n_jobs"]:
             if not val is None: val = eval(val)
 
+        # BF: some users forget the "s" in "_sizes"
         if key in ["fwhm", "anat_fwhm", "anat_write_voxel_sizes",
                    "func_write_voxel_sizes", "slice_order",
-
-                   # XXX BF: some users forget to pluralize
-                   "anat_write_voxel_size", "func_write_voxel_sizes"
-                   ]:
+                   "anat_write_voxel_size", "func_write_voxel_sizes"]:
             dtype = np.int if key == "slice_order" else np.float
             if not isinstance(val, basestring): val = ",".join(val)
             for x in "()[]": val = val.replace(x, "")
             val = list(np.fromstring(val, sep=",", dtype=dtype))
             if len(val) == 1: val = val[0]
-
         section[key] = val
 
     cobj = ConfigObj(jobfile)
     cobj.walk(sanitize, call_on_sections=True)
-
     return cobj['config']
 
 
-def _generate_preproc_pipeline(jobfile, dataset_dir=None,
+def _generate_preproc_pipeline(jobfile, dataset_dir=None, output_dir=None,
                                options_callback=None, **kwargs):
     """
     Generate pipeline (i.e subject factor + preproc params) from
@@ -82,51 +73,54 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
         preproc parameters
 
     """
-
     # read config file
     jobfile = os.path.abspath(jobfile)
     options = _parse_job(jobfile, **kwargs)
     options = _del_nones_from_dict(options)
 
-    # generate subject conf
-    if dataset_dir is None:
-        assert "dataset_dir" in options, (
-            "dataset_dir not specified (neither in jobfile"
-            " nor in this function call)")
-        dataset_dir = options["dataset_dir"]
-    else:
-        assert not dataset_dir is None, (
-            "dataset_dir not specified (neither in jobfile"
-            " nor in this function call")
+    # sanitize output_dir and dataset_dir
+    for item in ["dataset_dir", "output_dir"]:
+        if eval(item) is None:
+            if not item in options:
+                raise ValueError(
+                    ("%s not specified (neither in jobfile"
+                     " nor in this function call)") % item)
+    options["dataset_dir"] = dataset_dir = (
+        dataset_dir if not dataset_dir is None else options["dataset_dir"])
+    options["output_dir"] = output_dir = (
+        output_dir if not output_dir is None else options["output_dir"])
+    assert options["dataset_dir"]
+    assert options["output_dir"]
 
-    options["dataset_dir"] = dataset_dir
-
+    # load data from multiple dataset_dirs
     if not isinstance(dataset_dir, basestring):
-        tmp = [_generate_preproc_pipeline(
-                jobfile, dataset_dir=dsd,
-                options_callback=options_callback, **kwargs)
-               for dsd in dataset_dir]
-
+        assert 0, dataset_dir
+        kwargs["output_dir"] = output_dir
+        tmp = [_generate_preproc_pipeline(jobfile, dataset_dir=dsd,
+                                          options_callback=options_callback,
+                                          **kwargs) for dsd in dataset_dir]
         subjects = [subject for x in tmp for subject in x[0]]
-
         return subjects, tmp[0][1]
 
+    # invoke callback
     if options_callback:
         options = options_callback(options)
-        dataset_dir = options["dataset_dir"]
+        if dataset_dir is None: dataset_dir = options.get("dataset_dir", None)
+        if output_dir is None: output_dir = options.get("output_dir", None)
 
+    # check dataset_dir
     dataset_dir = _expand_path(dataset_dir)
-    assert os.path.isdir(dataset_dir), (
-        "dataset_dir %s doesn't exist" % dataset_dir)
+    if not os.path.isdir(dataset_dir):
+        raise OSError("dataset_dir %s doesn't exist" % dataset_dir)
 
-    # output dir
-    output_dir = _expand_path(options["output_dir"],
-                              relative_to=dataset_dir)
+    # check output_dir
+    output_dir = _expand_path(options["output_dir"], relative_to=dataset_dir)
     if output_dir is None:
-        raise RuntimeError(
+        raise OSError(
             ("Could not expand 'output_dir' specified in %s: invalid"
-             " path %s (relative to directory %s)") % (
-                jobfile, options["output_dir"], dataset_dir))
+             " path %s (relative to directory %s)") % (jobfile,
+                                                       options["output_dir"],
+                                                       dataset_dir))
 
     # dataset description
     dataset_description = options.get("dataset_description", None)
@@ -145,8 +139,7 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
         "slice_timing_software": options.get("slice_timing_software", "spm"),
         "realign_software": options.get("realign_software", "spm"),
         "coregister_software": options.get("coregister_software", "spm"),
-        "smooth_software": options.get("smooth_software", "spm")
-        }
+        "smooth_software": options.get("smooth_software", "spm")}
 
     # delete orientation meta-data ?
     preproc_params['deleteorient'] = options.get(
@@ -175,14 +168,15 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
     preproc_params["coregister"] = not options.get("disable_coregister",
                                                    False)
     if preproc_params["coregister"]:
-        preproc_params['coregister_reslice'] = options["coregister_reslice"]
+        preproc_params['coregister_reslice'] = options.get(
+            "coregister_reslice")
         preproc_params['coreg_anat_to_func'] = not options.get(
             "coreg_func_to_anat", True)
 
     # configure tissue segmentation node
     preproc_params["segment"] = not options.get("disable_segment", False)
-    if preproc_params["segment"]:
-        pass  # XXX pending code...
+    preproc_params["newsegment"] = options.get(
+        "newsegment", False) and preproc_params["segment"]
 
     # configure normalization node
     preproc_params["normalize"] = not options.get(
@@ -277,8 +271,9 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
             sess_func = sorted(glob.glob(sess_func_wildcard))
 
             if not sess_func:
-                print("subject %s: No func images found for"
-                      " wildcard %s" % (subject_id, sess_func_wildcard))
+                warnings.warn(
+                    ("subject %s: No func images found for"
+                     " wildcard %s" % (subject_id, sess_func_wildcard)))
                 skip_subject = True
                 break
             sess_dir = os.path.dirname(sess_func[0])
@@ -288,10 +283,10 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
 
             # session output dir
             if os.path.basename(sess_dir) != os.path.basename(
-                subject_output_dir):
-                sess_output_dir = os.path.join(
-                    subject_output_dir, get_relative_path(subject_data_dir,
-                                                          sess_dir))
+                    subject_output_dir):
+                sess_output_dir = os.path.join(subject_output_dir,
+                                               get_relative_path(
+                                                   subject_data_dir, sess_dir))
             else:
                 sess_output_dir = subject_output_dir
             if not os.path.exists(sess_output_dir):
@@ -299,7 +294,7 @@ def _generate_preproc_pipeline(jobfile, dataset_dir=None,
             sess_output_dirs.append(sess_output_dir)
 
         if skip_subject:
-            print "Skipping subject %s" % subject_id
+            warnings.warn("Skipping subject %s" % subject_id)
             continue
 
         # grab anat
