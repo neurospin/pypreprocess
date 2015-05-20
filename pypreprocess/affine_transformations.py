@@ -345,25 +345,44 @@ def apply_realignment(vols, rp, inverse=True):
             for t, vol in enumerate(vols)]
 
 
-def extract_realignment_matrix(target, source, inverse=False):
+def extract_realignment_matrix(coregistered, original, inverse=False):
     """
-    Extracts realignment matrix for source -> target rigid body registration.
+    Extracts realignment matrix for "original -> coregistered" rigid body
+    registration.
 
-    If `inverse` is True, then the matrix for the inverse transformation is
-    returned instead.
+    Parameters
+    ----------
+    original: 3d volume (filename of nifti image object)
+        The original source image.
+
+    coregistered: 3d volume (filename of nifti image object)
+        The coregistered output image.
+
+    inverse: bool (optional, default False)
+        If True, then the matrix for the inverse transformation is
     """
-    if inverse: target, source = source, target
-    target = load_vols(target)[0]
-    source = load_vols(source)[0]
-    return np.dot(source.get_affine(), scipy.linalg.inv(target.get_affine()))
+    if inverse: coregistered, original = original, coregistered
+    coregistered = load_vols(coregistered)[0]
+    original = load_vols(original)[0]
+    return np.dot(original.get_affine(),
+                  scipy.linalg.inv(coregistered.get_affine()))
 
 
-def extract_realignment_params(target, source, inverse=False):
+def extract_realignment_params(coregistered, original, inverse=False):
     """
-    Extracts realignment params for source -> target rigid body registration.
+    Extracts realignment params for "original -> coregistered" rigid body
+    registration.
 
-    If `inverse` is True, then the matrix for the inverse transformation is
-    returned instead.
+    Parameters
+    ----------
+    original: 3d volume (filename of nifti image object)
+        The original source image.
+
+    coregistered: 3d volume (filename of nifti image object)
+        The coregistered output image.
+
+    inverse: bool (optional, default False)
+        If True, then the matrix for the inverse transformation is
     """
-    return spm_imatrix(extract_realignment_matrix(target, source,
+    return spm_imatrix(extract_realignment_matrix(coregistered, original,
                                                   inverse=inverse))
