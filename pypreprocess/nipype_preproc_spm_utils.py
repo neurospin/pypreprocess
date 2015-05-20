@@ -948,8 +948,7 @@ def _do_subject_dartelnorm2mni(subject_data,
                                last_stage=True,
                                func_write_voxel_sizes=None,
                                anat_write_voxel_sizes=None,
-                               hardlink_output=True
-                               ):
+                               hardlink_output=True):
     """
     Uses spm.DARTELNorm2MNI to warp subject brain into MNI space.
 
@@ -1370,7 +1369,7 @@ def _do_subjects_newsegment(
         output_modulated_tpms=False, parent_results_gallery=None,
         do_dartel=True, **kwargs):
     """
-    Runs NewSegment + Dartel + DartelNorm2MNI on given subjects.
+    Runs NewSegment + optionally Dartel and DartelNorm2MNI, on given subjects.
 
     """
     # configure SPM back-end
@@ -1405,9 +1404,13 @@ def _do_subjects_newsegment(
         ignore_exception=False)
     if newsegment_result.outputs is None: return
     else:
+        # collect estimated TPMs
         for j, sd in enumerate(subjects):
             sd.gm = newsegment_result.outputs.dartel_input_images[0][j]
             sd.wm = newsegment_result.outputs.dartel_input_images[1][j]
+
+            # generate segmentation thumbs
+            if report: sd.generate_segmentation_thumbnails()
         if not do_dartel: return subjects
 
     # compute DARTEL template for group data
@@ -1633,7 +1636,6 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         main_html = get_dataset_report_html_template(
             results=parent_results_gallery, start_time=time.ctime(),
             dataset_id=dataset_id)
-
         with open(report_log_filename, 'w') as fd:
             fd.write(str(log))
             fd.close()
@@ -1643,7 +1645,6 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         with open(report_filename, 'w') as fd:
             fd.write(str(main_html))
             fd.close()
-
         if not dartel: preproc_params['parent_results_gallery'
                                       ] = parent_results_gallery
 
@@ -1671,7 +1672,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         print "\r\n\tHTML report written to %s" % report_preproc_filename
 
     # don't yet segment nor normalize if dartel enabled
-    if dartel:
+    if dartel or newsegment:
         for item in ["segment", "normalize", "cv_tc", "last_stage"]:
             preproc_params[item] = False
 
@@ -1680,11 +1681,9 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
             subject_data, **preproc_params) for subject_data in subjects)
 
     # run DARTEL
-    if dartel:
-        preproc_subject_data = _do_subjects_dartel(
-            preproc_subject_data, output_dir,
-            n_jobs=n_jobs,
-            parent_results_gallery=parent_results_gallery,
+    if dartel or newsegment:
+        preproc_subject_data = _do_subjects_newsegment(
+            preproc_subject_data, output_dir, n_jobs=n_jobs, do_dartel=dartel,
             **preproc_params)
 
     finalize_report()
