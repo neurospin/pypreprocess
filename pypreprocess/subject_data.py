@@ -325,6 +325,7 @@ class SubjectData(object):
     def _set_session_ids(self):
         if self.func is None:
             return
+        elif isinstance(self.func, basestring): self.func = [self.func]
         if self.session_ids is None:
             if len(self.func) > 10:
                 raise RuntimeError
@@ -336,7 +337,7 @@ class SubjectData(object):
                 self.session_ids = [self.session_ids]
             else:
                 assert len(self.session_ids) == len(self.func), "%s != %s" % (
-                    self.session_ids, len(self.func))
+                    len(self.session_ids), len(self.func))
         self.n_sessions = len(self.session_ids)
 
     def sanitize(self, deleteorient=False, niigz2nii=False):
