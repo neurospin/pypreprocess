@@ -1384,8 +1384,10 @@ def _do_subjects_newsegment(
         os.makedirs(cache_dir)
     mem = NipypeMemory(base_dir=cache_dir)
 
-    # compute gm, wm, etc. structural segmentation using Newsegment
+    # create node
     newsegment = mem.cache(spm.NewSegment)
+
+    # prepare template TPMs
     tissue1 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 1),
                2, (True, True), (False, False))
     tissue2 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 2),
@@ -1398,6 +1400,8 @@ def _do_subjects_newsegment(
                4, (False, False), (False, False))
     tissue6 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 6),
                2, (False, False), (False, False))
+
+    # run node
     newsegment_result = newsegment(
         channel_files=[subject_data.anat for subject_data in subjects],
         tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6],
@@ -1550,9 +1554,15 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
             subject_data["session_ids"] = session_ids
 
     # DARTEL or NewSegment on 1 subject is senseless
-    dartel = dartel and (len(subjects) > 1)
+    if len(subjects) < 2:
+        if newsegment:
+            warnings.warn("There is only one subject. Disabling NewSegment.")
+            newsegment = False
+        if dartel:
+            warnings.warn("There is only one subject. Disabling DARTEL.")
+            dartel = False
 
-    # configure number of jobs
+    # set number of jobs for parellelism
     if n_jobs is None: n_jobs = 1
     n_jobs = int(os.environ.get('N_JOBS', n_jobs))
 
