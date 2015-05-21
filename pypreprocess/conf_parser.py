@@ -241,7 +241,8 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
                             if re.match("session_.+_onset", k)]
     sess_ids = [re.match("session_(.+)_func", session).group(1)
                 for session in sess_func_wildcards]
-    subject_data_dirs = sorted(glob.glob(subject_dir_wildcard))
+    subject_data_dirs = [x for x in sorted(glob.glob(subject_dir_wildcard))
+                         if os.path.isdir(x)]
     if not subject_data_dirs:
         warnings.warn("No subject directories found for wildcard: %s" % (
                 subject_dir_wildcard))
@@ -276,12 +277,12 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
                                               sess_func_wildcard)
             sess_func = sorted(glob.glob(sess_func_wildcard))
 
+            # skip session if no data found
             if not sess_func:
                 warnings.warn(
                     ("subject %s: No func images found for"
                      " wildcard %s" % (subject_id, sess_func_wildcard)))
-                skip_subject = True
-                break
+                continue
             sess_dir = os.path.dirname(sess_func[0])
             if len(sess_func) == 1:
                 sess_func = sess_func[0]

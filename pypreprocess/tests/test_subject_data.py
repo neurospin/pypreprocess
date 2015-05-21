@@ -128,13 +128,11 @@ def test_issue_40():
 def test_opt_params():
     # adression issue #104
     subject_data = SubjectData()
-
     for deleteorient in [True, False]:
         for niigz2nii in [True, False]:
             # this shouldn't crash
             subject_data.sanitize(deleteorient=deleteorient,
                                   niigz2nii=niigz2nii)
-
     subject_data.output_dir = "/tmp/toto"
     subject_data.sanitize()
     assert_true(os.path.isdir(subject_data.output_dir))
