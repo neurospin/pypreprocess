@@ -948,8 +948,7 @@ def _do_subject_dartelnorm2mni(subject_data,
                                last_stage=True,
                                func_write_voxel_sizes=None,
                                anat_write_voxel_sizes=None,
-                               hardlink_output=True
-                               ):
+                               hardlink_output=True):
     """
     Uses spm.DARTELNorm2MNI to warp subject brain into MNI space.
 
@@ -1363,26 +1362,16 @@ def do_subject_preproc(
     return subject_data.sanitize()
 
 
-def _do_subjects_dartel(subjects,
-                        output_dir,
-                        spm_dir=None,
-                        matlab_exec=None,
-                        spm_mcr=None,
-                        fwhm=0,
-                        anat_fwhm=0.,
-                        func_write_voxel_sizes=None,
-                        anat_write_voxel_sizes=None,
-                        output_modulated_tpms=False,
-                        n_jobs=-1,
-                        report=True,
-                        parent_results_gallery=None,
-                        **kwargs
-                        ):
+def _do_subjects_newsegment(
+        subjects, output_dir, spm_dir=None, matlab_exec=None,
+        spm_mcr=None, fwhm=0, anat_fwhm=0., n_jobs=-1, report=True,
+        func_write_voxel_sizes=None, anat_write_voxel_sizes=None,
+        output_modulated_tpms=False, parent_results_gallery=None,
+        do_dartel=True, **kwargs):
     """
-    Runs NewSegment + Dartel + DartelNorm2MNI on given subjects.
+    Runs NewSegment + optionally Dartel and DartelNorm2MNI, on given subjects.
 
     """
-
     # configure SPM back-end
     _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec,
                         spm_mcr=spm_mcr)
@@ -1395,10 +1384,10 @@ def _do_subjects_dartel(subjects,
         os.makedirs(cache_dir)
     mem = NipypeMemory(base_dir=cache_dir)
 
-    # compute gm, wm, etc. structural segmentation using Newsegment
-    # XXX verify that the following TPM paths remain valid in case of
-    # precompilted SPM
+    # create node
     newsegment = mem.cache(spm.NewSegment)
+
+    # prepare template TPMs
     tissue1 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 1),
                2, (True, True), (False, False))
     tissue2 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 2),
@@ -1411,12 +1400,22 @@ def _do_subjects_dartel(subjects,
                4, (False, False), (False, False))
     tissue6 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 6),
                2, (False, False), (False, False))
+
+    # run node
     newsegment_result = newsegment(
         channel_files=[subject_data.anat for subject_data in subjects],
         tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6],
-        ignore_exception=False
-        )
+        ignore_exception=False)
     if newsegment_result.outputs is None: return
+    else:
+        # collect estimated TPMs
+        for j, sd in enumerate(subjects):
+            sd.gm = newsegment_result.outputs.dartel_input_images[0][j]
+            sd.wm = newsegment_result.outputs.dartel_input_images[1][j]
+
+            # generate segmentation thumbs
+            if report: sd.generate_segmentation_thumbnails()
+        if not do_dartel: return subjects
 
     # compute DARTEL template for group data
     dartel = mem.cache(spm.DARTEL)
@@ -1427,30 +1426,27 @@ def _do_subjects_dartel(subjects,
         image_files=dartel_input_images,)
     if dartel_result.outputs is None: return
 
-    for subject_data, j in zip(subjects, range(len(subjects))):
+    for j, subject_data in enumerate(subjects):
         subject_data.gm = newsegment_result.outputs.dartel_input_images[0][j]
         subject_data.wm = newsegment_result.outputs.dartel_input_images[1][j]
         subject_data.dartel_flow_fields = dartel_result.outputs\
             .dartel_flow_fields[j]
 
     # warp individual brains into group (DARTEL) space
-    preproc_subject_data = Parallel(
+    return Parallel(
         n_jobs=n_jobs, verbose=100,
-        pre_dispatch='1.5 * n_jobs',
-        )(delayed(
-            _do_subject_dartelnorm2mni)(
-                subject_data,
-                report=report,
-                parent_results_gallery=parent_results_gallery,
-                fwhm=fwhm, anat_fwhm=anat_fwhm,
-                func_write_voxel_sizes=func_write_voxel_sizes,
-                anat_write_voxel_sizes=anat_write_voxel_sizes,
-                output_modulated_tpms=output_modulated_tpms,
-                template_file=dartel_result.outputs.final_template_file,
-                )
-          for subject_data in subjects)
-
-    return preproc_subject_data, newsegment_result
+        pre_dispatch='1.5 * n_jobs')(
+            delayed(
+                _do_subject_dartelnorm2mni)(
+                    subject_data,
+                    report=report,
+                    parent_results_gallery=parent_results_gallery,
+                    fwhm=fwhm, anat_fwhm=anat_fwhm,
+                    func_write_voxel_sizes=func_write_voxel_sizes,
+                    anat_write_voxel_sizes=anat_write_voxel_sizes,
+                    output_modulated_tpms=output_modulated_tpms,
+                    template_file=dartel_result.outputs.final_template_file)
+            for subject_data in subjects)
 
 
 def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
@@ -1520,7 +1516,6 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         input `SubjectData` object
 
     """
-
     # load .ini ?
     preproc_details = None
     if isinstance(subject_factory, basestring):
@@ -1535,6 +1530,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
 
     # collect some params for local usage
     dartel = preproc_params.get('dartel', False)
+    newsegment = preproc_params.get('newsegment', False)
     output_dir = preproc_params.get('output_dir', "pypreprocess_output")
     if "output_dir" in preproc_params: del preproc_params["output_dir"]
     report = preproc_params.get("report", True)
@@ -1557,10 +1553,16 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         for subject_data in subjects:
             subject_data["session_ids"] = session_ids
 
-    # DARTEL on 1 subject is senseless
-    dartel = dartel and (len(subjects) > 1)
+    # DARTEL or NewSegment on 1 subject is senseless
+    if len(subjects) < 2:
+        if newsegment:
+            warnings.warn("There is only one subject. Disabling NewSegment.")
+            newsegment = False
+        if dartel:
+            warnings.warn("There is only one subject. Disabling DARTEL.")
+            dartel = False
 
-    # configure number of jobs
+    # set number of jobs for parellelism
     if n_jobs is None: n_jobs = 1
     n_jobs = int(os.environ.get('N_JOBS', n_jobs))
 
@@ -1570,11 +1572,11 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
             output_dir = preproc_params["output_dir"]
             del preproc_params['output_dir']
         else: output_dir = os.path.join(os.getcwd(), "pypreprocess_results")
-
     if not os.path.exists(output_dir): os.makedirs(output_dir)
 
     # ensure that we actually have data to preprocess
-    assert len(subjects) > 0, "subject_factory is empty; nothing to do!"
+    if not len(subjects):
+        raise RuntimeError("subject_factory is empty; nothing to do!")
 
     # sanitize subject output directories
     for subject_data in subjects:
@@ -1614,14 +1616,10 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
                                 " <i>%s</i> with the following arguments:"
                                 ) % (preproc_func_name, user_script_name)
             args_dict = dict((arg, values[arg]) for arg in args if not arg in [
-                    "dataset_description",
-                    "report_filename",
-                    "report",
-                    "cv_tc",
-                    "shutdown_reloaders",
-                    "subjects",
-                    # add other args to exclude below
-                    ])
+                "dataset_description", "report_filename", "report", "cv_tc",
+                "shutdown_reloaders", "subjects",
+                # add other args to exclude below
+            ])
             args_dict['output_dir'] = output_dir
             preproc_details += dict_to_html_ul(args_dict)
         details_filename = os.path.join(output_dir, "preproc_details.html")
@@ -1640,21 +1638,14 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         # html markup
         log = get_dataset_report_log_html_template(
             start_time=time.ctime())
-
         preproc = get_dataset_report_preproc_html_template(
-            results=parent_results_gallery,
-            start_time=time.ctime(),
+            results=parent_results_gallery, start_time=time.ctime(),
             dataset_description=dataset_description,
             source_code=user_source_code,
-            source_script_name=user_script_name,
-            )
-
+            source_script_name=user_script_name)
         main_html = get_dataset_report_html_template(
-            results=parent_results_gallery,
-            start_time=time.ctime(),
-            dataset_id=dataset_id
-            )
-
+            results=parent_results_gallery, start_time=time.ctime(),
+            dataset_id=dataset_id)
         with open(report_log_filename, 'w') as fd:
             fd.write(str(log))
             fd.close()
@@ -1664,7 +1655,6 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         with open(report_filename, 'w') as fd:
             fd.write(str(main_html))
             fd.close()
-
         if not dartel: preproc_params['parent_results_gallery'
                                       ] = parent_results_gallery
 
@@ -1692,7 +1682,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         print "\r\n\tHTML report written to %s" % report_preproc_filename
 
     # don't yet segment nor normalize if dartel enabled
-    if dartel:
+    if dartel or newsegment:
         for item in ["segment", "normalize", "cv_tc", "last_stage"]:
             preproc_params[item] = False
 
@@ -1701,13 +1691,10 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
             subject_data, **preproc_params) for subject_data in subjects)
 
     # run DARTEL
-    if dartel:
-        preproc_subject_data = _do_subjects_dartel(
-            preproc_subject_data, output_dir,
-            n_jobs=n_jobs,
-            parent_results_gallery=parent_results_gallery,
+    if dartel or newsegment:
+        preproc_subject_data = _do_subjects_newsegment(
+            preproc_subject_data, output_dir, n_jobs=n_jobs, do_dartel=dartel,
             **preproc_params)
 
     finalize_report()
-
     return preproc_subject_data
