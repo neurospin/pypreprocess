@@ -34,14 +34,24 @@ def _parse_job(config_file, **replacements):
         if key == "slice_order":
             if isinstance(val, basestring): return
         if isinstance(val, basestring):
-            if val.lower() in ["true", "yes"]: val = True
-            elif val.lower() in ["false", "no"]: val = False
+            if val.lower() in ["true", "yes"]:
+                # positive answers
+                val = True
+            elif val.lower() in ["false", "no"]:
+                # negative answers
+                val = False
             elif key == "slice_order": val = val.lower()
-            elif val.lower() in ["none", "auto", "unspecified", "unknown"]:
+            elif val.lower() in ["none", "auto", "unspecified", "unknown",
+                                 "default"]:
+                # user wants the default value to be used
+                val = None
+            elif re.match("^ *?$", val):
+                # empty value specified
                 val = None
         if key in ["TR", "nslices", "ref_slice", "nsubjects", "nsessions",
                    "n_jobs"]:
-            if not val is None: val = eval(val)
+            # evaluate param value if it's a formula
+            val = None if val is None else eval(val)
 
         # BF: some users forget the "s" in "_sizes"
         if key in ["fwhm", "anat_fwhm", "anat_write_voxel_sizes",
@@ -216,7 +226,6 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
         Ignore given subject_id ?
 
         """
-
         if subject_id in exclude_these_subject_ids: return True
         elif len(include_only_these_subject_ids
                  ) and not subject_id in include_only_these_subject_ids:
@@ -224,9 +233,8 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
         else: return False
 
     # subject data factory
-    subject_dir_wildcard = os.path.join(dataset_dir,
-                                        options.get("subject_dirs",
-                                                    "*"))
+    subject_dir_wildcard = os.path.join(
+        dataset_dir, options.get("subject_dirs", "*"))
     sess_func_wildcards = [k for k in options.keys()
                            if re.match("session_.+_func", k)]
     sess_onset_wildcards = [k for k in options.keys()
@@ -240,11 +248,11 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
         return [], preproc_params
 
     for subject_data_dir in subject_data_dirs:
-        if len(subjects) == nsubjects: break
-
+        if len(subjects) == nsubjects:
+            # we've had enough subjects already; end
+            break
         subject_id = os.path.basename(subject_data_dir)
         if _ignore_subject(subject_id): continue
-
         subject_output_dir = os.path.join(output_dir, subject_id)
 
         # grab functional data
@@ -260,11 +268,9 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
                 sess_onset_wildcard = os.path.join(subject_data_dir,
                                                   sess_onset_wildcard)
                 sess_onset = sorted(glob.glob(sess_onset_wildcard))
-                assert len(sess_onset) in [0, 1]
-                if len(sess_onset) > 0:
-                    o = sess_onset[0]
+                if len(sess_onset) > 1: raise ValueError
+                if len(sess_onset) > 0: o = sess_onset[0]
             onset.append(o)
-
             sess_func_wildcard = options[sess_func_wildcard]
             sess_func_wildcard = os.path.join(subject_data_dir,
                                               sess_func_wildcard)
@@ -293,6 +299,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
                 os.makedirs(sess_output_dir)
             sess_output_dirs.append(sess_output_dir)
 
+        # something is wrong with this guy, skip
         if skip_subject:
             warnings.warn("Skipping subject %s" % subject_id)
             continue
@@ -300,6 +307,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
         # grab anat
         anat = None
         if not options.get("anat", None) is None:
+            # grap anat file(s)
             anat_wildcard = os.path.join(subject_data_dir, options['anat'])
             anat = glob.glob(anat_wildcard)
 
@@ -310,6 +318,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
                     " subject" % (subject_id, anat_wildcard))
                 continue
 
+            # we need just 1 anat volume
             anat = anat[0]
             anat_dir = os.path.dirname(anat)
         else:
@@ -322,7 +331,6 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
             anat_output_dir = os.path.join(subject_output_dir,
                                            get_relative_path(subject_data_dir,
                                                              anat_dir))
-
             if not os.path.exists(anat_output_dir):
                 os.makedirs(anat_output_dir)
 
@@ -339,8 +347,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
             drift_model='Cosine',
             hrf_model=options.get('hrf_model', 'Canonical With Derivative'),
             hfcut=options.get("hfcut", 128.),
-            time_units=options.get("time_units", "seconds")
-            )
+            time_units=options.get("time_units", "seconds"))
         subjects.append(subject_data)
 
     if not subjects:

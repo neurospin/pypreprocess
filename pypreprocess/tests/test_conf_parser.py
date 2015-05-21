@@ -42,3 +42,15 @@ def test_issue110():
                  output_dir=output_dir)
     _, options = _generate_preproc_pipeline(config_file)
     assert_true(options["newsegment"])
+
+
+def test_empty_params_default_to_none():
+    output_dir = "/tmp/output"
+    config_file = "/tmp/empty.ini"
+    for i in range(3):
+        dataset_dir = " " * i
+        _make_config(config_file, newsegment=True, dataset_dir=dataset_dir,
+                     output_dir=output_dir)
+        _make_config(config_file)
+        assert_raises_regex(ValueError, "dataset_dir not specified",
+                            _generate_preproc_pipeline, config_file)
