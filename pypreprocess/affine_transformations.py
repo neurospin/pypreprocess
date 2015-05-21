@@ -123,8 +123,11 @@ def spm_matrix(p):
 
 
 def spm_imatrix(M):
-    """Returns parameters the 12 parameters for creating a given affine
+    """Returns parameters the 12 parameters for a given affine
     transformation.
+
+    This function does the inverse operation of the `spm_matrix`
+    function.
 
     Parameters
     ----------
@@ -342,13 +345,44 @@ def apply_realignment(vols, rp, inverse=True):
             for t, vol in enumerate(vols)]
 
 
-def extract_realignment_params(ref_vol, vol):
+def extract_realignment_matrix(coregistered, original, inverse=False):
     """
-    Extracts realignment param for vol -> ref_vol rigid body registration
+    Extracts realignment matrix for "original -> coregistered" rigid body
+    registration.
 
+    Parameters
+    ----------
+    original: 3d volume (filename of nifti image object)
+        The original source image.
+
+    coregistered: 3d volume (filename of nifti image object)
+        The coregistered output image.
+
+    inverse: bool (optional, default False)
+        If True, then the matrix for the inverse transformation is
     """
+    if inverse: coregistered, original = original, coregistered
+    coregistered = load_vols(coregistered)[0]
+    original = load_vols(original)[0]
+    return np.dot(original.get_affine(),
+                  scipy.linalg.inv(coregistered.get_affine()))
 
-   # store estimated motion for volume t
-    return spm_imatrix(
-        np.dot(vol.get_affine(), scipy.linalg.inv(ref_vol.get_affine()))
-               )
+
+def extract_realignment_params(coregistered, original, inverse=False):
+    """
+    Extracts realignment params for "original -> coregistered" rigid body
+    registration.
+
+    Parameters
+    ----------
+    original: 3d volume (filename of nifti image object)
+        The original source image.
+
+    coregistered: 3d volume (filename of nifti image object)
+        The coregistered output image.
+
+    inverse: bool (optional, default False)
+        If True, then the matrix for the inverse transformation is
+    """
+    return spm_imatrix(extract_realignment_matrix(coregistered, original,
+                                                  inverse=inverse))
