@@ -17,7 +17,7 @@ import numpy as np
 import nibabel as nib
 
 from nilearn.plotting import plot_stat_map
-from nilearn._utils import check_niimgs
+from nilearn.image.image import check_niimg_4d
 from nilearn.image import mean_img
 
 
@@ -108,7 +108,7 @@ def time_slice_diffs(img):
            volume with the mean of ``d2[t]`` across t for t in 0:T-1.
 
     '''
-    img = check_niimgs(img)
+    img = check_niimg_4d(img)
     shape = img.shape
     T = shape[-1]
     S = shape[-2]  # presumably the slice axis -- to be reconsidered ?
