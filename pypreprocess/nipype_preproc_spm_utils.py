@@ -1682,13 +1682,8 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         print "\r\n\tHTML report written to %s" % report_preproc_filename
 
     # don't yet segment nor normalize if dartel enabled
-<<<<<<< HEAD
     if dartel or newsegment:
-        for item in ["segment", "normalize", "cv_tc", "last_stage"]:
-=======
-    if dartel:
         for item in ["segment", "normalize", "tsdiffana", "last_stage"]:
->>>>>>> Remove all occurences of cv_tc
             preproc_params[item] = False
 
     # run classic preproc
