@@ -2,7 +2,7 @@ import os
 import inspect
 import numpy as np
 import scipy.io
-from nose.tools import assert_true, nottest
+from nose.tools import assert_true, assert_equal, nottest
 import nibabel
 from nilearn.image import index_img
 from ..realign import _compute_rate_of_change_of_chisq, MRIMotionCorrection
@@ -142,7 +142,7 @@ def test_appy_realigment_and_extract_realignment_params_APIs():
         rp[t, 3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
 
     # apply motion (noise)
-    film = apply_realignment(film, rp)[0]
+    film = apply_realignment(film, rp)
 
     # check that motion has been induced
     for t in range(n_scans):
@@ -151,17 +151,14 @@ def test_appy_realigment_and_extract_realignment_params_APIs():
         _tmp[3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
 
         np.testing.assert_array_almost_equal(
-            extract_realignment_params(index_img(film, t), index_img(film, 0)),
-            _tmp)
+            extract_realignment_params(film[t], film[0]), _tmp)
 
 
 def test_MRIMotionCorrection_fit():
     # setup
     output_dir = os.path.join(OUTPUT_DIR, inspect.stack()[0][3])
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    n_scans = 3
+    if not os.path.exists(output_dir): os.makedirs(output_dir)
+    n_scans = 2
     lkp = np.arange(6)
     translation = np.array([1, 3, 2])  # mm
     rotation = np.array([1, 2, .5])  # degrees
@@ -172,13 +169,11 @@ def test_MRIMotionCorrection_fit():
                                         "test_data/spmmmfmri.mat"),
                            squeeze_me=True, struct_as_record=False)
     data = np.ndarray(list(vol['data'].shape) + [n_scans])
-    for t in range(n_scans):
-        data[..., t] = vol['data']
+    for t in range(n_scans): data[..., t] = vol['data']
     film = nibabel.Nifti1Image(data, vol['affine'])
 
     # rigidly move other volumes w.r.t. the first
-    rp = np.array([get_initial_motion_params()
-                   for _ in range(n_scans)])
+    rp = np.array([get_initial_motion_params() for _ in range(n_scans)])
     for t in range(n_scans):
         rp[t, ...][:3] += _make_vol_specific_translation(
             translation, n_scans, t)
@@ -201,12 +196,10 @@ def test_MRIMotionCorrection_fit():
         # check the estimated motion is well within our MAX_RE limit
         _tmp[:3] += _make_vol_specific_translation(translation, n_scans, t)
         _tmp[3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
-        if t > 0:
-            np.testing.assert_allclose(
+        if t > 0: np.testing.assert_allclose(
                 mrimc.realignment_parameters_[0][t][lkp],
                 _tmp[lkp], rtol=MAX_RE)
-        else:
-            np.testing.assert_array_equal(
+        else: np.testing.assert_array_equal(
                 mrimc.realignment_parameters_[0][t],
                 get_initial_motion_params()[:6])
 
@@ -214,7 +207,9 @@ def test_MRIMotionCorrection_fit():
     # check transform
     ####################
     mrimc_output = mrimc.transform(output_dir)
-    assert_true(isinstance(mrimc_output['realigned_images'], basestring))
+    assert_equal(len(mrimc_output['realigned_images']), 1)
+    assert_equal(len(set(mrimc_output['realigned_images'][0])), n_scans)
+    assert_equal(len(set(mrimc_output['realigned_images'][0])), n_scans)
 
 
 @nottest

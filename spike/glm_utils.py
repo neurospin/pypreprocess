@@ -21,7 +21,7 @@ import nibabel
 from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 from nipy.modalities.fmri.glm import FMRILinearModel
-from pypreprocess.datasets import fetch_spm_multimodal_fmri_data
+from pypreprocess.datasets import fetch_spm_multimodal_fmri
 from pypreprocess.purepython_preproc_utils import do_subject_preproc
 from pypreprocess.external.joblib import Memory
 from pypreprocess.reslice import reslice_vols
@@ -82,38 +82,6 @@ def parse_onset_file(onset_file):
             "Couldn't read any data from onset file: %s" % onset_file)
     return map(np.array, [conditions, onsets, durations, amplitudes])
 
-# fetch data
-data_dir = "examples/spm_multimodal/"
-subject_data = fetch_spm_multimodal_fmri_data(data_dir)
-
-# re-write onset files into compatible format
-for sess in range(2):
-    trials = getattr(subject_data, "trials_ses%i" % (sess + 1))
-    fd = open(trials.split(".")[0] + ".txt", 'w')
-    timing = scipy.io.loadmat(trials, squeeze_me=True, struct_as_record=False)
-    onsets = np.hstack(timing['onsets'])
-    durations = np.hstack(timing['durations'])
-    amplitudes = np.ones_like(onsets)
-    conditions = [list(timing['names'][i:i + 1]) * len(timing['onsets'][i])
-                  for i in range(len(timing['names']))]
-    conditions = np.hstack(conditions)
-    assert len(amplitudes) == len(onsets) == len(durations) == len(conditions)
-    for condition, onset, duration, amplitude in zip(conditions, onsets,
-                                                     durations, amplitudes):
-        fd.write("%s %s %s %s\r\n" % (condition, onset, duration, amplitude))
-    fd.close()
-
-output_dir = ""
-anat_wildcard = 'sMRI/smri.img'
-session_1_onset = "fMRI/trials_ses1.txt"
-session_1_func = "fMRI/Session1/fMETHODS-0005-00*.img"
-session_2_onset = "fMRI/trials_ses2.txt"
-session_2_func = "fMRI/Session2/fMETHODS-0006-00*.img"
-
-subject_dirs = sorted(glob.glob("%s/sub*" % data_dir))
-session_onset_wildcards = [session_1_onset, session_2_onset]
-session_func_wildcards = [session_1_func, session_2_func]
-
 
 def do_subject_glm(subject_data):
     """FE analysis for a single subject."""
@@ -140,14 +108,12 @@ def do_subject_glm(subject_data):
 
         # reslice func images
         func_files = [mem.cache(reslice_vols)(
-                sess_func,
-                target_affine=nibabel.load(sess_func[0]).get_affine())
-                  for sess_func in func_files]
+            sess_func, target_affine=nibabel.load(sess_func[0]).get_affine())
+                      for sess_func in func_files]
 
     ### GLM: loop on (session_bold, onse_file) pairs over the various sessions
     design_matrices = []
-    for session, (func_file, onset_file) in enumerate(zip(func_files,
-                                                          onset_files)):
+    for func_file, onset_file in zip(func_files, onset_files):
         if isinstance(func_file, str):
             bold = nibabel.load(func_file)
         else:
@@ -248,6 +214,41 @@ def do_subject_glm(subject_data):
 
 
 if __name__ == "__maih__":
+    # fetch data
+    data_dir = "examples/spm_multimodal/"
+    subject_data = fetch_spm_multimodal_fmri(data_dir)
+
+    # re-write onset files into compatible format
+    for sess in range(2):
+        trials = getattr(subject_data, "trials_ses%i" % (sess + 1))
+        fd = open(trials.split(".")[0] + ".txt", 'w')
+        timing = scipy.io.loadmat(trials, squeeze_me=True,
+                                  struct_as_record=False)
+        onsets = np.hstack(timing['onsets'])
+        durations = np.hstack(timing['durations'])
+        amplitudes = np.ones_like(onsets)
+        conditions = [list(timing['names'][i:i + 1]) * len(timing['onsets'][i])
+                      for i in range(len(timing['names']))]
+        conditions = np.hstack(conditions)
+        assert len(amplitudes) == len(onsets) == len(
+            durations) == len(conditions)
+        for condition, onset, duration, amplitude in zip(
+                conditions, onsets, durations, amplitudes):
+            fd.write("%s %s %s %s\r\n" % (condition, onset, duration,
+                                          amplitude))
+        fd.close()
+
+    output_dir = ""
+    anat_wildcard = 'sMRI/smri.img'
+    session_1_onset = "fMRI/trials_ses1.txt"
+    session_1_func = "fMRI/Session1/fMETHODS-0005-00*.img"
+    session_2_onset = "fMRI/trials_ses2.txt"
+    session_2_func = "fMRI/Session2/fMETHODS-0006-00*.img"
+
+    subject_dirs = sorted(glob.glob("%s/sub*" % data_dir))
+    session_onset_wildcards = [session_1_onset, session_2_onset]
+    session_func_wildcards = [session_1_func, session_2_func]
+
     mem = Memory(os.path.join(output_dir, "cache"))
     first_level_glms = map(mem.cache(do_subject_glm), subject_dirs)
 

@@ -632,13 +632,11 @@ class MRIMotionCorrection(object):
                         prefix=prefix)
                 else:
                     sess_realigned_files = [save_vol(
-                            sess_rvols[t],
-                            output_dir=output_dir,
-                            basename=sess_basenames[t] if isinstance(
-                                sess_basenames,
-                                list) else sess_basenames,
-                            ext=ext,
-                            prefix=prefix) for t in range(n_scans)]
+                        sess_rvols[t],
+                        output_dir=output_dir,
+                        basename=sess_basenames[t] if isinstance(
+                            sess_basenames, list) else "vol_%i" % t,
+                        ext=ext, prefix=prefix) for t in range(n_scans)]
 
                 output['realigned_images'].append(sess_realigned_files)
 

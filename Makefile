@@ -29,18 +29,7 @@ inplace:
 	$(PYTHON) setup.py build_ext -i
 
 test-code:
-	$(NOSETESTS) -v pypreprocess/tests/test_io_utils.py \
-	pypreprocess/tests/test_histograms.py \
-	pypreprocess/tests/test_bug_fixes.py \
-	pypreprocess/tests/test_subject_data.py \
-	pypreprocess/tests/test_affine_transformations.py \
-	pypreprocess/tests/test_kernel_smooth.py \
-	pypreprocess/tests/test_reslice.py \
-	pypreprocess/tests/test_slice_timing.py \
-	pypreprocess/tests/test_cluster_level_analysis.py \
-	pypreprocess/tests/test_conf_parser.py
-
-
+	$(NOSETESTS) -s pypreprocess
 
 test-doc:
 	$(NOSETESTS) -s --with-doctest --doctest-tests --doctest-extension=rst \

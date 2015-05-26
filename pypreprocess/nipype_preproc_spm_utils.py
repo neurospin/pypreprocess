@@ -70,9 +70,11 @@ def _configure_backends(spm_dir=None, matlab_exec=None, spm_mcr=None,
     elif critical:
         raise RuntimeError("Failed to configure SPM!")
 
+# try configuring SPM, etc.,  backends
 try:
     _configure_backends()
-except AssertionError:
+except RuntimeError:
+    # no worry, we'll retry in due time
     pass
 
 
