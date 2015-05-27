@@ -233,7 +233,8 @@ def plot_tsdiffs(results, use_same_figure=True):
                 'Slice by slice variance')
 
     kwargs = {}
-    for which in ["diff2_mean_vol", "slice_diff2_max_vol"]:
+    titles = ['mean squared difference', 'max squared difference']
+    for title, which in zip(titles, ["diff2_mean_vol", "slice_diff2_max_vol"]):
         if use_same_figure:
             kwargs["axes"] = next(iter_axes)
         stuff = reorder_img(results[which], resample="continuous")
@@ -241,7 +242,7 @@ def plot_tsdiffs(results, use_same_figure=True):
         # XXX: Passing axes=ax param to plot_stat_map produces miracles!
         # XXX: As a quick fix, we simply plot and then do ax = plt.gca()
         plot_stat_map(stuff, bg_img=None, display_mode='z', cut_coords=5,
-                black_bg=True, title=which, **kwargs)
+                black_bg=True, title=title, **kwargs)
         if not use_same_figure:
             axes.append(plt.gca())
 
