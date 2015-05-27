@@ -48,7 +48,15 @@ segment_acronyms = ("Acronyms: TPM means Tissue Probability Map; GM means "
 #                  " it's OK. Also, the CoV typically spikes at the end and the "
 #                  "begining of the acquisition, due to saturation effects, "
 #                  "scanner instability, etc.")
-tsdiffana_tooltip = ("TODO")
+tsdiffana_tooltip = (
+    "(Squared) differences across sequential volumes. "
+    "A large value indicates an artifact "
+    "that occurred during the slice acquisition, possibly related to motion. "
+    " Note that such artifacts can be slice specific. "
+    " It may be a good option to remove an artefacted scan "
+    "from subsequent analyses. Large variations around the brain indicate "
+    " (uncorrected) motion effects. Large variations should be confined "
+    "to vascular structures or ventricles.")
 reg_tooltip = ("The red contours should"
                " match the background image well. Otherwise, something might"
                " have gone wrong. Typically things that can go wrong include: "
