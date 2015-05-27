@@ -92,8 +92,8 @@ def time_slice_diffs(img):
            array containing the mean (over voxels in volume) of the
            squared difference from one time point to the next
         * 'slice_mean_diff2' : (T-1, S) array
-           giving the mean (over voxels in slice) of the difference from
-           one time point to the next, one value per slice, per
+           giving the mean (over voxels in slice) of the squared difference
+           from one time point to the next, one value per slice, per
            timepoint
         * 'volume_means' : (T,) array
            mean over voxels for each volume ``vol[t] for t in 0:T``
@@ -172,7 +172,7 @@ def plot_tsdiffs(results, use_same_figure=True):
     T = len(results['volume_means'])
     S = results['slice_mean_diff2'].shape[1]
     mean_means = np.mean(results['volume_means'])
-    scaled_slice_diff = results['slice_mean_diff2'] / mean_means
+    scaled_slice_diff = results['slice_mean_diff2'] / mean_means ** 2
     n_plots = 6
 
     if use_same_figure:
@@ -197,8 +197,9 @@ def plot_tsdiffs(results, use_same_figure=True):
 
     # plot of mean volume variance
     ax = next(iter_axes)
-    ax.plot(results['volume_mean_diff2'] / mean_means)
-    xmax_labels(ax, T - 1, 'Difference image number', 'Scaled variance')
+    ax.plot(results['volume_mean_diff2'] / mean_means ** 2)
+    # note: squaring the mean to obtain a dimensionless quantity
+    xmax_labels(ax, T - 1, 'Image number', 'Scaled variance')
 
     # mean intensity
     ax = next(iter_axes)
@@ -228,7 +229,7 @@ def plot_tsdiffs(results, use_same_figure=True):
                c=Y.T.ravel(), cmap=plt.cm.hsv,
                alpha=0.2)
     xmax_labels(ax, T - 1,
-                'Difference image number',
+                'Image number',
                 'Slice by slice variance')
 
     kwargs = {}
