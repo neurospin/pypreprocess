@@ -771,7 +771,6 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                 else: write_voxel_sizes = func_write_voxel_sizes
             else:
                 apply_to_files = subject_data.anat
-                apply_to_files, file_types = ravel_filenames(subject_data.func)
                 if anat_write_voxel_sizes is None:
                     write_voxel_sizes = get_vox_dims(apply_to_files)
                 else: write_voxel_sizes = anat_write_voxel_sizes
