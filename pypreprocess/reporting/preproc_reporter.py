@@ -448,7 +448,7 @@ def generate_registration_thumbnails(
                            "%s_on_%s_outline.png" % (target[1], source[1]))
 
     qa_mem.cache(plot_registration)(
-        target[0], source[0], output_filename=outline,
+        target[0], source[0], output_filename=outline, close=True,
         title="Outline of %s on %s" % (target[1], source[1]))
 
     # create thumbnail
@@ -471,12 +471,12 @@ def generate_registration_thumbnails(
     outline_axial = os.path.join(
         output_dir, "%s_on_%s_outline_axial.png" % (target[1], source[1]))
     qa_mem.cache(plot_registration)(
-        target[0], source[0], output_filename=outline_axial,
+        target[0], source[0], output_filename=outline_axial, close=True,
         display_mode='z', title="Outline of %s on %s" % (target[1],
                                                          source[1]))
     output['axial'] = outline_axial
     qa_mem.cache(plot_registration)(
-        target[0], source[0], output_filename=outline,
+        target[0], source[0], output_filename=outline, close=True,
         title="Outline of %s on %s" % (target[1], source[1]))
 
     # create thumbnail
@@ -620,21 +620,15 @@ def generate_segmentation_thumbnails(
             output_dir,
             "template_compartments_contours_on_%s_axial.png" % _brain)
         qa_mem.cache(plot_segmentation)(
-            normalized_file,
-            GM_TEMPLATE,
-            wm_filename=WM_TEMPLATE,
-            csf_filename=CSF_TEMPLATE,
+            normalized_file, GM_TEMPLATE, wm_filename=WM_TEMPLATE,
+            csf_filename=CSF_TEMPLATE, display_mode='z', cmap=cmap,
             output_filename=template_compartments_contours_axial,
-            display_mode='z',
-            cmap=cmap,
-            title="template TPMs")
+            title="template TPMs", close=True)
         qa_mem.cache(plot_segmentation)(
-            normalized_file,
-            gm_filename=GM_TEMPLATE,
-            wm_filename=WM_TEMPLATE,
-            csf_filename=CSF_TEMPLATE,
+            normalized_file, gm_filename=GM_TEMPLATE,
+            wm_filename=WM_TEMPLATE, csf_filename=CSF_TEMPLATE,
             output_filename=template_compartments_contours,
-            cmap=cmap,
+            cmap=cmap, close=True,
             title=("Template GM, WM, and CSF TPM contours on "
                    "subject's %s") % _brain)
 
@@ -662,14 +656,10 @@ def generate_segmentation_thumbnails(
             "subject_tmps_contours_on_subject_%s_axial.png" % _brain)
 
         qa_mem.cache(plot_segmentation)(
-            normalized_file,
-            subject_gm_file,
-            wm_filename=subject_wm_file,
-            csf_filename=subject_csf_file,
+            normalized_file, subject_gm_file, wm_filename=subject_wm_file,
+            csf_filename=subject_csf_file, display_mode='z', cmap=cmap,
             output_filename=subject_compartments_contours_axial,
-            display_mode='z',
-            cmap=cmap,
-            title="subject TPMs")
+            close=True, title="subject TPMs")
 
         title_prefix = "Subject's GM"
         if subject_wm_file:
@@ -677,12 +667,9 @@ def generate_segmentation_thumbnails(
         if subject_csf_file:
             title_prefix += ", and CSF"
         qa_mem.cache(plot_segmentation)(
-            normalized_file,
-            subject_gm_file,
-            wm_filename=subject_wm_file,
-            csf_filename=subject_csf_file,
+            normalized_file, subject_gm_file, wm_filename=subject_wm_file,
+            csf_filename=subject_csf_file, cmap=cmap, close=True,
             output_filename=subject_compartments_contours,
-            cmap=cmap,
             title=("%s TPM contours on "
                "subject's %s") % (title_prefix, _brain))
 
@@ -784,8 +771,7 @@ def generate_realignment_thumbnails(
     rp_plot = os.path.join(output_dir, 'rp_plot.png')
     plot_spm_motion_parameters(
         estimated_motion,
-        title="Plot of Estimated motion for %d sessions" % len(sessions),
-        output_filename=rp_plot)
+        title="Plot of Estimated motion for %d sessions" % len(sessions))
     aux = 0.
     for l in lengths[:-1]:
         pl.axvline(aux + l, linestyle="--", c="k")
