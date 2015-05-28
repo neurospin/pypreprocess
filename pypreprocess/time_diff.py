@@ -242,13 +242,10 @@ def plot_tsdiffs(results, use_same_figure=True):
         # XXX: Passing axes=ax param to plot_stat_map produces miracles!
         # XXX: As a quick fix, we simply plot and then do ax = plt.gca()
         plot_stat_map(stuff, bg_img=None, display_mode='z', cut_coords=5,
-                black_bg=True, title=title, **kwargs)
+                      black_bg=True, title=title, **kwargs)
         if not use_same_figure:
             axes.append(plt.gca())
 
-    # reorger subplots according to importance
-    if not use_same_figure:
-        axes = axes[:-3] + axes[-2:] + axes[-3:-2]
     return axes
 
 
