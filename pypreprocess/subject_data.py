@@ -40,23 +40,23 @@ mc_tooltip = ("Motion parameters estimated during motion-"
 segment_acronyms = ("Acronyms: TPM means Tissue Probability Map; GM means "
                    "Grey-Matter;"
                    " WM means White-Matter; CSF means Cerebro-Spinal Fuild")
-# cv_tc_tooltip = ("Coefficient of Variation (CoV) of the BOLD signal. "
-#                  "The Coefficient of "
-#                  "Variation is defined as the variance of the BOLD signal "
-#                  "(over the voxels in the brain volume) divided by the mean "
-#                  "thereof. Generally, if the CoV curve is below 1% (.01), then"
-#                  " it's OK. Also, the CoV typically spikes at the end and the "
-#                  "begining of the acquisition, due to saturation effects, "
-#                  "scanner instability, etc.")
-tsdiffana_tooltip = (
-    "(Squared) differences across sequential volumes. "
-    "A large value indicates an artifact "
-    "that occurred during the slice acquisition, possibly related to motion. "
-    " Note that such artifacts can be slice specific. "
-    " It may be a good option to remove an artefacted scan "
-    "from subsequent analyses. Large variations around the brain indicate "
-    " (uncorrected) motion effects. Large variations should be confined "
-    "to vascular structures or ventricles.")
+tsdiffana_tooltip = [
+    ("(Squared) differences across sequential volumes. "
+     "A large value indicates an artifact "
+     "that occurred during the slice acquisition, possibly related to motion."),
+    ("Average signal over each volume. A large drop/peak (e.g. 5%) indicates "
+     "an artefact."),
+    ("Variance index per slice. Note that aqquisition artifacts can be slice"
+     "-specific. Look at the day if there is a peak somewhere."),
+    ("Large variations should be confined to vascular structures "
+     "or ventricles. Large variations around the brain indicate"
+     " (uncorrected) motion effects."),
+    ("Large variations should be confined to vascular structures or"
+     " ventricles. Large variations around the brain indicate (uncorrected)"
+     " motion effects."),
+    ("Scaled variance per slice indicates slices where artifacts occur."
+    "A slice/time with large variance should be eyeballed.")]
+
 reg_tooltip = ("The red contours should"
                " match the background image well. Otherwise, something might"
                " have gone wrong. Typically things that can go wrong include: "
