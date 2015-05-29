@@ -9,25 +9,17 @@ segmentation, etc.) using the viz module from nipy.labs.
 import os
 import tempfile
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as plt
 import nibabel
 from nilearn.plotting import plot_img, plot_stat_map
 from nilearn.image import reorder_img, mean_img
 from nilearn.image.image import check_niimg_4d
 from ..external import joblib
-from ..io_utils import load_vols, is_niimg
+from ..io_utils import load_vols
 EPS = np.finfo(float).eps
 
 
-def _just_one_vol(stuff):
-    """Load just one volume from a nasty pile."""
-    if not (isinstance(stuff, basestring) or is_niimg(stuff)):
-        stuff = load_vols(stuff[0])[0]
-    return stuff
-
-
-def plot_spm_motion_parameters(parameter_file, title=None,
-                               output_filename=None):
+def plot_spm_motion_parameters(parameter_file, title=None, close=False):
     """ Plot motion parameters obtained with SPM software
 
     Parameters
@@ -50,14 +42,15 @@ def plot_spm_motion_parameters(parameter_file, title=None,
     motion[:, 3:] *= (180. / np.pi)
 
     # do plotting
-    pl.figure()
-    pl.plot(motion)
+    plt.figure()
+    plt.plot(motion)
     if not title is None:
-        pl.title(title)
-    pl.legend(('TransX', 'TransY', 'TransZ', 'RotX', 'RotY', 'RotZ'),
+        plt.title(title)
+    plt.legend(('TransX', 'TransY', 'TransZ', 'RotX', 'RotY', 'RotZ'),
               loc="upper left", ncol=2)
-    pl.xlabel('time(scans)')
-    pl.ylabel('Estimated motion (mm/degrees)')
+    plt.xlabel('time(scans)')
+    plt.ylabel('Estimated motion (mm/degrees)')
+    if close: plt.close()
 
 
 def compute_cv(data, mask_array=None):
@@ -73,7 +66,7 @@ def compute_cv(data, mask_array=None):
 
 def plot_cv_tc(epi_imgs, session_ids, subject_id,
                do_plot=True, write_image=True, _output_dir=None,
-               cv_tc_plot_outfile=None, **kwargs):
+               cv_tc_plot_outfile=None, close=False, **kwargs):
     """ Compute coefficient of variation of the data and plot it
 
     Parameters
@@ -132,30 +125,28 @@ def plot_cv_tc(epi_imgs, session_ids, subject_id,
 
     # plot CV time-course
     if do_plot:
-        pl.figure()
-        pl.plot(cv_tc, label=subject_id)
-        pl.legend()
-        pl.xlabel('time(scans)')
-        pl.ylabel('Median coefficient of variation')
+        plt.figure()
+        plt.plot(cv_tc, label=subject_id)
+        plt.legend()
+        plt.xlabel('time(scans)')
+        plt.ylabel('Median coefficient of variation')
         aux = 0.
         for l in lengths[:-1]:
-            pl.axvline(aux + l, linestyle="--", c="k")
+            plt.axvline(aux + l, linestyle="--", c="k")
             aux += l
-        pl.axis('tight')
+        plt.axis('tight')
         if not cv_tc_plot_outfile is None:
-            pl.savefig(cv_tc_plot_outfile,
+            plt.savefig(cv_tc_plot_outfile,
                        bbox_inches="tight", dpi=200)
-            pl.close()
+            if close: plt.close()
 
     return cv_tc
 
 
-def plot_registration(reference_img, coregistered_img,
-                      title="untitled coregistration!",
-                      cut_coords=None,
-                      display_mode='ortho',
-                      cmap=None,
-                      output_filename=None):
+def plot_registration(
+        reference_img, coregistered_img, title="untitled coregistration!",
+        cut_coords=None, display_mode='ortho', cmap=None, close=False,
+        output_filename=None):
     """Plots a coregistered source as bg/contrast for the reference image
 
     Parameters
@@ -178,10 +169,10 @@ def plot_registration(reference_img, coregistered_img,
     """
     # sanity
     if cmap is None:
-        cmap = pl.cm.gray  # registration QA always gray cmap!
+        cmap = plt.cm.gray  # registration QA always gray cmap!
 
-    reference_img = _just_one_vol(reference_img)
-    coregistered_img = _just_one_vol(coregistered_img)
+    reference_img = load_vols(reference_img)[0]
+    coregistered_img = load_vols(coregistered_img)[0]
 
     if cut_coords is None:
         cut_coords = (-10, -28, 17)
@@ -193,7 +184,7 @@ def plot_registration(reference_img, coregistered_img,
     coregistered_img = reorder_img(coregistered_img, resample="continuous")
 
     _slicer = plot_img(coregistered_img, cmap=cmap, cut_coords=cut_coords,
-              display_mode=display_mode, black_bg=False)
+                       display_mode=display_mode, black_bg=True)
 
     # XXX nilearn complains about rotations in affine, etc.
     reference_img = reorder_img(reference_img, resample="continuous")
@@ -205,20 +196,18 @@ def plot_registration(reference_img, coregistered_img,
 
     if not output_filename is None:
         try:
-            pl.savefig(output_filename, dpi=200, bbox_inches='tight',
+            plt.savefig(output_filename, dpi=200, bbox_inches='tight',
                        facecolor="k", edgecolor="k")
-            pl.close()
+            if close: plt.close()
         except AttributeError:
             # XXX TODO: handle this case!!
             pass
 
 
-def plot_segmentation(img, gm_filename, wm_filename=None,
-                      csf_filename=None,
-                      output_filename=None, cut_coords=None,
-                      display_mode='ortho',
-                      cmap=None,
-                      title='GM + WM + CSF segmentation'):
+def plot_segmentation(
+        img, gm_filename, wm_filename=None, csf_filename=None,
+        output_filename=None, cut_coords=None, display_mode='ortho',
+        cmap=None, title='GM + WM + CSF segmentation', close=False):
     """
     Plot a contour mapping of the GM, WM, and CSF of a subject's anatomical.
 
@@ -239,10 +228,8 @@ def plot_segmentation(img, gm_filename, wm_filename=None,
 
     """
     # misc
-    if cmap is None:
-        cmap = pl.cm.gray
-    if cut_coords is None:
-        cut_coords = (-10, -28, 17)
+    if cmap is None: cmap = plt.cm.gray
+    if cut_coords is None: cut_coords = (-10, -28, 17)
     if display_mode in ['x', 'y', 'z']:
         cut_coords = (cut_coords['xyz'.index(display_mode)],)
 
@@ -263,7 +250,7 @@ def plot_segmentation(img, gm_filename, wm_filename=None,
     # misc
     _slicer.title(title, size=12, color='w', alpha=0)
     if not output_filename is None:
-        pl.savefig(output_filename, bbox_inches='tight', dpi=200,
+        plt.savefig(output_filename, bbox_inches='tight', dpi=200,
                    facecolor="k",
                    edgecolor="k")
-        pl.close()
+        if close: plt.close()

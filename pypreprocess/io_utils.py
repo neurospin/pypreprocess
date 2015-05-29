@@ -8,7 +8,6 @@
 import os
 import sys
 import warnings
-import types
 import re
 import shutil
 import commands
@@ -83,10 +82,9 @@ def load_vols(niimgs):
         else:
             return list(iter_img(niimgs))
     else:
-        # notice the the 2 calls to list(...) !!!
         niimgs = list(niimgs)
-        assert 0, niimgs[0].shape
-        return list(iter_img(list(niimgs)))
+        if len(niimgs) == 1: niimgs = niimgs[0]
+        return list(iter_img(niimgs))
 
 
 def save_vols(vols, output_dir, basenames=None, affine=None,

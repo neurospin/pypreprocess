@@ -426,3 +426,15 @@ def test_load_vols_from_single_filename():
         vols.to_filename("/tmp/test.nii.gz")
         vols = load_vols("/tmp/test.nii.gz")
         for vol in vols: assert_equal(vol.shape, tuple(shape[:3]))
+
+
+def test_load_vols_from_singleton_list_of_4D_img():
+    shape = [2, 3, 4]
+    for n_scans in [1, 5]:
+        for from_file in [True, False]:
+            vols = nibabel.Nifti1Image(np.zeros(shape + [n_scans]), np.eye(4))
+            if from_file:
+                vols.to_filename("/tmp/test.nii.gz")
+                vols = "/tmp/test.nii.gz"
+            vols = load_vols([vols])
+            assert_equal(len(vols), n_scans)
