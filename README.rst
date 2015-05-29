@@ -49,6 +49,7 @@ Dependencies
 Installation
 ============
 First install the above dependencies by **copy-pasting** the following commands in a terminal:
+
       bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
       
       sudo apt-get install python-scipy python-nose python-nibabel python-sklearn python-sympy python-networkx
