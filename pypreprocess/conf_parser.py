@@ -209,6 +209,10 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
     preproc_params['output_modulated_tpms'] = options.get(
         "output_modulated_tpms", False)
 
+    # can't do dartel without newsegment!
+    if not preproc_params["newsegment"]:
+        preproc_params["newsegment"] = preproc_params["dartel"]
+
     # configure smoothing node
     preproc_params["fwhm"] = options.get("fwhm", 0.)
     preproc_params["anat_fwhm"] = options.get("anat_fwhm", 0.)
