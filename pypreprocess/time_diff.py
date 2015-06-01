@@ -41,7 +41,9 @@ def multi_session_time_slice_diffs(img_list):
         results_ = time_slice_diffs(img)
         if i == 0:
             for key, val in results_.items():
-                results[key] = val
+                # special case for 'session_length' to make
+                # aggregation easier later on
+                results[key] = val if key != 'session_length' else [val]
         else:
             results['volume_mean_diff2'] = np.hstack((
                     results['volume_mean_diff2'],
@@ -59,6 +61,7 @@ def multi_session_time_slice_diffs(img_list):
                            results['slice_diff2_max_vol'].get_data()),
                 results['slice_diff2_max_vol'].get_affine()
                 )
+            results['session_length'].append(results_['session_length'])
     return results
 
 
@@ -148,7 +151,8 @@ def time_slice_diffs(img):
             'slice_mean_diff2': slice_squared_differences,
             'volume_means': vol_mean,
             'diff2_mean_vol': diff2_mean_vol,
-            'slice_diff2_max_vol': slice_diff2_max_vol}
+            'slice_diff2_max_vol': slice_diff2_max_vol,
+            'session_length': T}
 
 
 def plot_tsdiffs(results, use_same_figure=True):
@@ -169,6 +173,8 @@ def plot_tsdiffs(results, use_same_figure=True):
     '''
     import matplotlib.pyplot as plt
 
+    session_lengths = results['session_length']
+    session_starts = np.cumsum(session_lengths)[:-1]
     T = len(results['volume_means'])
     S = results['slice_mean_diff2'].shape[1]
     mean_means = np.mean(results['volume_means'])
@@ -193,6 +199,10 @@ def plot_tsdiffs(results, use_same_figure=True):
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
 
+    def plot_session_starts(ax):
+        for sep_start in session_starts:
+            ax.axvline(sep_start, linestyle="--", c="k")
+
     iter_axes = iter(axes)
 
     # plot of mean volume variance
@@ -200,6 +210,7 @@ def plot_tsdiffs(results, use_same_figure=True):
     ax.plot(results['volume_mean_diff2'] / mean_means ** 2)
     # note: squaring the mean to obtain a dimensionless quantity
     xmax_labels(ax, T - 1, 'Image number', 'Scaled variance')
+    plot_session_starts(ax)
 
     # mean intensity
     ax = next(iter_axes)
@@ -207,6 +218,7 @@ def plot_tsdiffs(results, use_same_figure=True):
     xmax_labels(ax, T,
                 'Image number',
                 'Scaled mean \n voxel intensity')
+    plot_session_starts(ax)
 
     # slice plots min max mean
     ax = next(iter_axes)
@@ -231,6 +243,7 @@ def plot_tsdiffs(results, use_same_figure=True):
     xmax_labels(ax, T - 1,
                 'Image number',
                 'Slice by slice variance')
+    plot_session_starts(ax)
 
     kwargs = {}
     titles = ['mean squared difference', 'max squared difference']
