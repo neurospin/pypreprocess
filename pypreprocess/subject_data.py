@@ -40,23 +40,6 @@ mc_tooltip = ("Motion parameters estimated during motion-"
 segment_acronyms = ("Acronyms: TPM means Tissue Probability Map; GM means "
                    "Grey-Matter;"
                    " WM means White-Matter; CSF means Cerebro-Spinal Fuild")
-tsdiffana_tooltips = [
-    ("(Squared) differences across sequential volumes. "
-     "A large value indicates an artifact "
-     "that occurred during the slice acquisition, possibly related to motion."),
-    ("Average signal over each volume. A large drop/peak (e.g. 5%) indicates "
-     "an artefact."),
-    ("Variance index per slice. Note that aqquisition artifacts can be slice"
-     "-specific. Look at the day if there is a peak somewhere."),
-    ("Scaled variance per slice indicates slices where artifacts occur."
-    "A slice/time with large variance should be eyeballed."),
-    ("Large variations should be confined to vascular structures "
-     "or ventricles. Large variations around the brain indicate"
-     " (uncorrected) motion effects."),
-    ("Large variations should be confined to vascular structures or"
-     " ventricles. Large variations around the brain indicate (uncorrected)"
-     " motion effects.")]
-
 reg_tooltip = ("The red contours should"
                " match the background image well. Otherwise, something might"
                " have gone wrong. Typically things that can go wrong include: "
@@ -72,6 +55,22 @@ segment_tooltip = ("%s. The TPM contours shoud match the background image "
                    "extraction), etc. In rare cases, it might be that the"
                    " segmentation algorithm simply didn't succeed." % (
                        segment_acronyms))
+tsdiffana_tooltips = [
+    ("(Squared) differences across sequential volumes. "
+     "A large value indicates an artifact that occurred during the "
+     "slice acquisition, possibly related to motion."),
+    ("Average signal over each volume. A large drop/peak (e.g. 5%) indicates "
+     "an artefact."),
+    ("Variance index per slice. Note that aqquisition artifacts can be slice"
+     "-specific. Look at the data if there is a peak somewhere."),
+    ("Scaled variance per slice indicates slices where artifacts occur."
+    "A slice/time with large variance should be eyeballed."),
+    ("Large variations should be confined to vascular structures "
+     "or ventricles. Large variations around the brain indicate"
+     " (uncorrected) motion effects."),
+    ("Large variations should be confined to vascular structures or"
+     " ventricles. Large variations around the brain indicate (uncorrected)"
+     " motion effects.")]
 
 
 class SubjectData(object):
