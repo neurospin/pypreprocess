@@ -697,7 +697,7 @@ def generate_segmentation_thumbnails(
 
 def generate_tsdiffana_thumbnail(image_files, sessions, subject_id,
                                  output_dir, results_gallery=None,
-                                 tooltip=None):
+                                 tooltips=None):
     """Generate tsdiffana thumbnails
 
     Parameters
@@ -735,13 +735,13 @@ def generate_tsdiffana_thumbnail(image_files, sessions, subject_id,
         fig.savefig(output_filename, bbox_inches="tight", dpi=200)
         pl.close(fig)
 
-    if tooltip is None:
-        tooltip = [None, None, None, None, None, None]
+    if tooltips is None:
+        tooltips = [None] * len(output_filename)
 
     # create thumbnails
     thumbnails = []
-    for output_filename, tooltip_ in zip(output_filenames, tooltip):
-        thumbnail = Thumbnail(tooltip=tooltip_)
+    for output_filename, tooltip in zip(output_filenames, tooltips):
+        thumbnail = Thumbnail(tooltip=tooltip)
         thumbnail.a = a(
             href=os.path.basename(output_filename))
         thumbnail.img = img(

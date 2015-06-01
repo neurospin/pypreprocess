@@ -40,7 +40,7 @@ mc_tooltip = ("Motion parameters estimated during motion-"
 segment_acronyms = ("Acronyms: TPM means Tissue Probability Map; GM means "
                    "Grey-Matter;"
                    " WM means White-Matter; CSF means Cerebro-Spinal Fuild")
-tsdiffana_tooltip = [
+tsdiffana_tooltips = [
     ("(Squared) differences across sequential volumes. "
      "A large value indicates an artifact "
      "that occurred during the slice acquisition, possibly related to motion."),
@@ -48,14 +48,14 @@ tsdiffana_tooltip = [
      "an artefact."),
     ("Variance index per slice. Note that aqquisition artifacts can be slice"
      "-specific. Look at the day if there is a peak somewhere."),
+    ("Scaled variance per slice indicates slices where artifacts occur."
+    "A slice/time with large variance should be eyeballed."),
     ("Large variations should be confined to vascular structures "
      "or ventricles. Large variations around the brain indicate"
      " (uncorrected) motion effects."),
     ("Large variations should be confined to vascular structures or"
      " ventricles. Large variations around the brain indicate (uncorrected)"
-     " motion effects."),
-    ("Scaled variance per slice indicates slices where artifacts occur."
-    "A slice/time with large variance should be eyeballed.")]
+     " motion effects.")]
 
 reg_tooltip = ("The red contours should"
                " match the background image well. Otherwise, something might"
@@ -573,7 +573,7 @@ class SubjectData(object):
             if self.tsdiffana:
                 generate_tsdiffana_thumbnail(
                     self.func, self.session_ids, self.subject_id,
-                    self.reports_output_dir, tooltip=tsdiffana_tooltip,
+                    self.reports_output_dir, tooltips=tsdiffana_tooltips,
                     results_gallery=self.results_gallery)
 
         # shut down all watched report pages
