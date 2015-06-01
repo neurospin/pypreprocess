@@ -247,8 +247,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
     if software == "python":
         return _pp_do_subject_realign(subject_data, register_to_mean=False,
                                       report=report, caching=caching,
-                                      reslice=reslice
-                                      )
+                                      reslice=reslice)
 
     if software != "spm":
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
@@ -282,10 +281,8 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     # run node
     realign_result = realign(
-        in_files=subject_data.func,
-        register_to_mean=register_to_mean,
-        jobtype=jobtype, **kwargs
-        )
+        in_files=subject_data.func, register_to_mean=register_to_mean,
+        jobtype=jobtype, **kwargs)
 
     # failed node
     if realign_result.outputs is None:
@@ -394,11 +391,9 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
     # use pure python (pp) code ?
     if software == "python":
         return _pp_do_subject_coregister(
-            subject_data,
-            reslice=reslice,
-            coreg_func_to_anat=not coreg_anat_to_func,
-            report=report, caching=caching,
-            )
+            subject_data, reslice=reslice,
+            coreg_func_to_anat=not coreg_anat_to_func, report=report,
+            caching=caching,)
 
     # sanitize software choice
     if not software in ["spm", "fsl"]:
@@ -418,8 +413,7 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
     jobtype = "estwrite" if reslice else "estimate"
 
     cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
+    if not os.path.exists(cache_dir): os.makedirs(cache_dir)
     joblib_mem = JoblibMemory(cache_dir)
 
     # create node
@@ -716,10 +710,9 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
         # learn T1 deformation without segmentation
         t1_template = niigz2nii(SPM_T1_TEMPLATE,
                                 output_dir=subject_data.output_dir)
-        normalize_result = normalize(source=subject_data.anat,
-                                     template=t1_template,
-                                     write_preserve=False,
-                                     )
+        normalize_result = normalize(
+            source=subject_data.anat, template=t1_template,
+            write_preserve=False)
         parameter_file = normalize_result.outputs.normalization_parameters
     else:
         parameter_file = subject_data.nipype_results[
@@ -750,10 +743,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                 apply_to_files=apply_to_files,
                 write_voxel_sizes=list(write_voxel_sizes),
                 # write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-                write_interp=1,
-                jobtype='write',
-                ignore_exception=False
-                )
+                write_interp=1, jobtype='write', ignore_exception=False)
 
             # failed node ?
             if normalize_result.outputs is None:
@@ -969,7 +959,6 @@ def _do_subject_dartelnorm2mni(subject_data,
         options to be passes to spm.DARTELNorm2MNI back-end
 
     """
-
     # configure SPM back-end
     _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec,
                         spm_mcr=spm_mcr)
@@ -982,13 +971,10 @@ def _do_subject_dartelnorm2mni(subject_data,
     # prepare for smart caching
     if caching:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
+        if not os.path.exists(cache_dir): os.makedirs(cache_dir)
         subject_data.mem = NipypeMemory(base_dir=cache_dir)
-        dartelnorm2mni = subject_data.mem.cache(
-            spm.DARTELNorm2MNI)
-        createwarped = subject_data.mem.cache(
-            spm.CreateWarped)
+        dartelnorm2mni = subject_data.mem.cache(spm.DARTELNorm2MNI)
+        createwarped = subject_data.mem.cache(spm.CreateWarped)
     else:
         dartelnorm2mni = spm.DARTELNorm2MNI().run
         createwarped = spm.CreateWarped().run
@@ -1411,8 +1397,8 @@ def _do_subjects_newsegment(
     else:
         # collect estimated TPMs
         for j, sd in enumerate(subjects):
-            sd.gm = newsegment_result.outputs.dartel_input_images[0][j]
-            sd.wm = newsegment_result.outputs.dartel_input_images[1][j]
+            sd.gm = newsegment_result.outputs.native_class_images[0][j]
+            sd.wm = newsegment_result.outputs.native_class_images[1][j]
 
             # generate segmentation thumbs
             if report: sd.generate_segmentation_thumbnails()
@@ -1420,11 +1406,9 @@ def _do_subjects_newsegment(
 
     # compute DARTEL template for group data
     dartel = mem.cache(spm.DARTEL)
-    dartel_input_images = [tpms for tpms in
-                           newsegment_result.outputs.dartel_input_images
-                           if tpms]
-    dartel_result = dartel(
-        image_files=dartel_input_images,)
+    dartel_input_images = [
+        tpms for tpms in newsegment_result.outputs.dartel_input_images if tpms]
+    dartel_result = dartel(image_files=dartel_input_images)
     if dartel_result.outputs is None: return
 
     for j, subject_data in enumerate(subjects):
