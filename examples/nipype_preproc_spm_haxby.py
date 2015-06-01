@@ -73,6 +73,6 @@ results = do_subjects_preproc(
     realign=False,
     coregister=False,
     dartel=DARTEL,
-    cv_tc=False,
+    tsdiffana=False,
     dataset_description=DATASET_DESCRIPTION,
     )

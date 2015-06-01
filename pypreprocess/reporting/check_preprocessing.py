@@ -64,89 +64,12 @@ def compute_cv(data, mask_array=None):
     return cv
 
 
-def plot_cv_tc(epi_imgs, session_ids, subject_id,
-               do_plot=True, write_image=True, _output_dir=None,
-               cv_tc_plot_outfile=None, close=False, **kwargs):
-    """ Compute coefficient of variation of the data and plot it
-
-    Parameters
-    ----------
-    epi_imgs: list of strings, input fMRI 4D images
-    session_ids: list of strings of the same length as epi_imgs,
-                 session indexes (for figures)
-    subject_id: string, id of the subject (for figures)
-    do_plot: bool, optional,
-             should we plot the resulting time course
-    write_image: bool, optional,
-                 should we write the cv image
-    mask: bool or string, optional,
-          (string) path of a mask or (bool)  should we mask the data
-    **kwargs:
-        kwargs for plot_stat_map API
-    """
-    if _output_dir is None:
-        if not cv_tc_plot_outfile is None:
-            _output_dir = os.path.dirname(cv_tc_plot_outfile)
-        else:
-            _output_dir = tempfile.mkdtemp()
-
-    lengths = []
-    cv_tc = []
-    for session_id, fmri_file in zip(session_ids, epi_imgs):
-        nim = check_niimg_4d(fmri_file)
-        affine = nim.get_affine()
-        if len(nim.shape) == 4:
-            data = nim.get_data()
-        else:
-            raise TypeError("Expecting 4D image!")
-
-        # compute the CV for the session
-        cache_dir = os.path.join(_output_dir, "CV")
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
-        mem = joblib.Memory(cachedir=cache_dir, verbose=5)
-        cv = nibabel.Nifti1Image(mem.cache(compute_cv)(data), affine)
-
-        # XXX nilearn complains about rotations in affine, etc.
-        cv = reorder_img(cv, resample="continuous")
-
-        if write_image:
-            # write an image
-            cv.to_filename(os.path.join(_output_dir, 'cv_%s.nii' % session_id))
-        plot_stat_map(cv, threshold=.01, **kwargs)
-
-        # compute the time course of cv
-        data = data.reshape((-1, data.shape[-1]))
-        lengths.append(data.shape[-1])
-        cv_tc_sess = np.median(np.sqrt((data.T / data.mean(axis=-1) - 1) ** 2),
-                               axis=-1)
-        cv_tc.append(cv_tc_sess)
-    cv_tc = np.concatenate(cv_tc)
-
-    # plot CV time-course
-    if do_plot:
-        plt.figure()
-        plt.plot(cv_tc, label=subject_id)
-        plt.legend()
-        plt.xlabel('time(scans)')
-        plt.ylabel('Median coefficient of variation')
-        aux = 0.
-        for l in lengths[:-1]:
-            plt.axvline(aux + l, linestyle="--", c="k")
-            aux += l
-        plt.axis('tight')
-        if not cv_tc_plot_outfile is None:
-            plt.savefig(cv_tc_plot_outfile,
-                       bbox_inches="tight", dpi=200)
-            if close: plt.close()
-
-    return cv_tc
-
-
-def plot_registration(
-        reference_img, coregistered_img, title="untitled coregistration!",
-        cut_coords=None, display_mode='ortho', cmap=None, close=False,
-        output_filename=None):
+def plot_registration(reference_img, coregistered_img,
+                      title="untitled coregistration!",
+                      cut_coords=None,
+                      display_mode='ortho',
+                      cmap=None, close=False,
+                      output_filename=None):
     """Plots a coregistered source as bg/contrast for the reference image
 
     Parameters

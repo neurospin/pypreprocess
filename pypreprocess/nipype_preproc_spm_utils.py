@@ -1102,7 +1102,7 @@ def do_subject_preproc(
     smooth_software="spm",
     hardlink_output=True,
     report=True,
-    cv_tc=True,
+    tsdiffana=True,
     parent_results_gallery=None,
     last_stage=True,
     preproc_undergone=None,
@@ -1179,12 +1179,12 @@ def do_subject_preproc(
         nipype cache directories, to the subject's immediate output directory
         (subject_data.output_dir)
 
-    cv_tc: bool (optional)
-        if set, a summarizing the time-course of the coefficient of variation
-        in the preprocessed fMRI time-series will be generated
-
     report: bool, optional (default True)
         if set, then HTML reports will be generated
+
+    tsdiffana: bool, optional (default True)
+        if set, six figures are added to characterize differences between
+        consecutive time points in the times series for artefact detection
 
     See also
     ========
@@ -1249,7 +1249,7 @@ def do_subject_preproc(
         # initialize report factory
         subject_data.init_report(parent_results_gallery=parent_results_gallery,
                                  preproc_undergone=preproc_undergone,
-                                 cv_tc=cv_tc)
+                                 tsdiffana=tsdiffana)
 
     #############################
     # Slice-Timing Correction
@@ -1617,7 +1617,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
                                 " <i>%s</i> with the following arguments:"
                                 ) % (preproc_func_name, user_script_name)
             args_dict = dict((arg, values[arg]) for arg in args if not arg in [
-                "dataset_description", "report_filename", "report", "cv_tc",
+                "dataset_description", "report_filename", "report", "tsdiffana",
                 "shutdown_reloaders", "subjects",
                 # add other args to exclude below
             ])
@@ -1684,7 +1684,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
 
     # don't yet segment nor normalize if dartel enabled
     if dartel or newsegment:
-        for item in ["segment", "normalize", "cv_tc", "last_stage"]:
+        for item in ["segment", "normalize", "tsdiffana", "last_stage"]:
             preproc_params[item] = False
 
     # run classic preproc

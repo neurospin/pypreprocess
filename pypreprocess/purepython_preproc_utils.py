@@ -187,9 +187,9 @@ def _do_subject_smooth(subject_data, fwhm, prefix=None,
 def do_subject_preproc(
         subject_data, caching=True, stc=False, ref_slice=0, interleaved=False,
         slice_order='ascending', realign=True, coregister=True,
-        coreg_func_to_anat=True, cv_tc=True, fwhm=None, write_output_images=2,
-        concat=False, report=True, parent_results_gallery=None,
-        shutdown_reloaders=True, reslice=False):
+        coreg_func_to_anat=True, tsdiffana=True, fwhm=None,
+        write_output_images=2, concat=False, report=True,
+        parent_results_gallery=None, shutdown_reloaders=True, reslice=False):
     """
     API for preprocessing data from single subject (perhaps mutliple sessions)
 
@@ -261,7 +261,7 @@ def do_subject_preproc(
     """
 
     if not write_output_images:
-        cv_tc = False
+        tsdiffana = False
 
     dict_input = isinstance(subject_data, dict)
 
@@ -312,7 +312,7 @@ def do_subject_preproc(
         # initialize reports factory
         subject_data.init_report(parent_results_gallery=parent_results_gallery,
                                  preproc_undergone=preproc_undergone,
-                                 cv_tc=cv_tc)
+                                 tsdiffana=tsdiffana)
 
     ############################
     # Slice-Timing Correction

@@ -21,7 +21,8 @@ from .reporting.base_reporter import (
     ResultsGallery, Thumbnail, a, img, copy_web_conf_files,
     ProgressReport, get_subject_report_html_template,
     get_subject_report_preproc_html_template, copy_failed_png)
-from .reporting.preproc_reporter import (generate_cv_tc_thumbnail,
+
+from .reporting.preproc_reporter import (generate_tsdiffana_thumbnail,
                                          generate_realignment_thumbnails,
                                          generate_coregistration_thumbnails,
                                          generate_normalization_thumbnails,
@@ -39,14 +40,23 @@ mc_tooltip = ("Motion parameters estimated during motion-"
 segment_acronyms = ("Acronyms: TPM means Tissue Probability Map; GM means "
                    "Grey-Matter;"
                    " WM means White-Matter; CSF means Cerebro-Spinal Fuild")
-cv_tc_tooltip = ("Coefficient of Variation (CoV) of the BOLD signal. "
-                 "The Coefficient of "
-                 "Variation is defined as the variance of the BOLD signal "
-                 "(over the voxels in the brain volume) divided by the mean "
-                 "thereof. Generally, if the CoV curve is below 1% (.01), then"
-                 " it's OK. Also, the CoV typically spikes at the end and the "
-                 "begining of the acquisition, due to saturation effects, "
-                 "scanner instability, etc.")
+tsdiffana_tooltips = [
+    ("(Squared) differences across sequential volumes. "
+     "A large value indicates an artifact "
+     "that occurred during the slice acquisition, possibly related to motion."),
+    ("Average signal over each volume. A large drop/peak (e.g. 5%) indicates "
+     "an artefact."),
+    ("Variance index per slice. Note that aqquisition artifacts can be slice"
+     "-specific. Look at the day if there is a peak somewhere."),
+    ("Scaled variance per slice indicates slices where artifacts occur."
+    "A slice/time with large variance should be eyeballed."),
+    ("Large variations should be confined to vascular structures "
+     "or ventricles. Large variations around the brain indicate"
+     " (uncorrected) motion effects."),
+    ("Large variations should be confined to vascular structures or"
+     " ventricles. Large variations around the brain indicate (uncorrected)"
+     " motion effects.")]
+
 reg_tooltip = ("The red contours should"
                " match the background image well. Otherwise, something might"
                " have gone wrong. Typically things that can go wrong include: "
@@ -455,8 +465,8 @@ class SubjectData(object):
             if final:
                 setattr(self, item, tmp)
 
-    def init_report(self, parent_results_gallery=None, cv_tc=True,
-                    preproc_undergone=None):
+    def init_report(self, parent_results_gallery=None,
+                    tsdiffana=True, preproc_undergone=None):
         """
         This method is invoked to initialize the reports factory for the
         subject. It configures everything necessary for latter reporting:
@@ -466,16 +476,21 @@ class SubjectData(object):
 
         Parameters
         ----------
-        cv_tc: bool (optional)
-            if set, a summarizing the time-course of the coefficient of
-            variation in the preprocessed fMRI time-series will be
-            generated
+        parent_results_gallery: reporting.base_reporter.ResultsGallery instance
+
+        tsdiffana: bool, optional
+            if set, six figures are added to characterize differences between
+            consecutive time points in the times series for artefact detection
+        preproc_undergone: list of srtings,
+            list of processing steps performed
 
         """
         # misc
         self._set_session_ids()
         if not self.func:
-            cv_tc = False
+            tsdiffana = False
+
+        # make sure output_dir is OK
         self._sanitize_output_dirs()
 
         # misc for reporting
@@ -485,7 +500,7 @@ class SubjectData(object):
         self.report = True
         self.results_gallery = None
         self.parent_results_gallery = parent_results_gallery
-        self.cv_tc = cv_tc
+        self.tsdiffana = tsdiffana
 
         # report filenames
         self.report_log_filename = os.path.join(
@@ -554,11 +569,11 @@ class SubjectData(object):
             self.final_thumbnail.description += (
                 ' (failed preprocessing)')
         else:
-            # geneate cv_tc plots
-            if self.cv_tc:
-                generate_cv_tc_thumbnail(
+            # generate tsdiffana plots
+            if self.tsdiffana:
+                generate_tsdiffana_thumbnail(
                     self.func, self.session_ids, self.subject_id,
-                    self.reports_output_dir, tooltip=cv_tc_tooltip,
+                    self.reports_output_dir, tooltips=tsdiffana_tooltips,
                     results_gallery=self.results_gallery)
 
         # shut down all watched report pages
