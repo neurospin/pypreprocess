@@ -585,9 +585,7 @@ class SubjectData(object):
         # commit final thumbnail into parent's results gallery
         if not parent_results_gallery is None:
             commit_subject_thumnbail_to_parent_gallery(
-                self.final_thumbnail,
-                self.subject_id,
-                parent_results_gallery)
+                self.final_thumbnail, self.subject_id, parent_results_gallery)
 
         print ("\r\nPreproc report for subject %s written to %s"
                " .\r\n" % (self.subject_id,
@@ -737,31 +735,29 @@ class SubjectData(object):
         self._set_session_ids()
         if not self.reporting_enabled():
             self.init_report()
-        segmented = False
-        for item in ['mwgm', 'mwwm', 'mwcsf']:
-            if hasattr(self, item):
-                segmented = True
-                break
+        warped_tpms = dict(
+            (tpm, getattr(self, tpm, None))
+            for tpm in ["mwgm", "mwwm", "mwcsf"])
+        segmented = warped_tpms.values().count(None) < len(warped_tpms)
 
         # generate thumbnails proper
         for brain_name, brain, cmap in zip(
                 ['anatomical image', 'mean functional image'],
                 [self.anat, self.func], [cm.gray, cm.spectral]):
-            if not brain:
-                continue
+            if not brain: continue
 
             # generate segmentation thumbs
             if segmented:
                 thumbs = generate_segmentation_thumbnails(
                     brain, self.reports_output_dir,
-                    subject_gm_file=getattr(self, 'mwgm', None),
-                    subject_wm_file=getattr(self, 'mwwm', None),
-                    subject_csf_file=getattr(self, 'mwcsf', None),
+                    subject_gm_file=warped_tpms["mwgm"],
+                    subject_wm_file=warped_tpms["mwwm"],
+                    subject_csf_file=warped_tpms["mwcsf"],
                     cmap=cmap, brain=brain_name, comments="warped",
                     execution_log_html_filename=make_nipype_execution_log_html(
-                        getattr(self, 'mwgm') or getattr(
-                            self, 'mwwm') or getattr(self, 'mwcsf'), "Segment",
-                        self.reports_output_dir) if log else None,
+                        warped_tpms["mwgm"] or warped_tpms["mwwm"] or
+                        warped_tpms["mwcsf"],
+                        "Segment", self.reports_output_dir) if log else None,
                     results_gallery=self.results_gallery,
                     tooltip=segment_tooltip)
                 if 'func' in brain_name or not self.func:

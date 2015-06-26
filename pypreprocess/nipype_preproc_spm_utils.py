@@ -247,8 +247,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
     if software == "python":
         return _pp_do_subject_realign(subject_data, register_to_mean=False,
                                       report=report, caching=caching,
-                                      reslice=reslice
-                                      )
+                                      reslice=reslice)
 
     if software != "spm":
         raise NotImplementedError("Only SPM is supported; got '%s'" % software)
@@ -282,10 +281,8 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     # run node
     realign_result = realign(
-        in_files=subject_data.func,
-        register_to_mean=register_to_mean,
-        jobtype=jobtype, **kwargs
-        )
+        in_files=subject_data.func, register_to_mean=register_to_mean,
+        jobtype=jobtype, **kwargs)
 
     # failed node
     if realign_result.outputs is None:
@@ -394,11 +391,9 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
     # use pure python (pp) code ?
     if software == "python":
         return _pp_do_subject_coregister(
-            subject_data,
-            reslice=reslice,
-            coreg_func_to_anat=not coreg_anat_to_func,
-            report=report, caching=caching,
-            )
+            subject_data, reslice=reslice,
+            coreg_func_to_anat=not coreg_anat_to_func, report=report,
+            caching=caching,)
 
     # sanitize software choice
     if not software in ["spm", "fsl"]:
@@ -418,8 +413,7 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
     jobtype = "estwrite" if reslice else "estimate"
 
     cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
+    if not os.path.exists(cache_dir): os.makedirs(cache_dir)
     joblib_mem = JoblibMemory(cache_dir)
 
     # create node
@@ -716,10 +710,9 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
         # learn T1 deformation without segmentation
         t1_template = niigz2nii(SPM_T1_TEMPLATE,
                                 output_dir=subject_data.output_dir)
-        normalize_result = normalize(source=subject_data.anat,
-                                     template=t1_template,
-                                     write_preserve=False,
-                                     )
+        normalize_result = normalize(
+            source=subject_data.anat, template=t1_template,
+            write_preserve=False)
         parameter_file = normalize_result.outputs.normalization_parameters
     else:
         parameter_file = subject_data.nipype_results[
@@ -750,10 +743,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                 apply_to_files=apply_to_files,
                 write_voxel_sizes=list(write_voxel_sizes),
                 # write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-                write_interp=1,
-                jobtype='write',
-                ignore_exception=False
-                )
+                write_interp=1, jobtype='write', ignore_exception=False)
 
             # failed node ?
             if normalize_result.outputs is None:
@@ -969,7 +959,6 @@ def _do_subject_dartelnorm2mni(subject_data,
         options to be passes to spm.DARTELNorm2MNI back-end
 
     """
-
     # configure SPM back-end
     _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec,
                         spm_mcr=spm_mcr)
@@ -982,35 +971,29 @@ def _do_subject_dartelnorm2mni(subject_data,
     # prepare for smart caching
     if caching:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
+        if not os.path.exists(cache_dir): os.makedirs(cache_dir)
         subject_data.mem = NipypeMemory(base_dir=cache_dir)
-        dartelnorm2mni = subject_data.mem.cache(
-            spm.DARTELNorm2MNI)
-        createwarped = subject_data.mem.cache(
-            spm.CreateWarped)
+        dartelnorm2mni = subject_data.mem.cache(spm.DARTELNorm2MNI)
+        createwarped = subject_data.mem.cache(spm.CreateWarped)
     else:
         dartelnorm2mni = spm.DARTELNorm2MNI().run
         createwarped = spm.CreateWarped().run
 
-    # warp subject tissue class images
-    # into MNI space
+    # warp subject tissue class images into MNI space
     tricky_kwargs = {}
     if not anat_write_voxel_sizes is None:
         tricky_kwargs['voxel_size'] = tuple(compute_output_voxel_size(
-           subject_data.anat, anat_write_voxel_sizes))
-    for tissue in ['gm', 'wm']:
-        if hasattr(subject_data, tissue):
-            dartelnorm2mni_result = dartelnorm2mni(
-                apply_to_files=getattr(subject_data, tissue),
-                flowfield_files=subject_data.dartel_flow_fields,
-                template_file=template_file,
-                modulate=output_modulated_tpms,  # don't modulate
-                fwhm=anat_fwhm,
-                **tricky_kwargs
-                )
-            setattr(subject_data, "w" + tissue,
-                    dartelnorm2mni_result.outputs.normalized_files)
+            subject_data.anat, anat_write_voxel_sizes))
+    for tissue in ["gm", "wm", "csf"]:
+        if not hasattr(subject_data, tissue): continue
+        dartelnorm2mni_result = dartelnorm2mni(
+            apply_to_files=getattr(subject_data, tissue),
+            flowfield_files=subject_data.dartel_flow_fields,
+            template_file=template_file,
+            modulate=output_modulated_tpms,  # don't modulate
+            fwhm=anat_fwhm, **tricky_kwargs)
+        setattr(subject_data, "mw" + tissue,
+                dartelnorm2mni_result.outputs.normalized_files)
 
     # warp anat into MNI space
     dartelnorm2mni_result = dartelnorm2mni(
@@ -1327,8 +1310,7 @@ def do_subject_preproc(
             anat_write_voxel_sizes=anat_write_voxel_sizes,
             caching=caching, report=report,
             hardlink_output=hardlink_output,
-            smooth_software=smooth_software
-            )
+            smooth_software=smooth_software)
 
         # handle failed node
         if subject_data.failed:
@@ -1344,8 +1326,7 @@ def do_subject_preproc(
                                           caching=caching,
                                           report=report,
                                           hardlink_output=hardlink_output,
-                                          software=smooth_software
-                                          )
+                                          software=smooth_software)
 
         # handle failed node
         if subject_data.failed:
@@ -1411,8 +1392,10 @@ def _do_subjects_newsegment(
     else:
         # collect estimated TPMs
         for j, sd in enumerate(subjects):
-            sd.gm = newsegment_result.outputs.dartel_input_images[0][j]
-            sd.wm = newsegment_result.outputs.dartel_input_images[1][j]
+            sd.parameter_file = newsegment_result.outputs.transformation_mat[j]
+            sd.gm = newsegment_result.outputs.native_class_images[0][j]
+            sd.wm = newsegment_result.outputs.native_class_images[1][j]
+            sd.csf = newsegment_result.outputs.native_class_images[2][j]
 
             # generate segmentation thumbs
             if report: sd.generate_segmentation_thumbnails()
@@ -1420,11 +1403,9 @@ def _do_subjects_newsegment(
 
     # compute DARTEL template for group data
     dartel = mem.cache(spm.DARTEL)
-    dartel_input_images = [tpms for tpms in
-                           newsegment_result.outputs.dartel_input_images
-                           if tpms]
-    dartel_result = dartel(
-        image_files=dartel_input_images,)
+    dartel_input_images = [
+        tpms for tpms in newsegment_result.outputs.dartel_input_images if tpms]
+    dartel_result = dartel(image_files=dartel_input_images)
     if dartel_result.outputs is None: return
 
     for j, subject_data in enumerate(subjects):
@@ -1495,11 +1476,6 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     prepreproc_undergone: string, optional (default None)
         preprocessed already undergone by the dataset out-side this function
 
-    hardlink_output: bool, optional (default True)
-        indicates whether inter-mediate output files should be linked subjects'
-        output (immediate) directories (by default, only final output files
-        are linked)
-
     preproc_params: parameter-value dict
         optional parameters passed to the \do_subject_preproc` API. See
         the API documentation for details
@@ -1532,6 +1508,8 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     # collect some params for local usage
     dartel = preproc_params.get('dartel', False)
     newsegment = preproc_params.get('newsegment', False)
+    if dartel and not newsegment:
+        raise ValueError("Can't do Dartel without NewSegment.")
     output_dir = preproc_params.get('output_dir', "pypreprocess_output")
     if "output_dir" in preproc_params: del preproc_params["output_dir"]
     report = preproc_params.get("report", True)
@@ -1617,10 +1595,8 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
                                 " <i>%s</i> with the following arguments:"
                                 ) % (preproc_func_name, user_script_name)
             args_dict = dict((arg, values[arg]) for arg in args if not arg in [
-                "dataset_description", "report_filename", "report", "tsdiffana",
-                "shutdown_reloaders", "subjects",
-                # add other args to exclude below
-            ])
+                "dataset_description", "report_filename", "report",
+                "tsdiffana", "shutdown_reloaders", "subjects"])
             args_dict['output_dir'] = output_dir
             preproc_details += dict_to_html_ul(args_dict)
         details_filename = os.path.join(output_dir, "preproc_details.html")
@@ -1656,8 +1632,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         with open(report_filename, 'w') as fd:
             fd.write(str(main_html))
             fd.close()
-        if not dartel: preproc_params['parent_results_gallery'
-                                      ] = parent_results_gallery
+        preproc_params['parent_results_gallery'] = parent_results_gallery
 
         # log command line
         progress_logger.log("<b>Command line</b><br/>")
@@ -1673,29 +1648,41 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
 
     def finalize_report():
         if not report: return
-
         progress_logger.finish(report_preproc_filename)
-
         if shutdown_reloaders:
             print "Finishing %s..." % output_dir
             progress_logger.finish_dir(output_dir)
-
         print "\r\n\tHTML report written to %s" % report_preproc_filename
 
+    normalize = preproc_params["normalize"]
+    tsdiffana = preproc_params["tsdiffana"]
+
     # don't yet segment nor normalize if dartel enabled
-    if dartel or newsegment:
-        for item in ["segment", "normalize", "tsdiffana", "last_stage"]:
-            preproc_params[item] = False
+    if newsegment:
+        for stage in ["segment", "normalize", "last_stage"]:
+            preproc_params[stage] = False
 
     # run classic preproc
-    preproc_subject_data = Parallel(n_jobs=n_jobs)(delayed(do_subject_preproc)(
-            subject_data, **preproc_params) for subject_data in subjects)
+    subjects = Parallel(n_jobs=n_jobs)(delayed(do_subject_preproc)(
+        subject_data, **preproc_params) for subject_data in subjects)
 
     # run DARTEL
-    if dartel or newsegment:
-        preproc_subject_data = _do_subjects_newsegment(
-            preproc_subject_data, output_dir, n_jobs=n_jobs, do_dartel=dartel,
+    if newsegment:
+        subjects = _do_subjects_newsegment(
+            subjects, output_dir, n_jobs=n_jobs, do_dartel=dartel,
             **preproc_params)
 
+    # apply standard normalization after newsegment ?
+    if normalize and newsegment and not dartel:
+        for stage in ["realign", "coregister", "slice_timing"]:
+            preproc_params[stage] = False
+        preproc_params["hardlink_output"] = True
+        subjects = Parallel(n_jobs=n_jobs)(delayed(_do_subject_normalize)(
+            subject_data,
+            **dict((k, preproc_params[k])
+                   for k in ["fwhm", "anat_fwhm", "func_write_voxel_sizes",
+                             "anat_write_voxel_sizes", "caching", "report",
+                             "hardlink_output", "smooth_software"]))
+                                        for subject_data in subjects)
     finalize_report()
-    return preproc_subject_data
+    return subjects

@@ -61,7 +61,7 @@ def test_bf_issue_62():
     dataset_dir = "/tmp/dataset"
     output_dir = "/tmp/output"
     config_file = os.path.join(dataset_dir, "conf.ini")
-    sd = _make_sd(func_filenames=[os.path.join(dataset_dir,
+    _make_sd(func_filenames=[os.path.join(dataset_dir,
                                           "sub001/session1/func.nii"),
                              os.path.join(dataset_dir,
                                           "sub001/session2/func.nii"),
@@ -81,3 +81,14 @@ def test_bf_issue_62():
     assert_equal(len(subjects[0]['func']), 3)
     assert_equal(len(subjects[1]['func']), 2)
 
+
+def test_newsegment_if_dartel():
+    dataset_dir = "/tmp/dataset"
+    output_dir = "/tmp/output"
+    config_file = os.path.join(dataset_dir, "conf.ini")
+    for kwargs in [{}, dict(newsegment=True), dict(newsegment=False)]:
+        _make_config(config_file, dataset_dir=dataset_dir,
+                     output_dir=output_dir, dartel=True, **kwargs)
+        _, params = _generate_preproc_pipeline(config_file)
+        assert_true(params["dartel"])
+        assert_true(params["newsegment"])

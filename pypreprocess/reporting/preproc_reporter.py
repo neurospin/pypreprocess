@@ -619,7 +619,7 @@ def generate_segmentation_thumbnails(
     if not only_native:
         template_compartments_contours = os.path.join(
             output_dir,
-            "template_tmps_contours_on_%s.png" % _brain)
+            "template_tpms_contours_on_%s.png" % _brain)
         template_compartments_contours_axial = os.path.join(
             output_dir,
             "template_compartments_contours_on_%s_axial.png" % _brain)
@@ -654,10 +654,10 @@ def generate_segmentation_thumbnails(
     if subject_gm_file:
         subject_compartments_contours = os.path.join(
             output_dir,
-            "subject_tmps_contours_on_subject_%s.png" % _brain)
+            "subject_tpms_contours_on_subject_%s.png" % _brain)
         subject_compartments_contours_axial = os.path.join(
             output_dir,
-            "subject_tmps_contours_on_subject_%s_axial.png" % _brain)
+            "subject_tpms_contours_on_subject_%s_axial.png" % _brain)
 
         qa_mem.cache(plot_segmentation)(
             normalized_file, subject_gm_file, wm_filename=subject_wm_file,
