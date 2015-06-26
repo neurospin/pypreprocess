@@ -983,17 +983,17 @@ def _do_subject_dartelnorm2mni(subject_data,
     tricky_kwargs = {}
     if not anat_write_voxel_sizes is None:
         tricky_kwargs['voxel_size'] = tuple(compute_output_voxel_size(
-           subject_data.anat, anat_write_voxel_sizes))
-    for tissue in ['gm', 'wm']:
-        if hasattr(subject_data, tissue):
-            dartelnorm2mni_result = dartelnorm2mni(
-                apply_to_files=getattr(subject_data, tissue),
-                flowfield_files=subject_data.dartel_flow_fields,
-                template_file=template_file,
-                modulate=output_modulated_tpms,  # don't modulate
-                fwhm=anat_fwhm, **tricky_kwargs)
-            setattr(subject_data, "w" + tissue,
-                    dartelnorm2mni_result.outputs.normalized_files)
+            subject_data.anat, anat_write_voxel_sizes))
+    for tissue in ["gm", "wm", "csf"]:
+        if not hasattr(subject_data, tissue): continue
+        dartelnorm2mni_result = dartelnorm2mni(
+            apply_to_files=getattr(subject_data, tissue),
+            flowfield_files=subject_data.dartel_flow_fields,
+            template_file=template_file,
+            modulate=output_modulated_tpms,  # don't modulate
+            fwhm=anat_fwhm, **tricky_kwargs)
+        setattr(subject_data, "mw" + tissue,
+                dartelnorm2mni_result.outputs.normalized_files)
 
     # warp anat into MNI space
     dartelnorm2mni_result = dartelnorm2mni(
@@ -1395,6 +1395,7 @@ def _do_subjects_newsegment(
             sd.parameter_file = newsegment_result.outputs.transformation_mat[j]
             sd.gm = newsegment_result.outputs.native_class_images[0][j]
             sd.wm = newsegment_result.outputs.native_class_images[1][j]
+            sd.csf = newsegment_result.outputs.native_class_images[2][j]
 
             # generate segmentation thumbs
             if report: sd.generate_segmentation_thumbnails()
