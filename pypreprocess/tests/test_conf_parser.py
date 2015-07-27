@@ -92,3 +92,17 @@ def test_newsegment_if_dartel():
         _, params = _generate_preproc_pipeline(config_file)
         assert_true(params["dartel"])
         assert_true(params["newsegment"])
+
+
+def test_bf_issue_122():
+    dataset_dir = "/tmp/dataset"
+    output_dir = "/tmp/output"
+    config_file = os.path.join(dataset_dir, "conf.ini")
+    _make_config(config_file, dataset_dir=dataset_dir, output_dir=output_dir,
+                 session_1_func="session1/func_3D.nii")
+    _make_sd(func_filenames=[os.path.join(dataset_dir,
+                                         "sub001/session1/func_3D.nii")],
+             output_dir=os.path.join(output_dir, "sub001"),
+             func_ndim=3)
+    subjects, _ = _generate_preproc_pipeline(config_file)
+    subjects[0].sanitize()  # 122 reports a bug here

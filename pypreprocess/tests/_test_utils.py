@@ -84,11 +84,11 @@ def _save_img(img, filename):
 
 
 def _make_sd(func_filenames=None, anat_filename=None, ext=".nii.gz",
-             n_sessions=1, make_sess_dirs=False,
-             unique_func_names=False, output_dir="/tmp/titi"):
+             n_sessions=1, make_sess_dirs=False, unique_func_names=False,
+             func_ndim=4, output_dir="/tmp/titi"):
     if not func_filenames is None:
         n_sessions = len(func_filenames)
-    func = [create_random_image(ndim=4) for _ in range(n_sessions)]
+    func = [create_random_image(ndim=func_ndim) for _ in range(n_sessions)]
     anat = create_random_image(ndim=3)
     if anat_filename is None:
         anat_filename = '%s/anat%s' % (DATA_DIR, ext)
@@ -118,7 +118,4 @@ def _make_sd(func_filenames=None, anat_filename=None, ext=".nii.gz",
     sd = SubjectData(anat=anat_filename,
                      func=func_filenames,
                      output_dir=output_dir)
-
     return sd
-
-
