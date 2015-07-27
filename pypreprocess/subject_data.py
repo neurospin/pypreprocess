@@ -281,7 +281,7 @@ class SubjectData(object):
             # all functional data for this session should constitute a 4D film
             if isinstance(self.func[sess1], basestring):
                 if not is_4D(self.func[sess1]):
-                    raise RuntimeError(
+                    warnings.warn(
                         "Functional images for session number %i"
                         " doesn't constitute a 4D film; the shape of the"
                         " session is %s; the images for this session are "
