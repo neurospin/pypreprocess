@@ -3,16 +3,11 @@ import glob
 import shutil
 import re
 import nibabel
+from sklearn.datasets.base import Bunch
 
 # XXX nilearn.datasets.py got factorized recently. The following codeblock
 # is to ensure backward compat.
 from nilearn.datasets import fetch_nyu_rest, fetch_haxby
-try:
-    from nilearn.datasets.struct import Bunch
-except ImportError:
-    # old version, or change not yet in release
-    from nilearn.datasets import Bunch
-
 try:
     from nilearn.datasets.utils import (_fetch_file, _fetch_files,
                                         _uncompress_file, _get_dataset_dir)
