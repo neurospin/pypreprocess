@@ -139,7 +139,7 @@ def preproc_abide_institute(institute_id, abide_data_dir, abide_output_dir,
         print "Ignored %s because %s" % (subject_id, ignored_because)
 
 """sanitize cmd-line input"""
-if len(sys.argv)  < 3:
+if len(sys.argv) < 3:
     print ("\r\nUsage: source /etc/fsl/4.1/fsl.sh; python %s "
            "<path_to_ABIDE_folder> <output_dir> [comma-separated institute"
            " ids]\r\n") % sys.argv[0]
@@ -162,7 +162,7 @@ if len(sys.argv) > 3:
     INSTITUTES = sys.argv[3].split(",")
 
 if DO_DARTEL:
-    import joblib
+    from sklearn.externals import joblib
     joblib.Parallel(n_jobs=1, verbose=100)(
         joblib.delayed(preproc_abide_institute)(
             institute_id,

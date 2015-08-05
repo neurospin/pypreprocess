@@ -23,7 +23,7 @@ from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 from nipy.modalities.fmri.glm import FMRILinearModel
 from pypreprocess.datasets import fetch_spm_multimodal_fmri
 from pypreprocess.purepython_preproc_utils import do_subject_preproc
-from pypreprocess.external.joblib import Memory
+from sklearn.externals.joblib import Memory
 from pypreprocess.reslice import reslice_vols
 
 

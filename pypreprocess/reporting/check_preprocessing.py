@@ -6,15 +6,11 @@ segmentation, etc.) using the viz module from nipy.labs.
 
 """
 
-import os
-import tempfile
 import numpy as np
 import matplotlib.pyplot as plt
 import nibabel
-from nilearn.plotting import plot_img, plot_stat_map
+from nilearn.plotting import plot_img
 from nilearn.image import reorder_img, mean_img
-from nilearn.image.image import check_niimg_4d
-from ..external import joblib
 from ..io_utils import load_vols
 EPS = np.finfo(float).eps
 
@@ -47,10 +43,11 @@ def plot_spm_motion_parameters(parameter_file, title=None, close=False):
     if not title is None:
         plt.title(title)
     plt.legend(('TransX', 'TransY', 'TransZ', 'RotX', 'RotY', 'RotZ'),
-              loc="upper left", ncol=2)
+               loc="upper left", ncol=2)
     plt.xlabel('time(scans)')
     plt.ylabel('Estimated motion (mm/degrees)')
-    if close: plt.close()
+    if close:
+        plt.close()
 
 
 def compute_cv(data, mask_array=None):
@@ -120,8 +117,9 @@ def plot_registration(reference_img, coregistered_img,
     if not output_filename is None:
         try:
             plt.savefig(output_filename, dpi=200, bbox_inches='tight',
-                       facecolor="k", edgecolor="k")
-            if close: plt.close()
+                        facecolor="k", edgecolor="k")
+            if close:
+                plt.close()
         except AttributeError:
             # XXX TODO: handle this case!!
             pass
@@ -151,8 +149,10 @@ def plot_segmentation(
 
     """
     # misc
-    if cmap is None: cmap = plt.cm.gray
-    if cut_coords is None: cut_coords = (-10, -28, 17)
+    if cmap is None:
+        cmap = plt.cm.gray
+    if cut_coords is None:
+        cut_coords = (-10, -28, 17)
     if display_mode in ['x', 'y', 'z']:
         cut_coords = (cut_coords['xyz'.index(display_mode)],)
 
@@ -174,6 +174,7 @@ def plot_segmentation(
     _slicer.title(title, size=12, color='w', alpha=0)
     if not output_filename is None:
         plt.savefig(output_filename, bbox_inches='tight', dpi=200,
-                   facecolor="k",
-                   edgecolor="k")
-        if close: plt.close()
+                    facecolor="k",
+                    edgecolor="k")
+        if close:
+            plt.close()

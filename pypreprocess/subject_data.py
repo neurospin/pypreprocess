@@ -12,7 +12,7 @@ import time
 import warnings
 import numpy as np
 from matplotlib.pyplot import cm
-from pypreprocess.external.joblib import Memory
+from sklearn.externals.joblib import Memory
 from .io_utils import (niigz2nii as do_niigz2nii, dcm2nii as do_dcm2nii,
                        isdicom, delete_orientation, hard_link, get_shape,
                        is_4D, is_3D, get_basenames, is_niimg)

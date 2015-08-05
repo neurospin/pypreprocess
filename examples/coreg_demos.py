@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from pypreprocess.datasets import fetch_spm_auditory, fetch_nyu_rest
 from pypreprocess.reporting.check_preprocessing import plot_registration
 from pypreprocess.coreg import Coregister
-from pypreprocess.external.joblib import Memory
+from sklearn.externals.joblib import Memory
 
 # misc
 mem = Memory("demos_cache")

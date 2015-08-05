@@ -6,9 +6,9 @@ import nibabel
 from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 from nipy.modalities.fmri.glm import FMRILinearModel
-from pypreprocess.datasets import fetch_spm_multimodal_fmri_data
+from pypreprocess.datasets import fetch_spm_multimodal_fmri
 from pypreprocess.purepython_preproc_utils import do_subject_preproc
-from pypreprocess.external.joblib import Memory
+from sklearn.externals.joblib import Memory
 from pypreprocess.reslice import reslice_vols
 
 
@@ -28,7 +28,7 @@ def parse_onset_file(onset_file):
         line_cnt += 1
         if len(line) not in [2, 3, 4]:
             raise ValueError("Mal-formed line %i: %s" % (
-                    line_cnt, " ".join(line)))
+                line_cnt, " ".join(line)))
         if len(line) == 2:
             line.append(0.)
         if len(line) == 3:
@@ -47,7 +47,7 @@ def parse_onset_file(onset_file):
 
 # fetch data
 data_dir = "examples/spm_multimodal/"
-subject_data = fetch_spm_multimodal_fmri_data(data_dir)
+subject_data = fetch_spm_multimodal_fmri(data_dir)
 
 # XXX to be verified
 tr = 2.
@@ -118,9 +118,9 @@ def do_subject_glm(subject_data):
 
         # reslice func images
         func_files = [mem.cache(reslice_vols)(
-                sess_func,
-                target_affine=nibabel.load(sess_func[0]).get_affine())
-                  for sess_func in func_files]
+            sess_func,
+            target_affine=nibabel.load(sess_func[0]).get_affine())
+                      for sess_func in func_files]
 
     ### GLM: loop on (session_bold, onse_file) pairs over the various sessions
     design_matrices = []
@@ -144,10 +144,10 @@ def do_subject_glm(subject_data):
         durations *= tr
         paradigm = BlockParadigm(con_id=conditions, onset=onsets,
                                  duration=durations, amplitude=amplitudes)
-        design_matrices.append(make_dmtx(
-                frametimes,
-                paradigm, hrf_model=hrf_model,
-                drift_model=drift_model, hfcut=hfcut))
+        design_matrices.append(make_dmtx(frametimes,
+                                         paradigm, hrf_model=hrf_model,
+                                         drift_model=drift_model,
+                                         hfcut=hfcut))
 
     # specify contrasts
     n_columns = len(design_matrices[0].names)
