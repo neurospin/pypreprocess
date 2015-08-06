@@ -39,8 +39,7 @@ def _abide_factory(institute="KKI"):
     for scans in sorted(glob.glob(
             "/home/elvis/CODE/datasets/ABIDE/%s_*/%s_*/scans" % (
                 institute, institute))):
-        subject_id = os.path.basename(os.path.dirname(
-                os.path.dirname(scans)))
+        subject_id = os.path.basename(os.path.dirname(os.path.dirname(scans)))
         func = os.path.join(scans, "rest/resources/NIfTI/files/rest.nii")
         anat = os.path.join(scans,
                             "anat/resources/NIfTI/files/mprage.nii")
@@ -51,9 +50,7 @@ def _abide_factory(institute="KKI"):
 def _nyu_rest_factory(session=1):
     from pypreprocess.nipype_preproc_spm_utils import SubjectData
 
-    nyu_data = fetch_nyu_rest(data_dir=os.path.join(os.environ['HOME'],
-                                                    "CODE/datasets/nyu_rest/"),
-                              sessions=[session], n_subjects=7)
+    nyu_data = fetch_nyu_rest(sessions=[session], n_subjects=7)
 
     session_func = [x for x in nyu_data.func if "session%i" % session in x]
     session_anat = [
