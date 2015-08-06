@@ -17,7 +17,7 @@ from slice_timing import get_slice_indices
 from conf_parser import _generate_preproc_pipeline
 import matplotlib
 matplotlib.use('Agg')
-from joblib import Parallel, delayed, Memory as JoblibMemory
+from sklearn.externals.joblib import Parallel, delayed, Memory as JoblibMemory
 import nipype.interfaces.spm as spm
 from nipype.caching import Memory as NipypeMemory
 from configure_spm import _configure_spm
@@ -49,7 +49,7 @@ def _configure_backends(spm_dir=None, matlab_exec=None, spm_mcr=None,
     global SPM_DIR, EPI_TEMPLATE, SPM_T1_TEMPLATE, T1_TEMPLATE
     global GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE
     spm_dir = _configure_spm(spm_dir=spm_dir, matlab_exec=matlab_exec,
-                      spm_mcr=spm_mcr)
+                             spm_mcr=spm_mcr)
     if spm_dir:
         if os.path.isdir(spm_dir):
             SPM_DIR = spm_dir
@@ -235,7 +235,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     if not subject_data.func:
         warnings.warn("subject_data.func=%s (empty); skipping MC!" % (
-                subject_data.func))
+            subject_data.func))
         return subject_data
 
     software = software.lower()
@@ -326,8 +326,7 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
                            matlab_exec=None, spm_mcr=None,
                            coreg_anat_to_func=False, caching=True,
                            report=True, software="spm", hardlink_output=True):
-    """
-    Wrapper for running spm.Coregister with optional reporting.
+    """Wrapper for running spm.Coregister with optional reporting.
 
     If subject_data has a `results_gallery` attribute, then QA thumbnails will
     be commited after this node is executed
@@ -357,13 +356,13 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
     -------
     subject_data: `SubjectData` object
         preprocessed subject_data. The func and anatomical fields
-        (subject_data.func and subject_data.anat) now contain the oregistered
-        and anatomical images functional images of the subject
+        (subject_data.func and subject_data.anat) now contain the
+        oregistered and anatomical images functional images of the subject
 
-        New Attributes
-        ==============
-        subject_data.nipype_results['coregister']: Nipype output object
-            (raw) result of running spm.Coregister
+    New Attributes
+    ==============
+    subject_data.nipype_results['coregister']: Nipype output object
+        (raw) result of running spm.Coregister
 
     Notes
     -----

@@ -228,7 +228,7 @@ def do_subject_glm(subject_data):
     return subject_id, anat, effects_maps, z_maps, contrasts, fmri_glm.mask
 
 
-if __name__ == "__maih__":
+if __name__ == "__main__":
     mem = Memory(os.path.join(output_dir, "cache"))
     first_level_glms = map(mem.cache(do_subject_glm), subject_dirs)
 
