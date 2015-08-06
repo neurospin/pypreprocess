@@ -316,13 +316,12 @@ def fetch_openfmri(data_dir, dataset_id, force_download=False, verbose=1):
     if dataset_id not in files:
         raise Exception('Unknown dataset %s' % dataset_id)
 
-    base_url = 'https://openfmri.org/system/files/%s.tgz'
-    urls = [base_url % f for f in files[dataset_id]]
+    base_url = 'http://openfmri.s3.amazonaws.com/tarballs/%s.tgz'
+    urls = [(f, base_url % f, {}) for f in files[dataset_id]]
     temp_dir = os.path.join(data_dir, '_%s' % dataset_id, dataset_id)
     output_dir = os.path.join(data_dir, dataset_id)
-
     if not os.path.exists(output_dir) and not force_download:
-        _fetch_files('_%s' % dataset_id, urls, data_dir, verbose=verbose)
+        _fetch_files(data_dir, urls, verbose=verbose)
         shutil.move(temp_dir, output_dir)
         shutil.rmtree(os.path.split(temp_dir)[0])
     return output_dir
