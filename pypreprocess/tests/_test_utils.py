@@ -75,6 +75,49 @@ def make_dataset(n_subjects=1, n_scans=10, n_sessions=1,
     return dataset
 
 
+def make_openfmri_dataset(n_subjects=2,
+                          runs_per_task_dict={1: 1, 2: 2},
+                          n_scans=10,
+                          dataset_name="test_openfmri_dataset",
+                          output_dir=DATA_DIR):
+
+    output_dir = os.path.join(output_dir, dataset_name)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    dataset = []
+    for i in range(n_subjects):
+        subject_id = "sub%03i" % (i + 1)
+        anat_dir = os.path.join(output_dir, subject_id, 'anatomy')
+        if not os.path.exists(anat_dir):
+            os.makedirs(anat_dir)
+        subject_data = {"subject_id": subject_id,
+                        "func": [],
+                        'anat': os.path.join(anat_dir,
+                                             'highres001.nii.gz')}
+
+        # Create T1 anatomy
+        nibabel.save(create_random_image(ndim=3),
+                     subject_data['anat'])
+        # Create bold files
+        for task in runs_per_task_dict:
+            for run in range(runs_per_task_dict[task]):
+                run_dir = os.path.join(output_dir,
+                                       subject_id,
+                                       'BOLD',
+                                       "task%03i_run%03i" % (task, run + 1))
+                if not os.path.exists(run_dir):
+                    os.makedirs(run_dir)
+                func_filename = os.path.join(run_dir, "bold.nii.gz")
+                nibabel.save(create_random_image(ndim=4, n_scans=n_scans),
+                             func_filename)
+                subject_data['func'].append(func_filename)
+
+        dataset.append(subject_data)
+
+    return dataset
+
+
 def _save_img(img, filename):
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
