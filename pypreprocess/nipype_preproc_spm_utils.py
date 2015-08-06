@@ -1689,12 +1689,12 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         for stage in ["realign", "coregister", "slice_timing"]:
             preproc_params[stage] = False
         preproc_params["hardlink_output"] = True
-        subjects = Parallel(n_jobs=n_jobs)(delayed(_do_subject_normalize)(
-            subject_data,
-            **dict((k, preproc_params[k])
-                   for k in ["fwhm", "anat_fwhm", "func_write_voxel_sizes",
+        for param in preproc_params.keys():
+            if not param in ["fwhm", "anat_fwhm", "func_write_voxel_sizes",
                              "anat_write_voxel_sizes", "caching", "report",
-                             "hardlink_output", "smooth_software"]))
-                                        for subject_data in subjects)
+                             "hardlink_output", "smooth_software"]:
+                preproc_params.pop(param)
+        subjects = Parallel(n_jobs=n_jobs)(delayed(_do_subject_normalize)(
+            subject_data, **preproc_params) for subject_data in subjects)
     finalize_report()
     return subjects
