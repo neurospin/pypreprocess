@@ -176,3 +176,15 @@ def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):
         eval(cmd)
 
     return spm_dir
+
+def _get_version_spm(spm_dir):
+    """ Return current SPM version
+    """
+
+    # get spm version : spm8 or spm12
+    _, spm_version = os.path.split(spm_dir)
+    if not spm_version:
+        warnings.warn('Failed to configure SPM!')
+        return
+
+    return spm_version
