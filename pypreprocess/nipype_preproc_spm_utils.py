@@ -1653,8 +1653,8 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
             progress_logger.finish_dir(output_dir)
         print "\r\n\tHTML report written to %s" % report_preproc_filename
 
-    normalize = preproc_params["normalize"]
-    tsdiffana = preproc_params["tsdiffana"]
+    if "normalize" in preproc_params:
+        normalize = preproc_params["normalize"]
 
     # don't yet segment nor normalize if dartel enabled
     if newsegment:
