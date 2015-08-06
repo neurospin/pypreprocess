@@ -101,7 +101,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
     """
     if not subject_data.func:
         warnings.warn("subject_data.func=%s (empty); skipping STC!" % (
-                subject_data.func))
+            subject_data.func))
         return subject_data
     software = software.lower()
 
@@ -412,7 +412,8 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
     jobtype = "estwrite" if reslice else "estimate"
 
     cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
-    if not os.path.exists(cache_dir): os.makedirs(cache_dir)
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
     joblib_mem = JoblibMemory(cache_dir)
 
     # create node
@@ -576,7 +577,8 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
     # prepare for smart caching
     if caching:
         cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
-        if not os.path.exists(cache_dir): os.makedirs(cache_dir)
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
         segment = NipypeMemory(base_dir=cache_dir).cache(spm.Segment)
     else:
         segment = spm.Segment().run
@@ -1334,7 +1336,8 @@ def do_subject_preproc(
 
     # hard-link node output files
     if last_stage or not dartel:
-        if hardlink_output: subject_data.hardlink_output_files(final=True)
+        if hardlink_output:
+            subject_data.hardlink_output_files(final=True)
 
     if report and not dartel:
         subject_data.finalize_report(last_stage=last_stage)
@@ -1387,7 +1390,8 @@ def _do_subjects_newsegment(
         channel_files=[subject_data.anat for subject_data in subjects],
         tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6],
         ignore_exception=False)
-    if newsegment_result.outputs is None: return
+    if newsegment_result.outputs is None:
+        return
     else:
         # collect estimated TPMs
         for j, sd in enumerate(subjects):
@@ -1397,15 +1401,18 @@ def _do_subjects_newsegment(
             sd.csf = newsegment_result.outputs.native_class_images[2][j]
 
             # generate segmentation thumbs
-            if report: sd.generate_segmentation_thumbnails()
-        if not do_dartel: return subjects
+            if report:
+                sd.generate_segmentation_thumbnails()
+        if not do_dartel:
+            return subjects
 
     # compute DARTEL template for group data
     dartel = mem.cache(spm.DARTEL)
     dartel_input_images = [
         tpms for tpms in newsegment_result.outputs.dartel_input_images if tpms]
     dartel_result = dartel(image_files=dartel_input_images)
-    if dartel_result.outputs is None: return
+    if dartel_result.outputs is None:
+        return
 
     for j, subject_data in enumerate(subjects):
         subject_data.gm = newsegment_result.outputs.dartel_input_images[0][j]
@@ -1510,16 +1517,19 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     if dartel and not newsegment:
         raise ValueError("Can't do Dartel without NewSegment.")
     output_dir = preproc_params.get('output_dir', "pypreprocess_output")
-    if "output_dir" in preproc_params: del preproc_params["output_dir"]
+    if "output_dir" in preproc_params:
+        preproc_params.pop("output_dir")
     report = preproc_params.get("report", True)
     dataset_id = preproc_params.get('dataset_id', None)
     dataset_description = preproc_params.get('dataset_description', None)
     shutdown_reloaders = preproc_params.get('shutdown_reloaders', True)
     n_jobs = preproc_params.get('n_jobs', None)
-    if "n_jobs" in preproc_params: del preproc_params["n_jobs"]
+    if "n_jobs" in preproc_params:
+        preproc_params.pop("n_jobs")
 
     print "Using the following parameters for preprocessing:"
-    for k, v in preproc_params.iteritems(): print "\t%s=%s" % (k, v)
+    for k, v in preproc_params.iteritems():
+        print "\t%s=%s" % (k, v)
 
     # generate subjects (if generator)
     subjects = [subject_data for subject_data in subject_factory]
@@ -1541,7 +1551,8 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
             dartel = False
 
     # set number of jobs for parellelism
-    if n_jobs is None: n_jobs = 1
+    if n_jobs is None:
+        n_jobs = 1
     n_jobs = int(os.environ.get('N_JOBS', n_jobs))
 
     # sanitize output_dir
@@ -1549,8 +1560,10 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         if "output_dir" in preproc_params:
             output_dir = preproc_params["output_dir"]
             del preproc_params['output_dir']
-        else: output_dir = os.path.join(os.getcwd(), "pypreprocess_results")
-    if not os.path.exists(output_dir): os.makedirs(output_dir)
+        else:
+            output_dir = os.path.join(os.getcwd(), "pypreprocess_results")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     # ensure that we actually have data to preprocess
     if not len(subjects):
@@ -1646,15 +1659,15 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
             + "</ul><hr/>")
 
     def finalize_report():
-        if not report: return
+        if not report:
+            return
         progress_logger.finish(report_preproc_filename)
         if shutdown_reloaders:
             print "Finishing %s..." % output_dir
             progress_logger.finish_dir(output_dir)
         print "\r\n\tHTML report written to %s" % report_preproc_filename
 
-    if "normalize" in preproc_params:
-        normalize = preproc_params["normalize"]
+    normalize = preproc_params.get("normalize", True)
 
     # don't yet segment nor normalize if dartel enabled
     if newsegment:
