@@ -137,3 +137,11 @@ def test_opt_params():
     subject_data.sanitize()
     assert_true(os.path.isdir(subject_data.output_dir))
     subject_data._delete_orientation()
+
+
+def test_single_vol_timeseries_ok():
+    sd = _make_sd(func_filenames=["/tmp/titi/func1.nii"], func_ndim=3,
+                  output_dir="/tmp")
+
+    # this shouldn't error
+    sd.sanitize()

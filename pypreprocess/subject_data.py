@@ -287,6 +287,9 @@ class SubjectData(object):
                         " session is %s; the images for this session are "
                         "%s" % (sess1 + 1, get_shape(self.func[sess1]),
                                 self.func[sess1]))
+
+                    # makes no sense to do tsdiffana on a single-volume
+                    self.tsdiffana = False
             else:
                 for x in self.func[sess1]:
                     if not is_3D(x):
