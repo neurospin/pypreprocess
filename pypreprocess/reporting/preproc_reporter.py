@@ -21,6 +21,7 @@ from .check_preprocessing import (plot_registration,
                                   plot_spm_motion_parameters)
 from ..time_diff import plot_tsdiffs, multi_session_time_slice_diffs
 from ..io_utils import compute_mean_3D_image, is_niimg, sanitize_fwhm
+from ..configure_spm import _configure_spm, _get_version_spm
 from .base_reporter import (Thumbnail,
                             ResultsGallery,
                             ProgressReport,
@@ -38,7 +39,7 @@ from .base_reporter import (Thumbnail,
 
 
 # misc
-SPM_DIR = '/i2bm/local/spm8'
+SPM_DIR = _configure_spm()
 EPI_TEMPLATE = GM_TEMPLATE = T1_TEMPLATE = WM_TEMPLATE = CSF_TEMPLATE = None
 
 
@@ -48,20 +49,29 @@ def _set_templates(spm_dir=SPM_DIR):
     etc. reporting works well.
 
     """
-
     global EPI_TEMPLATE, T1_TEMPLATE, GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE
 
-    # set templates
-    EPI_TEMPLATE = os.path.join(spm_dir, 'templates/EPI.nii')
+    spm_version = _get_version_spm(SPM_DIR)
+
+    # Set the tpm and template paths according to SPM version
+    if spm_version == 'spm12':
+        template_path = 'toolbox/OldNorm'
+        tpm_path = 'toolbox/OldSeg'
+    else:
+        template_path = 'templates'
+        tpm_path = 'tpm'
+
+    # configure template images
+    EPI_TEMPLATE = os.path.join(SPM_DIR, template_path, 'EPI.nii')
+    SPM_T1_TEMPLATE = os.path.join(SPM_DIR, template_path, 'T1.nii')
     T1_TEMPLATE = "/usr/share/data/fsl-mni152-templates/avg152T1.nii"
     if not os.path.isfile(T1_TEMPLATE):
         T1_TEMPLATE += '.gz'
         if not os.path.exists(T1_TEMPLATE):
-            T1_TEMPLATE = os.path.join(spm_dir, "templates/T1.nii")
-
-    GM_TEMPLATE = os.path.join(spm_dir, 'tpm/grey.nii')
-    WM_TEMPLATE = os.path.join(spm_dir, 'tpm/white.nii')
-    CSF_TEMPLATE = os.path.join(spm_dir, 'tpm/csf.nii')
+            T1_TEMPLATE = SPM_T1_TEMPLATE
+    GM_TEMPLATE = os.path.join(SPM_DIR, tpm_path, 'grey.nii')
+    WM_TEMPLATE = os.path.join(SPM_DIR, tpm_path, 'white.nii')
+    CSF_TEMPLATE = os.path.join(SPM_DIR, tpm_path, 'csf.nii')
 
 # extention of web-related files (increment this as we support more
 # and more file extensions for web business)
@@ -1224,7 +1234,7 @@ def generate_dataset_preproc_report(
                                     s[k] = [x.replace(
                                             stuff[0], stuff[1])
                                             for x in v]
- 
+
             if not 'subject_id' in s:
                 s['subject_id'] = 'sub%5i' % j
             if not 'output_dir' in s:
