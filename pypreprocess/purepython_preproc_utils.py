@@ -10,7 +10,7 @@ import os
 import inspect
 from reporting.preproc_reporter import (
     generate_preproc_undergone_docstring)
-from .external.joblib import Memory
+from sklearn.externals.joblib import Memory
 from .io_utils import get_basenames, save_vols, is_niimg, load_vols
 from .subject_data import SubjectData
 from .slice_timing import fMRISTC

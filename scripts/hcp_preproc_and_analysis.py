@@ -10,8 +10,6 @@ matplotlib.use('Agg')
 
 import os
 import sys
-import re
-import glob
 import numpy as np
 import nibabel
 import commands
@@ -19,7 +17,6 @@ from nipy.modalities.fmri.glm import FMRILinearModel
 from nipy.labs.mask import intersect_masks
 from pypreprocess.nipype_preproc_spm_utils import (SubjectData,
                                                    _do_subject_realign,
-                                                   _do_subject_smooth,
                                                    do_subject_preproc)
 from pypreprocess.io_utils import load_specific_vol
 from pypreprocess.fsl_to_nipy import (read_fsl_design_file,
@@ -30,7 +27,7 @@ from pypreprocess.reporting.base_reporter import (ProgressReport,
                                                   pretty_time
                                                   )
 from pypreprocess.conf_parser import _generate_preproc_pipeline
-from pypreprocess.external.joblib import Parallel, delayed, Memory
+from sklearn.externals.joblib import Parallel, delayed, Memory
 from nipype.caching import Memory as NipypeMemory
 import nipype.interfaces.spm as spm
 from pypreprocess.io_utils import hard_link

@@ -15,7 +15,7 @@ import json
 import numpy as np
 import pylab as pl
 import nibabel
-from ..external import joblib
+from sklearn.externals import joblib
 from .check_preprocessing import (plot_registration,
                                   plot_segmentation,
                                   plot_spm_motion_parameters)

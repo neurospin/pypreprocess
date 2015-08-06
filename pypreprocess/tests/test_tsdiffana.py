@@ -7,6 +7,7 @@ import nibabel
 from numpy.testing import assert_array_almost_equal
 from ..time_diff import (time_slice_diffs, multi_session_time_slice_diffs,
                          plot_tsdiffs)
+from ._test_utils import _make_sd
 
 
 def make_test_data(n_scans=3):
@@ -116,3 +117,15 @@ def test_plot_tsdiffs_no_crash():
     results = multi_session_time_slice_diffs(films)
     for use_same_figure in [True, False]:
         plot_tsdiffs(results, use_same_figure=use_same_figure)
+
+
+def test_issue_144():
+    # tsdiffana should error on 3D images
+    sd = _make_sd(func_filenames=["/tmp/titi/func1.nii"], func_ndim=3,
+                  output_dir="/tmp")
+    sd.sanitize()
+    try:
+        time_slice_diffs(sd.func[0])
+        assert_true(False)
+    except Exception:
+        pass

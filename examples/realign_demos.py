@@ -1,7 +1,7 @@
 import os
 from collections import namedtuple
 import matplotlib.pyplot as plt
-from pypreprocess.external.joblib import Memory
+from sklearn.externals.joblib import Memory
 from pypreprocess.realign import MRIMotionCorrection
 from pypreprocess.reporting.check_preprocessing import (
     plot_spm_motion_parameters)

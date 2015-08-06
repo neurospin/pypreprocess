@@ -3,9 +3,18 @@ import glob
 import shutil
 import re
 import nibabel
-from nilearn.datasets import (_fetch_file, _fetch_files, _uncompress_file,
-                              _get_dataset_dir, Bunch, fetch_nyu_rest,
-                              fetch_haxby)
+from sklearn.datasets.base import Bunch
+
+# XXX nilearn.datasets.py got factorized recently. The following codeblock
+# is to ensure backward compat.
+from nilearn.datasets import fetch_nyu_rest, fetch_haxby
+try:
+    from nilearn.datasets.utils import (_fetch_file, _fetch_files,
+                                        _uncompress_file, _get_dataset_dir)
+except ImportError:
+    # old version, or change not yet in release
+    from nilearn.datasets import (_fetch_file, _fetch_files,
+                                  _uncompress_file, _get_dataset_dir)
 
 SPM_AUDITORY_DATA_FILES = ["fM00223/fM00223_%03i.img" % index
                            for index in range(4, 100)]
