@@ -100,28 +100,29 @@ def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):
 
     # try using default MCR paths
     if spm_mcr is None:
-        for spm_mcr in DEFAULT_SPM_MCRS:
-            if os.path.isfile(spm_mcr):
-                break
-        else:
-            spm_mcr = None
+        # set spm_mcr to SPM_MCR exported variable
+        if "SPM_MCR" in os.environ:
+            if not os.path.isfile(os.environ["SPM_MCR"]):
+                warnings.warn(
+                    "Exported SPM_MCR '%s' is not a file!" % (
+                        os.environ["SPM_MCR"]))
+            else:
+                spm_mcr = os.environ["SPM_MCR"]
 
         if spm_mcr is None:
-            # set spm_mcr to SPM_MCR exported variable
-            if "SPM_MCR" in os.environ:
-                if not os.path.isfile(os.environ["SPM_MCR"]):
-                    warnings.warn(
-                        "Exported SPM_MCR '%s' is not a file!" % (
-                            os.environ["SPM_MCR"]))
-                else:
-                    spm_mcr = os.environ["SPM_MCR"]
+            for spm_mcr in DEFAULT_SPM_MCRS:
+                if os.path.isfile(spm_mcr):
+                    break
+            else:
+                spm_mcr = None
 
         # configure SPM MCR backend proper
-        if not spm_mcr is None:
+        if spm_mcr is not None:
             cmd = ("spm.SPMCommand.set_mlab_paths("
                    "matlab_cmd='%s run script', use_mcr=True)" % (
                        spm_mcr))
             warnings.warn("Setting SPM MCR backend with cmd: %s" % cmd)
+            print "Executing '%s'" % cmd
             eval(cmd)
 
             # infer directory containing SPM templates, tpms, etc.
@@ -168,6 +169,7 @@ def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):
         # configure spm and matlab
         cmd = "matlab.MatlabCommand.set_default_matlab_cmd('%s')" % matlab_exec
         warnings.warn("Setting matlab backend with cmd: %s" % cmd)
+        print "Executing '%s'" % cmd
         eval(cmd)
         cmd = "matlab.MatlabCommand.set_default_paths('%s')" % spm_dir
         warnings.warn("Setting SPM backend with cmd: %s" % cmd)
