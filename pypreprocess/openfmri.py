@@ -5,6 +5,7 @@ import warnings
 
 # import spm preproc utilities
 from .nipype_preproc_spm_utils import (do_subjects_preproc, SubjectData)
+from pypreprocess.purepython_preproc_utils import do_subject_preproc
 from .datasets import fetch_openfmri
 
 DATASET_DESCRIPTION = """\
@@ -121,13 +122,19 @@ def preproc_dataset(data_dir, output_dir,
             subject_data.output_dir = os.path.join(output_dir, subject_id)
             yield subject_data
 
-    return do_subjects_preproc(
-        subject_factory(),
-        n_jobs=n_jobs,
-        dataset_id=dataset_id,
-        output_dir=output_dir,
-        deleteorient=delete_orient,
-        dartel=dartel,
-        dataset_description=DATASET_DESCRIPTION,
-        # caching=False,
-        )
+    for subject in subject_factory():
+        do_subject_preproc(subject, concat=False,
+                           coregister=True, stc=True,
+                           tsdiffana=True, realign=True,
+                           report=True, reslice=True)
+
+    # return do_subjects_preproc(
+    #     subject_factory(),
+    #     n_jobs=n_jobs,
+    #     dataset_id=dataset_id,
+    #     output_dir=output_dir,
+    #     deleteorient=delete_orient,
+    #     dartel=dartel,
+    #     dataset_description=DATASET_DESCRIPTION,
+    #     # caching=False,
+    #     )
