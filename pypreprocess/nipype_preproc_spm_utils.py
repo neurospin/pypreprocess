@@ -20,7 +20,7 @@ matplotlib.use('Agg')
 from sklearn.externals.joblib import Parallel, delayed, Memory as JoblibMemory
 import nipype.interfaces.spm as spm
 from nipype.caching import Memory as NipypeMemory
-from configure_spm import _configure_spm, _get_version_spm
+from configure_spm import _configure_spm
 from .io_utils import (
     load_vols, ravel_filenames, unravel_filenames, get_vox_dims,
     niigz2nii, resample_img, compute_output_voxel_size, sanitize_fwhm)
@@ -42,62 +42,29 @@ from purepython_preproc_utils import (
 # configure SPM
 EPI_TEMPLATE = SPM_DIR = SPM_T1_TEMPLATE = T1_TEMPLATE = None
 GM_TEMPLATE = WM_TEMPLATE = CSF_TEMPLATE = None
-TISSUES = None
 
 
 def _configure_backends(spm_dir=None, matlab_exec=None, spm_mcr=None,
                         critical=True):
-    """ Configure SPM backend.
-    """
-
     global SPM_DIR, EPI_TEMPLATE, SPM_T1_TEMPLATE, T1_TEMPLATE
     global GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE
-    global TISSUES
-
     spm_dir = _configure_spm(spm_dir=spm_dir, matlab_exec=matlab_exec,
                              spm_mcr=spm_mcr)
     if spm_dir:
         if os.path.isdir(spm_dir):
             SPM_DIR = spm_dir
-            spm_version = _get_version_spm(SPM_DIR)
-
-            # Set the tpm and template paths according to SPM version
-            if spm_version == 'spm12':
-                template_path = 'toolbox/OldNorm'
-                tpm_path = 'toolbox/OldSeg'
-                tissue_path = 'tpm'
-            else:
-                template_path = 'templates'
-                tpm_path = 'tpm'
-                tissue_path = 'toolbox/Seg'
-
-            # prepare template TPMs
-            tissue1 = ((os.path.join(SPM_DIR, tissue_path, 'TPM.nii'), 1),
-                       2, (True, True), (False, False))
-            tissue2 = ((os.path.join(SPM_DIR, tissue_path, 'TPM.nii'), 2),
-                       2, (True, True), (False, False))
-            tissue3 = ((os.path.join(SPM_DIR, tissue_path, 'TPM.nii'), 3),
-                       2, (True, False), (False, False))
-            tissue4 = ((os.path.join(SPM_DIR, tissue_path, 'TPM.nii'), 4),
-                       3, (False, False), (False, False))
-            tissue5 = ((os.path.join(SPM_DIR, tissue_path, 'TPM.nii'), 5),
-                       4, (False, False), (False, False))
-            tissue6 = ((os.path.join(SPM_DIR, tissue_path, 'TPM.nii'), 6),
-                       2, (False, False), (False, False))
-
-            TISSUES = [tissue1, tissue2, tissue3, tissue4, tissue5, tissue6]
 
             # configure template images
-            EPI_TEMPLATE = os.path.join(SPM_DIR, template_path, 'EPI.nii')
-            SPM_T1_TEMPLATE = os.path.join(SPM_DIR, template_path, 'T1.nii')
+            EPI_TEMPLATE = os.path.join(SPM_DIR, 'templates/EPI.nii')
+            SPM_T1_TEMPLATE = os.path.join(SPM_DIR, "templates/T1.nii")
             T1_TEMPLATE = "/usr/share/data/fsl-mni152-templates/avg152T1.nii"
             if not os.path.isfile(T1_TEMPLATE):
                 T1_TEMPLATE += '.gz'
                 if not os.path.exists(T1_TEMPLATE):
                     T1_TEMPLATE = SPM_T1_TEMPLATE
-            GM_TEMPLATE = os.path.join(SPM_DIR, tpm_path, 'grey.nii')
-            WM_TEMPLATE = os.path.join(SPM_DIR, tpm_path, 'white.nii')
-            CSF_TEMPLATE = os.path.join(SPM_DIR, tpm_path, 'csf.nii')
+            GM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/grey.nii')
+            WM_TEMPLATE = os.path.join(SPM_DIR, 'tpm/white.nii')
+            CSF_TEMPLATE = os.path.join(SPM_DIR, 'tpm/csf.nii')
 
             _set_templates(spm_dir=SPM_DIR)
     elif critical:
@@ -1401,10 +1368,24 @@ def _do_subjects_newsegment(
     # create node
     newsegment = mem.cache(spm.NewSegment)
 
+    # prepare template TPMs
+    tissue1 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 1),
+               2, (True, True), (False, False))
+    tissue2 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 2),
+               2, (True, True), (False, False))
+    tissue3 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 3),
+               2, (True, False), (False, False))
+    tissue4 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 4),
+               3, (False, False), (False, False))
+    tissue5 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 5),
+               4, (False, False), (False, False))
+    tissue6 = ((os.path.join(SPM_DIR, 'toolbox/Seg/TPM.nii'), 6),
+               2, (False, False), (False, False))
+
     # run node
     newsegment_result = newsegment(
         channel_files=[subject_data.anat for subject_data in subjects],
-        tissues=TISSUES,
+        tissues=[tissue1, tissue2, tissue3, tissue4, tissue5, tissue6],
         ignore_exception=False)
     if newsegment_result.outputs is None: return
     else:
