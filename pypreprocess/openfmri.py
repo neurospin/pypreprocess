@@ -5,7 +5,6 @@ import warnings
 
 # import spm preproc utilities
 from .nipype_preproc_spm_utils import (do_subjects_preproc, SubjectData)
-from pypreprocess.purepython_preproc_utils import do_subject_preproc
 from .datasets import fetch_openfmri
 
 DATASET_DESCRIPTION = """\
