@@ -309,18 +309,16 @@ def fetch_openfmri(data_dir, dataset_id, force_download=False, verbose=1):
         'ds108': ['ds108_raw_part1', 'ds108_raw_part2', 'ds108_raw_part3'],
         'ds109': ['ds109_raw'],
         'ds110': ['ds110_raw_part1', 'ds110_raw_part2', 'ds110_raw_part3',
-                  'ds110_raw_part4', 'ds110_raw_part5', 'ds110_raw_part6'],
+                  'ds110_raw_part4', 'ds110_raw_part5', 'ds110_raw_part6']
         }
 
     if dataset_id not in files:
         raise Exception('Unknown dataset %s' % dataset_id)
 
     base_url = 'http://openfmri.s3.amazonaws.com/tarballs/%s.tgz'
-    urls = [(f, base_url % f, {}) for f in files[dataset_id]]
+    urls = [(dataset_id, base_url % f, {'uncompress':True}) for f in files[dataset_id]]
     temp_dir = os.path.join(data_dir, '_%s' % dataset_id, dataset_id)
     output_dir = os.path.join(data_dir, dataset_id)
     if not os.path.exists(output_dir) and not force_download:
         _fetch_files(data_dir, urls, verbose=verbose)
-        shutil.move(temp_dir, output_dir)
-        shutil.rmtree(os.path.split(temp_dir)[0])
     return output_dir
