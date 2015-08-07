@@ -2,9 +2,9 @@ machine:
   python:
     version: 2.7
 
-
 dependencies:
   cache_directories:
+    - "/opt/spm8"
   override:
     # Add MCRInstaller.bin dependencies first
     - sudo apt-get install -y libxp6 libxpm4 libxmu6 libxt6 bc
