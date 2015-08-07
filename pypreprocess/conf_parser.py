@@ -75,6 +75,10 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
     Generate pipeline (i.e subject factor + preproc params) from
     config file.
 
+    dataset_dir, and output_dir can be specified in config_file, passed as
+    function argument, or exported in environ variables like so:
+    OUTPUT_DIR=/some/dir, etc.
+
     Returns
     -------
     subjects: list of `SubjectData` objects
@@ -90,12 +94,25 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
     options = _del_nones_from_dict(options)
 
     # sanitize output_dir and dataset_dir
+    dataset_dir = os.environ.get("DATASET_DIR", dataset_dir)
+    output_dir = os.environ.get("OUTPUT_DIR", output_dir)
     for item in ["dataset_dir", "output_dir"]:
-        if eval(item) is None:
+        val = eval(item)
+        if val is None:
             if not item in options:
-                raise ValueError(
-                    ("%s not specified (neither in config_file"
-                     " nor in this function call)") % item)
+                # get value from environ (if exists)
+                val = os.environ.get(item.upper(), val)
+                if val is None:
+                    raise ValueError(
+                        ("%s not specified (neither in environ variable, "
+                         "nor in config_file nor in this function "
+                         "call)") % item)
+
+                # set value from environ
+                if item == "dataset_dir":
+                    dataset_dir = val
+                elif item == "output_dir":
+                    output_dir = val
     options["dataset_dir"] = dataset_dir = (
         dataset_dir if not dataset_dir is None else options["dataset_dir"])
     options["output_dir"] = output_dir = (
