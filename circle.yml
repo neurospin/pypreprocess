@@ -10,6 +10,7 @@ dependencies:
     # Add MCRInstaller.bin dependencies first
     - sudo apt-get install -y libxp6 libxpm4 libxmu6 libxt6 bc
     - source continuous_integration/setup_spm.sh
+    - sudo apt-get install -qq python-numpy
     - sudo apt-get install -qq python-scipy
     - sudo apt-get install -qq python-nose
     - sudo apt-get install -qq python-nibabel
