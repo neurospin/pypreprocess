@@ -15,7 +15,7 @@ from pypreprocess.reporting.check_preprocessing import plot_segmentation
 
 
 OUTPUT_DIR = 'segmentation_demos_output'
-def _spm_auditory_factory():
+def _spm_auditory_subject_data():
     """ Fetching auditory example into SubjectData Structure
     """
     subject_data = fetch_spm_auditory()
@@ -25,7 +25,7 @@ def _spm_auditory_factory():
 
 
 # Fetch and generate the subject_data structure
-subject_data = _spm_auditory_factory()
+subject_data = _spm_auditory_subject_data()
 
 # Segment the GM, WM and the CSF
 subject_data = _do_subject_segment(subject_data, caching=True, report=False,
