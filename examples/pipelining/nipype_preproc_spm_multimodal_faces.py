@@ -1,8 +1,7 @@
 """
-Minimal script for preprocessing single-subject data + GLM with nipy
-
+:Author: yannick schwartz, dohmatob elvis dopgima
+:Synopsis: Minimal script for preprocessing single-subject data + GLM with nipy
 """
-# Author: DOHMATOB Elvis
 
 # standard imports
 import sys

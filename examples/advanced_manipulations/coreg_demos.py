@@ -1,5 +1,6 @@
 """
-Demo script for the coreg.py module (coregistration in pure python).
+Author: DOHMATOB Elvis Dopgima elvis[dot]dohmatob[at]inria[dot]fr
+Synopsis: Demo for coregistration in pure python
 
 It demos coregistration on a variety of datasets including:
 SPM single-subject auditory, NYU rest, ABIDE, etc.

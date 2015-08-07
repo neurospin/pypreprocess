@@ -1,9 +1,7 @@
 """
-:Module: nipy_glm_fsl_feeds_fmri
+Author: DOHMATOB Elvis Dopgima elvis[dot]dohmatob[at]inria[dot]fr
 Synopsis: Demo script for nipy's GLM and inference + reporting
 on FSL's FEEDS fMRI single-subject example data
-Author: dohmatob elvis dopgima elvis[dot]dohmatob[at]inria[dot]fr
-
 """
 
 import os
@@ -21,7 +19,7 @@ from pypreprocess.datasets import fetch_fsl_feeds
 from pypreprocess.io_utils import compute_mean_3D_image
 
 """MISC"""
-DATASET_DESCRIPTION = "FSL FEADS example data (single-subject)"
+DATASET_DESCRIPTION = "FSL FEEDS example data (single-subject)"
 
 """sanitize cmd line"""
 output_dir = "/tmp/fsl_feeds"
