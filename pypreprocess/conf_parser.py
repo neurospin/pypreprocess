@@ -17,8 +17,10 @@ from io_utils import _expand_path, get_relative_path
 def _del_nones_from_dict(some_dict):
     if isinstance(some_dict, dict):
         for k, v in some_dict.items():
-            if v is None: del some_dict[k]
-            else: _del_nones_from_dict(v)
+            if v is None:
+                del some_dict[k]
+            else:
+                _del_nones_from_dict(v)
     return some_dict
 
 
@@ -32,7 +34,8 @@ def _parse_job(config_file, **replacements):
             for k, v in replacements.items():
                 val = val.replace("%" + k + "%", v)
         if key == "slice_order":
-            if isinstance(val, basestring): return
+            if isinstance(val, basestring):
+                return
         if isinstance(val, basestring):
             if val.lower() in ["true", "yes"]:
                 # positive answers
@@ -40,7 +43,8 @@ def _parse_job(config_file, **replacements):
             elif val.lower() in ["false", "no"]:
                 # negative answers
                 val = False
-            elif key == "slice_order": val = val.lower()
+            elif key == "slice_order":
+                val = val.lower()
             elif val.lower() in ["none", "auto", "unspecified", "unknown",
                                  "default"]:
                 # user wants the default value to be used
@@ -58,10 +62,13 @@ def _parse_job(config_file, **replacements):
                    "func_write_voxel_sizes", "slice_order",
                    "anat_write_voxel_size", "func_write_voxel_sizes"]:
             dtype = np.int if key == "slice_order" else np.float
-            if not isinstance(val, basestring): val = ",".join(val)
-            for x in "()[]": val = val.replace(x, "")
+            if not isinstance(val, basestring):
+                val = ",".join(val)
+            for x in "()[]":
+                val = val.replace(x, "")
             val = list(np.fromstring(val, sep=",", dtype=dtype))
-            if len(val) == 1: val = val[0]
+            if len(val) == 1:
+                val = val[0]
         section[key] = val
 
     cobj = ConfigObj(config_file)
@@ -132,8 +139,10 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
     # invoke callback
     if options_callback:
         options = options_callback(options)
-        if dataset_dir is None: dataset_dir = options.get("dataset_dir", None)
-        if output_dir is None: output_dir = options.get("output_dir", None)
+        if dataset_dir is None:
+            dataset_dir = options.get("dataset_dir", None)
+        if output_dir is None:
+            output_dir = options.get("output_dir", None)
 
     # check dataset_dir
     dataset_dir = _expand_path(dataset_dir)
@@ -247,11 +256,13 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
         Ignore given subject_id ?
 
         """
-        if subject_id in exclude_these_subject_ids: return True
+        if subject_id in exclude_these_subject_ids:
+            return True
         elif len(include_only_these_subject_ids
                  ) and not subject_id in include_only_these_subject_ids:
             return True
-        else: return False
+        else:
+            return False
 
     # subject data factory
     subject_dir_wildcard = os.path.join(
