@@ -11,10 +11,10 @@ pypreprocess
 ============
 **pypreprocess** is a collection of python scripts for preprocessing fMRI data (motion correction, spatial normalization, smoothing, ...). It provides:
 
-* the possibility to run processing pipelines using simple text-based configuration-files, allowing to analyse data without programming.
-* automatic generation of html reports, for example for quality assurance (e.g. spatial registration checks), statistical results.
-* parallel processing of multiple subjects.
-* persistence of intermediate stages: in case an analysis is interrupted, cached intermediates files are reused to speed up processing. 
+* the possibility to run processing pipelines using simple text-based configuration-files, allowing to analyse data without programming;
+* automatic generation of html reports, for example for quality assurance (e.g. spatial registration checks), statistical results, etc.;
+* parallel processing of multiple subjects on multi-core machines;
+* persistence of intermediate stages: in case an analysis is interrupted, cached intermediates files are reused to speed up processing.
 
 pypreprocess relies on nipype's SPM and FSL interfaces, or pure-Python (no C extensions, no compiled code, just Python) modules and scripts for slice-timing correction, motion correction, coregistration, and smoothing, without need for nipype or matlab.
 
