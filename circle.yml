@@ -10,7 +10,13 @@ dependencies:
     # Add MCRInstaller.bin dependencies first
     - sudo apt-get install -y libxp6 libxpm4 libxmu6 libxt6 bc
     - source continuous_integration/setup_spm.sh
-    - sudo apt-get install -qq python-scipy python-nose python-nibabel python-sklearn python-sympy python-networkx python-nipy python-nipype
+    - sudo apt-get install -qq python-scipy
+    - sudo apt-get install -qq python-nose
+    - sudo apt-get install -qq python-nibabel
+    - sudo apt-get install -qq python-sklearn
+    - sudo apt-get install -qq python-sympy
+    - sudo apt-get install -qq python-networkx
+    - sudo apt-get install -qq python-nipype
     - pip install --upgrade pip
     - pip install "nilearn>=0.1.3"
     - pip install coverage coveralls
