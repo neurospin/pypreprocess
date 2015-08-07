@@ -5,6 +5,7 @@ teardown for reports, etc., general sanitization, etc. Also handles
 progressive report generation for subject during preprocessing.
 
 """
+from __future__ import print_function
 # Author: DOHMATOB Elvis Dopgima
 
 import os

@@ -5,10 +5,12 @@
 :Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
 """
+from __future__ import print_function
+from __future__ import absolute_import
 
 import os
 import inspect
-from reporting.preproc_reporter import (
+from .reporting.preproc_reporter import (
     generate_preproc_undergone_docstring)
 from sklearn.externals.joblib import Memory
 from .io_utils import get_basenames, save_vols, is_niimg, load_vols
@@ -268,10 +270,10 @@ def do_subject_preproc(
     # print input args
     frame = inspect.currentframe()
     args, _, _, values = inspect.getargvalues(frame)
-    print "\r\n"
+    print("\r\n")
     for i in args:
-        print "\t %s=%s" % (i, values[i])
-    print "\r\n"
+        print("\t %s=%s" % (i, values[i]))
+    print("\r\n")
 
     if isinstance(subject_data, SubjectData):
         subject_data = subject_data.sanitize()
@@ -318,7 +320,7 @@ def do_subject_preproc(
     # Slice-Timing Correction
     ############################
     if stc:
-        print "\r\nNODE> Slice-Timing Correction"
+        print("\r\nNODE> Slice-Timing Correction")
         func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['STC'] + func_prefix
         subject_data = _do_subject_slice_timing(
             subject_data, ref_slice=ref_slice, slice_order=slice_order,
@@ -329,7 +331,7 @@ def do_subject_preproc(
     # Motion Correction
     ######################
     if realign:
-        print "\r\nNODE> Motion Correction"
+        print("\r\nNODE> Motion Correction")
         func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['MC'] + func_prefix
         subject_data = _do_subject_realign(
             subject_data, reslice=False,
@@ -342,7 +344,7 @@ def do_subject_preproc(
     ###################
     if coregister and not subject_data.anat is None:
         which = "func -> anat" if coreg_func_to_anat else "anat -> func"
-        print "\r\nNODE> Coregistration %s" % which
+        print("\r\nNODE> Coregistration %s" % which)
         subject_data = _do_subject_coregister(
             subject_data, coreg_func_to_anat=coreg_func_to_anat,
             func_basenames=func_basenames, anat_basename=anat_basename,
@@ -354,8 +356,8 @@ def do_subject_preproc(
     # Smoothing
     ##############
     if not fwhm is None:
-        print ("\r\nNODE> Smoothing with %smm x %smm x %smm Gaussian"
-               " kernel") % tuple(fwhm)
+        print(("\r\nNODE> Smoothing with %smm x %smm x %smm Gaussian"
+               " kernel") % tuple(fwhm))
         func_prefix = PREPROC_OUTPUT_IMAGE_PREFICES['smoothing'] + func_prefix
         subject_data = _do_subject_smooth(
             subject_data, fwhm, caching=caching, prefix=func_prefix,
@@ -378,7 +380,7 @@ def do_subject_preproc(
             subject_data.func = _func
     elif write_output_images == 1:
         # write final output images
-        print "Saving preprocessed images unto disk..."
+        print("Saving preprocessed images unto disk...")
         func_basenames = func_basenames[0] if (not isinstance(
                 func_basenames, basestring) and concat) else func_basenames
         _func = []

@@ -2,6 +2,7 @@
 Author: yannick schwartz, DOHMATOB Elvis Dopgima
 Synopsis: Command line interface to preprocess OpenfMRI
 """
+from __future__ import print_function
 
 import os
 import sys
@@ -73,4 +74,4 @@ preproc_dataset(data_dir=input_dir,
                 delete_orient=options.delete_orient,
                 n_jobs=options.n_jobs)
 
-print "\r\nAll output written to %s" % output_dir
+print("\r\nAll output written to %s" % output_dir)

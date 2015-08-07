@@ -5,6 +5,7 @@ Synopsis: Demo for coregistration in pure python
 It demos coregistration on a variety of datasets including:
 SPM single-subject auditory, NYU rest, ABIDE, etc.
 """
+from __future__ import print_function
 
 import os
 import glob
@@ -88,10 +89,10 @@ mem.cache(_run_demo)(*_spm_auditory_factory())
 
 # NYU rest demo
 for subject_id, func, anat in _nyu_rest_factory():
-    print "%s +++NYU rest %s+++\r\n" % ("\t" * 5, subject_id)
+    print("%s +++NYU rest %s+++\r\n" % ("\t" * 5, subject_id))
     mem.cache(_run_demo)(func, anat)
 
 # ABIDE demo
 for subject_id, func, anat in _abide_factory():
-    print "%s +++ABIDE %s+++\r\n" % ("\t" * 5, subject_id)
+    print("%s +++ABIDE %s+++\r\n" % ("\t" * 5, subject_id))
     mem.cache(_run_demo)(func, anat)
