@@ -9,15 +9,15 @@
    
 pypreprocess
 ============
-**pypreprocess** is a collection of python scripts for preprocessing (motion 
-correction, spatial normalization, smoothing, etc.) fMRI data using 
-nipype's SPM and FSL interfaces. It also contains utilities for automatic 
-QA like registration checks (using nipy.labs), and template-based html report
-generation using (tempita, jquery, and home-grown css).
+**pypreprocess** is a collection of python scripts for preprocessing fMRI data (motion correction, spatial normalization, smoothing, ...). It provides:
 
-These days, it also contains pure-Python (no C extensions, no compiled code, just Python)
-modules and scripts for slice-timing correction, motion correction, coregistration,
-and smoothing, without need for nipype or matlab.
+* the possibility to run processing pipelines using simple text-based configuration-files, allowing to analyse data without programming.
+* automatic generation of html reports, for example for quality assurance (e.g. spatial registration checks), statistical results.
+*parallel processing of multiple subjects.
+*persistence of intermediate stages: in case an analysis is interrupted, cached intermediates files are reused to speed up processing. 
+
+pypreprocess relies on nipype's SPM and FSL interfaces, or pure-Python (no C extensions, no compiled code, just Python) modules and scripts for slice-timing correction, motion correction, coregistration, and smoothing, without need for nipype or matlab.
+
 
 License
 =======
@@ -48,6 +48,7 @@ Dependencies
 
 Installation
 ============
+
 First install the above dependencies by **copy-pasting** the following commands in a terminal:
 
       bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
@@ -66,9 +67,10 @@ Then install pypreprocess itself by running:
 
 Use-case Examples
 =================
-We have written some examplary scripts for preprocessing some popular datasets.
+We have written some example scripts for preprocessing some popular datasets.
 The **examples** directory contains a set of scripts, each demoing an aspect of pypreprocessing. Some scripts even provide use-cases for the nipy-based GLM. The examples use publicly available sMRI and fMRI data. Data fetchers are based on the nilearn API.
-The main examples scripts can be summarized as follows:
+
+The main examples scripts are:
 
 * **examples/nipype_preproc_spm_auditory.py**: demos preprocessing + first-level GLM (using nipy)  on the single-subject SPM auditory dataset.
 
@@ -84,27 +86,19 @@ The main examples scripts can be summarized as follows:
 
 * **examples/nipype_preproc_spm_haxby.py**: preprocessing of the 'Haxby2001' visual recognition task fMRI dataset.
 
-
-SPM auditory (single-subject)
------------------------------
-cd to the pypreprocess/examples directory, and run the following command:
+For example, to run the first example (SPM auditory dataset), cd to the pypreprocess/examples directory, and run the following command:
 
        python nipype_preproc_spm_auditory.py 
 
-Now open the file spm_auditory_runs/sub001/report.html in your browser (firefox), to see
-the generate report (QA).
+When the computation is finished, you should be able to open the file spm_auditory_runs/sub001/report.html in your browser (firefox) to see
+the generate report (Quality Assurance).
 
-'Serious' examples
-------------------
-The scripts/ sub-folder contains scripts for preprocessing popular datasets like ABIDE, HCP, HAXBY2001, NYU rest, etc.
-They should work 'out-of-the-box'.
 
 
 Using .ini configuration files to specify pipeline
 ==================================================
-It's possible (and recommended) to configure the preprocessing pipeline just by copying
-any of the `.ini` configuration files under the `examples` sub-directory and modifying it accordingly (usually, you only need to modify the `dataset_dir` paramter),
-and then run
+
+It is possible (and recommended) to configure the preprocessing pipeline just by copying any of the `.ini` configuration files under the `examples` sub-directory and modifying it (usually, you only need to modify the `dataset_dir` parameter), and then run
 
       `python pypreprocess.py your.ini`
       
