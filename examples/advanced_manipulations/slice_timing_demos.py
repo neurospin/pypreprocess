@@ -1,3 +1,8 @@
+"""
+:Author: DOHMATOB Elvis Dopgima elvis[dot]dohmatob[at]inria[dot]fr
+:Synopsis: Manipulations with slice timing
+"""
+
 import sys
 import os
 import warnings

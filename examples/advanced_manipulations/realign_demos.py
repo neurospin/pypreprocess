@@ -1,3 +1,8 @@
+"""
+Author: DOHMATOB Elvis Dopgima elvis[dot]dohmatob[at]inria[dot]fr
+Synopsis: single_subject_pipeline.py demo
+"""
+
 import os
 from collections import namedtuple
 import matplotlib.pyplot as plt

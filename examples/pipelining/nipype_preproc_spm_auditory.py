@@ -1,8 +1,6 @@
 """
-:Module: nipype_preproc_spm_auditory
-Synopsis: Minimal script for preprocessing single-subject data
 Author: dohmatob elvis dopgima elvis[dot]dohmatob[at]inria[dot]fr
-
+Synopsis: Minimal script for preprocessing single-subject data
 """
 
 import sys

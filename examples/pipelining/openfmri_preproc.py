@@ -1,10 +1,6 @@
-#!/usr/bin/env python
-
 """
-:Module: nipype_preproc_spm_openfmri
-:Synopsis: Command line interface to preprocess OpenfMRI
-:Author: yannick schwartz, dohmatob elvis dopgima
-
+Author: yannick schwartz, DOHMATOB Elvis Dopgima
+Synopsis: Command line interface to preprocess OpenfMRI
 """
 
 import os
