@@ -18,8 +18,10 @@ from pypreprocess.openfmri import preproc_dataset
 parser = OptionParser(usage=(
     '%prog [input_dir] [output_dir]\n\n'
     'Examples:\n\r'
-    'openfmri_preproc.py /tmp/ds105 /tmp/ds105_preproc -s sub001 -O\n'
-    'openfmri_preproc.py /tmp/ds105 /tmp/ds105_preproc -O -D -n 6'))
+    'Assuming you current directory is .../pypreprocess/examples'
+    'python openfmri_preproc.py /tmp/ds001 /tmp/ds001_preproc'
+    'python openfmri_preproc.py /tmp/ds001 /tmp/ds001_preproc -s sub001 -O\n'
+    'python openfmri_preproc.py /tmp/ds001 /tmp/ds001_preproc -O -D -n 6'))
 
 parser.description = (
     '`input_dir` is the path to an existing '
