@@ -1,25 +1,24 @@
+machine:
+  python:
+    version: 2.7
+
+
 dependencies:
   cache_directories:
   override:
-    - pip install --upgrade pip
-    - pip install numpy
-    - pip install scipy
-    - pip install matplotlib coverage
-    - pip install scikit-learn
-    - pip install joblib
-    - pip install nibabel
-    - pip install networkx
-    - pip install traits
-    - pip install sympy
-    - pip install nipype
-    - pip install nipy
-    - pip install configobj
-    - pip install nilearn
+    # Add MCRInstaller.bin dependencies first
+    - sudo apt-get install -y libxp6 libxpm4 libxmu6 libxt6 bc
+    - source continuous_integration/setup_spm.sh
+    - sudo apt-get install -qq python-scipy python-nose python-nibabel python-sklearn python-sympy python-networkx python-nipy python-nipype
+    - sudo apt-get install -qq python-pip
+    - pip install "nilearn>=0.1.3"
+    - python setup.py install
 
 test:
   override:
     - make clean
     - make test-code
+    - python examples/nipype_preproc_spm_auditory.py
 
 general:
   artifacts:
