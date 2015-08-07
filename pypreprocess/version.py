@@ -44,6 +44,9 @@ REQUIRED_MODULE_METADATA = (
         'install_info': _PYPREPROCESS_INSTALL_MSG}),
     ('nibabel', {
         'min_version': '1.1.0',
+        'required_at_installation': False}),
+    ('nilearn', {
+        'min_version': '0.1.4',
         'required_at_installation': False}))
 
 OPTIONAL_MATPLOTLIB_MIN_VERSION = '1.1.1'
