@@ -1,0 +1,25 @@
+dependencies:
+  cache_directories:
+  override:
+    - pip install --upgrade pip
+    - pip install numpy
+    - pip install scipy
+    - pip install matplotlib coverage
+    - pip install scikit-learn
+    - pip install joblib
+    - pip install nibabel
+    - pip install networkx
+    - pip install traits
+    - pip install sympy
+    - pip install nipype
+    - pip install nipy
+    - pip install configobj
+    - pip install nilearn
+
+test:
+  override:
+    - make clean
+    - make test-code
+
+general:
+  artifacts:
