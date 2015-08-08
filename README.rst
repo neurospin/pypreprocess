@@ -84,7 +84,7 @@ Very easy examples
 
 * **examples/easy_start/nipype_preproc_spm_haxby.py**: preprocessing of the 'Haxby2001' visual recognition task fMRI dataset.
 
-More advances examples
+More advanced examples
 ----------------------
 * **examples/pipeline/nipype_preproc_spm_multimodal_faces.py**: demos preprocessing + first-level fixed-effects GLM on R. Henson's multi-modal face dataset (multiple sessions)
 
