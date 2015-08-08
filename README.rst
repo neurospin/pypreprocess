@@ -71,9 +71,6 @@ Simply run the following command:
 
        python pypreprocess.py examples/easy_start/spm_auditory_preproc.ini
 
-Now open the file spm_auditory_runs/sub001/report.html in your browser (firefox), to see
-the generate report (QA).
-
 
 Layout of examples
 ==================
