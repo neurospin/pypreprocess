@@ -1,7 +1,6 @@
 """
-:Author: DOHMATOB Elvis Dopgima
-:Synopsis: single_subject_pipeline.py demo
-
+Author: DOHMATOB Elvis Dopgima elvis[dot]dohmatob[at]inria[dot]fr
+Synopsis: single_subject_pipeline.py demo
 """
 
 from pypreprocess.datasets import fetch_spm_multimodal_fmri
