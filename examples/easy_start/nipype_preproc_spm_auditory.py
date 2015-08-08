@@ -7,7 +7,7 @@ import sys
 import os
 import time
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as plt
 import nibabel
 from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 from nipy.modalities.fmri.design_matrix import make_dmtx
@@ -17,8 +17,7 @@ from pypreprocess.datasets import fetch_spm_auditory
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
 
 # file containing configuration for preprocessing the data
-this_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
-jobfile = os.path.join(this_dir, "spm_auditory_preproc.ini")
+jobfile = os.path.join("spm_auditory_preproc.ini")
 
 # fetch spm auditory data
 sd = fetch_spm_auditory()
@@ -58,7 +57,7 @@ ax = design_matrix.show()
 ax.set_position([.05, .25, .9, .65])
 ax.set_title('Design matrix')
 dmat_outfile = os.path.join(subject_data.output_dir, 'design_matrix.png')
-pl.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
+plt.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
 
 # specify contrasts
 contrasts = {}
