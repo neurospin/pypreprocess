@@ -139,7 +139,7 @@ A couple of modules for intra-subject preprocessing (slice-timing correction, mo
 in pure (only using builtins and numpy/scipy official stuff, no compiled code, no wrappers) Python have been implemented.
 To demo this feature, cd to the **pypreprocess/examples** directory, and run the following command:
 
-       python purepython_preproc_demo.py
+       python examples/pure_python/pure_python_preproc_demo.py
 
 Development
 ===========
