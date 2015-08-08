@@ -65,8 +65,8 @@ Then install pypreprocess itself by running:
        python setup.py install --user
 
 
-Simplest example
-================
+Getting started: pypreprocess 101
+=================================
 Simply run the following command:
 
        python pypreprocess.py examples/easy_start/spm_auditory_preproc.ini
