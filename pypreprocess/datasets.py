@@ -92,7 +92,7 @@ def fetch_spm_auditory(data_dir=None, data_name='spm_auditory',
                                       vol.get_affine())
             nibabel.save(vol, _subject_data["anat"])
 
-        return Bunch(data_dir=data_dir, **_subject_data)
+        return Bunch(**_subject_data)
 
     # maybe data_dir already contains the data ?
     data = _glob_spm_auditory_data()
@@ -166,7 +166,7 @@ def fetch_fsl_feeds(data_dir=None, data_name="fsl_feeds", verbose=1):
                                               "structural_brain.nii.gz")
                          }
 
-        return Bunch(data_dir=data_dir, **_subject_data)
+        return Bunch(**_subject_data)
 
     # maybe data_dir already contents the data ?
     data = _glob_fsl_feeds_data(data_dir)
@@ -215,6 +215,7 @@ def fetch_spm_multimodal_fmri(data_dir=None, data_name="spm_multimodal_fmri",
         http://www.fil.ion.ucl.ac.uk/spm/data/mmfaces/
 
     """
+
     data_dir = _get_dataset_dir(data_name, data_dir=data_dir,
                                 verbose=verbose)
     subject_dir = os.path.join(data_dir, subject_id)
@@ -255,7 +256,7 @@ def fetch_spm_multimodal_fmri(data_dir=None, data_name="spm_multimodal_fmri",
         else:
             _subject_data["anat"] = anat
 
-        return Bunch(data_dir=data_dir, **_subject_data)
+        return Bunch(**_subject_data)
 
     # maybe data_dir already contains the data ?
     data = _glob_spm_multimodal_fmri_data()
