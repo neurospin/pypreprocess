@@ -109,11 +109,10 @@ It is possible (and recommended) to configure the preprocessing pipeline just by
 
       `python pypreprocess.py your.ini`
       
-Alternatively, you can do this
+For example,
 
-      `preproc_output = do_subjects_preproc("your.ini", dataset_dir=dataset_dir)`
+      `python pypreprocess.py examples/easy_start/spm_auditory_preproc.ini`
 
-where the optional ``dataset_dir=dataset_dir`` parameter (you can specify more optional parameters, BTW) simply overrides any value specified in the .ini file.
 
 Pipelines
 =========
