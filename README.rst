@@ -65,34 +65,35 @@ Then install pypreprocess itself by running:
        python setup.py install --user
 
 
-Use-case Examples
-=================
-We have written some example scripts for preprocessing some popular datasets.
+Simplest example
+================
+Simply run the following command:
+
+       python pypreprocess.py examples/easy_start/spm_auditory_preproc.ini
+
+Now open the file spm_auditory_runs/sub001/report.html in your browser (firefox), to see
+the generate report (QA).
+
+
+Layout of examples
+==================
+We have written some examplary scripts for preprocessing some popular datasets.
 The **examples** directory contains a set of scripts, each demoing an aspect of pypreprocessing. Some scripts even provide use-cases for the nipy-based GLM. The examples use publicly available sMRI and fMRI data. Data fetchers are based on the nilearn API.
+The main examples scripts can be summarized as follows:
 
-The main examples scripts are:
+* **examples/easy_start/nipype_preproc_spm_auditory.py**: demos preprocessing + first-level GLM (using nipy)  on the single-subject SPM auditory dataset.
 
-* **examples/nipype_preproc_spm_auditory.py**: demos preprocessing + first-level GLM (using nipy)  on the single-subject SPM auditory dataset.
+* **examples/easy_start/nipype_preproc_spm_haxby.py**: preprocessing of the 'Haxby2001' visual recognition task fMRI dataset.
 
-* **examples/nipype_preproc_spm_multimodal_faces.py**: demos preprocessing + first-level fixed-effects GLM on R. Henson's multi-modal face dataset (multiple sessions)
+* **examples/pipeline/nipype_preproc_spm_multimodal_faces.py**: demos preprocessing + first-level fixed-effects GLM on R. Henson's multi-modal face dataset (multiple sessions)
 
-* **examples/nipy_glm_fsl_feeds_fmri.py**: demos preprocessing + first-level GLM on FSL FEEDS dataset
+* **examples/pipeline/nipy_glm_fsl_feeds_fmri.py**: demos preprocessing + first-level GLM on FSL FEEDS dataset
 
-* **examples/slice_timing_demos.py, examples/realign_demos.py, examples/coreg_demos.py**: demos Slice-Timing Correction (STC), motion-correction, and coregistration on various datasets, using modules written in pure Python
+* **examples/pipeline/nipype_preproc_spm_nyu.py**: preprocessing of NYU resting-state dataset
 
-* **examples/purepython_preproc_demo.py**: demos intra-subject preprocessing using pure Python modules, on single-subject SPM auditory dataset
+* **examples/pure_python/slice_timing_demos.py, examples/realign_demos.py, examples/coreg_demos.py**: demos Slice-Timing Correction (STC), motion-correction, and coregistration on various datasets, using modules written in pure Python
 
-* **examples/nipype_preproc_spm_nyu.py**: preprocessing of NYU resting-state dataset
-
-* **examples/nipype_preproc_spm_haxby.py**: preprocessing of the 'Haxby2001' visual recognition task fMRI dataset.
-
-For example, to run the first example (SPM auditory dataset), cd to the pypreprocess/examples directory, and run the following command:
-
-       python nipype_preproc_spm_auditory.py 
-
-When the computation is finished, you should be able to open the file spm_auditory_runs/sub001/report.html in your browser (firefox) to see
-the generate report (Quality Assurance).
-
+* **examples/pure_python/pure_python_preproc_demo.py**: demos intra-subject preprocessing using pure Python modules, on single-subject SPM auditory dataset
 
 
 Using .ini configuration files to specify pipeline

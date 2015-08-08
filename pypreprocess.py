@@ -21,6 +21,3 @@ if __name__ == "__main__":
 
     # consume config file and run pypreprocess back-end
     subjects = do_subjects_preproc(sys.argv[1])
-
-    from pypreprocess.glm_utils import do_subject_glm
-    map(do_subject_glm, subjects)
