@@ -137,7 +137,7 @@ Intra-subject preprocessing in pure Python (with no compiled code, etc.)
 ========================================================================
 A couple of modules for intra-subject preprocessing (slice-timing correction, motion-correction, coregistration, etc.)
 in pure (only using builtins and numpy/scipy official stuff, no compiled code, no wrappers) Python have been implemented.
-To demo this feature, cd to the **pypreprocess/examples** directory, and run the following command:
+To demo this feature, simply run the following command:
 
        python examples/pure_python/pure_python_preproc_demo.py
 
