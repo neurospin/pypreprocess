@@ -9,6 +9,8 @@
    
 pypreprocess
 ============
+![alt text](https://drive.google.com/file/d/0B-njZxsmwjYNelM0aC14dXBZMjQ/view?usp=sharing)
+
 **pypreprocess** is a collection of python scripts for preprocessing fMRI data (motion correction, spatial normalization, smoothing, ...). It provides:
 
 * the possibility to run processing pipelines using simple text-based configuration-files, allowing to analyse data without programming;
