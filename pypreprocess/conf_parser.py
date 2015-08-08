@@ -5,6 +5,9 @@
 """
 
 import os
+import sys
+import StringIO
+import contextlib
 import warnings
 import glob
 import re
@@ -14,58 +17,85 @@ from subject_data import SubjectData
 from io_utils import _expand_path, get_relative_path
 
 
+@contextlib.contextmanager
+def _stdoutIO(stdout=None):
+    """For executing pycomds from .ini files.
+    """
+    old = sys.stdout
+    if stdout is None:
+        stdout = StringIO.StringIO()
+    sys.stdout = stdout
+    yield stdout
+    sys.stdout = old
+
+
 def _del_nones_from_dict(some_dict):
     if isinstance(some_dict, dict):
         for k, v in some_dict.items():
-            if v is None: del some_dict[k]
-            else: _del_nones_from_dict(v)
+            if v is None:
+                del some_dict[k]
+            else:
+                _del_nones_from_dict(v)
     return some_dict
+
+
+def _sanitize(section, key, **replacements):
+    val = section[key]
+    if isinstance(val, basestring):
+        for k, v in replacements.items():
+            val = val.replace("%" + k + "%", v)
+    if key == "slice_order":
+        if isinstance(val, basestring):
+            return
+    if isinstance(val, basestring):
+        if val.lower() in ["true", "yes"]:
+            # positive answers
+            val = True
+        elif val.lower() in ["false", "no"]:
+            # negative answers
+            val = False
+        elif key == "slice_order":
+            val = val.lower()
+        elif val.lower() in ["none", "auto", "unspecified", "unknown",
+                             "default"]:
+            # user wants the default value to be used
+            val = None
+        elif re.match("^ *?$", val):
+            # empty value specified
+            val = None
+    if key in ["TR", "nslices", "ref_slice", "nsubjects", "nsessions",
+               "n_jobs"]:
+        # evaluate param value if it's a formula
+        val = None if val is None else eval(val)
+
+    # BF: some users forget the "s" in "_sizes"
+    if key in ["fwhm", "anat_fwhm", "anat_write_voxel_sizes",
+               "func_write_voxel_sizes", "slice_order",
+               "anat_write_voxel_size", "func_write_voxel_sizes"]:
+        dtype = np.int if key == "slice_order" else np.float
+        if not isinstance(val, basestring):
+            val = ",".join(val)
+        for x in "()[]":
+            val = val.replace(x, "")
+        val = list(np.fromstring(val, sep=",", dtype=dtype))
+        if len(val) == 1:
+            val = val[0]
+    section[key] = val
+    if isinstance(val, basestring) and val.startswith("pycmd:"):
+        match = re.match("pycmd: (.+)", val, re.DOTALL)
+        if match is None:
+            raise RuntimeError("Invalid pycmd specification '%s'" % val)
+        cmd = match.group(1)
+        with _stdoutIO() as s:
+            exec cmd
+        section[key] = s.getvalue().rstrip("\r\n")
 
 
 def _parse_job(config_file, **replacements):
     if not os.path.isfile(config_file):
         raise OSError("Configuration file '%s' doesn't exist!" % config_file)
-
-    def sanitize(section, key):
-        val = section[key]
-        if isinstance(val, basestring):
-            for k, v in replacements.items():
-                val = val.replace("%" + k + "%", v)
-        if key == "slice_order":
-            if isinstance(val, basestring): return
-        if isinstance(val, basestring):
-            if val.lower() in ["true", "yes"]:
-                # positive answers
-                val = True
-            elif val.lower() in ["false", "no"]:
-                # negative answers
-                val = False
-            elif key == "slice_order": val = val.lower()
-            elif val.lower() in ["none", "auto", "unspecified", "unknown",
-                                 "default"]:
-                # user wants the default value to be used
-                val = None
-            elif re.match("^ *?$", val):
-                # empty value specified
-                val = None
-        if key in ["TR", "nslices", "ref_slice", "nsubjects", "nsessions",
-                   "n_jobs"]:
-            # evaluate param value if it's a formula
-            val = None if val is None else eval(val)
-
-        # BF: some users forget the "s" in "_sizes"
-        if key in ["fwhm", "anat_fwhm", "anat_write_voxel_sizes",
-                   "func_write_voxel_sizes", "slice_order",
-                   "anat_write_voxel_size", "func_write_voxel_sizes"]:
-            dtype = np.int if key == "slice_order" else np.float
-            if not isinstance(val, basestring): val = ",".join(val)
-            for x in "()[]": val = val.replace(x, "")
-            val = list(np.fromstring(val, sep=",", dtype=dtype))
-            if len(val) == 1: val = val[0]
-        section[key] = val
-
     cobj = ConfigObj(config_file)
-    cobj.walk(sanitize, call_on_sections=True)
+    cobj.walk(_sanitize, call_on_sections=True, **replacements)
     return cobj['config']
 
 
@@ -132,13 +162,15 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
     # invoke callback
     if options_callback:
         options = options_callback(options)
-        if dataset_dir is None: dataset_dir = options.get("dataset_dir", None)
-        if output_dir is None: output_dir = options.get("output_dir", None)
+        if dataset_dir is None:
+            dataset_dir = options.get("dataset_dir", None)
+        if output_dir is None:
+            output_dir = options.get("output_dir", None)
 
     # check dataset_dir
     dataset_dir = _expand_path(dataset_dir)
     if not os.path.isdir(dataset_dir):
-        raise OSError("dataset_dir %s doesn't exist" % dataset_dir)
+        raise OSError("dataset_dir '%s' doesn't exist" % dataset_dir)
 
     # check output_dir
     output_dir = _expand_path(options["output_dir"], relative_to=dataset_dir)
@@ -247,11 +279,13 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
         Ignore given subject_id ?
 
         """
-        if subject_id in exclude_these_subject_ids: return True
+        if subject_id in exclude_these_subject_ids:
+            return True
         elif len(include_only_these_subject_ids
                  ) and not subject_id in include_only_these_subject_ids:
             return True
-        else: return False
+        else:
+            return False
 
     # subject data factory
     subject_dir_wildcard = os.path.join(
@@ -266,7 +300,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
                          if os.path.isdir(x)]
     if not subject_data_dirs:
         warnings.warn("No subject directories found for wildcard: %s" % (
-                subject_dir_wildcard))
+            subject_dir_wildcard))
         return [], preproc_params
 
     for subject_data_dir in subject_data_dirs:
@@ -274,7 +308,8 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
             # we've had enough subjects already; end
             break
         subject_id = os.path.basename(subject_data_dir)
-        if _ignore_subject(subject_id): continue
+        if _ignore_subject(subject_id):
+            continue
         subject_output_dir = os.path.join(output_dir, subject_id)
 
         # grab functional data
@@ -288,10 +323,12 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
                 sess_onset_wildcard = sess_onset_wildcards[s]
                 sess_onset_wildcard = options[sess_onset_wildcard]
                 sess_onset_wildcard = os.path.join(subject_data_dir,
-                                                  sess_onset_wildcard)
+                                                   sess_onset_wildcard)
                 sess_onset = sorted(glob.glob(sess_onset_wildcard))
-                if len(sess_onset) > 1: raise ValueError
-                if len(sess_onset) > 0: o = sess_onset[0]
+                if len(sess_onset) > 1:
+                    raise ValueError
+                if len(sess_onset) > 0:
+                    o = sess_onset[0]
             onset.append(o)
             sess_func_wildcard = options[sess_func_wildcard]
             sess_func_wildcard = os.path.join(subject_data_dir,
