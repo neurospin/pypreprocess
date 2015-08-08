@@ -14,9 +14,10 @@ pypreprocess
 * the possibility to run processing pipelines using simple text-based configuration-files, allowing to analyse data without programming;
 * automatic generation of html reports, for example for quality assurance (e.g. spatial registration checks), statistical results, etc.;
 * parallel processing of multiple subjects on multi-core machines;
-* persistence of intermediate stages: in case an analysis is interrupted, cached intermediates files are reused to speed up processing.
+* persistence of intermediate stages: in case an analysis is interrupted, cached intermediates files are reused to speed up processing;
+* support for precompiled SPM (besides the usual matlab-dependent flavor).
 
-pypreprocess relies on nipype's SPM and FSL interfaces, or pure-Python (no C extensions, no compiled code, just Python) modules and scripts for slice-timing correction, motion correction, coregistration, and smoothing, without need for nipype or matlab.
+pypreprocess relies on nipype's interfaces to SPM (both precompiled SPM  and matlab-dependent SPM flavors). It also has pure-Python (no C extensions, no compiled code, just Python) modules and scripts for slice-timing correction, motion correction, coregistration, and smoothing, without need for nipype or matlab.
 
 
 License
