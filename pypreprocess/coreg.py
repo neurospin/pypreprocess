@@ -11,28 +11,18 @@ import scipy.special
 from scipy.signal import sepfir2d
 import numpy as np
 import nibabel
-from .affine_transformations import (spm_matrix,
-                                     apply_realignment,
-                                     nibabel2spm_affine
-                                     )
-from .io_utils import (loaduint8,
-                       get_basenames,
-                       save_vols
-                       )
-from .kernel_smooth import (fwhm2sigma,
-                            centered_smoothing_kernel
-                            )
-from .histograms import (trilinear_interp,
-                         joint_histogram,
-                         _correct_voxel_samp,
-                         make_sampled_grid
-                         )
+from .affine_transformations import (spm_matrix, apply_realignment,
+                                     nibabel2spm_affine)
+from .io_utils import loaduint8, get_basenames, save_vols
+from .kernel_smooth import fwhm2sigma, centered_smoothing_kernel
+from .histograms import (trilinear_interp, joint_histogram,
+                         _correct_voxel_samp, make_sampled_grid)
 
 # 'texture' of floats in machine precision
 EPS = np.finfo(float).eps
 
 
-def compute_similarity_from_jhist(jh, fwhm=[7, 7], cost_fun='nmi'):
+def compute_similarity_from_jhist(jh, fwhm=None, cost_fun='nmi'):
     """
     Computes an information-theoretic similarity from a joint histogram.
 
@@ -54,35 +44,30 @@ def compute_similarity_from_jhist(jh, fwhm=[7, 7], cost_fun='nmi'):
     -------
     o: float
         the computed similariy measure
-
     """
-
     # sanitize input
-    assert len(np.shape(jh)) == 2, "jh must be 2D array, got %s" % jh
+    if fwhm is None:
+        fwhm = [7., 7.]
+    if len(np.shape(jh)) != 2:
+        raise ValueError("jh must be 2D array, got %s" % jh)
 
     if len(np.shape(fwhm)) == 0:
         fwhm = [fwhm] * 2
-
     fwhm = fwhm[:2]
 
-    # smoothing the jh
-    if 0x1:  # XXX this is dirty
-        # create separable filter
-        lim  = np.ceil(fwhm * 2)
-        krn1 = centered_smoothing_kernel(fwhm[0],
-                                         np.linspace(-1 * lim[0], lim[0],
-                                                      num=2 * lim[0]))
-        krn1 = krn1 / np.sum(krn1)
-        krn2 = centered_smoothing_kernel(fwhm[1],
-                                         np.linspace(-1 * lim[1], lim[1],
-                                                      num=2 * lim[1]))
-        krn2 = krn2 / np.sum(krn2)
+    # create separable filter for smoothing the joint-histogram
+    lim = np.ceil(fwhm * 2)
+    krn1 = centered_smoothing_kernel(fwhm[0],
+                                     np.linspace(-1 * lim[0], lim[0],
+                                                 num=2 * lim[0]))
+    krn1 = krn1 / np.sum(krn1)
+    krn2 = centered_smoothing_kernel(fwhm[1],
+                                     np.linspace(-1 * lim[1], lim[1],
+                                                 num=2 * lim[1]))
+    krn2 = krn2 / np.sum(krn2)
 
-        # smooth the histogram with kern1 x kern2
-        jh = sepfir2d(jh, krn1, krn2)
-    else:
-        # smooth the jh with a gaussian filter of given fwhm
-        jh = gaussian_filter(jh, sigma=fwhm2sigma(fwhm[:2]), mode='wrap')
+    # smooth the histogram with kern1 x kern2
+    jh = sepfir2d(jh, krn1, krn2)
 
     # compute marginal histograms
     jh = jh + EPS
@@ -111,8 +96,8 @@ def compute_similarity_from_jhist(jh, fwhm=[7, 7], cost_fun='nmi'):
         # Studholme,  jhill & jhawkes (1998).
         # "A normalized entropy measure of 3-D medical image alignment".
         # in Proc. Medical Imaging 1998, vol. 3338, San Diego, CA, pp. 132-143.
-        nmi = (np.sum(s1 * np.log2(s1)) + np.sum(
-                s2 * np.log2(s2))) / np.sum(np.sum(jh * np.log2(jh)))
+        nmi = (np.sum(s1 * np.log2(s1)) + np.sum(s2 * np.log2(s2))) / np.sum(
+            np.sum(jh * np.log2(jh)))
         o = -nmi
     else:
         raise NotImplementedError(
@@ -122,7 +107,7 @@ def compute_similarity_from_jhist(jh, fwhm=[7, 7], cost_fun='nmi'):
 
 
 def compute_similarity(params, ref, src, ref_affine, src_affine, grid,
-                       cost_fun='nmi', fwhm=[7, 7], bins=(256, 256)):
+                       cost_fun='nmi', fwhm=None, bins=(256, 256)):
     """
     Computes the similarity between the reference image (ref) and the moving
     image src, under the current affine motion parameters (x).
@@ -168,8 +153,9 @@ def compute_similarity(params, ref, src, ref_affine, src_affine, grid,
     -------
     o: float
         the computed similariy measure
-
     """
+    if fwhm is None:
+        fwhm = [7., 7.]
 
     # compute affine transformation matrix
     params = np.array(params)
@@ -266,15 +252,6 @@ class Coregister(object):
     params_: 1D array of 6 floats (3 translations + 3 rotations)
         the realign parameters estimated
 
-    Examples
-    --------
-    >>> from pypreprocess.coreg import Coregister
-    >>> c = Coregister()
-    >>> ref = '/home/elvis/CODE/datasets/spm_auditory/sM00223/sM00223_002.img'
-    >>> src = '/home/elvis/CODE/datasets/spm_auditory/fM00223/fM00223_004.img'
-    >>> c.fit(ref, src)
-    >>> c.transform(src)
-
     References
     ----------
     [1] Rigid Body Registration, by J. Ashburner and K. Friston
@@ -338,9 +315,7 @@ class Coregister(object):
         -------
         `Coregistration` instance
             fitted object
-
         """
-
         # configure the Powell optimizer
         self.sc_ = np.array(self.tol)
         self.sc = self.sc_[:len(self.params_init)]
@@ -352,30 +327,29 @@ class Coregister(object):
 
         # tweak affines so we can play SPM games everafter
         target = nibabel.Nifti1Image(target.get_data(),
-                                  nibabel2spm_affine(target.get_affine()))
+                                     nibabel2spm_affine(target.get_affine()))
         source = nibabel.Nifti1Image(source.get_data(),
-                                  nibabel2spm_affine(source.get_affine()))
+                                     nibabel2spm_affine(source.get_affine()))
 
         # smooth images according to pyramidal sep
         if self.smooth_vols:
             # target
             vxg = np.sqrt(np.sum(target.get_affine()[:3, :3] ** 2, axis=0))
             fwhmg = np.sqrt(np.maximum(
-                    np.ones(3) * self.sep[-1] ** 2 - vxg ** 2,
-                    [0, 0, 0])) / vxg
+                np.ones(3) * self.sep[-1] ** 2 - vxg ** 2,
+                [0, 0, 0])) / vxg
             target = nibabel.Nifti1Image(
                 gaussian_filter(target.get_data(),
-                                              fwhm2sigma(fwhmg)),
+                                fwhm2sigma(fwhmg)),
                 target.get_affine())
 
             # source
             vxf = np.sqrt(np.sum(source.get_affine()[:3, :3] ** 2, axis=0))
             fwhmf = np.sqrt(np.maximum(
-                    np.ones(3) * self.sep[-1] ** 2 - vxf ** 2,
-                    [0, 0, 0])) / vxf
+                np.ones(3) * self.sep[-1] ** 2 - vxf ** 2,
+                [0, 0, 0])) / vxf
             source = nibabel.Nifti1Image(gaussian_filter(
-                source.get_data(), fwhm2sigma(fwhmf)),
-                                      source.get_affine())
+                source.get_data(), fwhm2sigma(fwhmf)), source.get_affine())
 
         # pyramidal loop
         self.params_ = np.array(self.params_init)
@@ -385,7 +359,7 @@ class Coregister(object):
 
             # create sampled grid for target img
             grid = make_sampled_grid(target.shape, samp=_correct_voxel_samp(
-                    target.get_affine(), samp))
+                target.get_affine(), samp))
 
             # interpolate target on sampled grid
             sampled_target = trilinear_interp(
@@ -401,13 +375,8 @@ class Coregister(object):
 
         return self
 
-    def transform(self,
-                  source,
-                  output_dir=None,
-                  prefix="",
-                  ext=".nii.gz",
-                  basenames=None,
-                  ):
+    def transform(self, source, output_dir=None, prefix="", ext=".nii.gz",
+                  basenames=None):
         """
         Applies estimated co-registration parameter to the input volume
         (source).
@@ -432,9 +401,7 @@ class Coregister(object):
         coregistered_source: nibabel image object or existing filename
         (if output_dir is specified)
             the coregistered source volume
-
         """
-
         # save output unto disk
         if not output_dir is None:
             if basenames is None:
@@ -443,9 +410,7 @@ class Coregister(object):
         # apply coreg
         # XXX backend should handle nasty i/o logic!!
         coregistered_source = list(apply_realignment(source, self.params_,
-                                                     inverse=True
-                                                     ))
-
+                                                     inverse=True))
         if not output_dir is None:
             concat = isinstance(basenames, basestring)
             coregistered_source = save_vols(coregistered_source,
@@ -453,5 +418,4 @@ class Coregister(object):
                                             basenames=basenames,
                                             ext=ext, prefix=prefix,
                                             concat=concat)
-
         return coregistered_source

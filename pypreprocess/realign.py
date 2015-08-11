@@ -56,7 +56,7 @@ def _compute_rate_of_change_of_chisq(M, coords, gradG, lkp=range(6)):
 
         # map cartesian coordinate space according to motion
         # parameters pt (using jacobian associated with the transformation)
-        transformed_coords  = transform_coords(pt, M, M, coords)
+        transformed_coords = transform_coords(pt, M, M, coords)
 
         # compute change in cartesian coordinates as a result of change in
         # motion parameters
@@ -134,13 +134,6 @@ class MRIMotionCorrection(object):
     ----------
     realignment_parameters_: 3D array of shape (n_sessions, n_scans_session, 6)
         the realigment parameters for each volume of each session
-
-    Examples
-    --------
-    >>> from pypreprocess.realign import MRIMotionCorrection
-    >>> mrimc = MRIMotionCorrection(n_sessions=2)
-    >>> mrimc.fit(['fmri1.nii.gz', 'fmri2.nii'])
-    >>> mrimc.transform()
 
     References
     ----------
@@ -236,18 +229,18 @@ class MRIMotionCorrection(object):
 
         # resample the smoothed reference volume unto doped working grid
         G = ndimage.map_coordinates(sref_vol, [x1, x2, x3], order=self.interp,
-                                 mode='wrap',).reshape(x1.shape)
+                                    mode='wrap',).reshape(x1.shape)
 
         # compute gradient of reference volume
         Gx, Gy, Gz = np.gradient(sref_vol)
 
         # resample gradient unto working grid
         Gx = ndimage.map_coordinates(Gx, [x1, x2, x3], order=self.interp,
-                                  mode='wrap',).reshape(x1.shape)
+                                     mode='wrap',).reshape(x1.shape)
         Gy = ndimage.map_coordinates(Gy, [x1, x2, x3], order=self.interp,
-                                  mode='wrap',).reshape(x1.shape)
+                                     mode='wrap',).reshape(x1.shape)
         Gz = ndimage.map_coordinates(Gz, [x1, x2, x3], order=self.interp,
-                                  mode='wrap',).reshape(x1.shape)
+                                     mode='wrap',).reshape(x1.shape)
 
         # compute rate of change of chi2 w.r.t. parameters
         A0 = _compute_rate_of_change_of_chisq(vol_0.get_affine(),
@@ -307,8 +300,7 @@ class MRIMotionCorrection(object):
         rp[0, ...] = get_initial_motion_params(
             )  # don't mov the reference image
         for t in range(1, n_scans):
-            self._log("\tRegistering volume %i/%i..." % (
-                    t + 1, n_scans))
+            self._log("\tRegistering volume %i/%i..." % (t + 1, n_scans))
 
             # load volume t
             vol = vols[t]
@@ -482,8 +474,8 @@ class MRIMotionCorrection(object):
             quality=1.  # only a few vols, we can thus allow this lux
             )
 
-        rfirst_vols = apply_realignment(first_vols,
-            self.first_vols_realignment_parameters_, inverse=False)
+        rfirst_vols = apply_realignment(
+            first_vols, self.first_vols_realignment_parameters_, inverse=False)
 
         if self.n_sessions > 1:
             self._log('...done (inter-session registration).\r\n')
@@ -497,8 +489,8 @@ class MRIMotionCorrection(object):
 
             # affine correction, for inter-session realignment
             affine_correction = np.dot(rfirst_vols[sess].get_affine(),
-                                  scipy.linalg.inv(
-                                      rfirst_vols[0].get_affine()))
+                                       scipy.linalg.inv(
+                                           rfirst_vols[0].get_affine()))
 
             sess_rp = self._single_session_fit(
                 self.vols_[sess],
@@ -587,10 +579,10 @@ class MRIMotionCorrection(object):
             # reslice vols
             if reslice:
                 self._log('Reslicing volumes for session %i/%i...' % (
-                        sess + 1, self.n_sessions))
+                    sess + 1, self.n_sessions))
                 sess_rvols = list(reslice_vols(sess_rvols))
                 self._log('...done; session %i/%i.' % (
-                        sess + 1, self.n_sessions))
+                    sess + 1, self.n_sessions))
 
             if concat_sess:
                 sess_rvols = nibabel.concat_images(sess_rvols)
@@ -616,7 +608,7 @@ class MRIMotionCorrection(object):
 
                         else:
                             sess_basenames = ["sess_%i_vol_%i" % (sess, i)
-                                         for i in range(n_scans)]
+                                              for i in range(n_scans)]
                 else:
                     assert len(basenames) == self.n_sessions
                     sess_basenames = basenames[sess]
