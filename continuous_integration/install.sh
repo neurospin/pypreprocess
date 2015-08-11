@@ -80,6 +80,9 @@ create_new_conda_env() {
     fi
 }
 
+
+pip install nilearn
+
 if [[ "$DISTRIB" == "neurodebian" ]]; then
     create_new_venv
     bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)

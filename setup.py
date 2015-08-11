@@ -20,16 +20,16 @@ from numpy.distutils.core import setup
 
 
 def load_version():
-    """Executes nilearn/version.py in a globals dictionary and return it.
+    """Executes pypreprocess/version.py in a globals dictionary and return it.
 
-    Note: importing nilearn is not an option because there may be
+    Note: importing pypreprocess is not an option because there may be
     dependencies like nibabel which are not installed and
     setup.py is supposed to install them.
     """
     # load all vars into globals, otherwise
     #   the later function call using global vars doesn't work.
     globals_dict = {}
-    with open(os.path.join('nilearn', 'version.py')) as fp:
+    with open(os.path.join('pypreprocess', 'version.py')) as fp:
         exec(fp.read(), globals_dict)
 
     return globals_dict
