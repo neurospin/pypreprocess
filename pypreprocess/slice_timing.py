@@ -9,13 +9,12 @@ import os
 import nibabel
 import scipy
 import numpy as np
-from nilearn.image import index_img
 from nilearn.image.image import check_niimg
 from .io_utils import is_niimg, save_vols, get_basenames
 
 
 def get_slice_indices(n_slices, slice_order='ascending',
-                    interleaved=False,):
+                      interleaved=False,):
     """Function computes the (unique permutation on) slice indices, consistent
     with the specified slice order.
 
@@ -23,10 +22,12 @@ def get_slice_indices(n_slices, slice_order='ascending',
     ----------
     n_slices: int
         the number of slices there're altogether
+
     slice_order: string or array of ints or length n_slices
         slice order of acquisitions in a TR
         'ascending': slices were acquired from bottommost to topmost
         'descending': slices were acquired from topmost to bottommost
+
     interleaved: bool (optional, default False)
         if set, then slices were acquired in interleaved order, odd-numbered
         slices first, and then even-numbered slices
@@ -40,7 +41,6 @@ def get_slice_indices(n_slices, slice_order='ascending',
     Raises
     ------
     ValueError
-
     """
 
     if isinstance(slice_order, basestring):
@@ -66,7 +66,7 @@ def get_slice_indices(n_slices, slice_order='ascending',
 
         assert len(slice_order) == n_slices
         assert np.all((0 <= slice_order) & (
-                slice_order < n_slices)), slice_order
+            slice_order < n_slices)), slice_order
         assert len(set(slice_order)) == n_slices, slice_order
 
         slice_indices = slice_order
@@ -74,15 +74,15 @@ def get_slice_indices(n_slices, slice_order='ascending',
     slice_indices = np.array(slice_indices)
     slice_indices = np.array([np.nonzero(slice_indices == z)[0][0]
                               for z in range(n_slices)])
-
     return slice_indices
 
 
 class STC(object):
-    """Correct differences in slice acquisition times. This correction
-    assumes that the data are band-limited (i.e. there is no meaningful
-    information present in the data at a frequency higher than that of
-    the Nyquist). This assumption is supported by the study of Josephs
+    """Correct differences in slice acquisition times.
+
+    This correction assumes that the data are band-limited (i.e. there is
+    no meaningful information present in the data at a frequency higher than
+    that of the Nyquist). This assumption is supported by the study of Josephs
     et al (1997, NeuroImage) that obtained event-related data at an
     effective TR of 166 msecs. No physio-logical signal change was present
     at frequencies higher than their typical Nyquist (0.25 HZ).
@@ -120,7 +120,6 @@ class STC(object):
         self.slice_order = slice_order
         self.interleaved = interleaved
         self.ref_slice = ref_slice
-
         self.verbose = verbose
 
     def _log(self, msg):
@@ -253,9 +252,8 @@ class STC(object):
 
         # fix slice indices consistently with slice order
         self.slice_indices = get_slice_indices(self.n_slices,
-                                                slice_order=self.slice_order,
-                                                interleaved=self.interleaved,
-                                                )
+                                               slice_order=self.slice_order,
+                                               interleaved=self.interleaved)
 
         # fix ref slice index, to be consistent with the slice order
         self.ref_slice = self.slice_indices[self.ref_slice]
@@ -384,7 +382,7 @@ class STC(object):
 
                 # apply phase-shift to column y of slice z of all 3D volumes
                 stack = np.real(np.fft.ifft(
-                        np.fft.fft(stack, axis=0) * shifter, axis=0))
+                    np.fft.fft(stack, axis=0) * shifter, axis=0))
 
                 # re-insert phase-shifted column y of slice z for all 3D
                 # volumes
@@ -420,14 +418,6 @@ class fMRISTC(STC):
     Attributes
     ----------
     kernel
-    Examples
-    --------
-    >>> from pypreprocess.slice_timing import fMRISTC
-    >>> fmristc = fMRISTC()
-    >>> fmristc.fit('/home/elvis/CODE/datasets/ABIDE/KKI_50772/rest.nii')
-    >>> transform.fit('/home/elvis/CODE/datasets/ABIDE/KKI_50772/rest.nii')
-    >>> fmristc.transform()
-
     """
 
     def _sanitize_raw_data(self, raw_data, fitting=False):
@@ -479,35 +469,27 @@ class fMRISTC(STC):
     def transform(self, raw_data=None, output_dir=None,
                   affine=None, prefix='a', basenames=None, ext=None):
         self.output_data_ = STC.transform(self, raw_data=raw_data)
-
         if not basenames is None:
             self.basenames_ = basenames
-
         if not affine is None:
             self.affine_ = affine
-
         if not output_dir is None:
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
-
         if hasattr(self, 'affine_'):
             if isinstance(self.affine_, list):
-                self.output_data_  = [nibabel.Nifti1Image(
-                            self.output_data_[..., t], self.affine_[t])
-                                                 for t in range(
-                            self.output_data_.shape[-1])]
+                self.output_data_ = [nibabel.Nifti1Image(
+                    self.output_data_[..., t], self.affine_[t])
+                    for t in range(self.output_data_.shape[-1])]
                 if output_dir is None:
                     self.output_data_ = nibabel.concat_images(
                         self.output_data_, check_affines=False)
             else:
                 self.output_data_ = nibabel.Nifti1Image(self.output_data_,
                                                         self.affine_)
-
             if not output_dir is None:
                 self.output_data_ = save_vols(
                     self.output_data_,
                     output_dir, prefix=prefix,
-                    basenames=get_basenames(self.basenames_, ext=ext)
-                    )
-
+                    basenames=get_basenames(self.basenames_, ext=ext))
         return self.output_data_

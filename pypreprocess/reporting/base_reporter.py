@@ -1,7 +1,7 @@
 """
 Basic utilities (functions, classes) for the reporting business
 """
-# Author: dohmatob elvis dopgima
+# Author: Elvis DOHMATOB
 
 import os
 import re
@@ -47,29 +47,20 @@ def lines2breaks(lines, delimiter="\n", number_lines=False):
     Returns
     -------
     HTML-formatted string
-
-    Parameters
-    ----------
-    lines: list or string
-       linbes to convert to HTML breaks <br/>
-
     """
-
     if isinstance(lines, basestring):
         lines = lines.split(delimiter)
-
     if not number_lines:
         lines = ["%s" % line for line in lines]
         output = "<pre>%s</pre>" % "".join(lines)
     else:
         lines = ["<li>%s</li>" % line for line in lines]
         output = "<ol><pre>" + "".join(lines) + "</pre></ol>"
-
     return output
 
 
 def dict_to_html_ul(mydict):
-    """Function converts dict to an HTML ul element
+    """Function converts dict to an HTML ul element.
 
     Parameters
     ----------
@@ -80,7 +71,6 @@ def dict_to_html_ul(mydict):
     Returns
     -------
     String, ul element
-
     """
 
     def make_li(stuff):
@@ -101,7 +91,6 @@ def dict_to_html_ul(mydict):
             # XXX handle other bundled types which are not necessarily
             # dict-like!!!
             val = str(stuff)
-
         return val
 
     if isinstance(mydict, basestring):
@@ -117,12 +106,11 @@ def dict_to_html_ul(mydict):
     else:
         raise TypeError(
             "Input type must be string, list, or dict, got %s" % mydict)
-
     return html_ul
 
 
 def get_module_source_code(mod):
-    """Function retrieved the source code of a module
+    """Function retrieved the source code of a module.
 
     Parameters
     ----------
@@ -135,15 +123,12 @@ def get_module_source_code(mod):
     string, line-numbered HTML-formated code-block
 
     """
-
     if isinstance(mod, basestring):
         filename = mod
     elif isinstance(mod, type(os)):
         filename = mod.__file__
-
     with open(filename, 'r') as fd:
         lines = fd.read()
-
         return lines2breaks(lines, number_lines=True)
 
 
@@ -151,16 +136,6 @@ def get_gallery_html_markup():
     """
     Function to generate markup for the contents of a <div id="results">
     type html element.
-
-    Examples
-    --------
-    >>> thumb = Thumbnail(description='sub001', a=a(href='https://github.com'),
-    ... img=img(src='/tmp/logo.gif'))
-    >>> gallery = get_gallery_html_markup().substitute(thumbnails=[thumb])
-    >>> gallery
-    <div class="img">\n  <a href="https://github.com">\n    <img \
-    src="/tmp/logo.gif"/>\n  </a>\n  <div class="desc">sub001</div>\n</div>\n
-
     """
 
     return HTMLTemplate(
@@ -192,7 +167,6 @@ class _HTMLElement(bunch):
         param-value dict of attributes for this HTML elemnt.
 
     """
-
     _compulsary_params = []
 
     def __init__(self, **kwargs):
@@ -214,13 +188,6 @@ class a(_HTMLElement):
     ----------
     **kwargs: dict-like
         param-value dict of attributes for this HTML anchor element.
-
-    Examples
-    --------
-    >>> a = a(href='http://gihub.com/neurospin/pypreprocess')
-    >>> a
-    <a href='http://gihub.com/neurospin/pypreprocess'>
-
     """
 
     # _compulsary_params = ['href']
@@ -243,17 +210,7 @@ class img(_HTMLElement):
             src the image
         href: string
             href of the image
-
-    Examples
-    --------
-    >>> img = img(src='logo.png')
-    >>> img
-    <img src='logo.png'>
-
     """
-
-    # _compulsary_params = ['src']
-
     def __init__(self, **kwargs):
         _HTMLElement.__init__(self, **kwargs)
 
@@ -277,19 +234,7 @@ class Thumbnail(_HTMLElement):
             HTML anchor `a` object for the thumbnail
         img: img `object`
             HTML image `img` object for the thumbnail
-
-    Examples
-    --------
-    >>> thumb = Thumbnail(description='sub001', a=a(href='https://github.com'),
-    ... img=img(src='/tmp/logo.gif'))
-    >>> thumb
-    <Thumbnail a=<a href='https://github.com'> description='sub001' \
-    img=<img src='/tmp/logo.gif'>>
-
     """
-
-    # _compulsary_params = ['description', 'a', 'img']
-
     def __init__(self, tooltip=None, **kwargs):
         _HTMLElement.__init__(self, tooltip=tooltip,
                               **kwargs)
@@ -298,14 +243,11 @@ class Thumbnail(_HTMLElement):
 class ResultsGallery(object):
     """
     Gallery of results (summarized by thumbnails).
-
     """
 
     def __init__(self, loader_filename,
                  refresh_timeout=30,  # time between successive refreshs
-                 title='Results',
-                 description=None
-                 ):
+                 title='Results', description=None):
         self.loader_filename = loader_filename
         self.refresh_timeout = refresh_timeout
         self.title = title
@@ -323,7 +265,6 @@ class ResultsGallery(object):
         with open(filename) as fd:
             divs = fd.read()
             fd.close()
-
             loader_fd = open(self.loader_filename, 'a')
             loader_fd.write(divs)
             loader_fd.close()
@@ -343,10 +284,8 @@ class ResultsGallery(object):
         fd.close()
 
 
-def commit_subject_thumnbail_to_parent_gallery(
-    thumbnail,
-    subject_id,
-    parent_results_gallery):
+def commit_subject_thumnbail_to_parent_gallery(thumbnail, subject_id,
+                                               parent_results_gallery):
     """Commit thumbnail (summary of subject_report) to parent results gallery,
     correcting attrs of the embedded img object as necessary.
 
@@ -360,9 +299,7 @@ def commit_subject_thumnbail_to_parent_gallery(
 
     result_gallery: ResultsGallery instance (optional)
         gallery to which thumbnail will be committed
-
     """
-
     # sanitize thumbnail
     assert hasattr(thumbnail, 'img')
     assert not thumbnail.img is None
@@ -385,10 +322,9 @@ class ProgressReport(object):
     """Class encapsulating functionality for logging arbitrary html stubs
     to report pages, modifying pages dynamically (like disabling automatic
     releads, etc.)
-
     """
 
-    def __init__(self, log_filename=None, other_watched_files=[]):
+    def __init__(self, log_filename=None, other_watched_files=None):
         """Constructor
 
         Parameters
@@ -400,14 +336,12 @@ class ProgressReport(object):
             files watched by the progress reporter; for example whenever the
             `finish_all` method is invoked, all watched files are disabled for
             automatic reloading thenceforth
-
-         """
-
+        """
+        if other_watched_files is None:
+            other_watched_files = []
         self.log_filename = log_filename
-
         if not self.log_filename is None:
             open(self.log_filename, 'a').close()
-
         self.watched_files = []
         self.watch_files(other_watched_files)
 
@@ -416,30 +350,26 @@ class ProgressReport(object):
             self.watch_file(filename)
 
     def log(self, msg):
-        """Logs an html-formated stub to the report file
+        """Logs an html-formated stub to the report file.
 
         Parameters
         ----------
         msg: string
-            message to log
-
+            message to log.
         """
-
         if self.log_filename is None:
             return
-
         with open(self.log_filename, 'a') as ofd:
             ofd.write(msg + "<br/>")
 
     def finish(self, filename):
         """Stops the automatic reloading (by the browser, etc.) of a given
-         report page
+         report page.
 
          Parameters
          ----------
          filename:
              file URL of page to stop re-loading
-
         """
 
         with open(filename, 'r') as i_fd:
@@ -463,21 +393,13 @@ class ProgressReport(object):
             self.finish(filename)
 
     def finish_all(self, filenames=None):
-        """Stops the automatic re-loading of watched pages
+        """Stops the automatic re-loading of watched pages.
 
         Parameters
         ----------
         filenames: string or list of strings
-            filename(s) pointing to page(s) to stop automatic releading
-
-        Examples
-        --------
-        >>> import os, glob, reporting.reporter as reporter
-        >>> progress_logger = reporter.ProgressReport()
-        >>> progress_logger.finish_all(glob.glob("/tmp/report*.html"))
-
+            filename(s) pointing to page(s) to stop automatic releading.
         """
-
         filenames = [] if filenames is None else filenames
         self._finish_files(self.watched_files + filenames)
 
@@ -491,7 +413,6 @@ class ProgressReport(object):
 
         filename: string (optional, default "*.html")
             wildcat defining files to 'finish' (useful for globbing) in dirname
-
         """
 
         self._finish_files(
@@ -504,15 +425,13 @@ class ProgressReport(object):
         ----------
         filename: string
             existing filename
-
         """
-
         assert isinstance(filename, basestring)
         self.watched_files.append(filename)
 
 
 def make_standalone_colorbar(cmap, vmin, vmax, colorbar_outfile=None):
-    """Plots a stand-alone colorbar
+    """Plots a stand-alone colorbar.
 
     Parameters
     ----------
@@ -527,16 +446,11 @@ def make_standalone_colorbar(cmap, vmin, vmax, colorbar_outfile=None):
 
     colorbar_outfil: string (optional, default None)
         outputfile for plotted colorbar
-
     """
-
     vmin, vmax = min(vmin, vmax), max(vmin, vmax)
-
     fig = pl.figure(figsize=(6, 1))
     ax = fig.add_axes([0.05, 0.4, 0.9, 0.5])
-
     norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
-
     cb = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
                                    norm=norm,
                                    orientation='horizontal')
@@ -567,7 +481,6 @@ def get_cut_coords(map3d, n_axials=12, delta_z_axis=3):
         the computed cut_coords
 
     """
-
     z_axis_max = np.unravel_index(
         np.abs(map3d).argmax(), map3d.shape)[2]
     z_axis_min = np.unravel_index(
@@ -575,21 +488,16 @@ def get_cut_coords(map3d, n_axials=12, delta_z_axis=3):
     z_axis_min, z_axis_max = (min(z_axis_min, z_axis_max),
                               max(z_axis_max, z_axis_min))
     z_axis_min = min(z_axis_min, z_axis_max - delta_z_axis * n_axials)
-
     cut_coords = np.linspace(z_axis_min, z_axis_max, n_axials)
-
     return cut_coords
 
 
 def compute_vmin_vmax(map3d):
     """
     Computes vmin and vmax params for plot_map.
-
     """
-
     vmax = max(map3d.max(), -map3d.min())
     vmin = -vmax
-
     return vmin, vmax
 
 
@@ -597,45 +505,36 @@ def _get_template(template_file, **kwargs):
     with open(template_file) as fd:
         _text = fd.read()
         fd.close()
-
         return HTMLTemplate(_text).substitute(**kwargs)
 
 
 def get_subject_report_log_html_template(**kwargs):
-    """Returns html template (string) for subject log report
-
+    """Returns html template (string) for subject log report.
     """
-
     return _get_template(os.path.join(ROOT_DIR, 'template_reports',
                                       'subject_report_log_template.tmpl.html'),
                          **kwargs)
 
 
 def get_subject_report_html_template(**kwargs):
-    """Returns html tamplate (string) for subject report (page de garde)
-
+    """Returns html tamplate (string) for subject report (page de garde).
     """
-
     return _get_template(os.path.join(ROOT_DIR, 'template_reports',
                                       'subject_report_template.tmpl.html'),
                          **kwargs)
 
 
 def get_subject_report_preproc_html_template(**kwargs):
-    """Returns html template (string) for subject preproc report page
-
+    """Returns html template (string) for subject preproc report page.
     """
-
     return _get_template(os.path.join(
         ROOT_DIR, 'template_reports',
         'subject_report_preproc_template.tmpl.html'), **kwargs)
 
 
 def get_subject_report_stats_html_template(**kwargs):
-    """Returns html template (string) for subject stats report page
-
+    """Returns html template (string) for subject stats report page.
     """
-
     return _get_template(os.path.join(
         ROOT_DIR, 'template_reports',
         'subject_report_stats_template.tmpl.html'), **kwargs)
@@ -643,17 +542,14 @@ def get_subject_report_stats_html_template(**kwargs):
 
 def get_ica_html_template(**kwargs):
     """Returns html template (string) for subject stats report page
-
     """
-
     return _get_template(os.path.join(
         ROOT_DIR, 'template_reports',
         'ica_report_template.tmpl.html'), **kwargs)
 
 
 def get_dataset_report_html_template(**kwargs):
-    """Returns html template (string) for dataset report page (page de garde)
-
+    """Returns html template (string) for dataset report page (page de garde).
     """
 
     return _get_template(os.path.join(ROOT_DIR, 'template_reports',
@@ -662,10 +558,8 @@ def get_dataset_report_html_template(**kwargs):
 
 
 def get_dataset_report_preproc_html_template(**kwargs):
-    """Returns html template (string) for dataset preproc report page
-
+    """Returns html template (string) for dataset preproc report page.
     """
-
     return _get_template(os.path.join(
         ROOT_DIR, 'template_reports',
         'dataset_report_preproc_template.tmpl.html'), **kwargs)
@@ -675,17 +569,15 @@ def get_dataset_report_stats_html_template(**kwargs):
     """Returns html template (string) for dataset stats report page
 
     """
-
     return _get_template(os.path.join(
         ROOT_DIR, 'template_reports',
         'dataset_report_stats_template.tmpl.html'), **kwargs)
 
 
 def get_dataset_report_log_html_template(**kwargs):
-    """Returns html template (string) for dataset log report page
+    """Returns html template (string) for dataset log report page.
 
     """
-
     return _get_template(os.path.join(
         ROOT_DIR, 'template_reports',
         'dataset_report_log_template.tmpl.html'), **kwargs)
@@ -693,8 +585,7 @@ def get_dataset_report_log_html_template(**kwargs):
 
 def copy_failed_png(output_dir):
     """
-    Copies failed.png image to output_dir
-
+    Copies failed.png image to output_dir.
     """
 
     shutil.copy(os.path.join(ROOT_DIR, "images/failed.png"),
@@ -713,13 +604,11 @@ def copy_web_conf_files(output_dir):
             ignore = [ignore]
 
         for ext in extentions:
-            for src in glob.glob(os.path.join(ROOT_DIR, "%s/*%s" % (
-                        src_dir_basename, ext))):
-
-                # skip faild.png image (see issue #30)
+            for src in glob.glob(os.path.join(
+                    ROOT_DIR, "%s/*%s" % (src_dir_basename, ext))):
+                # skip failed.png image (see issue #30)
                 if src.endswith("failed.png"):
                     continue
-
                 shutil.copy(src, output_dir)
 
     # copy js stuff
@@ -736,24 +625,20 @@ def copy_web_conf_files(output_dir):
 
 
 def copy_report_files(src, dst):
-    """Backs-up report files (*.html, *.js, etc.) from src to dst
+    """Backs-up report files (*.html, *.js, etc.) from src to dst.
 
     """
-
     if not os.path.exists(dst):
         os.makedirs(dst)
-
     for ext in ["css", "html", "js", "php", "png", "jpeg",
                 "jpg", "gif", "json"]:
-        for x in glob.glob(os.path.join(src,
-                                        "*.%s" % ext)):
+        for x in glob.glob(os.path.join(src, "*.%s" % ext)):
             shutil.copy(x, dst)
 
 
 def pretty_time():
     """
-    Returns currenct time in the format: hh:mm:ss ddd mmm yyyy
+    Returns currenct time in the format: hh:mm:ss ddd mmm yyyy.
 
     """
-
     return " ".join([time.ctime().split(" ")[i] for i in [3, 0, 2, 1, 4]])

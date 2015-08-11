@@ -15,9 +15,8 @@ from nipy.modalities.fmri.glm import FMRILinearModel
 PYPREPROCESS_DIR = os.path.dirname(
     os.path.dirname(os.path.split(os.path.abspath(__file__))[0]))
 sys.path.append(PYPREPROCESS_DIR)
-import reporting.glm_reporter as glm_reporter
-import reporting.base_reporter as base_reporter
-from nipype_preproc_spm_utils import do_subjects_preproc, SubjectData
+from ..reporting import glm_reporter
+from ..nipype_preproc_spm_utils import do_subjects_preproc, SubjectData
 
 
 def fix_docs(docs, fix=None, fields=None):
