@@ -10,7 +10,7 @@ env:
     # Ubuntu 14.04 versions without matplotlib
     - DISTRIB="neurodebian" PYTHON_VERSION="2.7"
     # Most recent versions
-    - DISTRIB=" neurodebian" PYTHON_VERSION="3.4"
+    - DISTRIB="neurodebian" PYTHON_VERSION="3.4"
 
 install: 
     - source continuous_integration/install.sh
