@@ -7,8 +7,7 @@ dependencies:
     - "/opt/spm8"
 
   pre:
-    # Add MCRInstaller.bin dependencies first
-    - sudo apt-cache update	 
+    # Add MCRInstaller.bin dependencies first	 
     - sudo apt-get install -y libxp6 libxpm4 libxmu6 libxt6 bc
     - source continuous_integration/setup_spm.sh
 
