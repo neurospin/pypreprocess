@@ -20,14 +20,17 @@ def _spm_auditory_subject_data():
     """
     subject_data = fetch_spm_auditory()
     subject_data['func'] = None
-    subject_data.output_dir = os.path.join(OUTPUT_DIR)
+    base_dir, _ = os.path.split(subject_data['anat'])
+    subject_data.output_dir = os.path.join(base_dir, OUTPUT_DIR)
     return SubjectData(**subject_data)
 
 
 # Fetch and generate the subject_data structure
+print('Fetching Auditory Dataset')
 subject_data = _spm_auditory_subject_data()
 
 # Segment the GM, WM and the CSF
+print('Segmentation with SPM')
 subject_data = _do_subject_segment(subject_data, caching=True, report=False,
                                    hardlink_output=False)
 
@@ -36,3 +39,4 @@ plot_segmentation(img=subject_data['anat'],
                   gm_filename=subject_data['gm'],
                   wm_filename=subject_data['wm'],
                   csf_filename=subject_data['csf'])
+print('Segmentation saved in :', subject_data.output_dir)
