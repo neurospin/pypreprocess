@@ -12,7 +12,7 @@ from pypreprocess.subject_data import SubjectData
 from pypreprocess.datasets import fetch_spm_auditory
 from pypreprocess.nipype_preproc_spm_utils import _do_subject_segment
 from pypreprocess.reporting.check_preprocessing import plot_segmentation
-
+import matplotlib.pyplot as plt
 
 OUTPUT_DIR = 'segmentation_demos_output'
 def _spm_auditory_subject_data():
@@ -39,4 +39,5 @@ plot_segmentation(img=subject_data['anat'],
                   gm_filename=subject_data['gm'],
                   wm_filename=subject_data['wm'],
                   csf_filename=subject_data['csf'])
+plt.show()
 print('Segmentation saved in :', subject_data.output_dir)
