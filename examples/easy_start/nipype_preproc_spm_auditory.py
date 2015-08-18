@@ -2,6 +2,7 @@
 Author: dohmatob elvis dopgima elvis[dot]dohmatob[at]inria[dot]fr
 Synopsis: Minimal script for preprocessing single-subject data
 """
+
 from __future__ import print_function
 
 import sys
