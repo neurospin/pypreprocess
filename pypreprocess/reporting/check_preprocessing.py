@@ -160,7 +160,7 @@ def plot_segmentation(
     img = mean_img(img)
     img = reorder_img(img, resample="continuous")
     _slicer = plot_img(img, cut_coords=cut_coords, display_mode=display_mode,
-                       cmap=cmap, black_bg=False)
+                       cmap=cmap, black_bg=True)
 
     # add TPM contours
     gm = nibabel.load(gm_filename)
