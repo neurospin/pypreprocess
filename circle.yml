@@ -1,0 +1,34 @@
+machine:
+  environment:
+    SPM_DIR: /home/ubuntu/opt/spm8/spm8_mcr/spm8
+    SPM_MCR: /home/ubuntu/opt/spm8/spm8.sh
+
+dependencies:
+  cache_directories:
+    - "~/opt/spm8"
+    - "~/nilearn_data"
+
+  pre:
+    # Installing dependencies for SPM and MCR
+    - sudo apt-get update
+    - sudo apt-get install libxp6 libxpm4 libxmu6 libxt6 bc
+    # Installing SPM
+    - source continuous_integration/setup_spm.sh
+    # Installing Pypreprocess dependencies
+    - sudo apt-get install -qq python-scipy python-nose python-sklearn python-networkx
+    - pip install --upgrade pip
+    - pip install --upgrade nibabel
+    - pip install sympy nipy nipype nilearn
+
+  override:
+
+test:
+  override:
+    - make clean
+    - make test-code
+    - cd examples/easy_start && python nipype_preproc_spm_auditory.py
+
+general:
+  artifacts:
+    - "~/opt/spm8"
+    - "~/nilearn_data"
