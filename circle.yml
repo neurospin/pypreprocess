@@ -21,6 +21,8 @@ dependencies:
     - pip install sympy nipy nipype nilearn
 
   override:
+    # Fetching Auditory dataset in order to be cached in the future
+    - python -c "from pypreprocess.datasets import fetch_spm_auditory; fetch_spm_auditory()"
 
 test:
   override:
