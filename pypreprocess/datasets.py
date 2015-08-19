@@ -1,13 +1,11 @@
 import os
 import glob
-import shutil
 import re
 import nibabel
 from sklearn.datasets.base import Bunch
 
 # XXX nilearn.datasets.py got factorized recently. The following codeblock
 # is to ensure backward compat.
-from nilearn.datasets import fetch_nyu_rest, fetch_haxby
 try:
     from nilearn.datasets.utils import (_fetch_file, _fetch_files,
                                         _uncompress_file, _get_dataset_dir)
@@ -67,7 +65,7 @@ def fetch_spm_auditory(data_dir=None, data_name='spm_auditory',
                 print("%s missing from filelist!" % file_name)
                 return None
 
-        _subject_data = {}
+        _subject_data = dict(data_dir=data_dir)
         _subject_data["func"] = sorted([subject_data[x]
                                         for x in subject_data.keys()
                                         if re.match("^fM00223_0\d\d\.img$",
@@ -144,14 +142,11 @@ def fetch_fsl_feeds(data_dir=None, data_name="fsl_feeds", verbose=1):
         if not os.path.exists(subject_dir):
             return None
 
-        subject_data = {}
-        subject_data["subject_dir"] = subject_dir
         for file_name in FSL_FEEDS_DATA_FILES:
             file_path = os.path.join(subject_dir, file_name)
             if os.path.exists(file_path) or os.path.exists(
                     file_path.rstrip(".gz")):
                 file_name = re.sub("(?:\.nii\.gz|\.txt)", "", file_name)
-                subject_data[file_name] = file_path
             else:
                 if not os.path.basename(subject_dir) == 'data':
                     return _glob_fsl_feeds_data(os.path.join(subject_dir,
@@ -159,14 +154,10 @@ def fetch_fsl_feeds(data_dir=None, data_name="fsl_feeds", verbose=1):
                 else:
                     print "%s missing from filelist!" % file_name
                     return None
-
-        _subject_data = {"func": os.path.join(subject_dir,
-                                              "fmri.nii.gz"),
-                         "anat": os.path.join(subject_dir,
-                                              "structural_brain.nii.gz")
-                         }
-
-        return Bunch(**_subject_data)
+        return Bunch(data_dir=data_dir,
+                     func=os.path.join(subject_dir, "fmri.nii.gz"),
+                     anat=os.path.join(
+                         subject_dir, "structural_brain.nii.gz"))
 
     # maybe data_dir already contents the data ?
     data = _glob_fsl_feeds_data(data_dir)
@@ -222,15 +213,15 @@ def fetch_spm_multimodal_fmri(data_dir=None, data_name="spm_multimodal_fmri",
 
     def _glob_spm_multimodal_fmri_data():
         """glob data from subject_dir."""
-        _subject_data = {'slice_order': 'descending'}
+        _subject_data = dict(data_dir=data_dir, slice_order='descending')
 
         for s in range(2):
             # glob func data for session s + 1
             session_func = sorted(glob.glob(
-                    os.path.join(
-                        subject_dir,
-                        ("fMRI/Session%i/fMETHODS-000%i-*-01.img" % (
-                                s + 1, s + 5)))))
+                os.path.join(
+                    subject_dir,
+                    ("fMRI/Session%i/fMETHODS-000%i-*-01.img" % (
+                        s + 1, s + 5)))))
             if len(session_func) < 390:
                 print "Missing %i functional scans for session %i." % (
                     390 - len(session_func), s)

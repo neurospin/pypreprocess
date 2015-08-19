@@ -4,7 +4,7 @@ Synopsis: Preprocessing of HAXBY 2001 dataset
 """
 
 import os
-from pypreprocess.datasets import fetch_haxby
+from nilearn.datasets import fetch_haxby
 from pypreprocess.nipype_preproc_spm_utils import (do_subjects_preproc,
                                                    SubjectData)
 
