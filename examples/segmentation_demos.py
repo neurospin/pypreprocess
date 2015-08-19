@@ -8,11 +8,12 @@ It demos segmentations on SPM single-subject auditory.
 """
 
 import os
+import matplotlib.pyplot as plt
 from pypreprocess.subject_data import SubjectData
 from pypreprocess.datasets import fetch_spm_auditory
 from pypreprocess.nipype_preproc_spm_utils import _do_subject_segment
 from pypreprocess.reporting.check_preprocessing import plot_segmentation
-import matplotlib.pyplot as plt
+
 
 OUTPUT_DIR = 'segmentation_demos_output'
 def _spm_auditory_subject_data():
@@ -20,7 +21,7 @@ def _spm_auditory_subject_data():
     """
     subject_data = fetch_spm_auditory()
     subject_data['func'] = None
-    base_dir, _ = os.path.split(subject_data['anat'])
+    base_dir = os.path.dirname(subject_data['anat'])
     subject_data.output_dir = os.path.join(base_dir, OUTPUT_DIR)
     return SubjectData(**subject_data)
 
@@ -33,6 +34,7 @@ subject_data = _spm_auditory_subject_data()
 print('Segmentation with SPM')
 subject_data = _do_subject_segment(subject_data, caching=True, report=False,
                                    hardlink_output=False)
+print('Segmentation saved in : %s' % subject_data.output_dir)
 
 # Overlay the tissues with T1 acquisition
 plot_segmentation(img=subject_data['anat'],
@@ -40,4 +42,3 @@ plot_segmentation(img=subject_data['anat'],
                   wm_filename=subject_data['wm'],
                   csf_filename=subject_data['csf'])
 plt.show()
-print('Segmentation saved in :', subject_data.output_dir)
