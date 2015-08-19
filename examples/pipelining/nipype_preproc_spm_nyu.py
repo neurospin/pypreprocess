@@ -10,7 +10,7 @@ import os
 from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
 
 # input data-grabber for SPM Auditory (single-subject) data
-from pypreprocess.datasets import fetch_nyu_rest
+from nilearn.datasets import fetch_nyu_rest
 
 # file containing configuration for preprocessing the data
 jobfile = os.path.join(os.path.dirname(sys.argv[0]),
