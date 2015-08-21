@@ -11,9 +11,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import nibabel
 from pypreprocess.slice_timing import STC, fMRISTC
-from pypreprocess.datasets import (fetch_nyu_rest,
-                                   fetch_spm_multimodal_fmri
-                                   )
+from nilearn.datasets import fetch_nyu_rest
+from pypreprocess.datasets import fetch_spm_multimodal_fmri
 from pypreprocess.reporting.preproc_reporter import generate_stc_thumbnails
 
 # datastructure for subject data
