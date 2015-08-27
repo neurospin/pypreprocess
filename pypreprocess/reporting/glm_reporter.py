@@ -352,7 +352,8 @@ powered by <a href="%s">nipy</a>.""" % (user_script_name,
         # plot activation proper
         # XXX: nilearn's plotting bug's about rotations inf affine, etc.
         z_map = reorder_img(z_map, resample="continuous")
-        anat = reorder_img(anat, resample="continuous")
+        if not anat is None:
+            anat = reorder_img(anat, resample="continuous")
         plot_stat_map(z_map, anat, threshold=threshold,
                       display_mode=display_mode, cut_coords=cut_coords,
                       black_bg=True)
