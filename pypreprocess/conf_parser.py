@@ -288,16 +288,19 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
             return False
 
     # subject data factory
-    subject_dir_wildcard = os.path.join(
-        dataset_dir, options.get("subject_dirs", "*"))
+    subject_data_dirs = options.get("subject_dirs", "*")
+    if isinstance(subject_data_dirs, basestring):
+        subject_dir_wildcard = os.path.join(dataset_dir, subject_data_dirs)
+        subject_data_dirs = [x for x in sorted(glob.glob(subject_dir_wildcard))
+                             if os.path.isdir(x)]
+    else:
+        subject_data_dirs = subject_data_dirs
     sess_func_wildcards = [k for k in options.keys()
                            if re.match("session_.+_func", k)]
     sess_onset_wildcards = [k for k in options.keys()
                             if re.match("session_.+_onset", k)]
     sess_ids = [re.match("session_(.+)_func", session).group(1)
                 for session in sess_func_wildcards]
-    subject_data_dirs = [x for x in sorted(glob.glob(subject_dir_wildcard))
-                         if os.path.isdir(x)]
     if not subject_data_dirs:
         warnings.warn("No subject directories found for wildcard: %s" % (
             subject_dir_wildcard))
