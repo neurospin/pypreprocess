@@ -294,7 +294,8 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
         subject_data_dirs = [x for x in sorted(glob.glob(subject_dir_wildcard))
                              if os.path.isdir(x)]
     else:
-        subject_data_dirs = subject_data_dirs
+        subject_data_dirs = [os.path.join(dataset_dir, x)
+                             for x in subject_data_dirs]
     sess_func_wildcards = [k for k in options.keys()
                            if re.match("session_.+_func", k)]
     sess_onset_wildcards = [k for k in options.keys()
