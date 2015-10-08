@@ -10,6 +10,8 @@ def _make_config(out_file, **kwargs):
 [config]
 """
     for k, v in kwargs.items():
+        if isinstance(v, list):
+            v = ", ".join(v)
         config += "%s=%s\r\n" % (k, v)
     fd = open(out_file, "w")
     fd.write(config)
@@ -117,3 +119,19 @@ def test_env_vars():
     config_file = os.path.join(os.environ["DATASET_DIR"], "conf.ini")
     _make_config(config_file, session_1_func="session1/func.nii")
     _generate_preproc_pipeline(config_file)  # this call shouldn't crash
+
+
+def test_explicit_list_subdirs():
+    dataset_dir = "/tmp/data"
+    output_dir = "/tmp/output"
+    if not os.path.exists(dataset_dir):
+        os.makedirs(dataset_dir)
+    config_file = os.path.join(dataset_dir, "empty.ini")
+    _make_config(config_file, subject_dirs=["sub01", "sub02"],
+                 session_1_func="session1/func_3D.nii")
+    for subject_id in ["sub01", "sub02"]:
+        _make_sd(func_filenames=[os.path.join(
+            dataset_dir, "%s/session1/func_3D.nii" % subject_id)],
+                 output_dir=os.path.join(output_dir, subject_id))
+    subjects, _ = _generate_preproc_pipeline(config_file)
+    assert_equal(len(subjects), 2)
