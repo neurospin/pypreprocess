@@ -716,7 +716,8 @@ class SubjectData(object):
         for brain_name, brain, cmap in zip(
                 ['anatomical image', 'mean functional image'],
                 [self.anat, self.func], [cm.gray, cm.spectral]):
-            if not brain: continue
+            if not brain:
+                continue
             thumbs = generate_segmentation_thumbnails(
                 brain, self.reports_output_dir,
                 subject_gm_file=getattr(self, 'gm', None),
@@ -747,7 +748,8 @@ class SubjectData(object):
         for brain_name, brain, cmap in zip(
                 ['anatomical image', 'mean functional image'],
                 [self.anat, self.func], [cm.gray, cm.spectral]):
-            if not brain: continue
+            if not brain:
+                continue
 
             # generate segmentation thumbs
             if segmented:

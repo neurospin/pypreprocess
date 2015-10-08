@@ -452,9 +452,8 @@ def generate_registration_thumbnails(
 
     thumb_desc = procedure_name
     if execution_log_html_filename:
-        thumb_desc += (" (<a href=%s>see execution"
-                       " log</a>)") % (os.path.basename(
-                execution_log_html_filename))
+        thumb_desc += " (<a href=%s>see execution log</a>)" % (
+            os.path.basename(execution_log_html_filename))
 
     # plot outline (edge map) of template on the
     # normalized image
@@ -1109,165 +1108,13 @@ def generate_subject_preproc_report(
     return output
 
 
-def generate_dataset_preproc_report(
-        subject_preproc_data,
-        output_dir="/tmp",
-        dataset_id="UNSPECIFIED!",
-        replace_in_path=None,
-        n_jobs=None,
-        preproc_undergone=None,
-        last_stage=True,
-        dataset_description=None):
-    """Generates post-preproc reports for a dataset
-
-    Parameters
-    ----------
-    subject_preproc_data: array-like of strings or dicts
-        .json filenames containing dicts, or dicts (one per
-        subject) keys should be 'subject_id', 'func', 'anat', and
-        optionally: 'estimated_motion'
-
-    output_dir: string
-        directory to where all output will be written
-
-    dataset_id: string, optional (default None)
-        a short description of the dataset (e.g "ABIDE")
-
-    replace_in_path: array_like of pairs, optional (default None)
-        things to replace in all paths for example [('/vaprofic',
-        '/mnt'), ('NYU', 'ABIDE')] will replace, in all paths,
-        '/vaporific' with  and 'NYU' with 'ABIDE'. This is useful if the
-        data was copied from one location to another (thus invalidating)
-        all path references in the json files in subject_preproc_data,
-        etc.
-
-    preproc_undergone: string
-        a string describing the preprocessing steps undergone. This
-        maybe cleartext or basic html (the latter is adviced)
-
-    """
-
-    output = {}
-
-    # sanitize output_dir
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    # copy web stuff
-    copy_web_conf_files(output_dir)
-
-    report_log_filename = os.path.join(
-        output_dir, 'report_log.html')
-    report_preproc_filename = os.path.join(
-        output_dir, 'report_preproc.html')
-    report_filename = os.path.join(
-        output_dir, 'report.html')
-
-    # initialize results gallery
-    loader_filename = os.path.join(
-        output_dir, "results_loader.php")
-    parent_results_gallery = ResultsGallery(
-        loader_filename=loader_filename,
-        refresh_timeout=30,   # 30 seconds
-        )
-
-    # initialize progress bar
-    progress_logger = ProgressReport(
-        report_log_filename,
-        other_watched_files=[report_filename,
-                             report_preproc_filename])
-    output['progress_logger'] = progress_logger
-
-    # html markup
-    log = get_dataset_report_log_html_template().substitute(
-        start_time=time.ctime(),
-        )
-    preproc = get_dataset_report_preproc_html_template(
-        ).substitute(
-        results=parent_results_gallery,
-        start_time=time.ctime(),
-        preproc_undergone=preproc_undergone,
-        dataset_description=dataset_description
-        )
-    main_html = get_dataset_report_html_template(
-        ).substitute(
-        results=parent_results_gallery,
-        start_time=time.ctime(),
-        dataset_id=dataset_id,
-        )
-
-    with open(report_log_filename, 'w') as fd:
-        fd.write(str(log))
-        fd.close()
-    with open(report_preproc_filename, 'w') as fd:
-        fd.write(str(preproc))
-        fd.close()
-    with open(report_filename, 'w') as fd:
-        fd.write(str(main_html))
-        fd.close()
-
-    # factory to generate subjects
-    def subject_factory():
-        for j, s in zip(range(len(subject_preproc_data)),
-                        subject_preproc_data):
-            if isinstance(s, basestring):
-                # read dict from json file
-                json_data = json.load(open(s))
-                s = dict((k, json_data[k])
-                         for k in json_data.keys()
-                         if k in ['func', 'anat',
-                                  'estimated_motion',
-                                  'gm', 'wm', 'csf',
-                                  'subject_id',
-                                  'preproc_undergone'])
-
-                if replace_in_path:
-                    # correct of file/directory paths
-                    for k, v in s.iteritems():
-                        for stuff in replace_in_path:
-                            if len(stuff) == 2:
-                                if isinstance(v, basestring):
-                                    s[k] = v.replace(
-                                        stuff[0], stuff[1])
-                                else:
-                                    # XXX I'm assuming list-like type
-                                    s[k] = [x.replace(
-                                            stuff[0], stuff[1])
-                                            for x in v]
-
-            if not 'subject_id' in s:
-                s['subject_id'] = 'sub%5i' % j
-            if not 'output_dir' in s:
-                s['output_dir'] = os.path.join(output_dir, s['subject_id'])
-
-            yield s
-
-    # generate reports
-    if n_jobs is None:
-        n_jobs = len(subject_preproc_data)
-        n_jobs = 1  # min(n_jobs, multiprocessing.cpu_count() / 4)
-
-    joblib.Parallel(n_jobs=n_jobs)(joblib.delayed(
-            generate_subject_preproc_report)(
-            parent_results_gallery=parent_results_gallery,
-            **s) for s in subject_factory())
-
-    # done ?
-    progress_logger.finish_all()
-
-    # game over
-    if last_stage:
-        progress_logger.finish_all()
-
-    return output
-
-
 def make_nipype_execution_log_html(nipype_output_files,
                                    node_name, output_dir,
                                    brain_name="",
                                    progress_logger=None):
+    brain_name = brain_name.replace(" ", "_")  # fix forissue 169
     execution_log = get_nipype_report(get_nipype_report_filename(
-            nipype_output_files))
+        nipype_output_files))
     execution_log_html_filename = os.path.join(
         output_dir,
         '%s%sexecution_log.html' % (
