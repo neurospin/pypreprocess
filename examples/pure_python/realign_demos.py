@@ -11,8 +11,9 @@ from pypreprocess.realign import MRIMotionCorrection
 from pypreprocess.reporting.check_preprocessing import (
     plot_spm_motion_parameters)
 from pypreprocess.datasets import (
-    fetch_nyu_rest, fetch_fsl_feeds, fetch_spm_multimodal_fmri,
+    fetch_fsl_feeds, fetch_spm_multimodal_fmri,
     fetch_spm_auditory)
+from nilearn.datasets import fetch_nyu_rest
 
 # data structure for subject data
 SubjectData = namedtuple('SubjectData', 'subject_id func output_dir')
