@@ -3,6 +3,8 @@ Utility functions for single- and mult-subject preprocessing of fMRI
 
 The most useful functions are do_subject_preproc and do_subjects_preproc
 """
+from __future__ import print_function
+from __future__ import absolute_import
 
 # Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
@@ -13,18 +15,18 @@ import warnings
 import inspect
 import numpy as np
 import nibabel
-from slice_timing import get_slice_indices
-from conf_parser import _generate_preproc_pipeline
+from .slice_timing import get_slice_indices
+from .conf_parser import _generate_preproc_pipeline
 import matplotlib
 matplotlib.use('Agg')
 from sklearn.externals.joblib import Parallel, delayed, Memory as JoblibMemory
 import nipype.interfaces.spm as spm
 from nipype.caching import Memory as NipypeMemory
-from configure_spm import _configure_spm, _get_version_spm
+from .configure_spm import _configure_spm, _get_version_spm
 from .io_utils import (
     load_vols, ravel_filenames, unravel_filenames, get_vox_dims,
     niigz2nii, resample_img, compute_output_voxel_size, sanitize_fwhm)
-from subject_data import SubjectData
+from .subject_data import SubjectData
 from .reporting.base_reporter import (
     ResultsGallery, ProgressReport, copy_web_conf_files,
     get_module_source_code, dict_to_html_ul)
@@ -33,7 +35,7 @@ from .reporting.preproc_reporter import (
     get_dataset_report_log_html_template,
     get_dataset_report_preproc_html_template,
     get_dataset_report_html_template)
-from purepython_preproc_utils import (
+from .purepython_preproc_utils import (
     _do_subject_slice_timing as _pp_do_subject_slice_timing,
     _do_subject_realign as _pp_do_subject_realign,
     _do_subject_coregister as _pp_do_subject_coregister,
@@ -922,7 +924,7 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
             ['func', 'anat'], [fwhm] + [anat_fwhm] * 7):
         brain = getattr(subject_data, brain_name)
         if not brain: continue
-        print brain_name
+        print(brain_name)
         if not np.sum(width): continue
         in_files = brain
         if brain_name == "func":
@@ -1546,9 +1548,9 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     if "n_jobs" in preproc_params:
         preproc_params.pop("n_jobs")
 
-    print "Using the following parameters for preprocessing:"
+    print("Using the following parameters for preprocessing:")
     for k, v in preproc_params.iteritems():
-        print "\t%s=%s" % (k, v)
+        print("\t%s=%s" % (k, v))
 
     # generate subjects (if generator)
     subjects = [subject_data for subject_data in subject_factory]
@@ -1682,9 +1684,9 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
             return
         progress_logger.finish(report_preproc_filename)
         if shutdown_reloaders:
-            print "Finishing %s..." % output_dir
+            print("Finishing %s..." % output_dir)
             progress_logger.finish_dir(output_dir)
-        print "\r\n\tHTML report written to %s" % report_preproc_filename
+        print("\r\n\tHTML report written to %s" % report_preproc_filename)
 
     normalize = preproc_params.get("normalize", True)
 

@@ -4,6 +4,7 @@
 :author: elvis[dot]dohmatob[at]inria[dot]fr
 
 """
+from __future__ import print_function
 
 import os
 import nibabel

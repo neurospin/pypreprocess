@@ -3,6 +3,7 @@ Author: DOHMATOB Elvis Dopgima elvis[dot]dohmatob[at]inria[dot]fr
 Synopsis: Demo script for nipy's GLM and inference + reporting
 on FSL's FEEDS fMRI single-subject example data
 """
+from __future__ import print_function
 
 import os
 import numpy as np
@@ -95,15 +96,15 @@ fmri_glm.fit(do_scaling=True, model='ar1')
 
 """save computed mask"""
 mask_path = os.path.join(subject_data.output_dir, "mask.nii.gz")
-print "Saving mask image %s" % mask_path
+print("Saving mask image %s" % mask_path)
 nibabel.save(fmri_glm.mask, mask_path)
 
 # compute bg unto which activation will be projected
 mean_fmri_files = compute_mean_3D_image(fmri_files)
-print "Computing contrasts .."
+print("Computing contrasts ..")
 z_maps = {}
 for contrast_id, contrast_val in contrasts.iteritems():
-    print "\tcontrast id: %s" % contrast_id
+    print("\tcontrast id: %s" % contrast_id)
     z_map, t_map, eff_map, var_map = fmri_glm.contrast(
         contrasts[contrast_id],
         con_id=contrast_id,
@@ -127,9 +128,9 @@ for contrast_id, contrast_val in contrasts.iteritems():
         if dtype == "z":
             z_maps[contrast_id] = map_path
 
-        print "\t\t%s map: %s" % (dtype, map_path)
+        print("\t\t%s map: %s" % (dtype, map_path))
 
-    print
+    print()
 
 """do stats report"""
 reports_dir = os.path.join(subject_data.output_dir, "reports")
@@ -161,4 +162,4 @@ generate_subject_stats_report(
 # shutdown main report page
 ProgressReport().finish_dir(output_dir)
 
-print "\r\nStatistic report written to %s\r\n" % stats_report_filename
+print("\r\nStatistic report written to %s\r\n" % stats_report_filename)

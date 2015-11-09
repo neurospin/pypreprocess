@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 import os
 import sys
 import numpy as np
@@ -7,7 +9,7 @@ from nilearn.plotting import plot_stat_map
 from nilearn.image import reorder_img
 from nipy.modalities.fmri.glm import FMRILinearModel
 from nipy.labs.mask import intersect_masks
-import base_reporter
+from . import base_reporter
 from ..cluster_level_analysis import cluster_stats
 
 
@@ -437,7 +439,7 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
     group_level_z_maps = {}
     group_level_t_maps = {}
     for contrast_id in contrasts:
-        print "\tcontrast id: %s" % contrast_id
+        print("\tcontrast id: %s" % contrast_id)
 
         # effects maps will be the input to the second level GLM
         first_level_image = nibabel.concat_images(
@@ -462,7 +464,7 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
                 os.makedirs(map_dir)
             map_path = os.path.join(map_dir, 'group_level_%s.nii.gz' % (
                     contrast_id))
-            print "\t\tWriting %s ..." % map_path
+            print("\t\tWriting %s ..." % map_path)
             nibabel.save(map_img, map_path)
             if map_type == "z":
                 group_level_z_maps[contrast_id] = map_path
@@ -477,7 +479,7 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
                                   start_time=start_time,
                                   **kwargs)
 
-    print "\r\nStatistic report written to %s\r\n" % (
-        stats_report_filename)
+    print("\r\nStatistic report written to %s\r\n" % (
+        stats_report_filename))
 
     return group_level_z_maps

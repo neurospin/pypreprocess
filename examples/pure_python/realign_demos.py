@@ -3,6 +3,7 @@ Author: DOHMATOB Elvis Dopgima elvis[dot]dohmatob[at]inria[dot]fr
 Synopsis: single_subject_pipeline.py demo
 """
 
+from __future__ import print_function
 import os
 from collections import namedtuple
 import matplotlib.pyplot as plt

@@ -4,6 +4,7 @@
 :Author: dohmatob elvis dopgima
 
 """
+from __future__ import print_function
 
 import os
 import glob
@@ -372,19 +373,19 @@ def export_report(src, tag="", make_archive=True):
         pass
 
     # copy hierarchy
-    print "Copying files directory structure from %s to %s" % (src, dst)
+    print("Copying files directory structure from %s to %s" % (src, dst))
     shutil.copytree(src, dst, ignore=ignore_these)
-    print "+++++++Done."
+    print("+++++++Done.")
 
     # zip the results (dst)
     if make_archive:
         dst_archive = dst + ".zip"
-        print "Writing archive %s .." % dst_archive
-        print commands.getoutput(
+        print("Writing archive %s .." % dst_archive)
+        print(commands.getoutput(
             'cd %s; zip -r %s %s; cd -' % (os.path.dirname(dst),
                                            os.path.basename(dst_archive),
-                                           os.path.basename(dst)))
-        print "+++++++Done."
+                                           os.path.basename(dst))))
+        print("+++++++Done.")
 
 
 def nipype2htmlreport(nipype_report_filename):

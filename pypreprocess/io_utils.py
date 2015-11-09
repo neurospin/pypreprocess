@@ -4,6 +4,7 @@
 :Author: dohmatob elvis dopgima
 
 """
+from __future__ import print_function
 
 import os
 import sys
@@ -340,10 +341,10 @@ def delete_orientation(imgs, output_dir, output_tag=''):
                  "/etc/fsl/4.1/fsl.sh\r\n\r\n"
                  "in your terminal before rerunning this script (%s)"
                  ) % sys.argv[0])
-        print commands_output
+        print(commands_output)
 
-        print "+++++++Done (deleteorient)."
-        print "Deleted orientation meta-data %s." % output_img
+        print("+++++++Done (deleteorient).")
+        print("Deleted orientation meta-data %s." % output_img)
         output_imgs.append(output_img)
 
     if not_list:
@@ -568,11 +569,11 @@ def hard_link(filenames, output_dir):
             # hard-link the file proper
             try:
                 os.link(src, dst)
-                print "\tHardlinked %s -> %s ..." % (src, dst)
+                print("\tHardlinked %s -> %s ..." % (src, dst))
             except OSError:
                 # cross linking on different devices ?
                 shutil.copy(src, dst)
-                print "\tCopied %s -> %s" % (src, dst)
+                print("\tCopied %s -> %s" % (src, dst))
 
         return hardlinked_filenames[0]
     else:

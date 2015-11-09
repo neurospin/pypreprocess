@@ -1,5 +1,6 @@
+from __future__ import absolute_import
 def test_bug_49_index_error_fix():
-    from _test_utils import _make_sd
+    from ._test_utils import _make_sd
     from pypreprocess.reporting.preproc_reporter import generate_stc_thumbnails
 
     sd = _make_sd(ext=".nii.gz", n_sessions=2,

@@ -2,6 +2,7 @@
 :Author: yannick schwartz, dohmatob elvis dopgima
 :Synopsis: Minimal script for preprocessing single-subject data + GLM with nipy
 """
+from __future__ import print_function
 
 # standard imports
 import sys
@@ -97,7 +98,7 @@ contrasts['scrambled-faces'] = -contrasts['faces-scrambled']
 contrasts['effects_of_interest'] = contrasts['faces'] + contrasts['scrambled']
 
 # fit GLM
-print 'Fitting a GLM (this takes time)...'
+print('Fitting a GLM (this takes time)...')
 fmri_glm = FMRILinearModel(
     [nibabel.concat_images(x) for x in subject_data.func],
     [design_matrix.matrix for design_matrix in design_matrices],
@@ -106,7 +107,7 @@ fmri_glm.fit(do_scaling=True, model='ar1')
 
 # save computed mask
 mask_path = os.path.join(subject_data.output_dir, "mask.nii.gz")
-print "Saving mask image %s" % mask_path
+print("Saving mask image %s" % mask_path)
 nibabel.save(fmri_glm.mask, mask_path)
 mask_images.append(mask_path)
 
@@ -114,7 +115,7 @@ mask_images.append(mask_path)
 z_maps = {}
 effects_maps = {}
 for contrast_id, contrast_val in contrasts.iteritems():
-    print "\tcontrast id: %s" % contrast_id
+    print("\tcontrast id: %s" % contrast_id)
     z_map, t_map, effects_map, var_map = fmri_glm.contrast(
         [contrast_val] * 2, con_id=contrast_id, output_z=True,
         output_stat=True, output_effects=True, output_variance=True)
@@ -126,7 +127,7 @@ for contrast_id, contrast_val in contrasts.iteritems():
             os.makedirs(map_dir)
         map_path = os.path.join(
             map_dir, '%s.nii.gz' % contrast_id)
-        print "\t\tWriting %s ..." % map_path
+        print("\t\tWriting %s ..." % map_path)
         nibabel.save(out_map, map_path)
         if map_type == 'z':
             z_maps[contrast_id] = map_path
@@ -145,4 +146,4 @@ generate_subject_stats_report(
     paradigm=paradigm.__dict__, frametimes=frametimes,
     drift_model=drift_model, hrf_model=hrf_model)
 ProgressReport().finish_dir(subject_data.output_dir)
-print "Statistic report written to %s\r\n" % stats_report_filename
+print("Statistic report written to %s\r\n" % stats_report_filename)

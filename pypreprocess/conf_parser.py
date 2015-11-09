@@ -3,6 +3,8 @@
 :Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com> <elvis.dohmatob@inria.fr>
 
 """
+from __future__ import print_function
+from __future__ import absolute_import
 
 import os
 import sys
@@ -13,8 +15,8 @@ import glob
 import re
 from configobj import ConfigObj
 import numpy as np
-from subject_data import SubjectData
-from io_utils import _expand_path, get_relative_path
+from .subject_data import SubjectData
+from .io_utils import _expand_path, get_relative_path
 
 
 @contextlib.contextmanager
@@ -426,4 +428,4 @@ import_data = _generate_preproc_pipeline
 
 if __name__ == '__main__':
     from pypreprocess.reporting.base_reporter import dict_to_html_ul
-    print dict_to_html_ul(_parse_job("job.conf"))
+    print(dict_to_html_ul(_parse_job("job.conf")))
