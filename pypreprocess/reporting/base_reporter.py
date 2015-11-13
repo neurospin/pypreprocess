@@ -26,7 +26,7 @@ PYPREPROCESS_URL = "https://github.com/neurospin/pypreprocess"
 DARTEL_URL = ("http://www.fil.ion.ucl.ac.uk/spm/software/spm8/"
               "SPM8_Release_Notes.pdf")
 NIPYPE_URL = "http://nipy.sourceforge.net/nipype/"
-
+NISTATS_URL = "https://github.com/nistats/nistats"
 
 def lines2breaks(lines, delimiter="\n", number_lines=False):
     """
@@ -435,8 +435,8 @@ def make_standalone_colorbar(cmap, vmin, vmax, colorbar_outfile=None):
 
     Parameters
     ----------
-    cmap: some colormap object (like pylab.cm.hot, et
-    nipy.lab.viz.cold_hot, etc.)
+    cmap: some colormap object (like pylab.cm.hot,
+     nilearn.plotting.cm.cold_hot, etc.)
         colormap to use in plotting colorbar
     vmin: float
         param passed to `mpl.colors.Normalize`

@@ -5,8 +5,10 @@ import pylab as pl
 import nibabel
 from nilearn.plotting import plot_stat_map
 from nilearn.image import reorder_img
-from nipy.modalities.fmri.glm import FMRILinearModel
-from nipy.labs.mask import intersect_masks
+from ..external.nistats.design_matrix import plot_design_matrix
+from ..external.nistats.glm import FMRILinearModel
+from pandas import DataFrame, read_pickle
+from nilearn.masking import intersect_masks
 import base_reporter
 from ..cluster_level_analysis import cluster_stats
 
@@ -215,9 +217,6 @@ def generate_subject_stats_report(
         experimental paradigm and the GLM
 
     """
-    # Delayed import of nipy for more robustness when it is not present
-    from nipy.modalities.fmri.design_matrix import DesignMatrix
-
     # prepare for stats reporting
     if progress_logger is None:
         progress_logger = base_reporter.ProgressReport()
@@ -249,8 +248,8 @@ def generate_subject_stats_report(
 
     methods = """
     GLM and Statistical Inference have been done using the <i>%s</i> script, \
-powered by <a href="%s">nipy</a>.""" % (user_script_name,
-                                       base_reporter.NIPY_URL)
+powered by <a href="%s">nistats</a>.""" % (user_script_name,
+                                           base_reporter.NISTATS_URL)
 
     # report the control parameters used in the paradigm and analysis
     design_params = ""
@@ -281,7 +280,7 @@ powered by <a href="%s">nipy</a>.""" % (user_script_name,
 
         design_params=design_params,
         methods=methods,
-        threshold=threshold)
+        threshold=threshold) 
 
     with open(stats_report_filename, 'w') as fd:
         fd.write(str(level1_html_markup))
@@ -296,6 +295,7 @@ powered by <a href="%s">nipy</a>.""" % (user_script_name,
 
         for design_matrix, j in zip(design_matrices,
                                     range(len(design_matrices))):
+            """
             # sanitize design_matrix type
             if isinstance(design_matrix, basestring):
                 if not isinstance(design_matrix, DesignMatrix):
@@ -313,9 +313,20 @@ powered by <a href="%s">nipy</a>.""" % (user_script_name,
                 X = np.array(design_matrix)
                 conditions = ['%i' % i for i in range(X.shape[-1])]
                 design_matrix = DesignMatrix(X, conditions)
+            """
+            # XXX NISTATS
+            if isinstance(design_matrix, basestring):
+                if not isinstance(design_matrix, DataFrame):
+                    # XXX should be a DataFrame pickle here ?
+                    print design_matrix
+                    design_matrix = read_pickle(design_matrix)
+                else:
+                    raise TypeError(
+                        "Unsupported design matrix type: %s" % type(
+                            design_matrix))
 
             # plot design_matrix proper
-            ax = design_matrix.show(rescale=True)
+            ax = plot_design_matrix(design_matrix)
             ax.set_position([.05, .25, .9, .65])
             dmat_outfile = os.path.join(output_dir,
                                         'design_matrix_%i.png' % (j + 1))

@@ -9,12 +9,14 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import nibabel
-from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
-from nipy.modalities.fmri.design_matrix import make_dmtx
-from nipy.modalities.fmri.glm import FMRILinearModel
 from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
 from pypreprocess.datasets import fetch_spm_auditory
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
+from pandas import DataFrame
+from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
+                                                         check_design_matrix,
+                                                         plot_design_matrix)
+from pypreprocess.external.nistats.glm import FMRILinearModel
 
 # file containing configuration for preprocessing the data
 jobfile = os.path.join("spm_auditory_preproc.ini")
@@ -28,12 +30,15 @@ stats_start_time = time.ctime()
 tr = 7.
 n_scans = 96
 _duration = 6
+n_conditions = 2
 epoch_duration = _duration * tr
 conditions = ['rest', 'active'] * 8
 duration = epoch_duration * np.ones(len(conditions))
 onset = np.linspace(0, (len(conditions) - 1) * epoch_duration,
                     len(conditions))
-paradigm = BlockParadigm(con_id=conditions, onset=onset, duration=duration)
+paradigm = DataFrame(
+    {'onset': onset, 'duration': duration, 'name': conditions})
+
 hfcut = 2 * 2 * epoch_duration
 fd = open(sd.func[0].split(".")[0] + "_onset.txt", "w")
 for c, o, d in zip(conditions, onset, duration):
@@ -48,12 +53,12 @@ nscans = len(subject_data.func[0])
 frametimes = np.linspace(0, (nscans - 1) * tr, nscans)
 drift_model = 'Cosine'
 hrf_model = 'Canonical With Derivative'
-design_matrix = make_dmtx(frametimes,
-                          paradigm, hrf_model=hrf_model,
-                          drift_model=drift_model, hfcut=hfcut)
+design_matrix = make_design_matrix(
+    frametimes, paradigm, hrf_model=hrf_model, drift_model=drift_model,
+    period_cut=hfcut)
 
 # plot and save design matrix
-ax = design_matrix.show()
+ax = plot_design_matrix(design_matrix)
 ax.set_position([.05, .25, .9, .65])
 ax.set_title('Design matrix')
 dmat_outfile = os.path.join(subject_data.output_dir, 'design_matrix.png')
@@ -61,17 +66,18 @@ plt.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
 
 # specify contrasts
 contrasts = {}
-n_columns = len(design_matrix.names)
-for i in xrange(paradigm.n_conditions):
-    contrasts['%s' % design_matrix.names[2 * i]] = np.eye(n_columns)[2 * i]
+_, matrix, names = check_design_matrix(design_matrix)
+contrast_matrix = np.eye(len(names))
+for i in range(len(names)):
+    contrasts[names[i]] = contrast_matrix[i]
 
 # more interesting contrasts"""
-contrasts['active-rest'] = contrasts['active'] - contrasts['rest']
+contrasts = {'active-rest': contrasts['active'] - contrasts['rest']}
 
 # fit GLM
 print('\r\nFitting a GLM (this takes time) ..')
 fmri_glm = FMRILinearModel(nibabel.concat_images(subject_data.func[0]),
-                           design_matrix.matrix,
+                           matrix,
                            mask='compute')
 fmri_glm.fit(do_scaling=True, model='ar1')
 
@@ -128,7 +134,7 @@ generate_subject_stats_report(
     threshold=3.,
     cluster_th=50,  # 'large' clusters
     start_time=stats_start_time,
-    paradigm=paradigm.__dict__,
+    paradigm=paradigm,
     TR=tr,
     nscans=nscans,
     hfcut=hfcut,

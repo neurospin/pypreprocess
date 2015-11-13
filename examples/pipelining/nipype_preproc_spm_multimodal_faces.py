@@ -1,6 +1,7 @@
 """
 :Author: yannick schwartz, dohmatob elvis dopgima
-:Synopsis: Minimal script for preprocessing single-subject data + GLM with nipy
+:Synopsis: Minimal script for preprocessing single-subject data
++ GLM with nistats
 """
 
 # standard imports
@@ -12,9 +13,10 @@ import numpy as np
 import scipy.io
 
 # imports for GLM buusiness
-from nipy.modalities.fmri.experimental_paradigm import EventRelatedParadigm
-from nipy.modalities.fmri.design_matrix import make_dmtx
-from nipy.modalities.fmri.glm import FMRILinearModel
+from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
+                                                         check_design_matrix)
+from pypreprocess.external.nistats.glm import FMRILinearModel
+from pandas import DataFrame
 
 # pypreprocess imports
 from pypreprocess.datasets import fetch_spm_multimodal_fmri
@@ -74,22 +76,30 @@ for x in xrange(2):
     onsets *= tr  # because onsets were reporting in 'scans' units
     conditions = ['faces'] * len(faces_onsets) + ['scrambled'] * len(
         scrambled_onsets)
-    paradigm = EventRelatedParadigm(conditions, onsets)
 
     # build design matrix
     frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)
+    paradigm = DataFrame({'name': conditions, 'onset': onsets})
+    design_matrix = make_design_matrix(frametimes, paradigm,
+                                       hrf_model=hrf_model,
+                                       drift_model=drift_model,
+                                       period_cut=hfcut)
+    design_matrices.append(design_matrix)
+
+    """
     design_matrix = make_dmtx(
         frametimes, paradigm, hrf_model=hrf_model, drift_model=drift_model,
         hfcut=hfcut, add_reg_names=['tx', 'ty', 'tz', 'rx', 'ry', 'rz'],
         add_regs=np.loadtxt(subject_data.realignment_parameters[x]))
-    design_matrices.append(design_matrix)
+    """
 
 # specify contrasts
+_, matrix, names = check_design_matrix(design_matrix)
 contrasts = {}
-n_columns = len(design_matrix.names)
-for i in xrange(paradigm.n_conditions):
-    contrasts['%s' % design_matrix.names[2 * i]
-              ] = np.eye(n_columns)[2 * i]
+n_columns = len(names)
+contrast_matrix = np.eye(n_columns)
+for i in xrange(2):
+    contrasts[names[2 * i]] = contrast_matrix[2 * i]
 
 # more interesting contrasts
 contrasts['faces-scrambled'] = contrasts['faces'] - contrasts['scrambled']
@@ -100,7 +110,7 @@ contrasts['effects_of_interest'] = contrasts['faces'] + contrasts['scrambled']
 print 'Fitting a GLM (this takes time)...'
 fmri_glm = FMRILinearModel(
     [nibabel.concat_images(x) for x in subject_data.func],
-    [design_matrix.matrix for design_matrix in design_matrices],
+    [check_design_matrix(design_matrix)[1] for design_matrix in design_matrices],
     mask='compute')
 fmri_glm.fit(do_scaling=True, model='ar1')
 
@@ -113,7 +123,7 @@ mask_images.append(mask_path)
 # compute contrast maps
 z_maps = {}
 effects_maps = {}
-for contrast_id, contrast_val in contrasts.iteritems():
+for contrast_id, contrast_val in contrasts.items():
     print "\tcontrast id: %s" % contrast_id
     z_map, t_map, effects_map, var_map = fmri_glm.contrast(
         [contrast_val] * 2, con_id=contrast_id, output_z=True,
@@ -139,10 +149,10 @@ stats_report_filename = os.path.join(subject_data.output_dir, "reports",
                                      "report_stats.html")
 generate_subject_stats_report(
     stats_report_filename, contrasts, z_maps, fmri_glm.mask, anat=anat_img,
-    threshold=2.3, cluster_th=15, design_matrices=design_matrix, TR=tr,
+    threshold=2.3, cluster_th=15, design_matrices=design_matrices, TR=tr,
     subject_id="sub001", start_time=stats_start_time, n_scans=n_scans,
     title="GLM for subject %s" % subject_data.subject_id, hfcut=hfcut,
-    paradigm=paradigm.__dict__, frametimes=frametimes,
+    paradigm=paradigm, frametimes=frametimes,
     drift_model=drift_model, hrf_model=hrf_model)
 ProgressReport().finish_dir(subject_data.output_dir)
 print "Statistic report written to %s\r\n" % stats_report_filename

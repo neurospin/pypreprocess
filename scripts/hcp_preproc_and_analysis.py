@@ -14,7 +14,7 @@ import numpy as np
 import nibabel
 import commands
 from nipy.modalities.fmri.glm import FMRILinearModel
-from nipy.labs.mask import intersect_masks
+from nilearn.masking import intersect_masks
 from pypreprocess.nipype_preproc_spm_utils import (SubjectData,
                                                    _do_subject_realign,
                                                    do_subject_preproc)

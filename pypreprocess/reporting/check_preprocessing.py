@@ -1,7 +1,7 @@
 """
 :Module: check_preprocessing
 :Synopsis: module for generating post-preproc plots (registration,
-segmentation, etc.) using the viz module from nipy.labs.
+segmentation, etc.)
 :Author: bertrand thirion, dohmatob elvis dopgima
 
 """
@@ -78,7 +78,7 @@ def plot_registration(reference_img, coregistered_img,
         path to other image (to be compared with reference)
 
     display_mode: string (optional, defaults to 'ortho')
-        display_mode param to pass to the nipy.labs.viz.plot_??? APIs
+        display_mode param
 
     cmap: matplotlib colormap object (optional, defaults to spectral)
         colormap to user for plots

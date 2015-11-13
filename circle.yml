@@ -15,10 +15,11 @@ dependencies:
     # Installing SPM
     - source continuous_integration/setup_spm.sh
     # Installing Pypreprocess dependencies
-    - sudo apt-get install -qq python-scipy python-nose python-sklearn python-networkx
+    - bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
+    - sudo apt-get install -qq python-scipy python-nose python-nibabel python-sklearn
     - pip install --upgrade pip
     - pip install --upgrade nibabel
-    - pip install sympy nipy nipype nilearn
+    - pip install pandas nipype nilearn
 
   override:
     # Installing pypreprocess

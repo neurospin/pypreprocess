@@ -6,9 +6,10 @@ on FSL's FEEDS fMRI single-subject example data
 
 import os
 import numpy as np
-from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
-from nipy.modalities.fmri.design_matrix import make_dmtx
-from nipy.modalities.fmri.glm import FMRILinearModel
+from pandas import DataFrame
+from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
+                                                         check_design_matrix)
+from pypreprocess.external.nistats.glm import FMRILinearModel
 import nibabel
 import time
 from pypreprocess.nipype_preproc_spm_utils import (SubjectData,
@@ -41,7 +42,9 @@ EV2_on = 45
 conditions = ['EV1'] * EV1_epochs + ['EV2'] * EV2_epochs
 onset = list(EV1_onset) + list(EV2_onset)
 duration = [EV1_on] * EV1_epochs + [EV2_on] * EV2_epochs
-paradigm = BlockParadigm(con_id=conditions, onset=onset, duration=duration)
+# paradigm = BlockParadigm(con_id=conditions, onset=onset, duration=duration)
+paradigm = DataFrame({'name': conditions, 'onset': onset,
+                      'duration': duration})
 frametimes = np.linspace(0, (n_scans - 1) * TR, n_scans)
 maximum_epoch_duration = max(EV1_epoch_duration, EV2_epoch_duration)
 hfcut = 1.5 * maximum_epoch_duration  # why ?
@@ -49,9 +52,15 @@ hfcut = 1.5 * maximum_epoch_duration  # why ?
 """construct design matrix"""
 drift_model = 'Cosine'
 hrf_model = 'Canonical With Derivative'
-design_matrix = make_dmtx(frametimes,
-                          paradigm, hrf_model=hrf_model,
-                          drift_model=drift_model, hfcut=hfcut)
+# design_matrix = make_dmtx(frametimes,
+#                          paradigm, hrf_model=hrf_model,
+#                          drift_model=drift_model, hfcut=hfcut)
+
+design_matrix = make_design_matrix(frame_times=frametimes,
+                                   paradigm=paradigm,
+                                   hrf_model=hrf_model,
+                                   drift_model=drift_model,
+                                   period_cut=hfcut)
 
 """fetch input data"""
 _subject_data = fetch_fsl_feeds()
@@ -76,11 +85,12 @@ fmri_files = results[0]['func']
 anat_file = results[0]['anat']
 
 """specify contrasts"""
+_, matrix, names = check_design_matrix(design_matrix)
 contrasts = {}
-n_columns = len(design_matrix.names)
-I = np.eye(len(design_matrix.names))
-for i in xrange(paradigm.n_conditions):
-    contrasts['%s' % design_matrix.names[2 * i]] = I[2 * i]
+n_columns = len(names)
+I = np.eye(len(names))
+for i in xrange(2):
+    contrasts['%s' % names[2 * i]] = I[2 * i]
 
 """more interesting contrasts"""
 contrasts['EV1>EV2'] = contrasts['EV1'] - contrasts['EV2']
@@ -89,8 +99,7 @@ contrasts['effects_of_interest'] = contrasts['EV1'] + contrasts['EV2']
 
 """fit GLM"""
 print('\r\nFitting a GLM (this takes time) ..')
-fmri_glm = FMRILinearModel(fmri_files, design_matrix.matrix,
-           mask='compute')
+fmri_glm = FMRILinearModel(fmri_files, matrix, mask='compute')
 fmri_glm.fit(do_scaling=True, model='ar1')
 
 """save computed mask"""
@@ -148,7 +157,7 @@ generate_subject_stats_report(
     start_time=stats_start_time,
 
     # additional ``kwargs`` for more informative report
-    paradigm=paradigm.__dict__,
+    paradigm=paradigm,
     TR=TR,
     n_scans=n_scans,
     hfcut=hfcut,
