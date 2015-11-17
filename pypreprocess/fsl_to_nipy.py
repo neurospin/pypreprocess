@@ -9,8 +9,8 @@ into nipy format (mainly numpy arrays).
 import os
 import re
 import numpy as np
-from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
-from nipy.modalities.fmri.design_matrix import make_dmtx
+from external.nistats.design_matrix import make_design_matrix
+from pandas import DataFrame
 
 # regex for contrasts
 CON_REAL_REGX = ("set fmri\(con_real(?P<con_num>\d+?)\.(?P<ev_num>\d+?)\)"
@@ -117,12 +117,12 @@ def read_fsl_design_file(design_filename):
 
     # lookup EV titles
     conditions = [item.group("evtitle") for item in re.finditer(
-            EV_TITLE_REGX, design_conf)]
+                  EV_TITLE_REGX, design_conf)]
     assert len(conditions) == n_conditions_orig
 
     # lookup contrast titles
     contrast_ids = [item.group("conname_real")for item in re.finditer(
-            CON_TITLE_REGX, design_conf)]
+                    CON_TITLE_REGX, design_conf)]
     assert len(contrast_ids) == n_contrasts
 
     # # lookup EV (condition) shapes
@@ -199,8 +199,10 @@ def make_paradigm_from_timing_files(timing_files, condition_ids=None):
                 "the onsets, the second for the durations, and the "
                 "third --if present-- if for the amplitudes; got %s" % timing)
 
-    return BlockParadigm(con_id=_condition_ids, onset=onsets,
-                         duration=durations, amplitude=amplitudes)
+    return DataFrame({'name': condition_ids,
+                      'onset': onsets,
+                      'duration': durations,
+                      'modulation': amplitudes})
 
 
 def make_dmtx_from_timing_files(timing_files, condition_ids=None,
@@ -248,7 +250,9 @@ def make_dmtx_from_timing_files(timing_files, condition_ids=None,
         make_dmtx_kwargs["add_regs"] = add_regs
 
     # make design matrix
-    design_matrix = make_dmtx(frametimes, paradigm, **make_dmtx_kwargs)
+    design_matrix = make_design_matrix(frame_times=frametimes,
+                                       paradigm=paradigm,
+                                       **make_dmtx_kwargs)
 
     # return output
     return design_matrix, paradigm, frametimes

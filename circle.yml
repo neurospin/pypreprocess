@@ -16,7 +16,7 @@ dependencies:
     - source continuous_integration/setup_spm.sh
     # Installing Pypreprocess dependencies
     - pip install --upgrade pip
-    - pip install scipy sklearn nibabel configobj nose 
+    - pip install scipy sklearn nibabel configobj nose coverage 
     - pip install matplotlib pandas nipype nilearn
 
   override:
