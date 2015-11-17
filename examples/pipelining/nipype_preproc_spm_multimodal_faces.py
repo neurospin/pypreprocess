@@ -43,7 +43,7 @@ dataset_dir = os.path.dirname(os.path.dirname(os.path.dirname(
 # preprocess the data
 subject_id = "sub001"
 subject_data = SubjectData(
-    output_dir=os.path.join(dataset_dir, "pypreprocess", subject_id),
+    output_dir=os.path.join(dataset_dir, "pypreprocess_output", subject_id),
     subject_id=subject_id, func=[subject_data.func1, subject_data.func2],
     anat=subject_data.anat, trials_ses1=subject_data.trials_ses1,
     trials_ses2=subject_data.trials_ses2, session_ids=["Session1", "Session2"])
@@ -85,13 +85,6 @@ for x in xrange(2):
                                        drift_model=drift_model,
                                        period_cut=hfcut)
     design_matrices.append(design_matrix)
-
-    """
-    design_matrix = make_dmtx(
-        frametimes, paradigm, hrf_model=hrf_model, drift_model=drift_model,
-        hfcut=hfcut, add_reg_names=['tx', 'ty', 'tz', 'rx', 'ry', 'rz'],
-        add_regs=np.loadtxt(subject_data.realignment_parameters[x]))
-    """
 
 # specify contrasts
 _, matrix, names = check_design_matrix(design_matrix)

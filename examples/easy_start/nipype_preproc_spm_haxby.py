@@ -25,14 +25,15 @@ Get full description <a href="http://dev.pymvpa.org/datadb/haxby2001.html">\
 here</a>.\
 """
 
-# set output dir
-OUTPUT_DIR = "haxby_runs"
-if not os.path.exists(OUTPUT_DIR):
-    os.makedirs(OUTPUT_DIR)
-
 # fetch HAXBY dataset
 N_SUBJECTS = 5
 haxby_data = fetch_haxby(n_subjects=N_SUBJECTS)
+
+# set output dir
+OUTPUT_DIR = os.path.join(os.path.dirname(haxby_data.mask),
+                          "haxby_runs")
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
 
 # get subject data
 subjects = []

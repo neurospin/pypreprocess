@@ -9,7 +9,7 @@ import multiprocessing
 import nibabel as nb
 import numpy as np
 
-from ..external.nistats.glm import FMRILinearModel
+from pypreprocess.external.nistats.glm import FMRILinearModel
 
 
 # pypreprocess imports

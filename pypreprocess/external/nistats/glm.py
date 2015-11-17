@@ -15,7 +15,7 @@ Examples
 --------
 
 >>> import numpy as np
->>> from nistats.glm import GeneralLinearModel
+>>> from pypreprocess.external.nistats.glm import GeneralLinearModel
 >>> n, p, q = 100, 80, 10
 >>> X, Y = np.random.randn(p, q), np.random.randn(p, n)
 >>> cval = np.hstack((1, np.zeros(9)))

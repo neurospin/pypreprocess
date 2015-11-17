@@ -5,8 +5,8 @@ import pylab as pl
 import nibabel
 from nilearn.plotting import plot_stat_map
 from nilearn.image import reorder_img
-from ..external.nistats.design_matrix import plot_design_matrix
-from ..external.nistats.glm import FMRILinearModel
+from pypreprocess.external.nistats.design_matrix import plot_design_matrix
+from pypreprocess.external.nistats.glm import FMRILinearModel
 from pandas import DataFrame, read_pickle
 from nilearn.masking import intersect_masks
 import base_reporter
