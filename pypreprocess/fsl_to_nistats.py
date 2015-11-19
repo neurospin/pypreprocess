@@ -9,7 +9,7 @@ into nipy format (mainly numpy arrays).
 import os
 import re
 import numpy as np
-from external.nistats.design_matrix import make_design_matrix
+from pypreprocess.external.nistats.design_matrix import make_design_matrix
 from pandas import DataFrame
 
 # regex for contrasts
