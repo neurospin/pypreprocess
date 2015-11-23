@@ -259,6 +259,13 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
                     " specifying the experimental paradigm and fitting the "
                     "GLM:<br/><ul>")
 
+        # reshape glm_kwargs['paradigm']
+        paradigm = glm_kwargs['paradigm'].to_dict('list')
+        paradigm['n_conditions'] = len(set(paradigm['name']))
+        paradigm['n_events'] = len(paradigm['name'])
+        paradigm['type'] = 'block' if paradigm['duration'][0] > 0 else 'event'
+        glm_kwargs['paradigm'] = paradigm
+
         design_params += base_reporter.dict_to_html_ul(glm_kwargs)
 
     if start_time is None:
