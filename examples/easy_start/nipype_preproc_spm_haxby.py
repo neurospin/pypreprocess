@@ -26,7 +26,7 @@ here</a>.\
 """
 
 # fetch HAXBY dataset
-N_SUBJECTS = 5
+N_SUBJECTS = 2
 haxby_data = fetch_haxby(n_subjects=N_SUBJECTS)
 
 # set output dir
@@ -51,7 +51,7 @@ for subject_id in set([os.path.basename(os.path.dirname(x))
     subject_data.func = subject_data.func[0]
 
     # set anat
-    subject_data.anat = [x for x in haxby_data.func if subject_id in x]
+    subject_data.anat = [x for x in haxby_data.anat if subject_id in x]
     assert len(subject_data.anat) == 1
     subject_data.anat = subject_data.anat[0]
 
