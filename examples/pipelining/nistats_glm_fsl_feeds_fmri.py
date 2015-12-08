@@ -6,7 +6,7 @@ on FSL's FEEDS fMRI single-subject example data
 
 import os
 import numpy as np
-from pandas import DataFrame
+import pandas as pd
 from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
                                                          check_design_matrix)
 from pypreprocess.external.nistats.glm import FMRILinearModel
@@ -39,8 +39,8 @@ EV2_on = 45
 conditions = ['EV1'] * EV1_epochs + ['EV2'] * EV2_epochs
 onset = list(EV1_onset) + list(EV2_onset)
 duration = [EV1_on] * EV1_epochs + [EV2_on] * EV2_epochs
-paradigm = DataFrame({'name': conditions, 'onset': onset,
-                      'duration': duration})
+paradigm = pd.DataFrame({'name': conditions, 'onset': onset,
+                         'duration': duration})
 frametimes = np.linspace(0, (n_scans - 1) * TR, n_scans)
 maximum_epoch_duration = max(EV1_epoch_duration, EV2_epoch_duration)
 hfcut = 1.5 * maximum_epoch_duration  # why ?

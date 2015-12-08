@@ -10,7 +10,7 @@ import os
 import re
 import numpy as np
 from pypreprocess.external.nistats.design_matrix import make_design_matrix
-from pandas import DataFrame
+import pandas as pd
 
 # regex for contrasts
 CON_REAL_REGX = ("set fmri\(con_real(?P<con_num>\d+?)\.(?P<ev_num>\d+?)\)"
@@ -199,10 +199,10 @@ def make_paradigm_from_timing_files(timing_files, condition_ids=None):
                 "the onsets, the second for the durations, and the "
                 "third --if present-- if for the amplitudes; got %s" % timing)
 
-    return DataFrame({'name': condition_ids,
-                      'onset': onsets,
-                      'duration': durations,
-                      'modulation': amplitudes})
+    return pd.DataFrame({'name': condition_ids,
+                         'onset': onsets,
+                         'duration': durations,
+                         'modulation': amplitudes})
 
 
 def make_dmtx_from_timing_files(timing_files, condition_ids=None,

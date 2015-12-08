@@ -12,7 +12,7 @@ import nibabel
 from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
 from pypreprocess.datasets import fetch_spm_auditory
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
-from pandas import DataFrame
+import pandas as pd
 from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
                                                          check_design_matrix,
                                                          plot_design_matrix)
@@ -36,7 +36,7 @@ conditions = ['rest', 'active'] * 8
 duration = epoch_duration * np.ones(len(conditions))
 onset = np.linspace(0, (len(conditions) - 1) * epoch_duration,
                     len(conditions))
-paradigm = DataFrame(
+paradigm = pd.DataFrame(
     {'onset': onset, 'duration': duration, 'name': conditions})
 
 hfcut = 2 * 2 * epoch_duration

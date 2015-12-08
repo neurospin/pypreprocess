@@ -16,7 +16,7 @@ import scipy.io
 from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
                                                          check_design_matrix)
 from pypreprocess.external.nistats.glm import FMRILinearModel
-from pandas import DataFrame
+import pandas as pd
 
 # pypreprocess imports
 from pypreprocess.datasets import fetch_spm_multimodal_fmri
@@ -79,7 +79,7 @@ for x in xrange(2):
 
     # build design matrix
     frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)
-    paradigm = DataFrame({'name': conditions, 'onset': onsets})
+    paradigm = pd.DataFrame({'name': conditions, 'onset': onsets})
     design_matrix = make_design_matrix(frametimes, paradigm,
                                        hrf_model=hrf_model,
                                        drift_model=drift_model,

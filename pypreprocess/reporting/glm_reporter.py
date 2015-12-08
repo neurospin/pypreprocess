@@ -7,7 +7,7 @@ from nilearn.plotting import plot_stat_map
 from nilearn.image import reorder_img
 from pypreprocess.external.nistats.design_matrix import plot_design_matrix
 from pypreprocess.external.nistats.glm import FMRILinearModel
-from pandas import DataFrame, read_pickle
+import pandas as pd
 from nilearn.masking import intersect_masks
 import base_reporter
 from ..cluster_level_analysis import cluster_stats
@@ -325,10 +325,10 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
             """
             # XXX NISTATS
             if isinstance(design_matrix, basestring):
-                if not isinstance(design_matrix, DataFrame):
+                if not isinstance(design_matrix, pd.DataFrame):
                     # XXX should be a DataFrame pickle here ?
                     print design_matrix
-                    design_matrix = read_pickle(design_matrix)
+                    design_matrix = pd.read_pickle(design_matrix)
                 else:
                     raise TypeError(
                         "Unsupported design matrix type: %s" % type(
