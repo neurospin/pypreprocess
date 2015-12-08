@@ -714,7 +714,7 @@ class SubjectData(object):
 
         # generate thumbnails proper
         for brain_name, brain, cmap in zip(
-                ['anatomical image', 'mean functional image'],
+                ['anatomical_image', 'mean_functional_image'],
                 [self.anat, self.func], [cm.gray, cm.spectral]):
             if not brain:
                 continue
@@ -746,7 +746,7 @@ class SubjectData(object):
 
         # generate thumbnails proper
         for brain_name, brain, cmap in zip(
-                ['anatomical image', 'mean functional image'],
+                ['anatomical_image', 'mean_functional_image'],
                 [self.anat, self.func], [cm.gray, cm.spectral]):
             if not brain:
                 continue
