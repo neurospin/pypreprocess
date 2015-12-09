@@ -655,7 +655,7 @@ class SubjectData(object):
         if not self.reporting_enabled():
             self.init_report()
         src, ref = self.func, self.anat
-        src_brain, ref_brain = "mean functional image", "anatomical image"
+        src_brain, ref_brain = "mean_functional_image", "anatomical_image"
         if not coreg_func_to_anat:
             src, ref = ref, src
             src_brain, ref_brain = ref_brain, src_brain
@@ -714,7 +714,7 @@ class SubjectData(object):
 
         # generate thumbnails proper
         for brain_name, brain, cmap in zip(
-                ['anatomical image', 'mean functional image'],
+                ['anatomical_image', 'mean_functional_image'],
                 [self.anat, self.func], [cm.gray, cm.spectral]):
             if not brain:
                 continue
@@ -746,7 +746,7 @@ class SubjectData(object):
 
         # generate thumbnails proper
         for brain_name, brain, cmap in zip(
-                ['anatomical image', 'mean functional image'],
+                ['anatomical_image', 'mean_functional_image'],
                 [self.anat, self.func], [cm.gray, cm.spectral]):
             if not brain:
                 continue
