@@ -1,24 +1,39 @@
 language: python
 
-python:
-    - "2.7"
-
 virtualenv:
   system_site_packages: true
 
-before_install:
-    - bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
-    - sudo apt-get install -qq python-scipy python-nose python-nibabel python-sklearn python-sympy python-networkx python-nipy python-nipype
-    - sudo apt-get install -qq python-pip
-    - pip install "nilearn>=0.1.3"
-    - pip install coverage coveralls
+env:
+  global:
+    - TEST_RUN_FOLDER="/tmp" # folder where the tests are run from
+  matrix:
+    # Ubuntu 14.04 versions without matplotlib
+    - DISTRIB="neurodebian" PYTHON_VERSION="2.7"
+    # Most recent versions
+    - DISTRIB="neurodebian" PYTHON_VERSION="3.4"
 
-install:
-    - python setup.py install
+install: 
+    - source continuous_integration/install.sh
+
+before_script:
+    - make clean
 
 script:
-    - make clean
-    - make test-code
+    - python continuous_integration/show-python-packages-versions.py
+    # Copy setup.cfg to TEST_RUN_FOLDER where we are going to run the tests from
+    # Mainly for nose config settings
+    - cp setup.cfg "$TEST_RUN_FOLDER"
+    # We want to back out of the current working directory to make
+    # sure we are using nilearn installed in site-packages rather
+    # than the one from the current working directory
+    # Parentheses (run in a subshell) are used to leave
+    # the current directory unchanged
+    - (cd "$TEST_RUN_FOLDER" && make -f $OLDPWD/Makefile test-code)
 
 after_success:
-    - coveralls
+    # Ignore coveralls failures as the coveralls server is not very reliable
+    # but we don't want travis to report a failure in the github UI just
+    # because the coverage report failed to be published.
+    # coveralls need to be run from the git checkout
+    # so we need to copy the coverage results from TEST_RUN_FOLDER
+    - if [[ "$COVERAGE" == "true" ]]; then cp "$TEST_RUN_FOLDER/.coverage" .; coveralls || echo "failed"; fi

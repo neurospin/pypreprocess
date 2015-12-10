@@ -19,6 +19,28 @@ VERSION = '0.1-git'
 from numpy.distutils.core import setup
 
 
+def load_version():
+    """Executes pypreprocess/version.py in a globals dictionary and return it.
+
+    Note: importing pypreprocess is not an option because there may be
+    dependencies like nibabel which are not installed and
+    setup.py is supposed to install them.
+    """
+    # load all vars into globals, otherwise
+    #   the later function call using global vars doesn't work.
+    globals_dict = {}
+    with open(os.path.join('pypreprocess', 'version.py')) as fp:
+        exec(fp.read(), globals_dict)
+
+    return globals_dict
+
+
+def is_installing():
+    # Allow command-lines such as "python setup.py build install"
+    install_commands = set(['install', 'develop'])
+    return install_commands.intersection(set(sys.argv))
+
+
 # For some commands, use setuptools
 if len(set(('develop', 'sdist', 'release', 'bdist_egg', 'bdist_rpm',
            'bdist', 'bdist_dumb', 'bdist_wininst', 'install_egg_info',
