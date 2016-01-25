@@ -122,7 +122,7 @@ def test_env_vars():
 
 
 def test_explicit_list_subdirs():
-    dataset_dir = "/tmp/data"
+    dataset_dir = "/tmp/dataset"
     output_dir = "/tmp/output"
     if not os.path.exists(dataset_dir):
         os.makedirs(dataset_dir)
@@ -135,3 +135,19 @@ def test_explicit_list_subdirs():
                  output_dir=os.path.join(output_dir, subject_id))
     subjects, _ = _generate_preproc_pipeline(config_file)
     assert_equal(len(subjects), 2)
+
+
+def test_list_of_subj_wildcards():
+    dataset_dir = "/tmp/dataset"
+    output_dir = "/tmp/output"
+    if not os.path.exists(dataset_dir):
+        os.makedirs(dataset_dir)
+    for subject_id in ["subx01", "subx02", "suby01", "suby02"]:
+        _make_sd(func_filenames=[os.path.join(
+            dataset_dir, "%s/session1/func_3D.nii" % subject_id)],
+                 output_dir=os.path.join(output_dir, subject_id))
+    config_file = os.path.join(dataset_dir, "empty.ini")
+    _make_config(config_file, subject_dirs=["subx*", "suby*"],
+                 session_1_func="session1/func_3D.nii")
+    subjects, _ = _generate_preproc_pipeline(config_file)
+    assert_equal(len(subjects), 4)
