@@ -8,7 +8,7 @@ virtualenv:
 
 before_install:
     - bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
-    - sudo apt-get install -qq python-scipy python-nose python-nibabel python-sklearn python-sympy python-networkx python-nipy python-nipype
+    - sudo apt-get install -qq python-scipy python-nose python-nibabel python-sklearn python-pandas python-networkx python-nipype
     - sudo apt-get install -qq python-pip
     - pip install "nilearn>=0.1.3"
     - pip install coverage coveralls

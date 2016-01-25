@@ -625,7 +625,6 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
         gm_output_type = [output_modulated_tpms, True, True]
         wm_output_type = [output_modulated_tpms, True, True]
         csf_output_type = [output_modulated_tpms, True, True]
-
     # run node
     segment_result = segment(
         data=subject_data.anat,

@@ -9,7 +9,8 @@ import multiprocessing
 import nibabel as nb
 import numpy as np
 
-from nipy.modalities.fmri.glm import FMRILinearModel
+from pypreprocess.external.nistats.glm import FMRILinearModel
+
 
 # pypreprocess imports
 PYPREPROCESS_DIR = os.path.dirname(
@@ -225,8 +226,8 @@ def execute_glm(doc, out_dir, contrast_definitions=None,
 
     # instantiate GLM
     fmri_glm = FMRILinearModel(params['data'],
-                          params['design_matrices'],
-                          doc['mask'])
+                               params['design_matrices'],
+                               mask=doc['mask'])
 
     # fit GLM
     fmri_glm.fit(do_scaling=True, model=glm_model)

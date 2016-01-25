@@ -15,24 +15,28 @@ dependencies:
     # Installing SPM
     - source continuous_integration/setup_spm.sh
     # Installing Pypreprocess dependencies
-    - sudo apt-get install -qq python-scipy python-nose python-sklearn python-networkx
     - pip install --upgrade pip
-    - pip install --upgrade nibabel
-    - pip install sympy nipy nipype nilearn
+    - pip install scipy sklearn nibabel configobj nose coverage 
+    - pip install matplotlib pandas nipype nilearn
 
   override:
     # Installing pypreprocess
-    - python setup.py install
-    # Fetching Auditory dataset in order to be cached in the future
-    - python -c "from pypreprocess.datasets import fetch_spm_auditory; fetch_spm_auditory()"
+    - pip install -e .
+    # Fetching Auditory and Multimodal datasets in order to be cached in the future
+    - python -c "from pypreprocess import datasets; datasets.fetch_spm_auditory(); datasets.fetch_spm_multimodal_fmri(); datasets.fetch_fsl_feeds()"
+    # Caching terminates here. Outputs from test won't be saved. 
 
 test:
   override:
     - make clean
     - make test-code
     - cd examples/easy_start && python nipype_preproc_spm_auditory.py
+    - cd examples/pipelining && python nipype_preproc_spm_multimodal_faces.py
+    - cd examples/pipelining && python nistats_glm_fsl_feeds_fmri.py
+    - sh continuous_integration/clean_output.sh
 
 general:
   artifacts:
-    - "~/opt/spm8"
-    - "~/nilearn_data"
+    - "/home/ubuntu/nilearn_data/spm_auditory/pypreprocess_output/"
+    - "~/nilearn_data/spm_multimodal_fmri/pypreprocess_output/"
+    - "~/nilearn_data/fsl_feeds/pypreprocess_output/"

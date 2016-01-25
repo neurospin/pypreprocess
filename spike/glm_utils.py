@@ -254,7 +254,7 @@ if __name__ == "__maih__":
 
     # plot stats (per subject)
     import matplotlib.pyplot as plt
-    import nipy.labs.viz as viz
+    from nilearn.plotting import plot_stat_map
     all_masks = []
     all_effects_maps = []
     for (subject_id, anat, effects_maps, z_maps,
@@ -264,10 +264,6 @@ if __name__ == "__maih__":
         z_map = nibabel.load(z_maps.values()[0])
         all_effects_maps.append(effects_maps)
         for contrast_id, z_map in z_maps.iteritems():
-            z_map = nibabel.load(z_map)
-            viz.plot_map(z_map.get_data(), z_map.get_affine(),
-                         anat=anat_img.get_data(),
-                         anat_affine=anat_img.get_affine(), slicer='ortho',
-                         title="%s: %s" % (subject_id, contrast_id),
-                         black_bg=True, cmap=viz.cm.cold_hot, threshold=2.3)
+            plot_stat_map(z_map, black_bg=True, threshold=2.3,
+                          title="%s: %s" % (subject_id, contrast_id))
             plt.savefig("%s_%s.png" % (subject_id, contrast_id))
