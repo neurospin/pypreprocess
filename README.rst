@@ -3,10 +3,13 @@
 .. image:: https://travis-ci.org/neurospin/pypreprocess.svg?branch=master
    :target: https://travis-ci.org/neurospin/pypreprocess
    :alt: Build Status
-   
+
 .. image:: https://coveralls.io/repos/dohmatob/pypreprocess/badge.svg?branch=master
    :target: https://coveralls.io/r/dohmatob/pypreprocess?branch=master
-   
+
+.. image:: https://circleci.com/gh/neurospin/pypreprocess/tree/master.svg?style=shield&circle-token=:circle-token
+   :target: https://circleci.com/gh/neurospin/pypreprocess/tree/master
+
 pypreprocess
 ============
 **pypreprocess** is a collection of python scripts for preprocessing fMRI data (motion correction, spatial normalization, smoothing, ...). It provides:
