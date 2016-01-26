@@ -43,8 +43,9 @@ def configuration(parent_package='', top_path=None):
     # extrenal dependecies
     config.add_subpackage('pypreprocess/external')
     config.add_subpackage('pypreprocess/external/tempita')
+    config.add_subpackage('pypreprocess/external/nistats')
 
-    # reporting plugin
+    # plugin for generating reports
     config.add_subpackage('pypreprocess/reporting')
     config.add_data_dir("pypreprocess/reporting/template_reports")
     config.add_data_dir("pypreprocess/reporting/css")
