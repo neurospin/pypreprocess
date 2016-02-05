@@ -1454,7 +1454,6 @@ def _do_subjects_newsegment(
                     template_file=dartel_result.outputs.final_template_file)
             for subject_data in subjects)
 
-
 def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     """
     This function does intra-subject preprocessing on a group of subjects.
@@ -1563,7 +1562,6 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     if len(subjects) < 2:
         if newsegment:
             warnings.warn("There is only one subject. Disabling NewSegment.")
-            newsegment = False
         if dartel:
             warnings.warn("There is only one subject. Disabling DARTEL.")
             dartel = False
@@ -1692,11 +1690,18 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         for stage in ["segment", "normalize", "last_stage"]:
             preproc_params[stage] = False
 
+    # postpone smoothing
+    backup_params = {}
+    for k in ["fwhm", "anat_fwhm"]:
+        if k in preproc_params:
+            backup_params[k] = preproc_params.pop(k)
+
     # run classic preproc
     subjects = Parallel(n_jobs=n_jobs)(delayed(do_subject_preproc)(
         subject_data, **preproc_params) for subject_data in subjects)
 
     # run DARTEL
+    preproc_params.update(backup_params)
     if newsegment:
         subjects = _do_subjects_newsegment(
             subjects, output_dir, n_jobs=n_jobs, do_dartel=dartel,
