@@ -47,8 +47,10 @@ condition_keys = _load_condition_keys(
     "/home/elvis/nilearn_data/ds001/models/model001/condition_key.txt")
 contrast_names = _load_contrast_names(
     "/home/elvis/nilearn_data/ds001/models/model001/task_contrasts.txt")
-data_dir = os.environ.get("OUTPUT_DIR", "/home/elvis/nilearn_data/ds001")
-output_dir = os.path.join(data_dir, "pypreprocess_output/ds001")
+data_dir = os.environ.get("DATA_DIR", "/home/elvis/nilearn_data/ds001")
+output_dir = os.environ.get("OUTPUT_DIR",
+                            os.path.join(data_dir,
+                                         "pypreprocess_output/ds001"))
 subject_ids = map(os.path.basename,
                   sorted(glob.glob("%s/sub*" % output_dir)))[:8]
 
@@ -60,17 +62,15 @@ def do_subject_glm(subject_id):
     design_matrices = []
     func = []
     anat = os.path.join(subject_output_dir, "anatomy", "whighres001_brain.nii")
-    for run_path in sorted(glob.glob(
-            ("/home/elvis/nilearn_data/ds001/sub001/model/model001/onsets/"
-             "task*"))):
+    for run_path in sorted(glob.glob(os.path.join(
+            data_dir, subject_id, "model/model001/onsets/task*"))):
         run_id = os.path.basename(run_path)
         run_func = glob.glob(os.path.join(subject_output_dir, "BOLD", run_id,
                                           "wrbold*.nii"))
         assert len(run_func) == 1
         run_func = run_func[0]
-        run_onset_paths = sorted(glob.glob(
-            ("/home/elvis/nilearn_data/ds001/sub001/model/model001/onsets/"
-             "%s/*" % run_id)))
+        run_onset_paths = sorted(glob.glob(os.path.join(
+            data_dir, subject_id, "model/model001/onsets/%s/*" % run_id)))
         onsets = map(np.loadtxt, run_onset_paths)
         conditions = np.hstack(
             [[condition_keys["cond%03i" % (c + 1)]] * len(onsets[c])
