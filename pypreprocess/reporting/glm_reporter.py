@@ -260,13 +260,14 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
                     "GLM:<br/><ul>")
 
         # reshape glm_kwargs['paradigm']
-        paradigm = glm_kwargs['paradigm'].to_dict('list')
-        paradigm['n_conditions'] = len(set(paradigm['name']))
-        paradigm['n_events'] = len(paradigm['name'])
-        paradigm['type'] = 'event'
-        if 'duration' in paradigm.keys() and paradigm['duration'][0] > 0:
-            paradigm['type'] = 'block'
-        glm_kwargs['paradigm'] = paradigm
+        if "paradigm" in glm_kwargs:
+            paradigm = glm_kwargs['paradigm'].to_dict('list')
+            paradigm['n_conditions'] = len(set(paradigm['name']))
+            paradigm['n_events'] = len(paradigm['name'])
+            paradigm['type'] = 'event'
+            if 'duration' in paradigm.keys() and paradigm['duration'][0] > 0:
+                paradigm['type'] = 'block'
+            glm_kwargs['paradigm'] = paradigm
 
         design_params += base_reporter.dict_to_html_ul(glm_kwargs)
 
@@ -445,10 +446,7 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
     assert len(masks) == len(effects_maps), (len(masks), len(effects_maps))
 
     # compute group mask
-    group_mask = nibabel.Nifti1Image(
-        intersect_masks(masks).astype(np.int8),
-        (nibabel.load(masks[0]) if isinstance(
-                masks[0], basestring) else masks[0]).get_affine())
+    group_mask = intersect_masks(masks)
 
     # construct design matrix (only one covariate, namely the "mean effect")
     design_matrix = np.ones(len(effects_maps)
@@ -490,8 +488,7 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
                 group_level_z_maps[contrast_id] = map_path
 
     # do stats report
-    stats_report_filename = os.path.join(
-        output_dir, "report_stats.html")
+    stats_report_filename = os.path.join(output_dir, "report_stats.html")
     generate_subject_stats_report(stats_report_filename, contrasts,
                                   group_level_z_maps, group_mask,
                                   start_time=start_time,
