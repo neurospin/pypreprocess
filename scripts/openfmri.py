@@ -105,7 +105,7 @@ def do_subject_glm(subject_id):
     contrasts_ = {}
     for contrast, val in contrasts.items():
         if not contrast == "avg":
-            contrasts_["%s_minus_avg" % c] = val - contrasts["avg"]
+            contrasts_["%s_minus_avg" % contrast] = val - contrasts["avg"]
     contrasts = contrasts_
 
     # fit GLM
