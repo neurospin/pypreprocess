@@ -93,24 +93,19 @@ def do_subject_glm(subject_id):
     n_runs = len(func)
 
     # specify contrasts
-    _, matrix, names = check_design_matrix(design_matrix)
+    _, _, names = check_design_matrix(design_matrix)
     n_columns = len(names)
     contrast_matrix = np.eye(n_columns)
     contrasts = {}
     for c in range(len(condition_keys)):
         contrasts[names[2 * c]] = contrast_matrix[2 * c]
+    contrasts["avg"] = np.mean(contrasts.values(), axis=0)
 
     # more interesting contrasts
-    contrast_names = ["pumps_fixed_real_RT_minus_pumps_demean",
-                      "control_pumps_fixed_real_RT_minus_cash_demean",
-                      "control_pumps_fixed_real_RT_minus_cash_fixed"]
     contrasts_ = {}
-    for c in contrast_names:
-        c = c.replace("ctrl", "control")
-        x, y = c.split("_minus_")
-        for a, b in [(x, y), (y, x)]:
-            c = "%s_minus_%s" % (a, b)
-            contrasts_[c] = contrasts[a] - contrasts[b]
+    for contrast, val in contrasts.items():
+        if not contrast == "avg":
+            contrasts["%s_minus_avg" % c] = val - contrasts["avg"]
     contrasts = contrasts_
 
     # fit GLM
