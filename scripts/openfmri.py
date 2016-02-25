@@ -43,14 +43,14 @@ drift_model = 'Cosine'
 hrf_model = 'Canonical With Derivative'
 hfcut = 128.
 
-condition_keys = _load_condition_keys(
-    "/home/elvis/nilearn_data/ds001/models/model001/condition_key.txt")
-contrast_names = _load_contrast_names(
-    "/home/elvis/nilearn_data/ds001/models/model001/task_contrasts.txt")
 data_dir = os.environ.get("DATA_DIR", "/home/elvis/nilearn_data/ds001")
 output_dir = os.environ.get("OUTPUT_DIR",
                             os.path.join(data_dir,
                                          "pypreprocess_output/ds001"))
+condition_keys = _load_condition_keys(
+    os.path.join(data_dir, "models/model001/condition_key.txt"))
+contrast_names = _load_contrast_names(
+    os.path.join(data_dir, "models/model001/task_contrasts.txt"))
 subject_ids = map(os.path.basename,
                   sorted(glob.glob("%s/sub*" % output_dir)))[:8]
 
