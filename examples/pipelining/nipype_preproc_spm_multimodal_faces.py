@@ -103,8 +103,8 @@ contrasts['effects_of_interest'] = contrasts['faces'] + contrasts['scrambled']
 print 'Fitting a GLM (this takes time)...'
 fmri_glm = FMRILinearModel(
     [nibabel.concat_images(x) for x in subject_data.func],
-    [check_design_matrix(design_matrix)[1] for design_matrix in design_matrices],
-    mask='compute')
+    [check_design_matrix(design_matrix)[1]
+     for design_matrix in design_matrices], mask='compute')
 fmri_glm.fit(do_scaling=True, model='ar1')
 
 # save computed mask
