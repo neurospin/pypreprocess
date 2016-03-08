@@ -22,16 +22,6 @@ pypreprocess
 
 pypreprocess relies on nipype's interfaces to SPM (both precompiled SPM  and matlab-dependent SPM flavors). It also has pure-Python (no C extensions, no compiled code, just Python) modules and scripts for slice-timing correction, motion correction, coregistration, and smoothing, without need for nipype or matlab.
 
-A snapshot of what you can obtain with pypreprocess
-===================================================
-.. image:: https://circle-artifacts.com/gh/neurospin/pypreprocess/31/artifacts/0/home/ubuntu/nilearn_data/spm_multimodal_fmri/pypreprocess_output/sub001/reports/rp_plot.png
-   :target: https://circle-artifacts.com/gh/neurospin/pypreprocess/31/artifacts/0/home/ubuntu/nilearn_data/spm_multimodal_fmri/pypreprocess_output/sub001/reports/rp_plot.png
-.. image:: https://circle-artifacts.com/gh/neurospin/pypreprocess/31/artifacts/0/home/ubuntu/nilearn_data/spm_multimodal_fmri/pypreprocess_output/sub001/reports/subject_tpms_contours_on_subject_anatomical_image.png
-   :target: https://circle-artifacts.com/gh/neurospin/pypreprocess/31/artifacts/0/home/ubuntu/nilearn_data/spm_multimodal_fmri/pypreprocess_output/sub001/reports/subject_tpms_contours_on_subject_anatomical_image.png
-.. image:: https://circle-artifacts.com/gh/neurospin/pypreprocess/31/artifacts/0/home/ubuntu/nilearn_data/spm_multimodal_fmri/pypreprocess_output/sub001/reports/template_on_mean_functional_image_outline.png
-   :target: https://circle-artifacts.com/gh/neurospin/pypreprocess/31/artifacts/0/home/ubuntu/nilearn_data/spm_multimodal_fmri/pypreprocess_output/sub001/reports/template_on_mean_functional_image_outline.png
-   
-
 License
 =======
 All material is Free Software: BSD license (3 clause).
