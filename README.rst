@@ -40,13 +40,10 @@ Dependencies
 * SciPy >= 0.7
 * matplotlib >= 0.99.1
 * nibabel >= 1.3.0
-* networkx >= 1.7
-* traits >= 4.3.0
-* sympy >= 0.7.4.1
 * nipype >= 0.8.0
-* nipy >= 0.3.0	
 * configobj >= 5.0.6
 * nilearn >= 0.1.3
+* Pandas >= 0.12
 
 
 Installation
@@ -56,9 +53,9 @@ First install the above dependencies by **copy-pasting** the following commands 
 
       bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
       
-      sudo apt-get install python-scipy python-nose python-nibabel python-sklearn python-sympy python-networkx
+      sudo apt-get install python-scipy python-nose python-nibabel python-sklearn
       
-      sudo apt-get install python-nipy python-nipype python-pip
+      sudo apt-get install python-nipype python-pandas python-pip
       
       pip install nilearn --user
 
