@@ -76,7 +76,7 @@ Getting started: pypreprocess 101
 =================================
 Simply ``cd`` to the ``examples/easy_start/`` sub-directory and run the following command:
 
-       python spm_auditory_preproc.ini
+       python nipype_preproc_spm_auditory.py 
 
 
 Layout of examples
