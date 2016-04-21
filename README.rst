@@ -51,7 +51,10 @@ Dependencies
 
 Installation
 ============
+To begin with, you may also want to install the pre-compiled version of SPM (in case you don't have matlab, etc.). Just run the following
 
+     bash continuous_integration/install_spm.sh
+   
 First install the above dependencies by **copy-pasting** the following commands in a terminal:
 
       bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
@@ -61,11 +64,12 @@ First install the above dependencies by **copy-pasting** the following commands 
       sudo apt-get install python-nipy python-nipype python-pip
       
       pip install nilearn --user
-
-
-Then install pypreprocess itself by running:
+      
+   
+Finally, install pypreprocess itself by running:
 
        python setup.py install --user
+       
 
 
 Getting started: pypreprocess 101
