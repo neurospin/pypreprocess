@@ -61,7 +61,7 @@ tsdiffana_tooltips = [
      "slice acquisition, possibly related to motion."),
     ("Average signal over each volume. A large drop/peak (e.g. 5%) indicates "
      "an artefact."),
-    ("Variance index per slice. Note that aqquisition artifacts can be slice"
+    ("Variance index per slice. Note that acquisition artifacts can be slice"
      "-specific. Look at the data if there is a peak somewhere."),
     ("Scaled variance per slice indicates slices where artifacts occur."
     "A slice/time with large variance should be eyeballed."),
@@ -90,7 +90,7 @@ class SubjectData(object):
                                    | OR multiple sessions, multiple 4D
                                    | image filenames (one per session)
         ---------------------------------------------------------------
-        list of list of strings    | multiiple sessions, one list of
+        list of list of strings    | multiple sessions, one list of
                                    | 3D image filenames (one per scan)
                                    | per session
         ---------------------------------------------------------------
@@ -254,7 +254,7 @@ class SubjectData(object):
 
     def _check_func_names_and_shapes(self):
         """
-        Checks that abspaths of func imagesare distinct with and across
+        Checks that abspaths of func images are distinct with and across
         sessions, and each session should constitute a 4D film (as a
         string or list of)
 
@@ -355,7 +355,7 @@ class SubjectData(object):
     def sanitize(self, deleteorient=False, niigz2nii=False):
         """
         This method does basic sanitization of the `SubjectData` instance, like
-        extracting .nii.gz -> .nii (crusial for SPM), ensuring that functional
+        extracting .nii.gz -> .nii (crucial for SPM), ensuring that functional
         images actually exist on disk, etc.
 
         Parameters
@@ -483,7 +483,7 @@ class SubjectData(object):
         tsdiffana: bool, optional
             if set, six figures are added to characterize differences between
             consecutive time points in the times series for artefact detection
-        preproc_undergone: list of srtings,
+        preproc_undergone: list of strings,
             list of processing steps performed
 
         """
