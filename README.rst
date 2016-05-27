@@ -99,6 +99,7 @@ Simply ``cd`` to the ``examples/easy_start/`` sub-directory and run the followin
 
        python nipype_preproc_spm_auditory.py 
 
+If you find nipype errors like "could not configure SPM", this is most likely that the export of SPM_DIR and SPM_MCR (see above) have not been done in this shell. 
 
 Layout of examples
 ==================
