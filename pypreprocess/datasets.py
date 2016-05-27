@@ -102,14 +102,17 @@ def fetch_spm_auditory(data_dir=None, data_name='spm_auditory',
     url = ("http://www.fil.ion.ucl.ac.uk/spm/download/data/MoAEpilot/"
            "MoAEpilot.zip")
     archive_path = os.path.join(subject_dir, os.path.basename(url))
-    _fetch_file(url, subject_dir)
-    try:
-        _uncompress_file(archive_path)
-    except:
-        print("Archive corrupted, trying to download it again.")
-        return fetch_spm_auditory(data_dir=data_dir, data_name="",
-                                  subject_id=subject_id)
-
+    for i in range(2):
+        _fetch_file(url, subject_dir)
+        try:
+            _uncompress_file(archive_path)
+            break
+        except IOError:
+            if i == 0:
+                print "Archive corrupted, trying to download it again."
+                os.remove(archive_path)
+            else:
+                raise IOError("Unable to download archive from %s" % url)
     return _glob_spm_auditory_data()
 
 
@@ -169,13 +172,17 @@ def fetch_fsl_feeds(data_dir=None, data_name="fsl_feeds", verbose=1):
     url = ("http://fsl.fmrib.ox.ac.uk/fsldownloads/oldversions/"
            "fsl-4.1.0-feeds.tar.gz")
     archive_path = os.path.join(data_dir, os.path.basename(url))
-    _fetch_file(url, data_dir)
-    try:
-        _uncompress_file(archive_path)
-    except:
-        print "Archive corrupted, trying to download it again."
-        os.remove(archive_path)
-        return fetch_fsl_feeds(data_dir=data_dir, data_name="")
+    for i in range(2):
+        _fetch_file(url, data_dir)
+        try:
+            _uncompress_file(archive_path)
+            break
+        except:
+            if i == 0:
+                print "Archive corrupted, trying to download it again."
+                os.remove(archive_path)
+            else:
+                raise IOError("Unable to download archive from %s" % url)
     return _glob_fsl_feeds_data(data_dir)
 
 
@@ -268,14 +275,17 @@ def fetch_spm_multimodal_fmri(data_dir=None, data_name="spm_multimodal_fmri",
 
     for url in urls:
         archive_path = os.path.join(subject_dir, os.path.basename(url))
-        _fetch_file(url, subject_dir)
-        try:
-            _uncompress_file(archive_path)
-        except:
-            print("Archive corrupted, trying to download it again.")
-            return fetch_spm_multimodal_fmri_data(data_dir=data_dir,
-                                                  data_name="",
-                                                  subject_id=subject_id)
+        for i in range(2):
+            _fetch_file(url, subject_dir)
+            try:
+                _uncompress_file(archive_path)
+                break
+            except:
+                if i == 0:
+                    print "Archive corrupted, trying to download it again."
+                    os.remove(archive_path)
+                else:
+                    raise IOError("Unable to download archive from %s" % url)
 
     return _glob_spm_multimodal_fmri_data()
 

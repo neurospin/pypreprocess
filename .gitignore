@@ -9,3 +9,7 @@
 *.o
 *.so
 *.a
+
+.idea/
+.idea/workspace.xml
+.coverage
