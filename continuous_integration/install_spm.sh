@@ -34,7 +34,20 @@ chmod 755 $SPM_ROOT_DIR/spm8.sh
 echo "Quiting : "
 # Create CTF
 $SPM_ROOT_DIR/spm8.sh quit
-echo "Exporting SPM_DIR and SPM_MCR : "
-export SPM_DIR=$SPM_ROOT_DIR/spm8/spm8_mcr/spm8
-export SPM_MCR=$SPM_ROOT_DIR/spm8.sh
+echo "Export SPM_DIR and SPM_MCR by running the following commands:"
+echo
+cmds="export SPM_DIR=$SPM_ROOT_DIR/spm8/spm8_mcr/spm8; export SPM_MCR=$SPM_ROOT_DIR/spm8.sh"
+echo ${cmds}
+echo
+echo "N.B.: You may want add the above commands (the exports) to your ~/.bashrc file once and for all."
+${cmds}
+
+
+
+
+
+
+
+
+
 
