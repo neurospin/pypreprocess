@@ -217,7 +217,7 @@ class SubjectData(object):
         # make tmp output dir
         if self.scratch is None:
             self.scratch = self.output_dir
-        if not self.scratch is None:
+        else:
             self.tmp_output_dir = os.path.join(self.scratch, "tmp")
         self.tmp_output_dir = self._sanitize_output_dir(self.tmp_output_dir)
 

@@ -71,36 +71,10 @@ def test_not_unique_func_filenames_exception_thrown():
     except RuntimeError:
         pass
 
-    sd = _make_sd(
-        func_filenames=[["/tmp/titi/func/1.img", "/tmp/titi/func/2.img"],
-                        ["/tmp/titi/func/1.img", "/tmp/titi/func/3.img"]],
-        output_dir="/tmp")
-    try:
-        sd.sanitize()
-        raise RuntimeError("Check failed!")
-    except RuntimeError:
-        pass
-
+    # abspaths of func images should be different with a session
     sd = _make_sd(
         func_filenames=["/tmp/titi/func/1.img",
                         ["/tmp/titi/func/1.img", "/tmp/titi/func/3.img"]],
-        output_dir="/tmp")
-    try:
-        sd.sanitize()
-        raise RuntimeError("Check failed!")
-    except RuntimeError:
-        pass
-
-    sd = _make_sd(
-        func_filenames=[["/tmp/titi/func/1.img", "/tmp/titi/func/2.img"],
-                        ["/tmp/titi/func/3.img", "/tmp/titi/func/4.img"]],
-        output_dir="/tmp")
-    sd.sanitize()
-
-    # abspaths of func images should be different with a session
-    sd = _make_sd(
-        func_filenames=[["/tmp/titi/func/1.img", "/tmp/titi/func/1.img"],
-                        ["/tmp/titi/func/3.img", "/tmp/titi/func/4.img"]],
         output_dir="/tmp")
     try:
         sd.sanitize()
