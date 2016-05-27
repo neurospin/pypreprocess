@@ -123,15 +123,17 @@ def time_slice_diffs(img):
     slice_diff_max = np.zeros(S)
     arr = img.get_data()  # inefficient ??
     last_vol = arr[..., 0]
-    vol_mean[0] = last_vol.mean()
+    vol_mean[0] = np.nanmean(last_vol)
 
     # loop over scans: increment statistics
     for vol_index in range(0, T - 1):
         current_vol = arr[..., vol_index + 1]  # shape vol_shape
-        vol_mean[vol_index + 1] = current_vol.mean()
+        vol_mean[vol_index + 1] = np.nanmean(current_vol)
         squared_diff = (current_vol - last_vol) ** 2
-        diff_mean_vol += squared_diff
-        slice_squared_differences[vol_index] = squared_diff.mean(0).mean(0)
+        mask = np.isfinite(squared_diff)
+        diff_mean_vol[mask] += squared_diff[mask]
+        slice_squared_differences[vol_index] = np.nanmean(
+            np.nanmean(squared_diff, 0), 0)
         # check whether we have found a highest-diff slice
         larger_diff = slice_squared_differences[vol_index] > slice_diff_max
         if any(larger_diff):
@@ -140,8 +142,14 @@ def time_slice_diffs(img):
             slice_diff_max_vol[..., larger_diff] =\
                 squared_diff[..., larger_diff]
         last_vol = current_vol
-    vol_squared_differences = slice_squared_differences.mean(1)
+    vol_squared_differences = np.nanmean(slice_squared_differences, 1)
     diff_mean_vol /= (T - 1)
+
+    # Remove remaining Nans
+    # Nans may legitimally remain in slice_squared_differences
+    slice_squared_differences[np.isnan(slice_squared_differences)] = 0
+    # and also in slice_diff_max_vol
+    slice_diff_max_vol[np.isnan(slice_diff_max_vol)] = 0
 
     # Return the outputs as images
     affine = img.get_affine()
