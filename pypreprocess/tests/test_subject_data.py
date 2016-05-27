@@ -133,7 +133,7 @@ def test_opt_params():
             # this shouldn't crash
             subject_data.sanitize(deleteorient=deleteorient,
                                   niigz2nii=niigz2nii)
-    subject_data.output_dir = "/tmp/toto"
+    subject_data.output_dir = subject_data.scratch = "/tmp/toto"
     subject_data.sanitize()
     assert_true(os.path.isdir(subject_data.output_dir))
     subject_data._delete_orientation()

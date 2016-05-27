@@ -100,7 +100,7 @@ def _parse_job(config_file, **replacements):
 
 
 def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
-                               options_callback=None, **kwargs):
+                               scratch=None, options_callback=None, **kwargs):
     """
     Generate pipeline (i.e subject factor + preproc params) from
     config file.
@@ -126,13 +126,14 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
     # sanitize output_dir and dataset_dir
     dataset_dir = os.environ.get("DATASET_DIR", dataset_dir)
     output_dir = os.environ.get("OUTPUT_DIR", output_dir)
-    for item in ["dataset_dir", "output_dir"]:
+    scratch = os.environ.get("SCRATCH", scratch)
+    for item in ["dataset_dir", "output_dir", "scratch"]:
         val = eval(item)
         if val is None:
-            if not item in options:
+            if item not in options:
                 # get value from environ (if exists)
                 val = os.environ.get(item.upper(), val)
-                if val is None:
+                if val is None and item in ["dataset_dir", "output_dir"]:
                     raise ValueError(
                         ("%s not specified (neither in environ variable, "
                          "nor in config_file nor in this function "
@@ -144,9 +145,12 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
                 elif item == "output_dir":
                     output_dir = val
     options["dataset_dir"] = dataset_dir = (
-        dataset_dir if not dataset_dir is None else options["dataset_dir"])
+        dataset_dir if dataset_dir is not None else options["dataset_dir"])
     options["output_dir"] = output_dir = (
-        output_dir if not output_dir is None else options["output_dir"])
+        output_dir if output_dir is not None else options["output_dir"])
+    options["scratch"] = scratch = (
+        scratch if scratch is not None else options.get("scratch",
+                                                        output_dir))
     assert options["dataset_dir"]
     assert options["output_dir"]
 
@@ -166,6 +170,8 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
             dataset_dir = options.get("dataset_dir", None)
         if output_dir is None:
             output_dir = options.get("output_dir", None)
+        if scratch is None:
+            output_dir = options.get("scratch", None)
 
     # check dataset_dir
     dataset_dir = _expand_path(dataset_dir)
@@ -174,6 +180,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
 
     # check output_dir
     output_dir = _expand_path(options["output_dir"], relative_to=dataset_dir)
+    scratch = _expand_path(options["scratch"], relative_to=dataset_dir)
     if output_dir is None:
         raise OSError(
             ("Could not expand 'output_dir' specified in %s: invalid"
@@ -190,6 +197,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
         "matlab_exec": options.get("matlab_exec", None),
         "report": options.get("report", True),
         "output_dir": output_dir,
+        "scratch": scratch,
         "dataset_id": options.get("dataset_id", dataset_dir),
         "n_jobs": options.get("n_jobs", None),
         "caching": options.get("caching", True),
@@ -323,6 +331,10 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
         if _ignore_subject(subject_id):
             continue
         subject_output_dir = os.path.join(output_dir, subject_id)
+        if scratch is not None:
+            subject_scratch = os.path.join(scratch, subject_id)
+        else:
+            subject_scratch = None
 
         # grab functional data
         func = []
@@ -409,6 +421,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
         subject_data = SubjectData(
             subject_id=subject_id, func=func, anat=anat,
             output_dir=subject_output_dir,
+            scratch=subject_scratch,
             session_output_dirs=sess_output_dirs,
             anat_output_dir=anat_output_dir,
             session_id=sess_ids,
