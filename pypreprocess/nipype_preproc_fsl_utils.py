@@ -7,7 +7,8 @@ import os
 import commands
 import nipype.interfaces.fsl as fsl
 from nipype.caching import Memory as NipypeMemory
-from sklearn.externals.joblib import Memory  as JoblibMemory
+from joblib import Parallel, delayed
+from sklearn.externals.joblib import Memory as JoblibMemory
 
 fsl.FSLCommand.set_default_output_type('NIFTI_GZ')
 FSL_T1_TEMPLATE = "/usr/share/fsl/data/standard/MNI152_T1_1mm_brain.nii.gz"
@@ -180,3 +181,174 @@ def do_subject_preproc(subject_id,
         output['func'] = applyxfm_results.outputs.out_file
 
     return output
+
+
+def _do_img_topup_correction(ap_realig_img, pa_realig_img, func_imgs,
+                             total_readout_times=(1., 1.), memory=None,
+                             tmp_dir=None):
+    """
+    Compute and apply topup as implemented in FSL.
+
+    It is crucial to provide the total_readout_times of the ap_img and pa_img
+    correctly in case they are different. Otherwise a value of 1 can be taken
+    as default.
+
+    More detailed documentation can be found in the example provided in the FSL
+    webpage. http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/TOPUP/ExampleTopupFollowedByApplytopup.
+
+    Parameters
+    ----------
+    ap_realig_img: string
+        path to img using negative phase-encode blips. Anterior --> Posterior
+        the image should be already realigned
+
+    pa_realig_img: string
+        path to img using positive phase-encode blips. Posterior --> Anterior
+        the image should be already realigned
+
+    func_imgs: list of string
+        functional imgs path, that will be corrected with topup
+
+    total_readout_times: tuple of floats, optional (default None)
+        the first float corresponds to the total_readout_times of the ap img
+        and the second float to the pa img. Its crucial to provide these if
+        they are different. The times should be provided in seconds.
+
+    memory: Nipype `Memory` object, optional (default None)
+        if given, then caching will be enabled
+
+    tmp_dir: string, optional (default None)
+        temporary directory to store acquisition parameters configuration file
+        for topup. Must be provided in case memory is provided.
+    """
+    if total_readout_times is None:
+        total_readout_times = (1., 1.)  # Check FSL documentation explanation
+
+    if memory is not None:
+        if tmp_dir is None:
+            raise('Temporary directory was not provided with memory object')
+        # Merge AP and PA images
+        merge = memory.cache(fsl.Merge)
+        appa_merged = merge(in_files=[ap_realig_img, pa_realig_img],
+                            dimension='t')
+
+        # Compute topup transformation
+        acq_param_file = os.path.join(tmp_dir, 'acq_param.txt')
+        if not os.path.isfile(acq_param_file):
+            with open(acq_param_file, 'w') as acq:
+                content = '0 -1 0 {0:6.5f} \n0 1 0 {0:6.5f}'
+                acq.write(content % total_readout_times)
+
+        topup = memory.cache(fsl.TOPUP)
+        correction = topup(in_file=appa_merged.outputs.merged_file,
+                           encoding_file=acq_param_file,
+                           output_type='NIFTI', out_base='APPA_DefMap',
+                           out_field='sanitycheck_DefMap',
+                           out_corrected='sanitycheck_unwarped_B0')
+
+        # Apply topup correction to images
+        fieldcoef = correction.outputs.out_fieldcoef
+        movpar = correction.outputs.out_movpar
+        applytopup = memory.cache(fsl.ApplyTOPUP)
+        return [applytopup(in_files=img, encoding_file=acq_param_file,
+                           in_index=[2], in_topup_fieldcoef=fieldcoef,
+                           in_topup_movpar=movpar, output_type='NIFTI',
+                           method='jac') for img in func_imgs]
+
+    else:
+        # Merge AP and PA images
+        appa_merged = fsl.Merge(in_files=[ap_realig_img, pa_realig_img],
+                                dimension='t').run()
+
+        # Compute topup transformation
+        acq_param_file = os.path.join('/tmp', 'pypreprocess_topup',
+                                      'acq_param.txt')
+        if not os.path.isfile(acq_param_file):
+            with open(acq_param_file, 'w') as acq:
+                content = '0 -1 0 {0:6.5f} \n0 1 0 {0:6.5f}'
+                acq.write(content % total_readout_times)
+
+        correction = fsl.TOPUP(in_file=appa_merged.outputs.merged_file,
+                               encoding_file=acq_param_file,
+                               output_type='NIFTI',
+                               out_base='APPA_DefMap',
+                               out_field='sanitycheck_DefMap',
+                               out_corrected='sanitycheck_unwarped_B0').run()
+
+        # Apply topup correction to images
+        fieldcoef = correction.outputs.out_fieldcoef
+        movpar = correction.outputs.out_movpar
+        return [fsl.ApplyTOPUP(in_files=img, encoding_file=acq_param_file,
+                               in_index=[2], in_topup_fieldcoef=fieldcoef,
+                               in_topup_movpar=movpar, output_type='NIFTI',
+                               method='jac').run() for img in func_imgs]
+
+
+def _do_subject_topup_correction(subject_data, caching=True,
+                                 hardlink_output=True):
+    """
+    Apply topup correction to subject functional images as implemented in FSL.
+
+    subject_data.topup is expected for any correction to take place. It must
+    contain a dictionary with imgs in subject_data.func as key and a
+    tuple of the form (string, string, (float, float)) corresponding to
+    (ap_img, pa_img, total_readout_times) as value. Its crucial that the ap
+    and pa imgs have already been realigned.
+
+    Parameters
+    ----------
+    subject_data: `SubjectData` object
+        subject data whose functional images are to be corrected with topup
+        (subject_data.func and subject_data.topup)
+
+    caching: bool, optional (default True)
+        if true, then caching will be enabled
+
+    **kwargs:
+       additional parameters to the back-end (SPM, FSL, python)
+
+    Returns
+    -------
+    subject_data: `SubjectData` object
+        preprocessed subject_data. The func and anatomical fields
+        (subject_data.func and subject_data.anat) now contain the
+        oregistered and anatomical images functional images of the subject
+    """
+    corrected_func = []
+    subject_data.nipype_results['topup_correction'] = []
+
+    imgs_to_topup = [img for img in subject_data.func if img in
+                     subject_data.topup]
+    for img_idx, img in enumerate(imgs_to_topup):
+        ap_realig_img = subject_data.topup[img][0]
+        pa_realig_img = subject_data.topup[img][1]
+        total_readout_times = subject_data.topup[img][2]
+
+        if caching:
+            cache_dir = cache_dir = os.path.join(subject_data.output_dir,
+                                                 'cache_dir')
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
+            subject_data.mem = NipypeMemory(base_dir=cache_dir)
+            memory = subject_data.mem
+            tmp_dir = os.path.join(subject_data.tmp_output_dir,
+                                   '_%d' % img_idx)
+            top = _do_img_topup_correction(ap_realig_img, pa_realig_img, [img],
+                                           total_readout_times, memory,
+                                           tmp_dir)
+        else:
+            top = _do_img_topup_correction(ap_realig_img, pa_realig_img, [img],
+                                           total_readout_times)
+        if top is None:
+            subject_data.failed = True
+            return subject_data
+        else:
+            subject_data.nipype_results['topup_correction'].append(top)
+            corrected_func.append(top.outputs.out_corrected)
+
+    # commit output files
+    if hardlink_output:
+        subject_data.hardlink_output_files()
+    subject_data.func = corrected_func
+
+    return subject_data.sanitize()
