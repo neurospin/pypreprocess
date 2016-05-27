@@ -66,7 +66,20 @@ First install the above dependencies by **copy-pasting** the following commands 
 Finally, install pypreprocess itself by running:
 
        python setup.py install --user
-       
+
+After Installation: Few steps to configure SPM on your own device
+=================================================================
+There are two cases:
+
+* If you have matlab and spm installed, then specify the location of your
+  SPM installation directory like so
+
+        export SPM_DIR=/path/to/spm/installation/dir
+
+* If you have installed a pre-compiled version of SPM then, specify the
+  location of the SPM executable like so
+
+        export SPM_MCR=/path/to/spm_mcr_script (script implies spm8.sh)
 
 
 Getting started: pypreprocess 101
