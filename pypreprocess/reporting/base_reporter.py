@@ -250,6 +250,7 @@ class ResultsGallery(object):
                  title='Results', description=None):
         self.loader_filename = loader_filename
         self.refresh_timeout = refresh_timeout
+        self._page_id = os.path.basename(loader_filename).split('.')[0]
         self.title = title
         self.description = description
 
@@ -280,7 +281,13 @@ class ResultsGallery(object):
         self.raw = get_gallery_html_markup().substitute(thumbnails=thumbnails)
 
         fd = open(self.loader_filename, 'a')
-        fd.write(self.raw)
+        # This is a small hack to allow file inclusion in Chrome
+        fd.write("var %s = '\\\n" % self._page_id)
+        html_code = self.raw
+        html_code = html_code.replace("'", "\\'")
+        html_code = html_code.replace("\n", "\\\n")
+        fd.write(html_code)
+        fd.write("';")
         fd.close()
 
 

@@ -54,8 +54,7 @@
     <br clear="all"/>   
     <hr/>
 
-    <script type="text/javascript">
-      $('#design').load("{{design_thumbs}}").fadeIn("slow");
+    <script type="text/javascript" src='design.html'>
     </script>
     <b>Experimental design</b><br/><br/>
     {{if not design_params is None}}
@@ -66,8 +65,7 @@
     <br clear="all"/>
     <hr/>
     
-    <script type="text/javascript">
-      $('#activation').load("{{activation_thumbs}}").fadeIn("slow");
+    <script type="text/javascript" src='activation.html'>
     </script>
     <b>Thresholded activation maps{{if not threshold is None}} (threshold = {{threshold}}){{endif}}</b><br/><br/>
     Below are thresholded activation z-maps{{if not cmap is None}} (<b>cmap = "{{cmap}}"</b>){{endif}} for the different contrasts of interest. Click on a thumbnail for more details.<br/>
@@ -107,8 +105,8 @@
       });
 
       $(document).ready(function(){
-      $('#design').load("{{design_thumbs}}").fadeIn("slow");
-      $('#activation').load("{{activation_thumbs}}").fadeIn("slow");    
+      $('#design').html(design).fadeIn("slow");
+      $('#activation').html(activation).fadeIn("slow");    
       });
     </script>
 
