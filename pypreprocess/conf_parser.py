@@ -282,7 +282,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
         if subject_id in exclude_these_subject_ids:
             return True
         elif len(include_only_these_subject_ids
-                 ) and not subject_id in include_only_these_subject_ids:
+                 ) and subject_id not in include_only_these_subject_ids:
             return True
         else:
             return False
@@ -294,12 +294,20 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
         subject_data_dirs = [x for x in sorted(glob.glob(subject_dir_wildcard))
                              if os.path.isdir(x)]
     else:
+        # list of subjects or subject wildcards
         subject_data_dirs = [os.path.join(dataset_dir, x)
                              for x in subject_data_dirs]
-    sess_func_wildcards = [k for k in options.keys()
-                           if re.match("session_.+_func", k)]
-    sess_onset_wildcards = [k for k in options.keys()
-                            if re.match("session_.+_onset", k)]
+        subject_dir_wildcard = subject_data_dirs
+        aux = []
+        for subject_data_dir in subject_data_dirs:
+            for x in sorted(glob.glob(subject_data_dir)):
+                if os.path.isdir(x):
+                    aux.append(x)
+        subject_data_dirs = aux
+    sess_func_wildcards = [key for key in options.keys()
+                           if re.match("session_.+_func", key)]
+    sess_onset_wildcards = [key for key in options.keys()
+                            if re.match("session_.+_onset", key)]
     sess_ids = [re.match("session_(.+)_func", session).group(1)
                 for session in sess_func_wildcards]
     if not subject_data_dirs:
