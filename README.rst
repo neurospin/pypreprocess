@@ -51,33 +51,44 @@ Installation
 To begin with, you may also want to install the pre-compiled version of SPM (in case you don't have matlab, etc.). Just run the following
 
      bash continuous_integration/install_spm.sh
-   
-First install the above dependencies by **copy-pasting** the following commands in a terminal:
+
+First, install neurodebian-travis
 
       bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
-      
-      sudo apt-get install python-scipy python-nose python-nibabel python-sklearn
-      
-      sudo apt-get install python-nipype python-pandas python-pip
-      
-      pip install nilearn --user
-      
-   
-Finally, install pypreprocess itself by running:
+
+Second, install the python packages pip, scipy, nose, nibabel, sklearn, nipype, pandas.  If you have a python virtual environment, just run:
+
+      pip install scipy nose nibabel sklearn nipype pandas
+
+If not, make sure to install pip (run: 'sudo apt-get install python-pip'). If you want to install these locally, use the --user option:
+        
+      pip install scipy nose nibabel sklearn nipype pandas --user
+
+If you want to install these for all users, use sudo:
+
+      sudo pip install scipy nose nibabel sklearn nipype pandas
+
+Finally, install pypreprocess itself by running the following in the pypreprocess:
 
        python setup.py install --user
 
+or simply 'python setup.py install' in a virtual environment.
+
+       
+
 After Installation: Few steps to configure SPM on your own device
 =================================================================
-There are two cases:
+There are three cases:
+
+* If you have used the pypreprocess/continuous_integration/setup_spm.sh or install_spm script, you have nothing to do. 
 
 * If you have matlab and spm installed, then specify the location of your
-  SPM installation directory like so
+  SPM installation directory and export this location as SPM_DIR: 
 
         export SPM_DIR=/path/to/spm/installation/dir
 
 * If you have installed a pre-compiled version of SPM then, specify the
-  location of the SPM executable like so
+  location of the SPM executable and export as SPM_MCR: 
 
         export SPM_MCR=/path/to/spm_mcr_script (script implies spm8.sh)
 
