@@ -1519,12 +1519,17 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     # load .ini ?
     preproc_details = None
     if isinstance(subject_factory, basestring):
-        with open(subject_factory, "r") as fd:
-            preproc_details = fd.read()
-            fd.close()
+        try:
+            with open(subject_factory, "r") as fd:
+                preproc_details = fd.read()
+                fd.close()
+        except IOError:
+            raise IOError('Could not load %s, please make sure to run your '
+                          'script within the same folder'
+                          ' as the .ini file' % subject_factory)
         subject_factory, _preproc_params = _generate_preproc_pipeline(
-            subject_factory, dataset_dir=preproc_params.get(
-                "dataset_dir", None))
+        subject_factory, dataset_dir=preproc_params.get(
+            "dataset_dir", None))
         _preproc_params.update(preproc_params)
         preproc_params = _preproc_params
 
