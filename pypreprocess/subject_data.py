@@ -98,6 +98,12 @@ class SubjectData(object):
     anat: string
         path to anatomical image
 
+    topup: dict, optional (default None)
+        dictionary with imgs provided in func as keys and tuples of the form
+        (string, string, (float, float)) as values. Corresponding to
+        (ap_img, pa_img, total_readout_times). total_readout_times can be None,
+        but ap_img and pa_img are mandatory.
+
     subject_id: string, optional (default 'sub001')
         subject id
 
@@ -122,13 +128,14 @@ class SubjectData(object):
 
     """
 
-    def __init__(self, func=None, anat=None, subject_id="sub001",
+    def __init__(self, func=None, anat=None, topup=None, subject_id="sub001",
                  session_ids=None, output_dir=None, session_output_dirs=None,
                  anat_output_dir=None, scratch=None, warpable=None, **kwargs):
         if warpable is None:
             warpable = ['anat', 'func']
         self.func = func
         self.anat = anat
+        self.topup = topup
         self.subject_id = subject_id
         self.session_ids = session_ids
         self.n_sessions = None
