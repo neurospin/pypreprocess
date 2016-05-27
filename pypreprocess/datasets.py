@@ -276,7 +276,7 @@ def fetch_spm_multimodal_fmri(data_dir=None, data_name="spm_multimodal_fmri",
     for url in urls:
         archive_path = os.path.join(subject_dir, os.path.basename(url))
         for i in range(2):
-            _fetch_file(url, data_dir)
+            _fetch_file(url, subject_dir)
             try:
                 _uncompress_file(archive_path)
                 break
