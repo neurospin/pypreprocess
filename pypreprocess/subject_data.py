@@ -14,6 +14,7 @@ import numpy as np
 from matplotlib.pyplot import cm
 from sklearn.externals.joblib import Memory
 from .io_utils import (niigz2nii as do_niigz2nii, dcm2nii as do_dcm2nii,
+                       nii2niigz as do_nii2niigz,
                        isdicom, delete_orientation, hard_link, get_shape,
                        is_4D, is_3D, get_basenames, is_niimg)
 from .reporting.base_reporter import (
@@ -141,6 +142,10 @@ class SubjectData(object):
         self.nipype_results = {}
         self._set_items(**kwargs)
         self.scratch = output_dir if scratch is None else scratch
+        self.anat_scratch_dir = anat_output_dir if scratch is None else scratch
+        self.session_scratch_dirs = \
+            session_output_dirs if scratch is None \
+            else [scratch]*len(session_output_dirs)
 
     def _set_items(self, **kwargs):
         for k, v in kwargs.items():
@@ -203,6 +208,26 @@ class SubjectData(object):
             self.session_output_dirs[sess] = self._sanitize_output_dir(
                 sess_output_dir)
 
+    def _sanitize_session_scratch_dirs(self):
+        """func scratch dirs (one per session)"""
+        if self.session_scratch_dirs is None:
+            if self.n_sessions is None:
+                return
+            self.session_scratch_dirs = [None] * self.n_sessions
+
+        # session-wise func scratch directories
+        for sess, sess_scratch_dir in enumerate(self.session_scratch_dirs):
+            if sess_scratch_dir is None:
+                if self.n_sessions > 1:
+                    sess_scratch_dir = os.path.join(
+                        self.scratch, self.session_ids[sess])
+                else:
+                    sess_scratch_dir = self.scratch
+            else:
+                sess_scratch_dir = self.scratch
+            self.session_scratch_dirs[sess] = self._sanitize_output_dir(
+                sess_scratch_dir)
+
     def _sanitize_output_dirs(self):
         # output dir
         self.output_dir = self._sanitize_output_dir(self.output_dir)
@@ -215,6 +240,19 @@ class SubjectData(object):
         # sanitize per-session func output dirs
         self._sanitize_session_output_dirs()
 
+    def _sanitize_scratch_dirs(self):
+        # scratch dir
+        self.scratch = self._sanitize_output_dir(self.scratch)
+
+        # anat scratch dir
+        if self.anat_scratch_dir is None:
+            self.anat_scratch_dir = self.scratch
+        self.anat_scratch_dir =\
+            self._sanitize_output_dir(self.anat_scratch_dir)
+
+        # sanitize per-session func scratch dirs
+        self._sanitize_session_scratch_dirs()
+
     def _niigz2nii(self):
         """
         Convert .nii.gz to .nii (crucial for SPM).
@@ -225,14 +263,16 @@ class SubjectData(object):
         cache_dir = os.path.join(self.scratch, 'cache_dir')
         mem = Memory(cache_dir, verbose=100)
         self._sanitize_session_output_dirs()
+        self._sanitize_session_scratch_dirs()
         if None not in [self.func, self.n_sessions,
-                        self.session_output_dirs]:
+                        self.session_scratch_dirs]:
             self.func = [mem.cache(do_niigz2nii)(
-                self.func[sess], output_dir=self.session_output_dirs[sess])
-                         for sess in range(self.n_sessions)]
+                self.func[sess], output_dir=self.session_scratch_dirs[sess])
+                for sess in range(self.n_sessions)]
         if self.anat is not None:
             self.anat = mem.cache(do_niigz2nii)(
-                self.anat, output_dir=self.anat_output_dir)
+                self.anat, output_dir=self.anat_scratch_dir)
+
 
     def _dcm2nii(self):
         """
@@ -441,14 +481,16 @@ class SubjectData(object):
         self._set_session_ids()
 
         # anat stuff
-        for item in ["anat", 'gm', 'wm', 'csf', 'wgm', 'wwm', 'wcsf',
+        for item in ['anat', 'gm', 'wm', 'csf', 'wgm', 'wwm', 'wcsf',
                      'mwgm', 'mwwm', 'mwcsf']:
             if hasattr(self, item):
                 filename = getattr(self, item)
                 if filename is not None:
-                    linked_filename = hard_link(filename, self.anat_output_dir)
-                if final:
-                    setattr(self, item, linked_filename)
+                    filename = do_nii2niigz(filename, self.anat_scratch_dir)
+                    linked_filename = hard_link(filename,
+                                                self.anat_output_dir)
+            if final:
+                setattr(self, item, linked_filename)
 
         # func stuff
         self.save_realignment_parameters()
@@ -462,6 +504,9 @@ class SubjectData(object):
                 for sess in range(self.n_sessions):
                     filename = filenames[sess]
                     if filename is not None:
+                        # gzip before hard link
+                        if item == 'func':
+                            filename = do_nii2niigz(filename)
                         linked_filename = hard_link(
                             filename, self.session_output_dirs[sess])
                         tmp.append(linked_filename)
