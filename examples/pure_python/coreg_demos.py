@@ -9,7 +9,8 @@ SPM single-subject auditory, NYU rest, ABIDE, etc.
 import os
 import glob
 import matplotlib.pyplot as plt
-from pypreprocess.datasets import fetch_spm_auditory, fetch_nyu_rest
+from pypreprocess.datasets import fetch_spm_auditory
+from nilearn.datasets import fetch_nyu_rest
 from pypreprocess.reporting.check_preprocessing import plot_registration
 from pypreprocess.coreg import Coregister
 from sklearn.externals.joblib import Memory
