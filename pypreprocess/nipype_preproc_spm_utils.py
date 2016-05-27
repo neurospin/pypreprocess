@@ -179,7 +179,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
 
    # run pipeline
     if caching:
-        cache_dir = cache_dir = os.path.join(subject_data.output_dir,
+        cache_dir = cache_dir = os.path.join(subject_data.scratch,
                                              'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
@@ -304,7 +304,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     # create node
     if caching:
-        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        cache_dir = os.path.join(subject_data.scratch, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         subject_data.mem = NipypeMemory(base_dir=cache_dir)
@@ -444,7 +444,7 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
     # jobtype
     jobtype = "estwrite" if reslice else "estimate"
 
-    cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+    cache_dir = os.path.join(subject_data.scratch, 'cache_dir')
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
     joblib_mem = JoblibMemory(cache_dir)
@@ -482,7 +482,7 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
             ref_func = joblib_mem.cache(load_vols)(
                 subject_data.func if isinstance(subject_data.func, basestring)
                 else subject_data.func[0])[0]
-            coreg_source = os.path.join(subject_data.tmp_output_dir,
+            coreg_source = os.path.join(subject_data.scratch,
                                         "_coreg_first_func_vol.nii")
 
             joblib_mem.cache(nibabel.save)(ref_func, coreg_source)
@@ -609,7 +609,7 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
 
     # prepare for smart caching
     if caching:
-        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        cache_dir = os.path.join(subject_data.scratch, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         segment = NipypeMemory(base_dir=cache_dir).cache(spm.Segment)
@@ -731,7 +731,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
 
     # prepare for smart caching
     if caching:
-        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        cache_dir = os.path.join(subject_data.scratch, 'cache_dir')
         if not os.path.exists(cache_dir): os.makedirs(cache_dir)
         normalize = NipypeMemory(base_dir=cache_dir).cache(spm.Normalize)
     else: normalize = spm.Normalize().run
@@ -742,7 +742,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
     if not segmented:
         # learn T1 deformation without segmentation
         t1_template = niigz2nii(SPM_T1_TEMPLATE,
-                                output_dir=subject_data.output_dir)
+                                output_dir=subject_data.scratch)
         normalize_result = normalize(
             source=subject_data.anat, template=t1_template,
             write_preserve=False)
@@ -906,7 +906,7 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
 
     # prepare for smart caching
     if caching:
-        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        cache_dir = os.path.join(subject_data.scratch, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         smooth = NipypeMemory(base_dir=cache_dir).cache(spm.Smooth)
@@ -1003,7 +1003,7 @@ def _do_subject_dartelnorm2mni(subject_data,
 
     # prepare for smart caching
     if caching:
-        cache_dir = os.path.join(subject_data.output_dir, 'cache_dir')
+        cache_dir = os.path.join(subject_data.scratch, 'cache_dir')
         if not os.path.exists(cache_dir): os.makedirs(cache_dir)
         subject_data.mem = NipypeMemory(base_dir=cache_dir)
         dartelnorm2mni = subject_data.mem.cache(spm.DARTELNorm2MNI)
@@ -1541,6 +1541,9 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     output_dir = preproc_params.get('output_dir', "pypreprocess_output")
     if "output_dir" in preproc_params:
         preproc_params.pop("output_dir")
+    scratch = output_dir
+    if "scratch" in preproc_params:
+        scratch = preproc_params.pop("scratch")
     report = preproc_params.get("report", True)
     dataset_id = preproc_params.get('dataset_id', None)
     dataset_description = preproc_params.get('dataset_description', None)
@@ -1555,8 +1558,8 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
 
     # generate subjects (if generator)
     subjects = [subject_data for subject_data in subject_factory]
-    if not session_ids is None:
-        if not len(set(session_ids)) == len(session_ids):
+    if session_ids is not None:
+        if len(set(session_ids)) != len(session_ids):
             raise ValueError(
                 "session_ids must be a list of unique strings. Got %s" % (
                     session_ids))
@@ -1627,9 +1630,12 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
                                 "the script"
                                 " <i>%s</i> with the following arguments:"
                                 ) % (preproc_func_name, user_script_name)
-            args_dict = dict((arg, values[arg]) for arg in args if not arg in [
-                "dataset_description", "report_filename", "report",
-                "tsdiffana", "shutdown_reloaders", "subjects"])
+            args_dict = dict((arg, values[arg])
+                             for arg in args if arg not in [
+                                     "dataset_description",
+                                     "report_filename", "report",
+                                     "tsdiffana", "shutdown_reloaders",
+                                     "subjects"])
             args_dict['output_dir'] = output_dir
             preproc_details += dict_to_html_ul(args_dict)
         details_filename = os.path.join(output_dir, "preproc_details.html")
@@ -1709,7 +1715,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     preproc_params.update(backup_params)
     if newsegment:
         subjects = _do_subjects_newsegment(
-            subjects, output_dir, n_jobs=n_jobs, do_dartel=dartel,
+            subjects, scratch, n_jobs=n_jobs, do_dartel=dartel,
             **preproc_params)
 
     # apply standard normalization after newsegment ?

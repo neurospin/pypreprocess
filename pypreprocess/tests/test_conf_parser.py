@@ -151,3 +151,18 @@ def test_list_of_subj_wildcards():
                  session_1_func="session1/func_3D.nii")
     subjects, _ = _generate_preproc_pipeline(config_file)
     assert_equal(len(subjects), 4)
+
+
+def test_user_specified_scratch():
+    dataset_dir = "/tmp/dataset"
+    output_dir = "/tmp/output"
+    scratch = "/tmp/scratch"
+    config_file = os.path.join(dataset_dir, "conf.ini")
+    _make_config(config_file, dataset_dir=dataset_dir, output_dir=output_dir,
+                 scratch=scratch, session_1_func="session1/func_3D.nii")
+    _make_sd(func_filenames=[os.path.join(dataset_dir,
+                                          "sub001/session1/func_3D.nii")],
+             output_dir=os.path.join(output_dir, "sub001"),
+             func_ndim=3)
+    subjects, _ = _generate_preproc_pipeline(config_file)
+    assert_equal(subjects[0].scratch, "/tmp/scratch/sub001")

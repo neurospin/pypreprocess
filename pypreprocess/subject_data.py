@@ -135,13 +135,12 @@ class SubjectData(object):
         self.output_dir = output_dir
         self.anat_output_dir = anat_output_dir
         self.session_output_dirs = session_output_dirs
-        self.scratch = scratch
-        self.tmp_output_dir = None
         self.warpable = warpable
         self.failed = False
         self.warpable = warpable
         self.nipype_results = {}
         self._set_items(**kwargs)
+        self.scratch = output_dir if scratch is None else scratch
 
     def _set_items(self, **kwargs):
         for k, v in kwargs.items():
@@ -155,7 +154,9 @@ class SubjectData(object):
         """
 
         # prepare for smart caching
-        cache_dir = os.path.join(self.output_dir, 'cache_dir')
+        if self.scratch is None:
+            self.scratch = self.output_dir
+        cache_dir = os.path.join(self.scratch, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         mem = Memory(cachedir=cache_dir, verbose=5)
@@ -171,12 +172,12 @@ class SubjectData(object):
                          for sess in range(self.n_sessions)]
 
         # deleteorient for anat
-        if not self.anat is None:
+        if self.anat is not None:
             self.anat = mem.cache(delete_orientation)(
                 self.anat, self.anat_output_dir)
 
     def _sanitize_output_dir(self, output_dir):
-        if not output_dir is None:
+        if output_dir is not None:
             output_dir = os.path.abspath(output_dir)
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
@@ -214,26 +215,22 @@ class SubjectData(object):
         # sanitize per-session func output dirs
         self._sanitize_session_output_dirs()
 
-        # make tmp output dir
-        if self.scratch is None:
-            self.scratch = self.output_dir
-        if not self.scratch is None:
-            self.tmp_output_dir = os.path.join(self.scratch, "tmp")
-        self.tmp_output_dir = self._sanitize_output_dir(self.tmp_output_dir)
-
     def _niigz2nii(self):
         """
         Convert .nii.gz to .nii (crucial for SPM).
 
         """
+        if self.scratch is None:
+            self.scratch = self.output_dir
         cache_dir = os.path.join(self.scratch, 'cache_dir')
         mem = Memory(cache_dir, verbose=100)
         self._sanitize_session_output_dirs()
-        if not None in [self.func, self.n_sessions, self.session_output_dirs]:
+        if None not in [self.func, self.n_sessions,
+                        self.session_output_dirs]:
             self.func = [mem.cache(do_niigz2nii)(
                 self.func[sess], output_dir=self.session_output_dirs[sess])
                          for sess in range(self.n_sessions)]
-        if not self.anat is None:
+        if self.anat is not None:
             self.anat = mem.cache(do_niigz2nii)(
                 self.anat, output_dir=self.anat_output_dir)
 
@@ -420,7 +417,7 @@ class SubjectData(object):
                     sess_basename = sess_basename[0]
 
                 rp_filename = os.path.join(
-                    self.tmp_output_dir,
+                    self.scratch,
                     "rp_" + sess_basename + ".txt")
                 np.savetxt(rp_filename, sess_rps[..., :lkp])
                 rp_filenames.append(rp_filename)
