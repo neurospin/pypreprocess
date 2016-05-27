@@ -8,6 +8,7 @@ from numpy.testing import assert_array_almost_equal
 from ..time_diff import (time_slice_diffs, multi_session_time_slice_diffs,
                          plot_tsdiffs)
 from ._test_utils import _make_sd
+from nose.tools import assert_true, assert_false
 
 
 def make_test_data(n_scans=3):
@@ -117,6 +118,26 @@ def test_plot_tsdiffs_no_crash():
     results = multi_session_time_slice_diffs(films)
     for use_same_figure in [True, False]:
         plot_tsdiffs(results, use_same_figure=use_same_figure)
+
+
+def test_ts_diff_ana_nan():
+    """ Check that Nans are well handled by tsdiffana """
+    # create basic L pattern
+    n_scans = 20
+    shape = (4, 5, 6, n_scans)
+    film = np.random.randn(*shape)
+    film[0] = np.nan
+    film[film < - 2.] = np.nan
+    affine = np.eye(4)
+    film = nibabel.Nifti1Image(film, affine)
+
+    report = time_slice_diffs(film)
+
+    assert_false(np.isnan(report['volume_means']).any())
+    assert_false(np.isnan(report['volume_mean_diff2']).any())
+    assert_false(np.isnan(report['slice_mean_diff2']).any())
+    assert_false(np.isnan(report['diff2_mean_vol'].get_data()).any())
+    assert_false(np.isnan(report['slice_diff2_max_vol'].get_data()).any())
 
 
 def test_issue_144():
