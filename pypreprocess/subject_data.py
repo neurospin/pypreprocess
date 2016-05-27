@@ -154,6 +154,8 @@ class SubjectData(object):
         """
 
         # prepare for smart caching
+        if self.scratch is None:
+            self.scratch = self.output_dir
         cache_dir = os.path.join(self.scratch, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
@@ -218,6 +220,8 @@ class SubjectData(object):
         Convert .nii.gz to .nii (crucial for SPM).
 
         """
+        if self.scratch is None:
+            self.scratch = self.output_dir
         cache_dir = os.path.join(self.scratch, 'cache_dir')
         mem = Memory(cache_dir, verbose=100)
         self._sanitize_session_output_dirs()
