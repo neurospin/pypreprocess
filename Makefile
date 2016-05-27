@@ -7,7 +7,7 @@ CYTHON ?= cython
 NOSETESTS ?= nosetests
 CTAGS ?= ctags
 
-all: clean test doc-noplot
+all: clean test
 
 clean-pyc:
 	find . -name "*.pyc" | xargs rm -f
@@ -31,16 +31,12 @@ inplace:
 test-code:
 	$(NOSETESTS) -s pypreprocess
 
-test-doc:
-	$(NOSETESTS) -s --with-doctest --doctest-tests --doctest-extension=rst \
-	--doctest-extension=inc --doctest-fixtures=_fixture doc/ \
-
 test-coverage:
 	rm -rf coverage .coverage
 	$(NOSETESTS) -s --with-coverage --cover-html --cover-html-dir=coverage \
 	--cover-package=pypreprocess pypreprocess
 
-test: test-code test-doc
+test: test-code
 
 trailing-spaces:
 	find . -name "*.py" | xargs perl -pi -e 's/[ \t]*$$//'
@@ -52,19 +48,3 @@ ctags:
 	# make tags for symbol based navigation in emacs and vim
 	# Install with: sudo apt-get install exuberant-ctags
 	$(CTAGS) -R *
-
-.PHONY : doc
-doc:
-	make -C doc html
-
-.PHONY : doc-noplot
-doc-noplot:
-	make -C doc html-noplot
-
-.PHONY : pdf
-pdf:
-	make -C doc pdf
-
-install: 
-	cd doc && make install
- 

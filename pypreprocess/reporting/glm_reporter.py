@@ -290,7 +290,7 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
 
         design_params=design_params,
         methods=methods,
-        threshold=threshold) 
+        threshold=threshold)
 
     with open(stats_report_filename, 'w') as fd:
         fd.write(str(level1_html_markup))
