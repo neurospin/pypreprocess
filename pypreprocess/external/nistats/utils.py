@@ -39,7 +39,7 @@ def multiple_fast_inv(a):
 
     Notes
     -----
-    This function is borrowed from scipy.linalg.inv, 
+    This function is borrowed from scipy.linalg.inv,
     but with some customizations for speed-up.
     """
     if a.shape[1] != a.shape[2]:
@@ -78,7 +78,7 @@ def multiple_fast_inv(a):
 
 def multiple_mahalanobis(effect, covariance):
     """Returns the squared Mahalanobis distance for a given set of samples
-    
+
     Parameters
     ----------
     effect: array of shape (n_features, n_samples),
@@ -91,7 +91,7 @@ def multiple_mahalanobis(effect, covariance):
     -------
     sqd: array of shape (n_samples,)
          the squared distances (one per sample)
-    """ 
+    """
     # check size
     if effect.ndim == 1:
         effect = effect[:, np.newaxis]
