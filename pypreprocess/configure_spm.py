@@ -19,7 +19,8 @@ DEFAULT_SPM_DIRS = ['/i2bm/local/spm8',
 DEFAULT_MATLAB_EXECS = ["/neurospin/local/bin/matlab"]
 DEFAULT_SPM_MCRS = ["/i2bm/local/bin/spm8",
                     "/storage/workspace/usr/local/spm8",
-                    os.path.join(os.environ['HOME'], "spm8")]
+                    os.path.join(os.environ['HOME'], "opt", "spm8", "spm8.sh")
+                    ]
 
 
 def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):
