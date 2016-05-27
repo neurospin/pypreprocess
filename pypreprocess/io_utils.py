@@ -329,21 +329,11 @@ def delete_orientation(imgs, output_dir, output_tag=''):
     for img in imgs:
         output_img = os.path.join(output_dir,
                                   output_tag + os.path.basename(img))
-        nibabel.save(nibabel.load(img), output_img)
-        commands_output = commands.getoutput(
-            "fslorient -deleteorient %s" % output_img)
-        if "fslorient: not found" in commands_output:
-            raise RuntimeError(
-                ("Error: Can't run fslorient command."
-                 " Please source FSL by executing (copy-and-paste)"
-                 "\r\n\r\n\t\tsource "
-                 "/etc/fsl/4.1/fsl.sh\r\n\r\n"
-                 "in your terminal before rerunning this script (%s)"
-                 ) % sys.argv[0])
-        print commands_output
-
-        print "+++++++Done (deleteorient)."
-        print "Deleted orientation meta-data %s." % output_img
+        new_img = nibabel.load(img)
+        new_img.set_sform(np.zeros((4, 4)))
+        new_img.set_qform(np.eye(4))
+        new_img.header['dim_info'] = 0
+        nibabel.save(new_img, output_img)
         output_imgs.append(output_img)
 
     if not_list:

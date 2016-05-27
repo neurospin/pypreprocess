@@ -5,6 +5,10 @@ import numpy as np
 from nose.tools import assert_equal, assert_true, assert_false
 import nibabel
 from nilearn.image.image import check_niimg_4d
+from numpy.testing import assert_array_equal
+
+from pypreprocess.io_utils import delete_orientation
+
 from ..io_utils import (
     do_3Dto4D_merge, load_vols, save_vols, save_vol, hard_link,
     get_basename, get_basenames, is_niimg, is_4D, is_3D, get_vox_dims,
@@ -438,3 +442,23 @@ def test_load_vols_from_singleton_list_of_4D_img():
                 vols = "/tmp/test.nii.gz"
             vols = load_vols([vols])
             assert_equal(len(vols), n_scans)
+
+
+def test_delete_orientation():
+    i1 = np.eye(4)
+    i1[:-1, -1] = 5.
+    vol1 = nibabel.Nifti1Image(np.zeros((3, 3, 3)), i1)
+    nibabel.save(vol1, '/tmp/vol1.nii.gz')
+    vol1 = '/tmp/vol1.nii.gz'
+    delete_orientation(vol1, '/tmp', output_tag='del_')
+    vol1 = nibabel.load('/tmp/vol1.nii.gz')
+    vol2 = nibabel.load('/tmp/del_vol1.nii.gz')
+    data_vol1 = vol1.get_data()
+    data_vol2 = vol2.get_data()
+    assert_array_equal(data_vol1, data_vol2)
+    header = vol2.header
+    for key in ['dim_info', 'quatern_b', 'quatern_c', 'quatern_d',
+                'qoffset_x', 'qoffset_y', 'qoffset_z',
+                'srow_x', 'srow_x', 'srow_z']:
+        print(header[key])
+        assert_array_equal(header[key], 0)
