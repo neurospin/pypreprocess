@@ -6,186 +6,159 @@ Automatic configuration of MATLAB/SPM back-end
 import os
 import re
 import glob
-import warnings
 import distutils
-import nipype.interfaces.matlab as matlab
+import logging
+
+from nipype.interfaces import matlab
 from nipype.interfaces import spm
 import nipype
 
+
+LOG_FILE = os.path.abspath('./configure_spm.log')
+
+_logger = logging.getLogger(__name__)
+_logger.propagate = False
+_logger.setLevel(logging.DEBUG)
+console_logger = logging.StreamHandler()
+console_logger.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s:%(levelname)s: %(message)s')
+console_logger.setFormatter(formatter)
+_logger.addHandler(console_logger)
+
+try:
+    with open(LOG_FILE, 'w') as log_f:
+        pass
+    file_handler = logging.FileHandler(LOG_FILE)
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+    _logger.addHandler(file_handler)
+
+except IOEroor as e:
+    _logger.warn('could not open log file for writing: {}'.format(LOG_FILE))
+
 # default paths
-DEFAULT_SPM_DIRS = ['/i2bm/local/spm8',
-                    os.path.join(os.environ['HOME'],
-                                 "spm8-standalone/spm8_mcr")]
+DEFAULT_SPM_DIRS = [os.path.join(os.environ.get('HOME', '/'), 'opt/spm8/'),
+                    '/i2bm/local/spm8',
+                    os.path.join(os.environ.get('HOME', '/'),
+                    "spm8-standalone/spm8_mcr")]
+
 DEFAULT_MATLAB_EXECS = ["/neurospin/local/bin/matlab"]
-DEFAULT_SPM_MCRS = ["/i2bm/local/bin/spm8",
-                    "/storage/workspace/usr/local/spm8",
-                    os.path.join(os.environ['HOME'], "opt", "spm8", "spm8.sh")
-                    ]
 
+DEFAULT_SPM_MCRS = [
+    os.path.join(os.environ.get('HOME', '/'), 'opt/spm8/spm8.sh'),
+    "/i2bm/local/bin/spm8",
+    "/storage/workspace/usr/local/spm8",
+    os.path.join(os.environ.get('HOME', '/'), "spm8")]
 
-def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):
-    """Configure SPM backend.
-
-    The idea is to try to used precompiled SPM, and then only upon
-    failure do we use the matlab-based version.
-
-    Parameters
-    ----------
-    spm_dir : string, optional (default None)
-        Directory containing SPM installation.
-
-    matlab_exec : string, optional (default None)
-        Path to matlab executable.
-
-    spm_mcr : string, optional (default None)
-        Path to precompiled SPM executable.
-
-    Returns
-    -------
-    spm_dir_ : string, Nonetype
-        If all went well, then this returned variable is the path to
-        the directory containing SPM stuff (TPMs, templates, etc.),
-        otherwise it is None.
-    """
-    # sanitize input spm_dir
-    if not spm_dir is None:
-        if spm_dir is None or not os.path.isdir(spm_dir):
-            warnings.warn("Specified spm_dir '%s' is not a directory!" % (
-                spm_dir))
-            spm_dir = None
-
-    # try using default SPM directories
-    if spm_dir is None:
-        for spm_dir in DEFAULT_SPM_DIRS:
-            if os.path.isdir(spm_dir):
-                break
-        else:
-            spm_dir = None
-
-    if spm_dir is None:
-        # set spm_dir to SPM_DIR exported variable
-        if "SPM_DIR" in os.environ:
-            if not os.path.isdir(os.environ["SPM_DIR"]):
-                warnings.warn("Exported SPM_DIR '%s' is not a directory!" % (
-                    os.environ["SPM_DIR"]))
-            else:
-                spm_dir = os.environ["SPM_DIR"]
-                # sanitize matlab_exec input
-                if not matlab_exec is None:
-                    if matlab_exec is None or not os.path.isdir(matlab_exec):
-                        warnings.warn(
-                            "Specified matlab_exec '%s' is not a file!" % (
-                                matlab_exec))
-                        matlab_exec = None
-
-    # sanitize input matlab_exec
-    if not matlab_exec is None:
-        if matlab_exec is None or not os.path.isfile(matlab_exec):
-            warnings.warn("Specified matlab_exec '%s' is not a file!" % (
-                matlab_exec))
-            matlab_exec = None
-
-    # there is a problem with SPM / MATLAB; try to use precompiled SPM
-    # instead
+def _check_nipype_version():
     if distutils.version.LooseVersion(
             nipype.__version__).version < [0, 9]:
-        warnings.warn(("Nipype version %s too old. No support for "
-                       "precompiled SPM!") % nipype.__version__)
-        return
+        return False
+    return True
 
-    if not spm_mcr is None and not os.path.exists(spm_mcr):
-        warnings.warn(
-            "Specified spm_mcr '%s' doesn't exist!" % (
-                spm_mcr))
-        spm_mcr = None
+def _find_or_warn(loc, check, msg=None, warner=_logger.warn):
+    if loc is None:
+        return False
+    if check(loc):
+        return True
+    if msg is not None:
+        warner(msg)
+    return False
 
-    # try using default MCR paths
-    if spm_mcr is None:
-        # set spm_mcr to SPM_MCR exported variable
-        if "SPM_MCR" in os.environ:
-            if not os.path.isfile(os.environ["SPM_MCR"]):
-                warnings.warn(
-                    "Exported SPM_MCR '%s' is not a file!" % (
-                        os.environ["SPM_MCR"]))
-            else:
-                spm_mcr = os.environ["SPM_MCR"]
+def _find_dep_loc(specified_loc=None, exported_name=None, default_locs=None,
+                  check=os.path.exists, msg_prefix=''):
 
-        if spm_mcr is None:
-            for spm_mcr in DEFAULT_SPM_MCRS:
-                if os.path.isfile(spm_mcr):
-                    break
-            else:
-                spm_mcr = None
+    if _find_or_warn(specified_loc, check, ''.join(
+            [msg_prefix, ' specified location: "{}"'.format(specified_loc)])):
+        return specified_loc
 
-        # configure SPM MCR backend proper
-        if spm_mcr is not None:
-            cmd = ("spm.SPMCommand.set_mlab_paths("
-                   "matlab_cmd='%s run script', use_mcr=True)" % (
-                       spm_mcr))
-            warnings.warn("Setting SPM MCR backend with cmd: %s" % cmd)
-            print "Executing '%s'" % cmd
-            eval(cmd)
+    exported_loc = os.environ.get(exported_name)
+    if _find_or_warn(exported_loc, check, ''.join(
+            [msg_prefix, ' exported location: "{}"'.format(exported_loc)])):
+        return exported_loc
 
-            # infer directory containing SPM templates, tpms, etc.
-            fd = open(spm_mcr, 'r')
-            code = fd.read()
-            fd.close()
-            m = re.search("SPM.+?_STANDALONE_HOME=(.+)", code)
-            if m:
-                spm_dir = m.group(1)
-            else:
-                spm_dir = os.path.dirname(spm_mcr)
-            for item in ["$HOME", "${HOME}"]:
-                spm_dir = spm_dir.replace(item, os.environ["HOME"])
-            tpm_path = glob.glob(os.path.join(spm_dir,
-                                              "*_mcr/spm*/tpm"))[0]
-            spm_dir = os.path.dirname(tpm_path)
-        else:
-            warnings.warn('Failed to configure SPM!')
-            return
-    else:
-        warnings.warn(
-            "Nipype version %s too old. No support for precompiled SPM!")
+    for def_loc in default_locs:
+        if _find_or_warn(def_loc, check, ''.join(
+                [msg_prefix, ' default location: "{}"'.format(def_loc)]),
+                         warner=_logger.debug):
+            return def_loc
 
-    # If failed to set spm_dir, try using matlab-based SPM
-    if spm_dir is None:
-        # set matlab_exec to MATLAB_EXEC exported variable
-        if matlab_exec is None:
-            if "MATLAB_EXEC" in os.environ:
-                if not os.path.isdir(os.environ["MATLAB_EXEC"]):
-                    warnings.warn(
-                        "Exported MATLAB_EXEC'%s' is not a file!" % (
-                            os.environ["MATLAB_EXEC"]))
-                else:
-                    matlab_exec = os.environ["MATLAB_EXEC"]
+    return None
 
-        # try using default MATLAB paths
-        if matlab_exec is None:
-            for matlab_exec in DEFAULT_MATLAB_EXECS:
-                if os.path.isfile(matlab_exec):
-                    break
-            else:
-                matlab_exec = None
+def _is_executable(file_name):
+    return os.access(file_name, os.X_OK)
 
-        # configure spm and matlab
-        cmd = "matlab.MatlabCommand.set_default_matlab_cmd('%s')" % matlab_exec
-        warnings.warn("Setting matlab backend with cmd: %s" % cmd)
-        print "Executing '%s'" % cmd
-        eval(cmd)
-        cmd = "matlab.MatlabCommand.set_default_paths('%s')" % spm_dir
-        warnings.warn("Setting SPM backend with cmd: %s" % cmd)
-        eval(cmd)
+def _find_spm_mcr(spm_mcr):
+    spm_mcr = _find_dep_loc(
+        spm_mcr, 'SPM_MCR', DEFAULT_SPM_MCRS,
+        check=_is_executable,
+        msg_prefix='SPM MCR is not executable or could not be found in')
+    if spm_mcr is not None:
+        if _check_nipype_version():
+            _logger.info('setting SPM MCR backend: '
+                         'set matlab executable path to "{}" '
+                         'and "use_mcr" to True'.format(spm_mcr))
+            spm.SPMCommand.set_mlab_paths(
+                matlab_cmd='{} run script'.format(spm_mcr),
+                use_mcr=True)
+            return spm_mcr
+        _logger.warn(
+            'nipype version {} too old.'
+            ' No support for precompiled SPM'.format(nipype.__version__))
+        return None
 
-    return spm_dir
+def _find_matlab_exec_and_spm_dir(spm_dir, matlab_exec):
+    matlab_exec = _find_dep_loc(
+        matlab_exec,
+        'MATLAB_EXEC', DEFAULT_MATLAB_EXECS,
+        check=_is_executable,
+        msg_prefix='matlab executable file could not be found in')
+    if matlab_exec is not None:
+        spm_dir = _find_dep_loc(
+            spm_dir, 'SPM_DIR', DEFAULT_SPM_DIRS,
+            check=os.path.isdir,
+            msg_prefix='SPM directory could not be found in')
+        if spm_dir is not None:
+            _logger.info('setting default matlab command to be "{}"'.format(
+                matlab_exec))
+            matlab.MatlabCommand.set_default_matlab_cmd(matlab_exec)
+            _logger.info('setting matlab default paths to "{}"'.format(spm_dir))
+            matlab.MatlabCommand.set_default_paths(spm_dir)
+            return spm_dir
+    return None
+
+def _configure_spm(spm_dir=None, matlab_exec=None, spm_mcr=None):
+    """
+    -look for an SPM MCR precompiled binary.
+        if found, return its parent directory.
+    -if not found, look for a Matlab executable and an SPM directory.
+        if found, return the SPM directory
+    if neither is found, return None.
+
+    when looking for a directory or a file,
+    we examine the corresponding passed argument first,
+    then the corresponding environment variable,
+    then in some default locations.
+    """
+    spm_mcr = _find_spm_mcr(spm_mcr)
+    if spm_mcr is not None:
+        spm_dir =  os.path.abspath(os.path.dirname(spm_mcr))
+        return spm_dir
+
+    spm_dir = _find_matlab_exec_and_spm_dir(spm_dir, matlab_exec)
+    if spm_dir is not None:
+        return spm_dir
+
+    _logger.error('could not find SPM_MCR precompiled executable'
+                  ' nor a pair (Matlab executable and SPM directory)')
+    return
 
 def _get_version_spm(spm_dir):
     """ Return current SPM version
     """
-
-    # get spm version : spm8 or spm12
     _, spm_version = os.path.split(spm_dir)
     if not spm_version:
-        warnings.warn('Failed to configure SPM!')
+        _loggers.warn('Could not figure out SPM version!'
+                     ' (spm dir: "{}")'.format(spm_dir))
         return
-
     return spm_version
