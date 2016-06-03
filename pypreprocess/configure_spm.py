@@ -45,24 +45,36 @@ def prepare_logging():
 _logger = prepare_logging()
 
 # default paths
-DEFAULT_SPM_MCRS = [
-    os.path.join(os.environ.get('HOME', '/'), 'opt/spm8/spm8.sh'),
-    os.path.join(os.environ.get('HOME', '/'), 'opt/spm8/spm12.sh'),
-    "/i2bm/local/bin/spm8",
-    "/i2bm/local/bin/spm12",
-    "/storage/workspace/usr/local/spm8",
-    "/storage/workspace/usr/local/spm12",
-    os.path.join(os.environ.get('HOME', '/'), "spm8"),
-    os.path.join(os.environ.get('HOME', '/'), "spm12")]
+def get_defaults(template, version_nb):
+    return [loc.format(VERSION_NB=version_nb) for loc in template]
 
-DEFAULT_SPM_DIRS = [os.path.join(os.environ.get('HOME', '/'), 'opt/spm8/'),
-                    os.path.join(os.environ.get('HOME', '/'), 'opt/spm12/'),
-                    '/i2bm/local/spm8',
-                    '/i2bm/local/spm12',
-                    os.path.join(os.environ.get('HOME', '/'),
-                                 "spm8-standalone/spm8_mcr"),
-                    os.path.join(os.environ.get('HOME', '/'),
-                                 "spm8-standalone/spm12_mcr")]
+DEFAULT_SPM_MCRS_TEMPLATE = [
+    os.path.join(os.environ.get('HOME', '/'),
+                 'opt/spm{VERSION_NB}/spm{VERSION_NB}.sh'),
+    "/i2bm/local/bin/spm{VERSION_NB}",
+    "/storage/workspace/usr/local/spm{VERSION_NB}",
+    os.path.join(os.environ.get('HOME', '/'), "spm{VERSION_NB}")]
+
+SPM_VERSIONS = [12, 8]
+
+DEFAULT_SPM_MCRS = list(itertools.chain(
+    *[get_defaults(DEFAULT_SPM_MCRS_TEMPLATE, version_nb) for
+      version_nb in SPM_VERSIONS]))
+
+DEFAULT_SPM_DIRS_TEMPLATE = [
+    os.path.join(os.environ.get('HOME', '/'), 'opt/spm{VERSION_NB}/'),
+    '/i2bm/local/spm{VERSION_NB}',
+    os.path.join(os.environ.get('HOME', '/'),
+                 "spm{VERSION_NB}-standalone/spm{VERSION_NB}_mcr")]
+
+DEFAULT_SPM_DIRS_ALL_VERSIONS = list(itertools.chain(
+    *[get_defaults(DEFAULT_SPM_DIRS_TEMPLATE, version_nb) for
+      version_nb in SPM_VERSIONS]))
+
+def get_spm_dir_defaults(version_nb=None):
+    if version_nb is None:
+        return DEFAULT_SPM_DIRS_ALL_VERSIONS
+    return get_defaults(DEFAULT_SPM_DIRS_TEMPLATE, version_nb)
 
 DEFAULT_MATLAB_EXECS = ["/neurospin/local/bin/matlab"]
 
@@ -93,6 +105,8 @@ def _find_or_warn(loc, check, msg=None, warner=_logger.warn, recursive=False):
         warner(msg)
     return None
 
+# TODO: turn exported_name into an iterable so we can have several env
+# variables, e.g. SPM_MCR and SPM8_MCR
 def _find_dep_loc(specified_loc=None, exported_name=None, default_locs=None,
                   check=os.path.exists, msg_prefix='', recursive=False):
     # look for a path that verifies check, first in an explicitely
@@ -124,35 +138,13 @@ def _find_dep_loc(specified_loc=None, exported_name=None, default_locs=None,
 def _is_executable(file_name):
     return os.access(file_name, os.X_OK)
 
-def _find_spm_mcr(spm_mcr):
-    # return a path to spm_mcr executable if an executable is found,
-    # and the nipype version is recent enough. If found set the command to
-    # launch matlab. if not found return None.
-    spm_mcr = _find_dep_loc(
-        spm_mcr, 'SPM_MCR', DEFAULT_SPM_MCRS,
-        check=_is_executable,
-        msg_prefix='SPM MCR is not executable or could not be found in')
-    if spm_mcr is None:
-        return None
-
-    if _check_nipype_version():
-        _logger.info('found SPM MCR in "{}"'.format(spm_mcr))
-        # if we found the executable, add its parent directory
-        # to default locations in which to look for SPM home.
-        DEFAULT_SPM_DIRS.insert(0, os.path.dirname(spm_mcr))
-        return spm_mcr
-    _logger.warn(
-        'nipype version {} too old.'
-        ' No support for precompiled SPM'.format(nipype.__version__))
-    return None
-
 def _guess_spm_version(spm_path, prefix_msg=''):
     # try to guess the spm version from numbers seen in the path
     numbers = re.findall(r'[Ss][Pp][Mm]\D?(\d*)', spm_path)
     if not numbers:
         _logger.warning(
             '{} could not figure out SPM version number!'.format(prefix_msg))
-        return 
+        return
     numbers_set = set((int(number) for number in numbers))
     if len(numbers_set) == 1:
         return numbers_set.pop()
@@ -179,33 +171,96 @@ def _is_spm_dir(dir_path, mcr_version=None):
             mcr_version, dir_version, dir_path))
     return False
 
-def _find_spm_dir(spm_dir, mcr_version=None):
-    return _find_dep_loc(
-        spm_dir, 'SPM_DIR', DEFAULT_SPM_DIRS,
-        check=partial(_is_spm_dir, mcr_version=mcr_version),
-        msg_prefix='SPM directory could not be found in',
-        recursive=True)
+
+class IsValidMCR(object):
+
+    def __init__(self, passed_spm_dir):
+        self.passed_spm_dir_ = passed_spm_dir
+        self.found_spm_dir_ = None
+        self.spm_version_ = None
+        
+    def __call__(self, spm_mcr):
+        if not _is_executable(spm_mcr):
+            return False
+        _logger.debug('found SPM MCR in "{}"'.format(spm_mcr))
+        mcr_version = _guess_spm_version(
+            spm_mcr, 'looking for spm mcr version:')
+        spm_dir_candidates = get_spm_dir_defaults(mcr_version)
+        # we found the executable; add its parent directory
+        # to default locations in which to look for SPM home.
+        spm_dir_candidates.insert(0, os.path.dirname(spm_mcr))
+        spm_dir = _find_dep_loc(
+            self.passed_spm_dir_, 'SPM_DIR', spm_dir_candidates,
+            check=partial(_is_spm_dir, mcr_version=mcr_version),
+            msg_prefix='SPM directory could not be found in',
+            recursive=True)
+        if spm_dir is None:
+            _logger.debug(
+                'could not find matching SPM dir for mcr: "{}"'.format(spm_mcr))
+            return False
+        self.found_spm_dir_ = spm_dir
+        self.spm_version_ = mcr_version
+        _logger.info('found SPM directory to be "{}"'.format(spm_dir))
+        return True
+
 
 def _find_spm_mcr_and_spm_dir(spm_mcr, spm_dir):
-    # if using spm precompiled binary we need both this executable
-    # and the home spm directory.
-    spm_mcr = _find_spm_mcr(spm_mcr)
+    # TODO: update this comment.
+    # return a path to spm_mcr executable if an executable is found,
+    # and the nipype version is recent enough. If found set the command to
+    # launch matlab. if not found return None.
+    if not _check_nipype_version():
+        _logger.warn(
+            'nipype version {} too old.'
+            ' No support for precompiled SPM'.format(nipype.__version__))
+        return None
+    
+    check_mcr = IsValidMCR(spm_dir)
+    spm_mcr = _find_dep_loc(
+        spm_mcr, 'SPM_MCR', DEFAULT_SPM_MCRS,
+        check=check_mcr,
+        msg_prefix='SPM MCR has no matching dir or could not be found in')
     if spm_mcr is None:
         return None
 
-    spm_mcr_version = _guess_spm_version(
-        spm_mcr, 'looking for spm mcr version:')
-    spm_dir = _find_spm_dir(spm_dir, mcr_version=spm_mcr_version)
-    if spm_dir is None:
-        return None
-    if spm_mcr_version is not None:
-        _logger.info('using spm version: {}'.format(spm_mcr_version))
-    _logger.info('found SPM directory to be "{}"'.format(spm_dir))
+    spm_dir = check_mcr.found_spm_dir_
+    spm_version = check_mcr.spm_version_
+    
+    if spm_version is not None:
+        _logger.info('using spm version: {}'.format(spm_version))
     _logger.info('setting SPM MCR path to "{}" '
                  'and "use_mcr" to True'.format(spm_mcr))
     spm.SPMCommand.set_mlab_paths(
         matlab_cmd='{} run script'.format(spm_mcr), use_mcr=True)
     return spm_dir
+
+# def _find_spm_dir(spm_dir, mcr_version=None):
+#     return _find_dep_loc(
+#         spm_dir, 'SPM_DIR', DEFAULT_SPM_DIRS,
+#         check=partial(_is_spm_dir, mcr_version=mcr_version),
+#         msg_prefix='SPM directory could not be found in',
+#         recursive=True)
+
+# def _find_spm_mcr_and_spm_dir(spm_mcr, spm_dir):
+#     # if using spm precompiled binary we need both this executable
+#     # and the home spm directory.
+#     spm_mcr = _find_spm_mcr(spm_mcr)
+#     if spm_mcr is None:
+#         return None
+
+#     spm_mcr_version = _guess_spm_version(
+#         spm_mcr, 'looking for spm mcr version:')
+#     spm_dir = _find_spm_dir(spm_dir, mcr_version=spm_mcr_version)
+#     if spm_dir is None:
+#         return None
+#     if spm_mcr_version is not None:
+#         _logger.info('using spm version: {}'.format(spm_mcr_version))
+#     _logger.info('found SPM directory to be "{}"'.format(spm_dir))
+#     _logger.info('setting SPM MCR path to "{}" '
+#                  'and "use_mcr" to True'.format(spm_mcr))
+#     spm.SPMCommand.set_mlab_paths(
+#         matlab_cmd='{} run script'.format(spm_mcr), use_mcr=True)
+#     return spm_dir
 
 
 def _find_matlab_exec_and_spm_dir(spm_dir, matlab_exec):
