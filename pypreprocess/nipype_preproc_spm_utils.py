@@ -54,8 +54,9 @@ def _configure_backends(spm_dir=None, matlab_exec=None, spm_mcr=None,
     global GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE
     global TISSUES
 
-    spm_dir = _configure_spm(spm_dir=spm_dir, matlab_exec=matlab_exec,
-                             spm_mcr=spm_mcr)
+    spm_dir = _configure_spm(config_spm_dir=spm_dir,
+                             config_matlab_exec=matlab_exec,
+                             config_spm_mcr=spm_mcr)
     if spm_dir:
         if os.path.isdir(spm_dir):
             SPM_DIR = spm_dir
