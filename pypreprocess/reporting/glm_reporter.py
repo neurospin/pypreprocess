@@ -261,12 +261,12 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
 
         # reshape glm_kwargs['paradigm']
         if "paradigm" in glm_kwargs:
-            paradigm = glm_kwargs['paradigm'].to_dict('list')
-            paradigm['n_conditions'] = len(set(paradigm['name']))
-            paradigm['n_events'] = len(paradigm['name'])
-            paradigm['type'] = 'event'
-            if 'duration' in paradigm.keys() and paradigm['duration'][0] > 0:
-                paradigm['type'] = 'block'
+            paradigm = glm_kwargs['paradigm']
+            #paradigm['n_conditions'] = len(set(paradigm['name']))
+            #paradigm['n_events'] = len(paradigm['name'])
+            #paradigm['type'] = 'event'
+            #if 'duration' in paradigm.keys() and paradigm['duration'][0] > 0:
+            #    paradigm['type'] = 'block'
             glm_kwargs['paradigm'] = paradigm
 
         design_params += base_reporter.dict_to_html_ul(glm_kwargs)
