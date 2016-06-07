@@ -48,6 +48,7 @@ _logger = prepare_logging()
 # TODO: read this from config?
 _ACCEPT_SPM_MCR_WITH_UNKNOWN_VERSION = False
 
+# TODO: read this from config?
 _ACCEPT_SPM_MCR_WITH_AMBIGUOUS_VERSION = True
 
 _SPM_DEFAULTS = {}
@@ -473,7 +474,7 @@ def _configure_spm_using_mcr(spm_mcr, spm_dir, spm_version):
                  'and "use_mcr" to True'.format(spm_mcr))
     spm.SPMCommand.set_mlab_paths(
         matlab_cmd='{} run script'.format(spm_mcr), use_mcr=True)
-    _logger.info('SPM configuration succeeded.')
+    _logger.info('SPM configuration succeeded using SPM MCR.')
 
 def _find_matlab_exec_and_spm_dir(
         cli_matlab_exec, config_matlab_exec,
@@ -551,7 +552,7 @@ def _configure_spm_using_matlab(matlab_exec, spm_dir, spm_version):
     matlab.MatlabCommand.set_default_matlab_cmd(matlab_exec)
     _logger.info('setting matlab default paths to "{}"'.format(spm_dir))
     matlab.MatlabCommand.set_default_paths(spm_dir)
-    _logger.info('SPM configuration succeeded.')
+    _logger.info('SPM configuration succeeded using Matlab.')
 
 def _configure_spm(cli_spm_dir=None, config_spm_dir=None,
                    cli_matlab_exec=None, config_matlab_exec=None,
@@ -615,24 +616,18 @@ def _configure_spm(cli_spm_dir=None, config_spm_dir=None,
                                cli_matlab_exec, config_matlab_exec,
                                cli_spm_dir, config_spm_dir,
                                defaults)
-    if not prefer_matlab:
-        found = find_with_mcr()
-        if found is not None:
-            spm_mcr, spm_dir, spm_version = found
-            _configure_spm_using_mcr(*found)
-            return spm_dir
 
-    found = find_with_matlab()
-    if found is not None:
-        matlab_exec, spm_dir, spm_version = found
-        _configure_spm_using_matlab(*found)
-        return spm_dir
-
+    first, second = ({'find': find_with_mcr,
+                      'configure': _configure_spm_using_mcr},
+                     {'find': find_with_matlab,
+                      'configure': _configure_spm_using_matlab})
     if prefer_matlab:
-        found = find_with_mcr()
+        first, second = second, first
+    for choice in (first, second):
+        found = choice['find']()
         if found is not None:
-            spm_mcr, spm_dir, spm_version = found
-            _configure_spm_using_mcr(*found)
+            executable, spm_dir, spm_version = found
+            choice['configure'](*found)
             return spm_dir
 
     _logger.error(
@@ -650,3 +645,4 @@ def _get_version_spm(spm_dir):
                         ' (spm dir: "{}")'.format(spm_dir))
         return
     return spm_version
+
