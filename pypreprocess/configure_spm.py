@@ -287,7 +287,7 @@ def _guess_spm_version(spm_path, prefix_msg=''):
         _logger.warning('{}: _ACCEPT_SPM_MCR_WITH_AMBIGUOUS_VERSION is '
                         'cleared: rejecting "{}"'.format(prefix_msg, spm_path))
         return None
-    
+
     _logger.warning(
         '{} spm version number is ambiguous from spm path: "{}"; '
         'choosing number which appears last in the path: {}'.format(
@@ -298,7 +298,7 @@ def _is_spm_dir(dir_path, mcr_version=None):
     """check if dir_path seems to be an SPM home directory."""
     # a heuristic to know we have found the home for SPM is that
     # it contains a directory named tpm.
-    if not (os.path.isdir(dir_path) and 'tpm' in os.listdir(dir_path)):
+    if not os.path.isdir(os.path.join(dir_path, 'tpm')):
         return False
     if mcr_version is None:
         return True
@@ -645,4 +645,3 @@ def _get_version_spm(spm_dir):
                         ' (spm dir: "{}")'.format(spm_dir))
         return
     return spm_version
-

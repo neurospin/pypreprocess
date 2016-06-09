@@ -101,34 +101,34 @@ def _get_spm_body(version_nb):
 
 _get_spm_body._spm_body_template_dict = {
     "spm%(VERSION_NB)d": {
+        "files": ["spm%(VERSION_NB)d.sh"],
         "dirs": {
+            "mcr": {
+                "dirs": {"_jvm": {}},
+                "files": []
+            },
             "spm%(VERSION_NB)d": {
+                "files": ["run_spm%(VERSION_NB)d.sh"],
                 "dirs": {
                     "spm%(VERSION_NB)d_mcr": {
+                        "files": [],
                         "dirs": {
                             "home": {},
                             "toolbox": {},
                             "spm%(VERSION_NB)d": {
+                                "files": ["spm_ROI.m"],
                                 "dirs": {
                                     "tpm": {},
                                     "templates": {},
                                     "toolbox": {},
                                     "src": {}
-                                },
-                                "files": ["spm_ROI.m"]
+                                }
                             }
-                        },
-                        "files": []
+                        }
                     }
-                },
-                "files": ["run_spm%(VERSION_NB)d.sh"]
-            },
-            "mcr": {
-                "dirs": {"_jvm": {}},
-                "files": []
+                }
             }
-        },
-        "files": ["spm%(VERSION_NB)d.sh"]
+        }
     }
 }
 
@@ -276,7 +276,7 @@ def _execute_spm_config_test(defaults, explicitly_set, spm_root):
     spm_dir = _configure_spm(defaults=defaults, prefer_matlab=True,
                              **explicitly_set)
     assert(os.path.samefile(
-        spm_dir, os.path.join(spm_root, 'spm12/spm12/spm12_mcr/spm12/')))    
+        spm_dir, os.path.join(spm_root, 'spm12/spm12/spm12_mcr/spm12/')))
 
     _logger.info('SPM config test succeeded')
 
