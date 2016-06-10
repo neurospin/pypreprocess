@@ -9,7 +9,7 @@ import multiprocessing
 import nibabel as nb
 import numpy as np
 
-from pypreprocess.external.nistats.glm import FMRILinearModel
+from pypreprocess.external.nistats.glm import FirstLevelGLM
 
 
 # pypreprocess imports
@@ -225,12 +225,8 @@ def execute_glm(doc, out_dir, contrast_definitions=None,
     params = load_glm_params(doc)
 
     # instantiate GLM
-    fmri_glm = FMRILinearModel(params['data'],
-                               params['design_matrices'],
-                               mask=doc['mask'])
-
-    # fit GLM
-    fmri_glm.fit(do_scaling=True, model=glm_model)
+    fmri_glm = FirstLevelGLM(noise_model=glm_model, mask=doc['mask']).fit(
+        params['data'], params['design_matrices'])
 
     # save beta-maps to disk
     beta_map_dir = os.path.join(subject_output_dir, 'beta_maps')
@@ -260,9 +256,9 @@ def execute_glm(doc, out_dir, contrast_definitions=None,
         contrast = [c[contrast_id] for c in params['contrasts']]
         contrast_name = contrast_id.replace(' ', '_')
 
-        z_map, t_map, c_map, var_map = fmri_glm.contrast(
+        z_map, t_map, c_map, var_map = fmri_glm.transform(
             contrast,
-            con_id=contrast_id,
+            con_name=contrast_id,
             output_z=True,
             output_stat=True,
             output_effects=True,
