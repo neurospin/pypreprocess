@@ -370,7 +370,7 @@ def make_design_matrix(
     names += dnames
 
     # step 4: Force the design matrix to be full rank at working precision
-    matrix, _ = full_rank(matrix)
+    matrix = full_rank(matrix)
 
     design_matrix = pd.DataFrame(
         matrix, columns=names, index=frame_times)

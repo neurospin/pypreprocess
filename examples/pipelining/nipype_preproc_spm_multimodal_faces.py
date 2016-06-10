@@ -15,7 +15,7 @@ import scipy.io
 # imports for GLM buusiness
 from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
                                                          check_design_matrix)
-from pypreprocess.external.nistats.glm import FMRILinearModel
+from pypreprocess.external.nistats.glm import FirstLevelGLM
 import pandas as pd
 
 # pypreprocess imports
@@ -54,7 +54,7 @@ subject_data = do_subject_preproc(subject_data, realign=True, coregister=True,
 stats_start_time = time.ctime()
 tr = 2.
 drift_model = 'Cosine'
-hrf_model = 'Canonical With Derivative'
+hrf_model = 'spm + derivative'
 hfcut = 128.
 
 # make design matrices
@@ -101,7 +101,7 @@ contrasts['effects_of_interest'] = contrasts['faces'] + contrasts['scrambled']
 
 # fit GLM
 print 'Fitting a GLM (this takes time)...'
-fmri_glm = FMRILinearModel(
+fmri_glm = FirstLevelGLM(
     [nibabel.concat_images(x) for x in subject_data.func],
     [check_design_matrix(design_matrix)[1]
      for design_matrix in design_matrices], mask='compute')
