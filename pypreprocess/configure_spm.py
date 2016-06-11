@@ -43,6 +43,7 @@ def prepare_logging():
 
     return _logger
 
+
 _logger = prepare_logging()
 
 # TODO: read this from config?
@@ -81,10 +82,12 @@ _SPM_DEFAULTS['spm_dir_env_template'] = ['SPM{VERSION_NB}_DIR', 'SPM_DIR']
 
 _SPM_DEFAULTS['matlab_exec_env'] = ['MATLAB_EXEC']
 
+
 def _unique(seq):
     existing = set()
     ex_add = existing.add
     return [i for i in seq if not(i in existing or ex_add(i))]
+
 
 def _get_defaults(template_name, templates_dict, version_nb=None):
     """get paths from a dict of path templates and a version number
@@ -127,15 +130,18 @@ def _get_defaults(template_name, templates_dict, version_nb=None):
                  template in templates_dict[template_name]]
     return _unique(all_paths)
 
+
 def _get_exported(template_name, templates_dict, version_nb=None):
     env_vars = _get_defaults(template_name, templates_dict, version_nb)
     return [os.environ.get(var) for var in env_vars]
+
 
 def _check_nipype_version():
     if distutils.version.LooseVersion(
             nipype.__version__).version < [0, 9]:
         return False
     return True
+
 
 def _find_or_warn(loc, check, msg=None,
                   warner=_logger.warning, recursive=False):
@@ -184,6 +190,7 @@ def _find_or_warn(loc, check, msg=None,
         warner(msg)
     return None
 
+
 def _find_or_warn_in_seq(loc_seq, check, msg=None,
                          warner=_logger.warning, recursive=False):
     """call _find_or_warn for each element of a sequence"""
@@ -195,6 +202,7 @@ def _find_or_warn_in_seq(loc_seq, check, msg=None,
             return found
 
     return None
+
 
 def _find_dep_loc(cli_loc=None, config_loc=None,
                   exported_locs=None, default_locs=None,
@@ -266,8 +274,10 @@ def _find_dep_loc(cli_loc=None, config_loc=None,
 
     return None
 
+
 def _is_executable(file_name):
     return (os.path.isfile(file_name) and os.access(file_name, os.X_OK))
+
 
 def _guess_spm_version(spm_path, prefix_msg=''):
     """try to guess the spm version from numbers seen in the given path."""
@@ -293,6 +303,7 @@ def _guess_spm_version(spm_path, prefix_msg=''):
         'choosing number which appears last in the path: {}'.format(
             prefix_msg, spm_path, best_guess))
     return best_guess
+
 
 def _is_spm_dir(dir_path, mcr_version=None):
     """check if dir_path seems to be an SPM home directory."""
@@ -466,6 +477,7 @@ def _find_spm_mcr_and_spm_dir(cli_spm_mcr, config_spm_mcr,
 
     return spm_mcr, spm_dir, spm_version
 
+
 def _configure_spm_using_mcr(spm_mcr, spm_dir, spm_version):
     """configure SPM backend given paths to SPM MCR, home dir and version."""
     if spm_version is not None:
@@ -475,6 +487,7 @@ def _configure_spm_using_mcr(spm_mcr, spm_dir, spm_version):
     spm.SPMCommand.set_mlab_paths(
         matlab_cmd='{} run script'.format(spm_mcr), use_mcr=True)
     _logger.info('SPM configuration succeeded using SPM MCR.')
+
 
 def _find_matlab_exec_and_spm_dir(
         cli_matlab_exec, config_matlab_exec,
@@ -543,6 +556,7 @@ def _find_matlab_exec_and_spm_dir(
     _logger.warning('failed to find SPM directory')
     return None
 
+
 def _configure_spm_using_matlab(matlab_exec, spm_dir, spm_version):
     """config SPM backend given paths to Matlab and SPM home dir and version."""
     if spm_version is not None:
@@ -553,6 +567,7 @@ def _configure_spm_using_matlab(matlab_exec, spm_dir, spm_version):
     _logger.info('setting matlab default paths to "{}"'.format(spm_dir))
     matlab.MatlabCommand.set_default_paths(spm_dir)
     _logger.info('SPM configuration succeeded using Matlab.')
+
 
 def _configure_spm(cli_spm_dir=None, config_spm_dir=None,
                    cli_matlab_exec=None, config_matlab_exec=None,
@@ -635,6 +650,7 @@ def _configure_spm(cli_spm_dir=None, config_spm_dir=None,
         ' nor a pair (Matlab executable, SPM directory): '
         'SPM configuration failed.')
     return None
+
 
 def _get_version_spm(spm_dir):
     """used by preproc_reporter; for other uses prefer _guess_spm_version"""

@@ -13,11 +13,13 @@ from pypreprocess.configure_spm import (
     _get_version_spm, _logger, _configure_spm,
     _guess_spm_version, _ACCEPT_SPM_MCR_WITH_AMBIGUOUS_VERSION)
 
+
 def test_get_version_spm():
     spm_version_1 = _get_version_spm('/tmp/path/to/spm8')
     spm_version_2 = _get_version_spm('/path/to/spm12')
     assert_equal(spm_version_1, 'spm8')
     assert_equal(spm_version_2, 'spm12')
+
 
 def test_guess_spm_version():
     spm_version = _guess_spm_version('/tmp/some23/Spm12/SPM12')
@@ -35,6 +37,7 @@ def test_guess_spm_version():
         assert(spm_version == 12)
     else:
         assert(spm_version is None)
+
 
 def _make_dirs(root, body):
     """create an arborescence rooted at root specified by body
@@ -80,6 +83,7 @@ def _make_dirs(root, body):
         with open(os.path.join(root, reg_file), 'w') as f:
             pass
 
+
 def _get_spm_body(version_nb):
     """get a body for _make_dirs, representing an SPM install.
 
@@ -98,6 +102,7 @@ def _get_spm_body(version_nb):
     spm_body = json.loads(
         _get_spm_body._spm_body_template_json % {'VERSION_NB': version_nb})
     return spm_body
+
 
 _get_spm_body._spm_body_template_dict = {
     "spm%(VERSION_NB)d": {
@@ -135,6 +140,7 @@ _get_spm_body._spm_body_template_dict = {
 _get_spm_body._spm_body_template_json = json.dumps(
     _get_spm_body._spm_body_template_dict)
 
+
 def _spm_test_dummy_arborescence(root='/tmp/', spm_versions=[7, 8, 12, 13]):
     """return an arborescence simulating several SPM versions and Matlab
 
@@ -166,6 +172,7 @@ def _spm_test_dummy_arborescence(root='/tmp/', spm_versions=[7, 8, 12, 13]):
         body['dirs'].update(_get_spm_body(version))
 
     return spm_root, body
+
 
 def _get_test_spm_starting_defaults(spm_root='/tmp/spm_dummy/'):
     """get default paths and env variable names used to test _configure_spm."""
@@ -205,20 +212,24 @@ def _get_test_spm_starting_defaults(spm_root='/tmp/spm_dummy/'):
 
     return start_defaults
 
+
 def _fix_spm_testing_default(defaults_dict, key_to_fix):
     _logger.debug('SPM config testing: fixing {}'.format(key_to_fix))
     defaults_dict[key_to_fix] = [
         s.replace('.BAD_LOC', '') for s in defaults_dict[key_to_fix]]
+
 
 def _break_spm_testing_default(defaults_dict, key_to_fix):
     _logger.debug('SPM config testing: breaking {}'.format(key_to_fix))
     defaults_dict[key_to_fix] = ['.'.join([s, 'BAD_LOC']) for
                                  s in defaults_dict[key_to_fix]]
 
+
 def _fix_spm_testing_explicitly_set_location(locations_dict, key_to_fix):
     _logger.debug('SPM config testing: fixing {}'.format(key_to_fix))
     locations_dict[key_to_fix] = locations_dict[
         key_to_fix].replace('.BAD_LOC', '')
+
 
 def _execute_spm_config_test(defaults, explicitly_set, spm_root):
     """execute tests prepared by test_spm_config."""
@@ -280,6 +291,7 @@ def _execute_spm_config_test(defaults, explicitly_set, spm_root):
 
     _logger.info('SPM config test succeeded')
 
+
 def test_spm_config(scratch_dir='/tmp/'):
     """prepare dir containing fake Matlab and SPM installs and launch tests."""
     scratch_dir = os.path.abspath(os.path.expanduser(scratch_dir))
@@ -313,6 +325,7 @@ def test_spm_config(scratch_dir='/tmp/'):
                           spm_root, 'spm8/spm8.sh.BAD_LOC')}
 
     _execute_spm_config_test(defaults, explicitly_set, spm_root)
+
 
 if __name__ == '__main__':
     test_get_version_spm()
