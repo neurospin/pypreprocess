@@ -101,16 +101,14 @@ contrasts['effects_of_interest'] = contrasts['faces'] + contrasts['scrambled']
 
 # fit GLM
 print 'Fitting a GLM (this takes time)...'
-fmri_glm = FirstLevelGLM(
+fmri_glm = FirstLevelGLM().fit(
     [nibabel.concat_images(x) for x in subject_data.func],
-    [check_design_matrix(design_matrix)[1]
-     for design_matrix in design_matrices], mask='compute')
-fmri_glm.fit(do_scaling=True, model='ar1')
+    design_matrices)
 
 # save computed mask
 mask_path = os.path.join(subject_data.output_dir, "mask.nii.gz")
 print "Saving mask image %s" % mask_path
-nibabel.save(fmri_glm.mask, mask_path)
+nibabel.save(fmri_glm.masker_.mask_img_, mask_path)
 mask_images.append(mask_path)
 
 # compute contrast maps
@@ -118,8 +116,8 @@ z_maps = {}
 effects_maps = {}
 for contrast_id, contrast_val in contrasts.items():
     print "\tcontrast id: %s" % contrast_id
-    z_map, t_map, effects_map, var_map = fmri_glm.contrast(
-        [contrast_val] * 2, con_id=contrast_id, output_z=True,
+    z_map, t_map, effects_map, var_map = fmri_glm.transform(
+        [contrast_val] * 2, contrast_name=contrast_id, output_z=True,
         output_stat=True, output_effects=True, output_variance=True)
     for map_type, out_map in zip(['z', 't', 'effects', 'variance'],
                               [z_map, t_map, effects_map, var_map]):
@@ -141,8 +139,9 @@ anat_img = nibabel.load(subject_data.anat)
 stats_report_filename = os.path.join(subject_data.output_dir, "reports",
                                      "report_stats.html")
 generate_subject_stats_report(
-    stats_report_filename, contrasts, z_maps, fmri_glm.mask, anat=anat_img,
-    threshold=2.3, cluster_th=15, design_matrices=design_matrices, TR=tr,
+    stats_report_filename, contrasts, z_maps, fmri_glm.masker_.mask_img_,
+    anat=anat_img, threshold=2.3, cluster_th=15,
+    design_matrices=design_matrices, TR=tr,
     subject_id="sub001", start_time=stats_start_time, n_scans=n_scans,
     title="GLM for subject %s" % subject_data.subject_id, hfcut=hfcut,
     paradigm=paradigm, frametimes=frametimes,

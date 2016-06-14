@@ -263,8 +263,9 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
         if "paradigm" in glm_kwargs:
             paradigm_ = glm_kwargs['paradigm']
             paradigm = {'name' : paradigm_['name'],
-                        'onset' : paradigm_['onset'],
-                        'duration' : paradigm_['duration']}
+                        'onset' : paradigm_['onset']}
+            if 'duration' in paradigm_.keys():
+                paradigm['duration'] = paradigm_['duration']
             paradigm['n_conditions'] = len(set(paradigm['name']))
             paradigm['n_events'] = len(paradigm['name'])
             paradigm['type'] = 'event'
