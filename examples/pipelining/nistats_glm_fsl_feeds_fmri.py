@@ -97,13 +97,13 @@ contrasts['effects_of_interest'] = contrasts['EV1'] + contrasts['EV2']
 
 """fit GLM"""
 print('\r\nFitting a GLM (this takes time) ..')
-fmri_glm = FirstLevelGLM(fmri_files, matrix, mask='compute')
-fmri_glm.fit(do_scaling=True, model='ar1')
+fmri_glm = FirstLevelGLM()
+fmri_glm.fit(fmri_files, design_matrix)
 
 """save computed mask"""
 mask_path = os.path.join(subject_data.output_dir, "mask.nii.gz")
 print "Saving mask image %s" % mask_path
-nibabel.save(fmri_glm.mask, mask_path)
+nibabel.save(fmri_glm.masker_.mask_img_, mask_path)
 
 # compute bg unto which activation will be projected
 mean_fmri_files = compute_mean_3D_image(fmri_files)
@@ -111,9 +111,9 @@ print "Computing contrasts .."
 z_maps = {}
 for contrast_id, contrast_val in contrasts.iteritems():
     print "\tcontrast id: %s" % contrast_id
-    z_map, t_map, eff_map, var_map = fmri_glm.contrast(
-        contrasts[contrast_id],
-        con_id=contrast_id,
+    z_map, t_map, eff_map, var_map = fmri_glm.transform(
+        con_vals=contrasts[contrast_id],
+        contrast_name=contrast_id,
         output_z=True,
         output_stat=True,
         output_effects=True,
@@ -147,7 +147,7 @@ generate_subject_stats_report(
     stats_report_filename,
     contrasts,
     z_maps,
-    fmri_glm.mask,
+    fmri_glm.masker_.mask_img_,
     design_matrices=[design_matrix],
     subject_id=subject_data.subject_id,
     anat=anat_file,
