@@ -143,20 +143,19 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
 
     # compute nslices
     nslices = load_vols(subject_data.func[0])[0].shape[2]
-    assert 1 <= ref_slice <= nslices, ref_slice
+#    assert 1 <= ref_slice <= nslices, ref_slice
 
-    # compute slice indices / order
-    if not isinstance(slice_order, basestring):
-        slice_order = np.array(slice_order) - 1
-    slice_order = get_slice_indices(nslices, slice_order=slice_order,
-                                    interleaved=interleaved)
+#    # compute slice indices / order
+#    if not isinstance(slice_order, basestring):
+#        slice_order = np.array(slice_order) - 1
+#    slice_order = get_slice_indices(nslices, slice_order=slice_order,
+#                                    inter  leaved=interleaved)
 
     # use pure python (pp) code ?
     if software == "python":
         return _pp_do_subject_slice_timing(subject_data, ref_slice=ref_slice,
                                            slice_order=slice_order,
-                                           caching=caching)
-
+                                           caching=caching)                                 
     # sanitize software choice
     if software != "spm":
         raise NotImplementedError(
@@ -193,8 +192,9 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
     for sess_func in subject_data.func:
         stc_result = stc(in_files=sess_func, time_repetition=TR,
                          time_acquisition=TA, num_slices=nslices,
-                         ref_slice=ref_slice + 1,
-                         slice_order=list(slice_order + 1),  # SPM
+                         ref_slice=ref_slice,
+                         #slice_order=list(slice_order + 1),  # SPM8 ?
+                         slice_order=[int(x) for x in slice_order.split()],  # SPM12
                          ignore_exception=False
                          )
         if stc_result.outputs is None:
