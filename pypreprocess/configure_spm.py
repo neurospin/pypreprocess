@@ -1,7 +1,7 @@
 """
 Automatic configuration of MATLAB/SPM back-end
 """
-# author: Elvis DOHMATOB, Yanick SCHWARZ
+# author: Elvis DOHMATOB, Yanick SCHWARZ, Jerome DOCKES
 
 import os
 import re

@@ -2,7 +2,7 @@
 """
 Created on Thu Aug  6 10:01:12 2015
 
-@author: Mehdi RAHIM
+@author: Mehdi RAHIM, Jerome DOCKES
 """
 import os
 import stat
