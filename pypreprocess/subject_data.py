@@ -337,7 +337,10 @@ class SubjectData(object):
         elif isinstance(self.func, basestring): self.func = [self.func]
         if self.session_ids is None:
             if len(self.func) > 10:
-                raise RuntimeError
+                warnings.warn(
+                    "There are more than 10 sessions for subject"
+                    " %s. Are you sure something is not wrong ?" % (
+                        self.subject_id))
             self.session_ids = ["Session%i" % (sess + 1)
                                 for sess in range(len(self.func))]
         else:
