@@ -447,7 +447,8 @@ class SubjectData(object):
                 filename = getattr(self, item)
                 if not filename is None:
                     linked_filename = hard_link(filename, self.anat_output_dir)
-                    if final: setattr(self, item, linked_filename)
+            if final:
+                setattr(self, item, linked_filename)
 
         # func stuff
         self.save_realignment_parameters()

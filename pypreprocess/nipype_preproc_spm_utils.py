@@ -1418,6 +1418,7 @@ def _do_subjects_newsegment(
             sd.gm = newsegment_result.outputs.native_class_images[0][j]
             sd.wm = newsegment_result.outputs.native_class_images[1][j]
             sd.csf = newsegment_result.outputs.native_class_images[2][j]
+            sd.nipype_results['newsegment'] = newsegment_result
 
             # generate segmentation thumbs
             if report:
@@ -1731,5 +1732,9 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
                 preproc_params.pop(param)
         subjects = Parallel(n_jobs=n_jobs)(delayed(_do_subject_normalize)(
             subject_data, **preproc_params) for subject_data in subjects)
+        # final hard link
+        for subject_data in subjects:
+            subject_data.hardlink_output_files(final=True)
+
     finalize_report()
     return subjects
