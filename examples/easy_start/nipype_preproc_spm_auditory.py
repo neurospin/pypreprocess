@@ -3,7 +3,6 @@ Author: dohmatob elvis dopgima elvis[dot]dohmatob[at]inria[dot]fr
 Synopsis: Minimal script for preprocessing single-subject data
 """
 
-import sys
 import os
 import time
 import numpy as np
@@ -19,7 +18,8 @@ from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
 from pypreprocess.external.nistats.glm import FMRILinearModel
 
 # file containing configuration for preprocessing the data
-jobfile = os.path.join("spm_auditory_preproc.ini")
+this_dir = os.path.dirname(os.path.abspath(__file__))
+jobfile = os.path.join(this_dir, "spm_auditory_preproc.ini")
 
 # fetch spm auditory data
 sd = fetch_spm_auditory()
@@ -140,7 +140,6 @@ generate_subject_stats_report(
     hfcut=hfcut,
     frametimes=frametimes,
     drift_model=drift_model,
-    hrf_model=hrf_model,
-    )
+    hrf_model=hrf_model)
 
 print "\r\nStatistic report written to %s\r\n" % stats_report_filename
