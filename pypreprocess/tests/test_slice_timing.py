@@ -13,32 +13,35 @@ OUTPUT_DIR = "/tmp/%s" % this_file
 
 def test_get_slice_indices_ascending():
     np.testing.assert_array_equal(
-        get_slice_indices(5, slice_order="ascending"), [0, 1, 2, 3, 4])
+        get_slice_indices(5, slice_order="ascending", return_final=True),
+        [0, 1, 2, 3, 4])
 
 
 def test_get_slice_indices_ascending_interleaved():
     np.testing.assert_array_equal(
-        get_slice_indices(5, slice_order="ascending",
-                          interleaved=True), [0, 3, 1, 4, 2])
+        get_slice_indices(5, slice_order="ascending", interleaved=True,
+                          return_final=True), [0, 3, 1, 4, 2])
 
 
 def test_get_slice_indices_descending():
     # descending
     np.testing.assert_array_equal(
-        get_slice_indices(5, slice_order="descending"), [4, 3, 2, 1, 0])
+        get_slice_indices(5, slice_order="descending", return_final=True),
+        [4, 3, 2, 1, 0])
 
 
 def test_get_slice_indices_descending_interleaved():
     # descending and interleaved
     np.testing.assert_array_equal(
-        get_slice_indices(5, slice_order="descending",
-                          interleaved=True), [4, 1, 3, 0, 2])
+        get_slice_indices(5, slice_order="descending", interleaved=True,
+                          return_final=True), [4, 1, 3, 0, 2])
 
 
 def test_get_slice_indices_explicit():
     slice_order = [1, 4, 3, 2, 0]
     np.testing.assert_array_equal(
-        get_slice_indices(5, slice_order=slice_order), [4, 0, 3, 2, 1])
+        get_slice_indices(5, slice_order=slice_order, return_final=True),
+        [4, 0, 3, 2, 1])
 
 
 @raises(ValueError)
@@ -71,13 +74,13 @@ def check_STC(true_signal, corrected_signal, ref_slice=0,
         true_signal[..., ref_slice, ...])
     for _ in range(1, n_slices):
         # relative closeness
-        if not rtol is None:
+        if rtol is not None:
             np.testing.assert_allclose(true_signal[..., 1:-1],
                                        corrected_signal[..., 1:-1],
                                        rtol=rtol)
 
         # relative closeness
-        if not atol is None:
+        if atol is not None:
             np.testing.assert_allclose(true_signal[..., 1:-1],
                                        corrected_signal[..., 1:-1],
                                        atol=atol)
@@ -253,3 +256,11 @@ def test_transform():
             else:
                 if as_files:
                     assert_equal(os.path.basename(output), 'afilm.nii.gz')
+
+
+def test_get_slice_indices_not_final():
+    # regression test for issue #232: by default, let backend software SPM,
+    # decide the final order of indices of slices
+    np.testing.assert_array_equal(
+        get_slice_indices(5, slice_order="ascending", interleaved=True),
+        [0, 2, 4, 1, 3])

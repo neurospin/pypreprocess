@@ -14,7 +14,7 @@ from .io_utils import is_niimg, save_vols, get_basenames
 
 
 def get_slice_indices(n_slices, slice_order='ascending',
-                      interleaved=False,):
+                      interleaved=False, return_final=False):
     """Function computes the (unique permutation on) slice indices, consistent
     with the specified slice order.
 
@@ -72,8 +72,9 @@ def get_slice_indices(n_slices, slice_order='ascending',
         slice_indices = slice_order
 
     slice_indices = np.array(slice_indices)
-    slice_indices = np.array([np.nonzero(slice_indices == z)[0][0]
-                              for z in range(n_slices)])
+    if return_final:
+        slice_indices = np.array([np.nonzero(slice_indices == z)[0][0]
+                                  for z in range(n_slices)])
     return slice_indices
 
 
@@ -251,9 +252,9 @@ class STC(object):
                 self.n_scans = n_scans
 
         # fix slice indices consistently with slice order
-        self.slice_indices = get_slice_indices(self.n_slices,
-                                               slice_order=self.slice_order,
-                                               interleaved=self.interleaved)
+        self.slice_indices = get_slice_indices(
+            self.n_slices, slice_order=self.slice_order, return_final=True,
+            interleaved=self.interleaved)
 
         # fix ref slice index, to be consistent with the slice order
         self.ref_slice = self.slice_indices[self.ref_slice]
