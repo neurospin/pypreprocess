@@ -4,10 +4,10 @@ from __future__ import with_statement
 """
 This module implements fMRI Design Matrix creation.
 
-The DesignMatrix object is just a container that represents the design matrix.
+Design matrices are represented by Pandas DataFrames
 Computations of the different parts of the design matrix are confined
-to the make_dmtx() function, that instantiates the DesignMatrix object.
-All the remainder are just ancillary functions.
+to the make_design_matrix function, that create a DataFrame
+All the others are ancillary functions.
 
 Design matrices contain three different types of regressors:
 
@@ -16,6 +16,11 @@ Design matrices contain three different types of regressors:
    A hemodynamic model is one of:
    'spm' : linear filter used in the SPM software
    'glover' : linear filter estimated by G.Glover
+   'spm + derivative', 'glover + derivative': the same linear models,
+       plus their time derivative (2 regressors per condition)
+   'spm + derivative + dispersion', 'glover + derivative + dispersion':
+       idem plus the derivative wrt the dispersion parameter of the hrf
+       (3 regressors per condition)
    'fir' : finite impulse response model, generic linear filter
 
 2. User-specified regressors, that represent information available on
@@ -29,15 +34,13 @@ Design matrices contain three different types of regressors:
 
 Author: Bertrand Thirion, 2009-2015
 """
-from warnings import warn
 import numpy as np
-import scipy.linalg as spl
-from pandas import DataFrame
+from scipy import linalg
+import pandas as pd
 
 from .hemodynamic_models import compute_regressor, _orthogonalize
 from .experimental_paradigm import check_paradigm
-
-
+from .utils import full_rank
 
 ######################################################################
 # Ancillary functions
@@ -50,10 +53,10 @@ def _poly_drift(order, frame_times):
     Parameters
     ----------
     order : int,
-        number of polynomials in the drift model
+        Number of polynomials in the drift model.
 
     frame_times : array of shape(n_scans),
-        time stamps used to sample polynomials
+        Time stamps used to sample polynomials.
 
     Returns
     -------
@@ -79,7 +82,7 @@ def _cosine_drift(period_cut, frame_times):
     period_cut : float
         Cut period of the low-pass filter (in sec)
 
-    frame_times : array of shape(n_scans)
+    frame_times : array of shape (n_scans,)
         The sampling times (in sec)
 
     Returns
@@ -169,31 +172,37 @@ def _convolve_regressors(paradigm, hrf_model, frame_times, fir_delays=[0],
         see nistats.experimental_paradigm to check the specification
         for these to be valid paradigm descriptors
 
-    hrf_model : {'canonical', 'canonical with derivative', 'fir'}
-        string that specifies the hemodynamic response function
+    hrf_model : {'spm', 'spm + derivative', 'spm + derivative + dispersion',
+        'glover', 'glover + derivative', 'glover + derivative + dispersion',
+        'fir'}
+        String that specifies the hemodynamic response function
 
-    frame_times : array of shape(n_scans)
-        the targeted timing for the design matrix
+    frame_times : array of shape (n_scans,)
+        The targeted timing for the design matrix.
 
-    fir_delays : array-like of shape(nb_onsets), optional,
-        in case of FIR design, yields the array of delays
-        used in the FIR model
+    fir_delays : array-like of shape (n_onsets,), optional,
+        In case of FIR design, yields the array of delays
+        used in the FIR model.
 
     min_onset : float, optional (default: -24),
-        minimal onset relative to frame_times[0] (in seconds)
-        events that start before frame_times[0] + min_onset are not considered
+        Minimal onset relative to frame_times[0] (in seconds) events
+        that start before frame_times[0] + min_onset are not considered.
 
     Returns
     -------
-    regressor_matrix : array of shape(n_scans, n_regressors),
-        contains the convolved regressors
-        associated with the experimental conditions
+    regressor_matrix : array of shape (n_scans, n_regressors),
+        Contains the convolved regressors associated with the
+        experimental conditions.
 
     regressor_names : list of strings,
-        the regressor names, that depend on the hrf model used
-        if 'canonical' then this is identical to the input names
-        if 'canonical with derivative', then two names are produced for
-        input name 'name': 'name' and 'name_derivative'
+        The regressor names, that depend on the hrf model used
+        if 'glover' or 'spm' then this is identical to the input names
+        if 'glover + derivative' or 'spm + derivative', a second name is output
+            i.e. '#name_derivative'
+        if 'spm + derivative + dispersion' or
+            'glover + derivative + dispersion',
+            a third name is used, i.e. '#name_dispersion'
+        if 'fir', the regressos are numbered accoding to '#name_#delay'
     """
     regressor_names = []
     regressor_matrix = None
@@ -212,12 +221,14 @@ def _convolve_regressors(paradigm, hrf_model, frame_times, fir_delays=[0],
             exp_condition, hrf_model, frame_times, con_id=condition,
             fir_delays=fir_delays, oversampling=oversampling,
             min_onset=min_onset)
+
         regressor_names += names
         if regressor_matrix is None:
             regressor_matrix = reg
         else:
             regressor_matrix = np.hstack((regressor_matrix, reg))
     return regressor_matrix, regressor_names
+
 
 
 def _full_rank(X, cmax=1e15):
@@ -240,7 +251,8 @@ def _full_rank(X, cmax=1e15):
     cond : float,
         actual condition number
     """
-    U, s, V = spl.svd(X, 0)
+    from warnings import warn
+    U, s, V = linalg.svd(X, 0)
     smax, smin = s.max(), s.min()
     cond = smax / smin
     if cond < cmax:
@@ -258,46 +270,48 @@ def _full_rank(X, cmax=1e15):
 
 
 def make_design_matrix(
-    frame_times, paradigm=None, hrf_model='canonical',
+    frame_times, paradigm=None, hrf_model='glover',
     drift_model='cosine', period_cut=128, drift_order=1, fir_delays=[0],
     add_regs=None, add_reg_names=None, min_onset=-24):
-    """ Generate a design matrix from the input parameters
+    """Generate a design matrix from the input parameters
 
     Parameters
     ----------
-    frame_times : array of shape(n_frames),
-        the timing of the scans
+    frame_times : array of shape (n_frames,)
+        The timing of the scans in seconds.
 
     paradigm : DataFrame instance, optional
-        description of the experimental paradigm
+        Description of the experimental paradigm.
 
-    hrf_model : string, optional,
-        that specifies the hemodynamic response function
-        it can be 'canonical', 'canonical with derivative' or 'fir'
+    hrf_model : {'spm', 'spm + derivative', 'spm + derivative + dispersion',
+        'glover', 'glover + derivative', 'glover + derivative + dispersion',
+        'fir'}, optional,
+        Specifies the hemodynamic response function
 
     drift_model : string, optional
-        specifies the desired drift model,
-        to be chosen among 'polynomial', 'cosine', 'blank'
+        Specifies the desired drift model,
+        It can be 'polynomial', 'cosine' or 'blank'.
 
     period_cut : float, optional
-        cut period of the low-pass filter in seconds
+        Cut period of the low-pass filter in seconds.
 
     drift_order : int, optional
-        order of the drift model (in case it is polynomial)
+        Order of the drift model (in case it is polynomial).
 
     fir_delays : array of shape(n_onsets) or list, optional,
-        in case of FIR design, yields the array of delays used in the FIR model
+        In case of FIR design, yields the array of delays used in the FIR
+        model.
 
     add_regs : array of shape(n_frames, n_add_reg), optional
         additional user-supplied regressors
 
-    add_reg_names : list of (n_add_reg) strings, optional
-        if None, while n_add_reg > 0, these will be termed
+    add_reg_names : list of (n_add_reg,) strings, optional
+        If None, while n_add_reg > 0, these will be termed
         'reg_%i', i = 0..n_add_reg - 1
 
     min_onset : float, optional
-        minimal onset relative to frame_times[0] (in seconds)
-        events that start before frame_times[0] + min_onset are not considered
+        Minimal onset relative to frame_times[0] (in seconds)
+        events that start before frame_times[0] + min_onset are not considered.
 
     Returns
     -------
@@ -312,9 +326,9 @@ def make_design_matrix(
             add_regs = np.reshape(add_regs, (np.size(add_regs), 1))
         n_add_regs = add_regs.shape[1]
         assert add_regs.shape[0] == np.size(frame_times), ValueError(
-            'incorrect specification of additional regressors: '
-            'length of regressors provided: %s, number of ' +
-            'time-frames: %s' % (add_regs.shape[0], np.size(frame_times)))
+            'Incorrect specification of additional regressors: '
+            'length of regressors provided: %d, number of '
+            'time-frames: %d' % (add_regs.shape[0], np.size(frame_times)))
 
     # check that additional regressor names are well specified
     if add_reg_names is None:
@@ -322,12 +336,12 @@ def make_design_matrix(
     elif len(add_reg_names) != n_add_regs:
         raise ValueError(
             'Incorrect number of additional regressor names was provided'
-            '(%s provided, %s expected) % (len(add_reg_names),'
-            'n_add_regs)')
+            '(%d provided, %d expected' % (len(add_reg_names),
+            n_add_regs))
 
     # computation of the matrix
     names = []
-    matrix = np.zeros((frame_times.size, 0))
+    matrix = None
 
     # step 1: paradigm-related regressors
     if paradigm is not None:
@@ -338,21 +352,28 @@ def make_design_matrix(
     # step 2: additional regressors
     if add_regs is not None:
         # add user-supplied regressors and corresponding names
-        matrix = np.hstack((matrix, add_regs))
+        if matrix is not None:
+            matrix = np.hstack((matrix, add_regs))
+        else:
+            matrix = add_regs
         names += add_reg_names
 
     # step 3: drifts
     drift, dnames = _make_drift(drift_model.lower(), frame_times, drift_order,
                                 period_cut)
-    matrix = np.hstack((matrix, drift))
+
+    if matrix is not None:
+        matrix = np.hstack((matrix, drift))
+    else:
+        matrix = drift
+
     names += dnames
 
     # step 4: Force the design matrix to be full rank at working precision
-    matrix, _ = _full_rank(matrix)
+    matrix, _ = full_rank(matrix)
 
-    design_matrix = DataFrame(
-        np.hstack((frame_times[:, np.newaxis], matrix)),
-        columns=['frame_times'] + names)
+    design_matrix = pd.DataFrame(
+        matrix, columns=names, index=frame_times)
     return design_matrix
 
 
@@ -363,51 +384,48 @@ def check_design_matrix(design_matrix):
     Parameters
     ----------
     design matrix : pandas DataFrame,
-        describes a design matrix
+        Describes a design matrix.
 
     Returns
     -------
-    frame_times : array of shape (n_frames),
-        sampling times of the design matrix
+    frame_times : array of shape (n_frames,),
+        Sampling times of the design matrix in seconds.
 
     matrix : array of shape (n_frames, n_regressors), dtype='f'
-        numerical values for the design matrix
+        Numerical values for the design matrix.
 
-    names : array of shape (n_events), dtype='f'
-           per-event onset time (in seconds)
+    names : array of shape (n_events,), dtype='f'
+        Per-event onset time (in seconds)
     """
-    names = design_matrix.keys()
-    if 'frame_times' not in names:
-        raise ValueError('The provided DataFrame does not contain the'
-                         'mandatory frame_times field')
-    frame_times = design_matrix['frame_times']
-    names = list(names.drop('frame_times'))
-    matrix = design_matrix[names].values
+    names = [name for name in design_matrix.keys()]
+    frame_times = design_matrix.index
+    matrix = design_matrix.values
     return frame_times, matrix, names
 
 
 def plot_design_matrix(design_matrix, rescale=True, ax=None):
-    """ Plot a design matrix provided as a DataFrame
+    """Plot a design matrix provided as a DataFrame
 
     Parameters
     ----------
     design matrix : pandas DataFrame,
-        describes a design matrix
+        Describes a design matrix.
 
     rescale : bool, optional
-        rescale columns magnitude for visualization or not
+        Rescale columns magnitude for visualization or not.
 
     ax : axis handle, optional
-        Handle to axis onto which we will draw design matrix
+        Handle to axis onto which we will draw design matrix.
 
     Returns
     -------
     ax: axis handle
+        The axis used for plotting.
     """
     # We import _set_mpl_backend because just the fact that we are
     # importing it sets the backend
     from nilearn.plotting import _set_mpl_backend
-    # avoid unhappy pyflackes
+    # avoid unhappy pyflakes
     _set_mpl_backend
     import matplotlib.pyplot as plt
 
@@ -419,7 +437,7 @@ def plot_design_matrix(design_matrix, rescale=True, ax=None):
         plt.figure()
         ax = plt.subplot(1, 1, 1)
 
-    ax.imshow(X, interpolation='Nearest', aspect='auto')
+    ax.imshow(X, interpolation='nearest', aspect='auto')
     ax.set_label('conditions')
     ax.set_ylabel('scan number')
 

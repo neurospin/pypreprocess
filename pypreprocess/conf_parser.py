@@ -429,7 +429,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
             onset=onset,
             TR=options.get('TR', None),
             drift_model='Cosine',
-            hrf_model=options.get('hrf_model', 'Canonical With Derivative'),
+            hrf_model=options.get('hrf_model', 'spm + derivative'),
             hfcut=options.get("hfcut", 128.),
             time_units=options.get("time_units", "seconds"))
         subjects.append(subject_data)

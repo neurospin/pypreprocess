@@ -52,7 +52,7 @@ subject_data = fetch_spm_multimodal_fmri(data_dir)
 # XXX to be verified
 tr = 2.
 drift_model = 'Cosine'
-hrf_model = 'Canonical With Derivative'
+hrf_model = 'spm + derivative'
 hfcut = 128.
 time_units = "tr"  # default if 1
 if time_units == "tr":

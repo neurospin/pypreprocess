@@ -6,7 +6,7 @@ import nibabel
 from nilearn.plotting import plot_stat_map
 from nilearn.image import reorder_img
 from pypreprocess.external.nistats.design_matrix import plot_design_matrix
-from pypreprocess.external.nistats.glm import FMRILinearModel
+from pypreprocess.external.nistats.glm import FirstLevelGLM
 import pandas as pd
 from nilearn.masking import intersect_masks
 import base_reporter
@@ -261,7 +261,11 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
 
         # reshape glm_kwargs['paradigm']
         if "paradigm" in glm_kwargs:
-            paradigm = glm_kwargs['paradigm'].to_dict('list')
+            paradigm_ = glm_kwargs['paradigm']
+            paradigm = {'name' : paradigm_['name'],
+                        'onset' : paradigm_['onset']}
+            if 'duration' in paradigm_.keys():
+                paradigm['duration'] = paradigm_['duration']
             paradigm['n_conditions'] = len(set(paradigm['name']))
             paradigm['n_events'] = len(paradigm['name'])
             paradigm['type'] = 'event'
@@ -305,26 +309,8 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
 
         for design_matrix, j in zip(design_matrices,
                                     range(len(design_matrices))):
-            """
-            # sanitize design_matrix type
-            if isinstance(design_matrix, basestring):
-                if not isinstance(design_matrix, DesignMatrix):
-                    if design_matrix.endswith('.npz'):
-                        npz = np.load(design_matrix)
-                        design_matrix = DesignMatrix(npz['X'],
-                                                     npz['conditions'])
-                else:
-                    # XXX handle case of .png, jpeg design matrix image
-                    raise TypeError(
-                        "Unsupported design matrix type: %s" % type(
-                            design_matrix))
-            elif isinstance(design_matrix, np.ndarray) or isinstance(
-                    design_matrix, list):
-                X = np.array(design_matrix)
-                conditions = ['%i' % i for i in range(X.shape[-1])]
-                design_matrix = DesignMatrix(X, conditions)
-            """
-            # XXX NISTATS
+            
+            # Nistats: design matrices should be strings or pandas dataframes
             if isinstance(design_matrix, basestring):
                 if not isinstance(design_matrix, pd.DataFrame):
                     # XXX should be a DataFrame pickle here ?
@@ -462,7 +448,7 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
             [x[contrast_id] for x in effects_maps])
 
         # fit 2nd level GLM for given contrast
-        group_model = FMRILinearModel(first_level_image,
+        group_model = FirstLevelGLM(first_level_image,
                                       design_matrix, group_mask)
         group_model.fit(do_scaling=False, model='ols')
 

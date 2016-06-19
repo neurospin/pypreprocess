@@ -40,7 +40,7 @@ def _load_condition_keys(cfile):
 # meta data
 tr = 2.
 drift_model = 'Cosine'
-hrf_model = 'Canonical With Derivative'
+hrf_model = 'spm + derivative'
 hfcut = 128.
 
 data_dir = os.environ.get("DATA_DIR", "/home/elvis/nilearn_data/ds001")

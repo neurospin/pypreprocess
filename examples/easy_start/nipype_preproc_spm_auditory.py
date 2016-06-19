@@ -15,7 +15,7 @@ import pandas as pd
 from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
                                                          check_design_matrix,
                                                          plot_design_matrix)
-from pypreprocess.external.nistats.glm import FMRILinearModel
+from pypreprocess.external.nistats.glm import FirstLevelGLM
 
 # file containing configuration for preprocessing the data
 this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -52,7 +52,7 @@ subject_data = do_subjects_preproc(jobfile, dataset_dir=dataset_dir)[0]
 nscans = len(subject_data.func[0])
 frametimes = np.linspace(0, (nscans - 1) * tr, nscans)
 drift_model = 'Cosine'
-hrf_model = 'Canonical With Derivative'
+hrf_model = 'spm + derivative'
 design_matrix = make_design_matrix(
     frametimes, paradigm, hrf_model=hrf_model, drift_model=drift_model,
     period_cut=hfcut)
@@ -76,15 +76,14 @@ contrasts = {'active-rest': contrasts['active'] - contrasts['rest']}
 
 # fit GLM
 print('\r\nFitting a GLM (this takes time) ..')
-fmri_glm = FMRILinearModel(nibabel.concat_images(subject_data.func[0]),
-                           matrix,
-                           mask='compute')
-fmri_glm.fit(do_scaling=True, model='ar1')
+fmri_glm = FirstLevelGLM(noise_model='ar1', standardize=False).fit(
+    [nibabel.concat_images(subject_data.func[0])], design_matrix)
+
 
 # save computed mask
 mask_path = os.path.join(subject_data.output_dir, "mask.nii.gz")
 print "Saving mask image %s" % mask_path
-nibabel.save(fmri_glm.mask, mask_path)
+nibabel.save(fmri_glm.masker_.mask_img_, mask_path)
 
 # compute bg unto which activation will be projected
 anat_img = nibabel.load(subject_data.anat)
@@ -94,8 +93,8 @@ z_maps = {}
 effects_maps = {}
 for contrast_id, contrast_val in contrasts.iteritems():
     print "\tcontrast id: %s" % contrast_id
-    z_map, t_map, eff_map, var_map = fmri_glm.contrast(
-        contrasts[contrast_id], con_id=contrast_id, output_z=True,
+    z_map, t_map, eff_map, var_map = fmri_glm.transform(
+        contrasts[contrast_id], contrast_name=contrast_id, output_z=True,
         output_stat=True, output_effects=True, output_variance=True)
 
     # store stat maps to disk
@@ -126,7 +125,7 @@ generate_subject_stats_report(
     stats_report_filename,
     contrasts,
     z_maps,
-    fmri_glm.mask,
+    fmri_glm.masker_.mask_img_,
     design_matrices=[design_matrix],
     subject_id=subject_data.subject_id,
     anat=anat_img,

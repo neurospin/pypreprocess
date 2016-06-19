@@ -190,7 +190,7 @@ def run_suject_level1_glm(subject_data,
                           readout_time=.01392,  # seconds
                           tr=.72,
                           dc=True,
-                          hrf_model="Canonical with Derivative",
+                          hrf_model="spm + derivative",
                           drift_model="Cosine",
                           hfcut=100,
                           regress_motion=True,
