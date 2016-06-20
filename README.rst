@@ -186,3 +186,9 @@ Common problems and fixes
 =========================
 * libXp.so.6 missing (in ubuntu >= 15.10, for example)
 This is a known is http://askubuntu.com/questions/719839/libxp-so-6-missing-15-10. The idea is to install it manually from official sources https://launchpad.net/ubuntu/wily/+package/libxp6
+
+* whitespaces in the directory name for the variable 'scratch' triggers a bug in nipype and results in a crash (have not tested if this also occur for other path variables)
+
+* when using an 'ini' file, say 'mytest.ini', with ''python preprocessing.py mytest.ini'', there can be a conflict between  pypreprocess.py and the pypreprocess module (solution: rename pypreprocess.py into something like pypreprocini.py)
+
+* the cache is not relocatable (because joblib encode the absolute paths): if you are forced to move the cache -- e.g. because of lack of space on a filesystem -- use a symbolic link to let the system believe that the cache is still at the original location.  
