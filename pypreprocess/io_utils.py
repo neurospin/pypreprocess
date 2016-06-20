@@ -6,12 +6,11 @@
 """
 
 import os
-import sys
 import warnings
 import re
 import shutil
-import commands
 import tempfile
+import filecmp
 import numpy as np
 import nibabel
 from sklearn.externals import joblib
@@ -551,18 +550,19 @@ def hard_link(filenames, output_dir):
             if not os.path.isfile(src):
                 raise OSError("src file %s doesn't exist" % src)
 
-            # unlink if link already exists
-            if os.path.exists(dst):
-                os.unlink(dst)
+            # do nothing if dst file already exists and is already a copy of
+            # src
+            if os.path.exists(dst) and filecmp.cmp(src, dst, shallow=True):
+                return dst
 
             # hard-link the file proper
             try:
                 os.link(src, dst)
-                print "\tHardlinked %s -> %s ..." % (src, dst)
+                print("\tHardlinked %s -> %s ..." % (src, dst))
             except OSError:
                 # cross linking on different devices ?
                 shutil.copy(src, dst)
-                print "\tCopied %s -> %s" % (src, dst)
+                print("\tCopied %s -> %s" % (src, dst))
 
         return hardlinked_filenames[0]
     else:
@@ -612,7 +612,7 @@ def loaduint8(img, log=None):
 
         """
 
-        if not log is None:
+        if log is not None:
             log(msg)
         else:
             print(msg)
