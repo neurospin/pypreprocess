@@ -445,10 +445,10 @@ class SubjectData(object):
                      'mwgm', 'mwwm', 'mwcsf']:
             if hasattr(self, item):
                 filename = getattr(self, item)
-                if not filename is None:
+                if filename is not None:
                     linked_filename = hard_link(filename, self.anat_output_dir)
-            if final:
-                setattr(self, item, linked_filename)
+                if final:
+                    setattr(self, item, linked_filename)
 
         # func stuff
         self.save_realignment_parameters()
@@ -461,7 +461,7 @@ class SubjectData(object):
                     filenames = [filenames]
                 for sess in range(self.n_sessions):
                     filename = filenames[sess]
-                    if not filename is None:
+                    if filename is not None:
                         linked_filename = hard_link(
                             filename, self.session_output_dirs[sess])
                         tmp.append(linked_filename)
@@ -587,7 +587,7 @@ class SubjectData(object):
             self.progress_logger.finish_dir(self.reports_output_dir)
 
         # commit final thumbnail into parent's results gallery
-        if not parent_results_gallery is None:
+        if parent_results_gallery is not None:
             commit_subject_thumnbail_to_parent_gallery(
                 self.final_thumbnail, self.subject_id, parent_results_gallery)
 
