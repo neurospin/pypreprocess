@@ -21,22 +21,23 @@ def get_slice_indices(n_slices, slice_order='ascending',
     Parameters
     ----------
     n_slices: int
-        the number of slices there're altogether
+        The number of slices there're altogether.
 
-    slice_order: string or array of ints or length n_slices
-        slice order of acquisitions in a TR
+    slice_order: string ('ascending', 'descending'), or array of ints or
+                 length n_slices slice order of acquisitions in a TR.
         'ascending': slices were acquired from bottommost to topmost
-        'descending': slices were acquired from topmost to bottommost
+        'descending': slices were acquired from topmost to bottommost.
+        If list of integers, 0-based (i.e Python!) indexing is assumed.
 
     interleaved: bool (optional, default False)
-        if set, then slices were acquired in interleaved order, odd-numbered
-        slices first, and then even-numbered slices
+        Ff set, then slices were acquired in interleaved order, odd-numbered
+        slices first, and then even-numbered slices.
 
     Returns
     -------
     slice_indices: 1D array of length n_slices
-        slice indices consistent with slice order (i.e, slice_indices[k]
-        is the corrected index of slice k according to the slice order)
+        Slice indices consistent with slice order (i.e, slice_indices[k]
+        is the corrected index of slice k according to the slice order).
 
     Raises
     ------
