@@ -186,3 +186,5 @@ Common problems and fixes
 =========================
 * libXp.so.6 missing (in ubuntu >= 15.10, for example)
 This is a known is http://askubuntu.com/questions/719839/libxp-so-6-missing-15-10. The idea is to install it manually from official sources https://launchpad.net/ubuntu/wily/+package/libxp6
+
+* Beware: the pathname for "scratch" (directory for cache) must not contain any space character! This triggered a nasty bug in nipype....
