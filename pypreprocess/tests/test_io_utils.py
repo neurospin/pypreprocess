@@ -456,7 +456,7 @@ def test_delete_orientation():
     data_vol1 = vol1.get_data()
     data_vol2 = vol2.get_data()
     assert_array_equal(data_vol1, data_vol2)
-    header = vol2.header
+    header = vol2.get_header()
     for key in ['dim_info', 'quatern_b', 'quatern_c', 'quatern_d',
                 'qoffset_x', 'qoffset_y', 'qoffset_z',
                 'srow_x', 'srow_x', 'srow_z']:
