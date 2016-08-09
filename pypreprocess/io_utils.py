@@ -331,7 +331,7 @@ def delete_orientation(imgs, output_dir, output_tag=''):
         new_img = nibabel.load(img)
         new_img.set_sform(np.zeros((4, 4)))
         new_img.set_qform(np.eye(4))
-        new_img.header['dim_info'] = 0
+        new_img.get_header()['dim_info'] = 0
         nibabel.save(new_img, output_img)
         output_imgs.append(output_img)
 
