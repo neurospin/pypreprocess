@@ -6,7 +6,6 @@ Synopsis: Minimal script for preprocessing single-subject data
 import os
 import time
 import numpy as np
-import matplotlib.pyplot as plt
 import nibabel
 from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
 from pypreprocess.datasets import fetch_spm_auditory
@@ -16,6 +15,7 @@ from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
                                                          check_design_matrix,
                                                          plot_design_matrix)
 from pypreprocess.external.nistats.glm import FirstLevelGLM
+import matplotlib.pyplot as plt
 
 # file containing configuration for preprocessing the data
 this_dir = os.path.dirname(os.path.abspath(__file__))
