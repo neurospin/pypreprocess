@@ -8,11 +8,11 @@ It demos segmentations on SPM single-subject auditory.
 """
 
 import os
-import matplotlib.pyplot as plt
 from pypreprocess.subject_data import SubjectData
 from pypreprocess.datasets import fetch_spm_auditory
 from pypreprocess.nipype_preproc_spm_utils import _do_subject_segment
 from pypreprocess.reporting.check_preprocessing import plot_segmentation
+import matplotlib.pyplot as plt
 
 
 OUTPUT_DIR = 'segmentation_demos_output'
