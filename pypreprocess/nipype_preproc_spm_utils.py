@@ -178,10 +178,9 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
     if TA is None:
         TA = TR * (1. - 1. / nslices)
 
-   # run pipeline
+    # run pipeline
     if caching:
-        cache_dir = cache_dir = os.path.join(subject_data.scratch,
-                                             'cache_dir')
+        cache_dir = os.path.join(subject_data.scratch, 'cache_dir')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         subject_data.mem = NipypeMemory(base_dir=cache_dir)
@@ -1726,7 +1725,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
             preproc_params[stage] = False
         preproc_params["hardlink_output"] = True
         for param in preproc_params.keys():
-            if not param in ["fwhm", "anat_fwhm", "func_write_voxel_sizes",
+            if param not in ["fwhm", "anat_fwhm", "func_write_voxel_sizes",
                              "anat_write_voxel_sizes", "caching", "report",
                              "hardlink_output", "smooth_software"]:
                 preproc_params.pop(param)
