@@ -949,3 +949,51 @@ def sanitize_fwhm(fwhm):
             raise ValueError("fwhm must be float or list of 3 "
                              "floats; got %s" % fwhm)
     return fwhm
+
+
+def nii2niigz(input_filename, output_dir=None):
+    """
+    Converts .nii to .nii.gz
+
+    Parameters
+    ----------
+
+    input_filename: string, of list of strings
+        input filename of image to be compressed
+
+    output_dir: string, optional (default None)
+        output directory to which compressed file will be written.
+        If no value is given, the output will be written in the parent
+        directory of input_filename
+
+    Returns
+    -------
+    output_filename: string
+        filename of extracted image
+
+    """
+
+    if isinstance(input_filename, list):
+        return [nii2niigz(x, output_dir=output_dir) for x in input_filename]
+    else:
+        if not isinstance(input_filename, basestring):
+            raise RuntimeError(
+                "input_filename must be string"
+                "or list of strings, got %s" % type(
+                    input_filename))
+
+    if not input_filename.endswith('.nii'):
+        return input_filename
+
+    output_filename = input_filename + '.gz'
+    if output_dir is None:
+        output_dir = os.path.dirname(input_filename)
+    else:
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+    output_filename = os.path.join(output_dir,
+                                   os.path.basename(output_filename))
+
+    nibabel.save(nibabel.load(input_filename), output_filename)
+
+    return output_filename
