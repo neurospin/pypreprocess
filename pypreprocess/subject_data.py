@@ -143,9 +143,8 @@ class SubjectData(object):
         self._set_items(**kwargs)
         self.scratch = output_dir if scratch is None else scratch
         self.anat_scratch_dir = anat_output_dir if scratch is None else scratch
-        self.session_scratch_dirs = \
-            session_output_dirs if scratch is None \
-            else [scratch]*len(session_output_dirs)
+        self.session_scratch_dirs = (session_output_dirs if scratch is None
+                                     else [scratch] * len(session_output_dirs))
 
     def _set_items(self, **kwargs):
         for k, v in kwargs.items():
@@ -223,8 +222,6 @@ class SubjectData(object):
                         self.scratch, self.session_ids[sess])
                 else:
                     sess_scratch_dir = self.scratch
-            else:
-                sess_scratch_dir = self.scratch
             self.session_scratch_dirs[sess] = self._sanitize_output_dir(
                 sess_scratch_dir)
 
