@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import nibabel
 from nilearn.plotting import plot_img
 from nilearn.image import reorder_img, mean_img
+from nilearn._utils.compat import _basestring
 from ..io_utils import load_vols
 EPS = np.finfo(float).eps
 
@@ -33,7 +34,7 @@ def plot_spm_motion_parameters(parameter_file, title=None, close=False):
 
     # load parameters
     motion = np.loadtxt(parameter_file) if isinstance(
-        parameter_file, basestring) else parameter_file[..., :6]
+        parameter_file, _basestring) else parameter_file[..., :6]
 
     motion[:, 3:] *= (180. / np.pi)
 

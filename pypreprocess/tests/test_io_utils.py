@@ -5,6 +5,7 @@ import numpy as np
 from nose.tools import assert_equal, assert_true, assert_false
 import nibabel
 from nilearn.image.image import check_niimg_4d
+from nilearn._utils.compat import _basestring
 from numpy.testing import assert_array_equal
 
 from pypreprocess.io_utils import delete_orientation
@@ -92,7 +93,7 @@ def test_save_vols():
                         assert_equal(os.path.basename(saved_vols_filenames[7]),
                                      'fMETHODS-000007.nii.gz')
                 else:
-                    assert_true(isinstance(saved_vols_filenames, basestring))
+                    assert_true(isinstance(saved_vols_filenames, _basestring))
                     assert_true(saved_vols_filenames.endswith('.nii.gz'),
                                 msg=saved_vols_filenames)
                     assert_true(is_4D(check_niimg_4d(
@@ -120,7 +121,7 @@ def test_save_vols_from_ndarray_with_affine():
                 assert_true(isinstance(saved_vols_filenames, list))
                 assert_equal(len(saved_vols_filenames), n_scans)
             else:
-                assert_true(isinstance(saved_vols_filenames, basestring))
+                assert_true(isinstance(saved_vols_filenames, _basestring))
 
 
 def test_do_3Dto4D_merge():
@@ -179,7 +180,7 @@ def test_hardlink():
     hl_filenames = hard_link(filenames, output_dir)
 
     def _check_ok(x, y):
-        if isinstance(x, basestring):
+        if isinstance(x, _basestring):
             # check that hardlink was actually made
             assert_true(os.path.exists(x))
             if x.endswith('.img'):

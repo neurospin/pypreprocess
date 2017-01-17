@@ -11,6 +11,7 @@ import inspect
 from reporting.preproc_reporter import (
     generate_preproc_undergone_docstring)
 from sklearn.externals.joblib import Memory
+from nilearn._utils.compat import _basestring
 from .io_utils import get_basenames, save_vols, is_niimg, load_vols
 from .subject_data import SubjectData
 from .slice_timing import fMRISTC
@@ -380,7 +381,7 @@ def do_subject_preproc(
         # write final output images
         print "Saving preprocessed images unto disk..."
         func_basenames = func_basenames[0] if (not isinstance(
-                func_basenames, basestring) and concat) else func_basenames
+                func_basenames, _basestring) and concat) else func_basenames
         _func = []
         for sess in range(n_sessions):
             if reslice:

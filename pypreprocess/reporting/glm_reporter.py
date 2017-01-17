@@ -5,6 +5,7 @@ import pylab as pl
 import nibabel
 from nilearn.plotting import plot_stat_map
 from nilearn.image import reorder_img
+from nilearn._utils.compat import _basestring
 from pypreprocess.external.nistats.design_matrix import plot_design_matrix
 from pypreprocess.external.nistats.glm import FirstLevelGLM
 import pandas as pd
@@ -67,9 +68,9 @@ def generate_level1_stats_table(zmap, mask,
 
     """
     # sanity
-    if isinstance(zmap, basestring):
+    if isinstance(zmap, _basestring):
         zmap = nibabel.load(zmap)
-    if isinstance(mask, basestring):
+    if isinstance(mask, _basestring):
         mask = nibabel.load(mask)
 
     # Compute cluster statistics
@@ -311,7 +312,7 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
                                     range(len(design_matrices))):
             
             # Nistats: design matrices should be strings or pandas dataframes
-            if isinstance(design_matrix, basestring):
+            if isinstance(design_matrix, _basestring):
                 if not isinstance(design_matrix, pd.DataFrame):
                     # XXX should be a DataFrame pickle here ?
                     print design_matrix
@@ -345,7 +346,7 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
         z_map = z_maps[contrast_id]
 
         # load the map
-        if isinstance(z_map, basestring):
+        if isinstance(z_map, _basestring):
             z_map = nibabel.load(z_map)
 
         # generate level 1 stats table

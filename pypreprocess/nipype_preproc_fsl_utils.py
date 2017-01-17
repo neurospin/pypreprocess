@@ -8,6 +8,7 @@ import commands
 import nipype.interfaces.fsl as fsl
 from nipype.caching import Memory as NipypeMemory
 from sklearn.externals.joblib import Memory  as JoblibMemory
+from nilearn._utils.compat import _basestring
 
 fsl.FSLCommand.set_default_output_type('NIFTI_GZ')
 FSL_T1_TEMPLATE = "/usr/share/fsl/data/standard/MNI152_T1_1mm_brain.nii.gz"
@@ -21,7 +22,7 @@ def _get_file_ext(filename):
 
 def _get_output_filename(input_filename, output_dir, output_prefix='',
                          ext=None):
-    if isinstance(input_filename, basestring):
+    if isinstance(input_filename, _basestring):
         if not ext is None:
             ext = "." + ext if not ext.startswith('.') else ext
             input_filename = _get_file_ext(input_filename)[0] + ext
@@ -86,7 +87,7 @@ def do_subject_preproc(subject_id,
     joblib_mem = JoblibMemory(cache_dir, verbose=100)
 
     # sanitize input files
-    if not isinstance(output['func'], basestring):
+    if not isinstance(output['func'], _basestring):
         output['func'] = joblib_mem.cache(do_fsl_merge)(
             func, subject_output_dir, output_prefix='Merged',
             cmd_prefix=cmd_prefix)

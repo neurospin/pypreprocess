@@ -18,6 +18,7 @@ from conf_parser import _generate_preproc_pipeline
 import matplotlib
 matplotlib.use('Agg')
 from sklearn.externals.joblib import Parallel, delayed, Memory as JoblibMemory
+from nilearn._utils.compat import _basestring
 import nipype.interfaces.spm as spm
 from nipype.caching import Memory as NipypeMemory
 from configure_spm import _configure_spm, _get_version_spm
@@ -147,7 +148,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
     assert 1 <= ref_slice <= nslices, ref_slice
 
     # compute slice indices / order
-    if not isinstance(slice_order, basestring):
+    if not isinstance(slice_order, _basestring):
         slice_order = np.array(slice_order) - 1
     slice_order = get_slice_indices(nslices, slice_order=slice_order,
                                     interleaved=interleaved)
@@ -170,7 +171,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
     # compute TA (possibly from formula specified as a string)
-    if isinstance(TA, basestring):
+    if isinstance(TA, _basestring):
         TA = TA.replace("/", "* 1. /")
         TA = eval(TA)
 
@@ -327,7 +328,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     subject_data.realignment_parameters = \
         realign_result.outputs.realignment_parameters
-    if isinstance(subject_data.realignment_parameters, basestring):
+    if isinstance(subject_data.realignment_parameters, _basestring):
         assert subject_data.n_sessions == 1
         subject_data.realignment_parameters = [
             subject_data.realignment_parameters]
@@ -338,7 +339,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     subject_data.nipype_results['realign'] = realign_result
 
-    if isinstance(subject_data.func, basestring):
+    if isinstance(subject_data.func, _basestring):
         assert subject_data.n_sessions == 1
         subject_data.func = [subject_data.func]
     if subject_data.n_sessions == 1 and len(subject_data.func) > 1:
@@ -480,7 +481,7 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
             coreg_source = subject_data.mean_realigned_file
         else:
             ref_func = joblib_mem.cache(load_vols)(
-                subject_data.func if isinstance(subject_data.func, basestring)
+                subject_data.func if isinstance(subject_data.func, _basestring)
                 else subject_data.func[0])[0]
             coreg_source = os.path.join(subject_data.scratch,
                                         "_coreg_first_func_vol.nii")
@@ -509,7 +510,7 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
         subject_data.anat = coreg_result.outputs.coregistered_source
     else:
         coregistered_files = coreg_result.outputs.coregistered_files
-        if isinstance(coregistered_files, basestring):
+        if isinstance(coregistered_files, _basestring):
             coregistered_files = [coregistered_files]
         subject_data.func = unravel_filenames(
             coregistered_files, file_types)
@@ -1066,7 +1067,7 @@ def _do_subject_dartelnorm2mni(subject_data,
                 for sess_func in subject_data.func:
                     assert get_vox_dims(sess_func) == vox_dims
                     func.append(_resample_img(sess_func) if isinstance(
-                            sess_func, basestring) else [_resample_img(x)
+                            sess_func, _basestring) else [_resample_img(x)
                                                          for x in sess_func])
                 subject_data.func = func
 
@@ -1519,7 +1520,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     """
     # load .ini ?
     preproc_details = None
-    if isinstance(subject_factory, basestring):
+    if isinstance(subject_factory, _basestring):
         try:
             with open(subject_factory, "r") as fd:
                 preproc_details = fd.read()

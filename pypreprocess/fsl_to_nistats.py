@@ -12,6 +12,9 @@ import numpy as np
 from pypreprocess.external.nistats.design_matrix import make_design_matrix
 import pandas as pd
 
+from nilearn._utils.compat import _basestring
+
+
 # regex for contrasts
 CON_REAL_REGX = ("set fmri\(con_real(?P<con_num>\d+?)\.(?P<ev_num>\d+?)\)"
             " (?P<con_val>\S+)")
@@ -63,7 +66,7 @@ def _get_abspath_relative_to_file(filename, ref_filename):
 
 
 def _insert_directory_in_file_name(filename, directory, level):
-    if not isinstance(filename, basestring):
+    if not isinstance(filename, _basestring):
         return [_insert_directory_in_file_name(x, directory, level)
                 for x in filename]
 

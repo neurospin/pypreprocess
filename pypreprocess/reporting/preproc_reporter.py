@@ -15,6 +15,7 @@ import json
 import numpy as np
 import pylab as pl
 import nibabel
+from nilearn._utils.compat import _basestring
 from sklearn.externals import joblib
 from .check_preprocessing import (plot_registration,
                                   plot_segmentation,
@@ -80,7 +81,7 @@ WEBBY_EXTENSION_PATTERN = ".*\.(?:png|jpeg|html|php|css|txt|rst|js|gif)$"
 
 def get_nipype_report_filename(
     output_files_or_dir):
-    if isinstance(output_files_or_dir, basestring):
+    if isinstance(output_files_or_dir, _basestring):
         if os.path.isdir(output_files_or_dir):
             return os.path.join(output_files_or_dir,
                                 "_report/report.rst")
@@ -397,7 +398,7 @@ def nipype2htmlreport(nipype_report_filename):
 
 
 def get_nipype_report(nipype_report_filename):
-    if isinstance(nipype_report_filename, basestring):
+    if isinstance(nipype_report_filename, _basestring):
         if os.path.isfile(nipype_report_filename):
             nipype_report_filenames = [nipype_report_filename]
         else:
@@ -524,7 +525,7 @@ def generate_normalization_thumbnails(
         gallery to which thumbnails will be committed
 
     """
-    if isinstance(normalized_files, basestring):
+    if isinstance(normalized_files, _basestring):
         normalized = normalized_files
     else:
         mean_normalized_img = compute_mean_3D_image(normalized_files)
@@ -601,7 +602,7 @@ def generate_segmentation_thumbnails(
         gallery to which thumbnails will be committed
 
     """
-    if isinstance(normalized_files, basestring):
+    if isinstance(normalized_files, _basestring):
         normalized_file = normalized_files
     else:
         mean_normalized_file = os.path.join(output_dir,
@@ -769,14 +770,14 @@ def generate_realignment_thumbnails(
         execution_log_html_filename=None, results_gallery=None):
     """Function generates thumbnails for realignment parameters."""
     sessions = [1] if sessions is None else sessions
-    if isinstance(estimated_motion, basestring):
+    if isinstance(estimated_motion, _basestring):
         estimated_motion = [estimated_motion]
     output = {}
-    if isinstance(estimated_motion, basestring):
+    if isinstance(estimated_motion, _basestring):
         estimated_motion = [estimated_motion]
     tmp = []
     for x in estimated_motion:
-        if isinstance(x, basestring):
+        if isinstance(x, _basestring):
             x = np.loadtxt(x)
         tmp.append(x)
     lengths = map(len, tmp)
@@ -822,7 +823,7 @@ def generate_stc_thumbnails(original_bold, st_corrected_bold, output_dir,
 
         if is_niimg(data):
             data = np.rollaxis(data.get_data(), -1, start=0)
-        elif isinstance(data, basestring):
+        elif isinstance(data, _basestring):
             data = nibabel.load(data).get_data()
         return data
 
@@ -833,7 +834,7 @@ def generate_stc_thumbnails(original_bold, st_corrected_bold, output_dir,
             else:
                 assert x.ndim > 3, x.ndim
                 return _get_vol_shape(x[..., 0])
-        elif isinstance(x, basestring):
+        elif isinstance(x, _basestring):
             return _get_vol_shape(nibabel.load(x).get_data())
         elif is_niimg(x):
             return _get_vol_shape(x.get_data())
@@ -850,7 +851,7 @@ def generate_stc_thumbnails(original_bold, st_corrected_bold, output_dir,
                 return x[voxel[0], voxel[1], voxel[2], :]
         elif is_niimg(x):
             return _get_time_series_from_voxel(x.get_data(), voxel)
-        elif isinstance(x, basestring):
+        elif isinstance(x, _basestring):
             return _get_time_series_from_voxel(nibabel.load(x), voxel)
         else:
             return np.array([_get_time_series_from_voxel(y, voxel) for y in x])

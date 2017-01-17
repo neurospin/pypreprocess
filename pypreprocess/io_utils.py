@@ -18,6 +18,7 @@ from nipype.interfaces.dcm2nii import Dcm2nii
 from nipype.caching import Memory
 from nilearn.image import iter_img
 from nilearn.image.image import check_niimg, check_niimg_4d
+from nilearn._utils.compat import _basestring
 
 DICOM_EXTENSIONS = [".dcm", ".ima", ".dicom"]
 
@@ -67,7 +68,7 @@ def load_vols(niimgs):
         pass
     try:
         # try loading volumes one-by-one
-        if isinstance(niimgs, basestring): niimgs = [niimgs]
+        if isinstance(niimgs, _basestring): niimgs = [niimgs]
         return [check_niimg(niimg, ensure_ndim=3) for niimg in niimgs]
     except TypeError:
         pass
@@ -155,11 +156,11 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
                                          check_affines=False
                                          )
             if not basenames is None:
-                if not isinstance(basenames, basestring):
+                if not isinstance(basenames, _basestring):
                     basenames = basenames[0]
         else:
             if not basenames is None:
-                if not isinstance(basenames, basestring):
+                if not isinstance(basenames, _basestring):
                     raise RuntimeError(
                         ("concat=True specified but basenames is of type %s "
                          "instead of string") % type(basenames))
@@ -168,11 +169,11 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
         if basenames is None:
             basenames = get_basenames("vols", ext=ext)
 
-        if not isinstance(basenames, basestring):
+        if not isinstance(basenames, _basestring):
             vols = nibabel.four_to_three(vols)
             filenames = []
             for vol, basename in zip(vols, basenames):
-                if not isinstance(basename, basestring):
+                if not isinstance(basename, _basestring):
                     raise RuntimeError
                 filename = os.path.join(output_dir, "%s%s" % (
                         prefix, basename))
@@ -191,7 +192,7 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
             if prefix:
                 prefix = prefix + "_"
         else:
-            if isinstance(basenames, basestring):
+            if isinstance(basenames, _basestring):
                 basenames = ["vol%i_%s" % (t, basenames)
                              for t in range(len(vols))]
             else:
@@ -215,7 +216,7 @@ def save_vols(vols, output_dir, basenames=None, affine=None,
                                                    prefix, t), ext=ext))
             else:
                 basename = basenames if isinstance(
-                    basenames, basestring) else basenames[t]
+                    basenames, _basestring) else basenames[t]
                 output_filename = os.path.join(output_dir,
                                                get_basenames("%s%s" % (
                                                    prefix, basename), ext=ext))
@@ -259,7 +260,7 @@ def save_vol(vol, output_filename=None, output_dir=None, basename=None,
 def is_3D(image):
     """Check whether image is 3D"""
 
-    if isinstance(image, basestring):
+    if isinstance(image, _basestring):
         image = nibabel.load(image)
     elif isinstance(image, list):
         image = nibabel.concat_images(image,
@@ -273,7 +274,7 @@ def is_4D(image):
     """Check whether image is 4D
     """
 
-    if isinstance(image, basestring):
+    if isinstance(image, _basestring):
         image = nibabel.load(image)
 
     return len(image.shape) == 4
@@ -321,7 +322,7 @@ def delete_orientation(imgs, output_dir, output_tag=''):
 
     output_imgs = []
     not_list = False
-    if isinstance(imgs, basestring):
+    if isinstance(imgs, _basestring):
         not_list = True
         imgs = [imgs]
 
@@ -357,7 +358,7 @@ def do_3Dto4D_merge(
 
     """
 
-    if isinstance(threeD_img_filenames, basestring):
+    if isinstance(threeD_img_filenames, _basestring):
         return nibabel.load(threeD_img_filenames)
 
     if output_dir is None:
@@ -458,7 +459,7 @@ def compute_mean_image(images, output_filename=None, threeD=False):
     """
 
     # sanitize
-    if not hasattr(images, '__iter__') or isinstance(images, basestring):
+    if not hasattr(images, '__iter__') or isinstance(images, _basestring):
         images = [images]
 
     # make list of data an affines
@@ -466,7 +467,7 @@ def compute_mean_image(images, output_filename=None, threeD=False):
     all_affine = []
     for image in images:
         if not is_niimg(image):
-            if isinstance(image, basestring):
+            if isinstance(image, _basestring):
                 image = nibabel.load(image)
             else:
                 image = nibabel.concat_images(image,
@@ -533,7 +534,7 @@ def hard_link(filenames, output_dir):
         the hard-linked filenames
 
     """
-    if isinstance(filenames, basestring):
+    if isinstance(filenames, _basestring):
         filenames = [filenames]
         if filenames[0].endswith(".img"):
             filenames.append(filenames[0].replace(".img", ".hdr"))
@@ -583,7 +584,7 @@ def get_basename(x, ext=None):
 def get_basenames(x, ext=None):
     if isinstance(x, list):
         return [get_basename(y, ext=ext) for y in x]
-    elif isinstance(x, basestring):
+    elif isinstance(x, _basestring):
         return get_basenames([x], ext=ext)[0]
     else:
         warnings.warn(
@@ -625,7 +626,7 @@ def loaduint8(img, log=None):
 
     # if isinstance(img, np.ndarray) or isinstance(img, list):
     #     vol = np.array(img)
-    # elif isinstance(img, basestring):
+    # elif isinstance(img, _basestring):
     #     img = nibabel.load(img)
     #     vol = img.get_data()
     # elif is_niimg(img):
@@ -667,23 +668,23 @@ def loaduint8(img, log=None):
     _progress_bar("...done.")
 
     # return the data
-    if isinstance(img, basestring) or is_niimg(img):
+    if isinstance(img, _basestring) or is_niimg(img):
         return nibabel.Nifti1Image(uint8_dat, img.get_affine())
     else:
         return uint8_dat
 
 
 def ravel_filenames(fs):
-    if isinstance(fs, basestring):
+    if isinstance(fs, _basestring):
         ofilenames = fs
-        file_types = 'basestring'
+        file_types = '_basestring'
     else:
         file_types = []
         ofilenames = []
         for x in fs:
-            if isinstance(x, basestring):
+            if isinstance(x, _basestring):
                 ofilenames.append(x)
-                file_types.append('basestring')
+                file_types.append('_basestring')
             else:
                 ofilenames += x
                 file_types.append(('list', len(x)))
@@ -692,12 +693,12 @@ def ravel_filenames(fs):
 
 
 def unravel_filenames(filenames, file_types):
-    if not isinstance(file_types, basestring):
+    if not isinstance(file_types, _basestring):
         _tmp = []
         s = 0
         for x in file_types:
-            if x == 'basestring':
-                if isinstance(filenames, basestring):
+            if x == '_basestring':
+                if isinstance(filenames, _basestring):
                     _tmp = filenames
                     break
                 else:
@@ -738,7 +739,7 @@ def niigz2nii(ifilename, output_dir=None):
     if isinstance(ifilename, list):
         return [niigz2nii(x, output_dir=output_dir) for x in ifilename]
     else:
-        if not isinstance(ifilename, basestring):
+        if not isinstance(ifilename, _basestring):
             raise RuntimeError(
                 "ifilename must be string or list of strings, got %s" % type(
                     ifilename))
@@ -791,14 +792,14 @@ def dcm2nii(source_names, terminal_output="allatonce", gzip_output=False,
         return source_names, None
 
     for source_name in [source_names] if isinstance(
-        source_names, basestring) else source_names:
+        source_names, _basestring) else source_names:
         if not isdicom(source_name):
             return source_names, None  # not (all) DICOM; nothx to do
 
     # sanitize output dir
     if output_dir is None:
         output_dir = os.path.dirname(source_names if isinstance(
-                source_names, basestring) else source_names[0])
+                source_names, _basestring) else source_names[0])
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -913,7 +914,7 @@ def get_shape(img):
 
     """
 
-    if isinstance(img, basestring):
+    if isinstance(img, _basestring):
         return nibabel.load(img).shape
     elif is_niimg(img):
         return img.shape
@@ -976,7 +977,7 @@ def nii2niigz(input_filename, output_dir=None):
     if isinstance(input_filename, list):
         return [nii2niigz(x, output_dir=output_dir) for x in input_filename]
     else:
-        if not isinstance(input_filename, basestring):
+        if not isinstance(input_filename, _basestring):
             raise RuntimeError(
                 "input_filename must be string"
                 "or list of strings, got %s" % type(
