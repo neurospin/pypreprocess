@@ -368,24 +368,24 @@ def export_report(src, tag="", make_archive=True):
     dst = os.path.join(src, "frozen_report_%s" % tag)
 
     if os.path.exists(dst):
-        # print "Removing old %s." % dst
+        # print("Removing old %s." % dst)
         # shutil.rmtree(dst)
         pass
 
     # copy hierarchy
-    print "Copying files directory structure from %s to %s" % (src, dst)
+    print("Copying files directory structure from %s to %s" % (src, dst))
     shutil.copytree(src, dst, ignore=ignore_these)
-    print "+++++++Done."
+    print("+++++++Done.")
 
     # zip the results (dst)
     if make_archive:
         dst_archive = dst + ".zip"
-        print "Writing archive %s .." % dst_archive
-        print commands.getoutput(
+        print("Writing archive %s .." % dst_archive)
+        print(commands.getoutput(
             'cd %s; zip -r %s %s; cd -' % (os.path.dirname(dst),
                                            os.path.basename(dst_archive),
-                                           os.path.basename(dst)))
-        print "+++++++Done."
+                                           os.path.basename(dst))))
+        print("+++++++Done.")
 
 
 def nipype2htmlreport(nipype_report_filename):

@@ -44,8 +44,8 @@ def do_fsl_merge(in_files, output_dir, output_prefix='merged_',
 
     cmdline = "%sfslmerge -t %s %s" % (cmd_prefix, output_filename,
                                        " ".join(in_files))
-    print cmdline
-    print commands.getoutput(cmdline)
+    print(cmdline)
+    print(commands.getoutput(cmdline))
 
     return output_filename
 

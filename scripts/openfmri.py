@@ -111,7 +111,7 @@ def do_subject_glm(subject_id):
     # fit GLM
     from nilearn.image import smooth_img
     func = smooth_img(func, fwhm=8.)
-    print 'Fitting a GLM (this takes time)...'
+    print('Fitting a GLM (this takes time)...')
     fmri_glm = FMRILinearModel(func, [check_design_matrix(design_matrix)[1]
                                       for design_matrix in design_matrices],
                                mask='compute')
@@ -119,14 +119,14 @@ def do_subject_glm(subject_id):
 
     # save computed mask
     mask_path = os.path.join(subject_output_dir, "mask.nii")
-    print "Saving mask image to %s ..." % mask_path
+    print("Saving mask image to %s ..." % mask_path)
     nibabel.save(fmri_glm.mask, mask_path)
 
     # compute contrast maps
     z_maps = {}
     effects_maps = {}
     for contrast_id, contrast_val in contrasts.items():
-        print "\tcontrast id: %s" % contrast_id
+        print("\tcontrast id: %s" % contrast_id)
         z_map, t_map, effects_map, var_map = fmri_glm.contrast(
             [contrast_val] * n_runs, con_id=contrast_id, output_z=True,
             output_stat=True, output_effects=True, output_variance=True)
@@ -137,7 +137,7 @@ def do_subject_glm(subject_id):
                 os.makedirs(map_dir)
             map_path = os.path.join(
                 map_dir, '%s.nii.gz' % contrast_id)
-            print "\t\tWriting %s ..." % map_path
+            print("\t\tWriting %s ..." % map_path)
             nibabel.save(out_map, map_path)
             if map_type == 'z':
                 z_maps[contrast_id] = map_path

@@ -210,7 +210,7 @@ def _run_powell(params, direct, tolsc, *otherargs):
         # verbose
         token = "".join(['%-12.4g ' % z for z in x])
         token += '|  %.5g' % output
-        print token
+        print(token)
 
         return output
 
@@ -357,8 +357,8 @@ class Coregister(object):
         # pyramidal loop
         self.params_ = np.array(self.params_init)
         for samp in self.sep:
-            print ("\r\nRunning Powell gradient-less local optimization "
-                   "(pyramidal level = %smm)...") % samp
+            print("\r\nRunning Powell gradient-less local optimization "
+                  "(pyramidal level = %smm)...") % samp
 
             # create sampled grid for target img
             grid = make_sampled_grid(target.shape, samp=_correct_voxel_samp(

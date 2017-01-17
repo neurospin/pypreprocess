@@ -922,7 +922,7 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
             ['func', 'anat'], [fwhm] + [anat_fwhm] * 7):
         brain = getattr(subject_data, brain_name)
         if not brain: continue
-        print brain_name
+        print(brain_name)
         if not np.sum(width): continue
         in_files = brain
         if brain_name == "func":
@@ -1554,9 +1554,9 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     if "n_jobs" in preproc_params:
         preproc_params.pop("n_jobs")
 
-    print "Using the following parameters for preprocessing:"
+    print("Using the following parameters for preprocessing:")
     for k, v in preproc_params.iteritems():
-        print "\t%s=%s" % (k, v)
+        print("\t%s=%s" % (k, v))
 
     # generate subjects (if generator)
     subjects = [subject_data for subject_data in subject_factory]
@@ -1692,9 +1692,9 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
             return
         progress_logger.finish(report_preproc_filename)
         if shutdown_reloaders:
-            print "Finishing %s..." % output_dir
+            print("Finishing %s..." % output_dir)
             progress_logger.finish_dir(output_dir)
-        print "\r\n\tHTML report written to %s" % report_preproc_filename
+        print("\r\n\tHTML report written to %s" % report_preproc_filename)
 
     normalize = preproc_params.get("normalize", True)
 

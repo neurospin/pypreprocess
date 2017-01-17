@@ -131,7 +131,7 @@ def read_fsl_design_file(design_filename):
     # # lookup EV (condition) shapes
     # condition_shapes = [int(item.group("shape")) for item in re.finditer(
     #         EV_SHAPE_REGX, design_conf)]
-    # print condition_shapes
+    # print(condition_shapes)
 
     # lookup EV (condition) custom files
     timing_files = [_get_abspath_relative_to_file(item.group("custom"),

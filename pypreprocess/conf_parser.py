@@ -89,7 +89,7 @@ def _sanitize(section, key, **replacements):
             raise RuntimeError("Invalid pycmd specification '%s'" % val)
         cmd = match.group(1)
         with _stdoutIO() as s:
-            exec cmd
+            exec(cmd)
         section[key] = s.getvalue().rstrip("\r\n")
 
 
@@ -398,7 +398,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
 
             # skip subject if anat absent
             if len(anat) < 1:
-                print (
+                print(
                     "subject %s: anat image matching %s not found!; skipping"
                     " subject" % (subject_id, anat_wildcard))
                 continue
@@ -449,4 +449,4 @@ import_data = _generate_preproc_pipeline
 
 if __name__ == '__main__':
     from pypreprocess.reporting.base_reporter import dict_to_html_ul
-    print dict_to_html_ul(_parse_job("job.conf"))
+    print(dict_to_html_ul(_parse_job("job.conf")))

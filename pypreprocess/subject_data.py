@@ -637,9 +637,9 @@ class SubjectData(object):
             commit_subject_thumnbail_to_parent_gallery(
                 self.final_thumbnail, self.subject_id, parent_results_gallery)
 
-        print ("\r\nPreproc report for subject %s written to %s"
-               " .\r\n" % (self.subject_id,
-                           self.report_preproc_filename))
+        print("\r\nPreproc report for subject %s written to %s"
+              " .\r\n" % (self.subject_id,
+                          self.report_preproc_filename))
 
     def __getitem__(self, key):
         return self.__dict__[key]

@@ -25,7 +25,7 @@ def demo_random_brain(n_rows=62, n_columns=40, n_slices=10, n_scans=240):
 
     """
 
-    print "\r\n\t\t ---demo_random_brain---"
+    print("\r\n\t\t ---demo_random_brain---")
 
     # populate brain with white-noise (for BOLD values)
     brain_data = np.random.randn(n_rows, n_columns, n_slices, n_scans)
@@ -73,7 +73,7 @@ def demo_sinusoidal_mixture(n_slices=10, n_rows=3, n_columns=2,
 
     """
 
-    print "\r\n\t\t ---demo_sinusoid_mixture---"
+    print("\r\n\t\t ---demo_sinusoid_mixture---")
     slice_indices = np.arange(n_slices, dtype=int)
     timescale = .01
     sine_freq = [.5, .8, .11, .7]
@@ -164,7 +164,7 @@ def demo_HRF(n_slices=10,
 
     """
 
-    print "\r\n\t\t ---demo_HRF---"
+    print("\r\n\t\t ---demo_HRF---")
 
     import math
 
