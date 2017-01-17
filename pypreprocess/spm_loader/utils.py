@@ -97,7 +97,7 @@ def _export(doc, out_dir, outputs):
     #         map_dir = os.path.join(subject_dir, dtype)
     #         if not os.path.exists(map_dir):
     #             os.makedirs(map_dir)
-    #         for label, fpath in doc[dtype].iteritems():
+    #         for label, fpath in doc[dtype].items():
     #             img = nb.load(fpath)
     #             fname = '%s.nii.gz' % label.replace(' ', '_')
     #             nb.save(img, os.path.join(map_dir, fname))

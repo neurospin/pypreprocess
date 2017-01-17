@@ -342,7 +342,7 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
             design_thumbs.commit_thumbnails(thumb)
 
     # create activation thumbs
-    for contrast_id, contrast_val in contrasts.iteritems():
+    for contrast_id, contrast_val in contrasts.items():
         z_map = z_maps[contrast_id]
 
         # load the map

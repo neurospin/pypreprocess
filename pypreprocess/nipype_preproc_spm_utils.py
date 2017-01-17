@@ -1555,7 +1555,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         preproc_params.pop("n_jobs")
 
     print("Using the following parameters for preprocessing:")
-    for k, v in preproc_params.iteritems():
+    for k, v in preproc_params.items():
         print("\t%s=%s" % (k, v))
 
     # generate subjects (if generator)
@@ -1684,7 +1684,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         progress_logger.log("<b>Environ Variables</b><br/>")
         progress_logger.log(
             "<ul>" + "".join(["<li>%s: %s</li>" % (item, value)
-                              for item, value in os.environ.iteritems()])
+                              for item, value in os.environ.items()])
             + "</ul><hr/>")
 
     def finalize_report():

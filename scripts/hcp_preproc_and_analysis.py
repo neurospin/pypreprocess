@@ -328,11 +328,11 @@ def run_suject_level1_glm(subject_data,
                 contrasts['RF'] - contrasts['LF'])
             contrasts['F-H'] = -contrasts['H-F']
 
-        contrasts = dict((k, v) for k, v in contrasts.iteritems() if "-" in k)
+        contrasts = dict((k, v) for k, v in contrasts.items() if "-" in k)
 
     # replicate contrasts across sessions
     contrasts = dict((cid, [cval] * 2)
-                     for cid, cval in contrasts.iteritems())
+                     for cid, cval in contrasts.items())
 
     cache_dir = cache_dir = os.path.join(subject_data.output_dir,
                                          'cache_dir')
@@ -373,7 +373,7 @@ def run_suject_level1_glm(subject_data,
         effects_maps = {}
         map_dirs = {}
         try:
-            for contrast_id, contrast_val in contrasts.iteritems():
+            for contrast_id, contrast_val in contrasts.items():
                 print("\tcontrast id: %s" % contrast_id)
                 z_map, eff_map = fmri_glm.contrast(
                     contrast_val,
@@ -415,9 +415,9 @@ def run_suject_level1_glm(subject_data,
     effects_maps, z_maps, mask_path, map_dirs = stuff
 
     # remove repeated contrasts
-    contrasts = dict((cid, cval[0]) for cid, cval in contrasts.iteritems())
+    contrasts = dict((cid, cval[0]) for cid, cval in contrasts.items())
     import json
-    json.dump(dict((k, list(v)) for k, v in contrasts.iteritems()),
+    json.dump(dict((k, list(v)) for k, v in contrasts.items()),
               open(os.path.join(subject_data.tmp_output_dir,
                                 "contrasts.json"), "w"))
     subject_data.contrasts = contrasts
@@ -431,7 +431,7 @@ def run_suject_level1_glm(subject_data,
 
         # warp effects maps and mask from native to standard space (MNI)
         apply_to_files = [
-            v for _, v in subject_data.native_effects_maps.iteritems()
+            v for _, v in subject_data.native_effects_maps.items()
             ] + [subject_data.native_mask_path]
         tmp = nipype_mem.cache(spm.Normalize)(
             parameter_file=getattr(subject_data, "parameter_file"),

@@ -78,7 +78,7 @@ def dict_to_html_ul(mydict):
         # handle dict type
         if isinstance(stuff, dict):
             val = "<ul>"
-            for _k, _v in stuff.iteritems():
+            for _k, _v in stuff.items():
                 if not _v is None:
                     val += "<li>%s: %s</li>" % (_k, make_li(_v))
             val += "</ul>"
@@ -100,7 +100,7 @@ def dict_to_html_ul(mydict):
         return make_li(mydict)
     elif isinstance(mydict, dict):
         html_ul = ""
-        for k, v in mydict.iteritems():
+        for k, v in mydict.items():
             if not v is None:
                 html_ul += "<li>%s: %s</li>" % (k, make_li(v))
         html_ul += "</ul>"

@@ -91,7 +91,7 @@ anat_img = nibabel.load(subject_data.anat)
 print("Computing contrasts ..")
 z_maps = {}
 effects_maps = {}
-for contrast_id, contrast_val in contrasts.iteritems():
+for contrast_id, contrast_val in contrasts.items():
     print("\tcontrast id: %s" % contrast_id)
     z_map, t_map, eff_map, var_map = fmri_glm.transform(
         contrasts[contrast_id], contrast_name=contrast_id, output_z=True,

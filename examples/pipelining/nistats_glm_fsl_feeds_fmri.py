@@ -109,7 +109,7 @@ nibabel.save(fmri_glm.masker_.mask_img_, mask_path)
 mean_fmri_files = compute_mean_3D_image(fmri_files)
 print("Computing contrasts ..")
 z_maps = {}
-for contrast_id, contrast_val in contrasts.iteritems():
+for contrast_id, contrast_val in contrasts.items():
     print("\tcontrast id: %s" % contrast_id)
     z_map, t_map, eff_map, var_map = fmri_glm.transform(
         con_vals=contrasts[contrast_id],

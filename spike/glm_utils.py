@@ -176,7 +176,7 @@ def do_subject_glm(subject_data):
     # compute contrasts
     z_maps = {}
     effects_maps = {}
-    for contrast_id, contrast_val in contrasts.iteritems():
+    for contrast_id, contrast_val in contrasts.items():
         print("\tcontrast id: %s" % contrast_id)
         if np.ndim(contrast_val) > 1:
             contrast_type = "t"
@@ -263,7 +263,7 @@ if __name__ == "__maih__":
         anat_img = nibabel.load(anat)
         z_map = nibabel.load(z_maps.values()[0])
         all_effects_maps.append(effects_maps)
-        for contrast_id, z_map in z_maps.iteritems():
+        for contrast_id, z_map in z_maps.items():
             plot_stat_map(z_map, black_bg=True, threshold=2.3,
                           title="%s: %s" % (subject_id, contrast_id))
             plt.savefig("%s_%s.png" % (subject_id, contrast_id))
