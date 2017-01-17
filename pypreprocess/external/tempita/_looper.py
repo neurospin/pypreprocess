@@ -7,9 +7,9 @@ These can be awkward to manage in a normal Python loop, but using the
 looper you can get a better sense of the context.  Use like::
 
     >>> for loop, item in looper(['a', 'b', 'c']):
-    ...     print(loop.number, item)
+    ...     print loop.number, item
     ...     if not loop.last:
-    ...         print('---')
+    ...         print '---'
     1 a
     ---
     2 b
@@ -19,7 +19,7 @@ looper you can get a better sense of the context.  Use like::
 """
 
 import sys
-from ..tempita.compat3 import basestring_
+from .compat3 import basestring_
 
 __all__ = ['looper']
 
