@@ -1,4 +1,5 @@
 #! /bin/bash
+# Time-stamp: <2017-01-17 10:42:14 cp983411>
 set -e
 
 # set -x  # echo on
@@ -8,19 +9,20 @@ SPM_ROOT_DIR=~/opt/spm12   #  Installation directory
 SPM_SRC=spm12_r7219.zip  # this used to be spm12_r6914.zip, watch out it might get pulled down again!!!
 MCRINST=MCRInstaller.bin
 
+SPM_ROOT_DIR=~/opt/spm12   #  local installation directory
+
+
 mkdir -p $SPM_ROOT_DIR && cd $SPM_ROOT_DIR
 
 if [ ! -d spm12 ]; then
     if [ ! -f ${SPM_SRC} ]; then
 	wget http://www.fil.ion.ucl.ac.uk/spm/download/restricted/utopia/${SPM_SRC}
     fi
-    unzip -q ${SPM_SRC}
-    chmod 755 spm12/run_spm12.sh
 fi
 
 if [ ! -d mcr ]; then
     if [ ! -f MCRInstaller.bin ]; then
-	wget http://www.fil.ion.ucl.ac.uk/spm/download/restricted/utopia/MCR/glnxa64/${MCRINST}
+	wget "${SPM_URL}/MCR/glnxa64/${MCRINST}"
     fi
     chmod 755 ${MCRINST}
     ./${MCRINST} -P bean421.installLocation="mcr" -silent
