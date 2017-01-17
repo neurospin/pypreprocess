@@ -60,15 +60,18 @@ tsdiffana_tooltips = [
     ("(Squared) differences across sequential volumes. "
      "A large value indicates an artifact that occurred during the "
      "slice acquisition, possibly related to motion."),
-    ("Average signal over each volume. A large drop/peak (e.g. 5%) indicates "
-     "an artefact."),
+    ("Average signal over each volume. A large drop / peak (e.g. 1%)"
+     " w.r.t the mean level indicates an artefact. For example, there are "
+     " usually large values peaks in the first few slices due to T2 "
+     " relaxation effects, and these slices are usually adviced to be "
+     "discarded."),
     ("Variance index per slice. Note that acquisition artifacts can be slice"
      "-specific. Look at the data if there is a peak somewhere."),
     ("Scaled variance per slice indicates slices where artifacts occur."
-    "A slice/time with large variance should be eyeballed."),
+    " A slice/time with large variance should be eyeballed."),
     ("Large variations should be confined to vascular structures "
      "or ventricles. Large variations around the brain indicate"
-     " (uncorrected) motion effects."),
+     " residual motion effects."),
     ("Large variations should be confined to vascular structures or"
      " ventricles. Large variations around the brain indicate (uncorrected)"
      " motion effects.")]
