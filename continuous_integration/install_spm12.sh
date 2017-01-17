@@ -1,5 +1,5 @@
 #! /bin/bash
-# Time-stamp: <2017-01-17 10:42:14 cp983411>
+# Time-stamp: <2017-01-17 13:42:00 cp983411>
 set -e
 
 # set -x  # echo on
@@ -30,7 +30,9 @@ if [ ! -d mcr ]; then
 	wget "${SPM_URL}/MCR/glnxa64/${MCRINST}"
     fi
     chmod 755 ${MCRINST}
+    echo Installing Matlab\'s MCR...
     ./${MCRINST} -P bean421.installLocation="mcr" -silent
+    echo done
 fi
 
 
@@ -48,7 +50,11 @@ fi
 $SPM_ROOT_DIR/spm12.sh quit
 cmds="export SPM_DIR=$SPM_ROOT_DIR/spm12/; export SPM_MCR=$SPM_ROOT_DIR/spm12.sh"
 ${cmds}
-echo "You may want to add the following commands (the exports) to your ~/.bashrc file once and for all."
+echo
+echo "*** spm12.sh is install in ${SPM_ROOT_DIR} ***"
+echo "You may want to add the following commands in your ~/.bashrc file once and for all."
 echo
 echo ${cmds}
+echo
 
+echo 'WARNING: If you saw a error message "Fatal error loading library ... " above, please check that libXp is installed on your computer (see "https://fr.mathworks.com/matlabcentral/answers/99815-why-do-i-receive-xsetup-errors-regarding-libxp-so-6-when-installing-or-launching-matlab-on-fedora-co?requestedDomain=www.mathworks.com)'
