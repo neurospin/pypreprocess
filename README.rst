@@ -56,17 +56,17 @@ First, install neurodebian-travis
 
       bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
 
-Second, install the python packages pip, scipy, nose, nibabel, sklearn, nipype, pandas configobj.  If you have a python virtual environment, just run:
+Second, install the python packages pip, scipy, nose, nibabel, sklearn, nipype, pandas, matplotlib, nilearn and configobj.  If you have a python virtual environment, just run:
 
-      pip install scipy nose nibabel sklearn nipype pandas configobj
+      pip install scipy nose nibabel sklearn nipype pandas matplotlib nilearn configobj 
 
 If not, make sure to install pip (run: 'sudo apt-get install python-pip'). If you want to install these locally, use the --user option:
         
-      pip install scipy nose nibabel sklearn nipype pandas configobj --user
+      pip install scipy nose nibabel sklearn nipype pandas matplotlib nilearn configobj --user
 
 If you want to install these for all users, use sudo:
 
-      sudo pip install scipy nose nibabel sklearn nipype pandas configobj
+      sudo pip install scipy nose nibabel sklearn nipype pandas matplotlib nilearn configobj
 
 Finally, install pypreprocess itself by running the following in the pypreprocess:
 
