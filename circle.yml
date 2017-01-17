@@ -16,15 +16,16 @@ dependencies:
     - source continuous_integration/setup_spm.sh
     # Installing Pypreprocess dependencies
     - pip install --upgrade pip
-    - pip install scipy sklearn nibabel configobj nose coverage 
-    - pip install matplotlib pandas nipype nilearn
+    - |
+      pip install numpy==1.11 scipy sklearn nibabel configobj nose coverage\
+          matplotlib pandas nipype nilearn configparser
 
   override:
     # Installing pypreprocess
     - pip install -e .
     # Fetching Auditory and Multimodal datasets in order to be cached in the future
     - python -c "from pypreprocess import datasets; datasets.fetch_spm_auditory(); datasets.fetch_spm_multimodal_fmri(); datasets.fetch_fsl_feeds()"
-    # Caching terminates here. Outputs from test won't be saved. 
+    # Caching terminates here. Outputs from test won't be saved.
 
 test:
   override:
