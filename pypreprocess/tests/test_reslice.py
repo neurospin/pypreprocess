@@ -11,8 +11,8 @@ def test_reslice_vols():
     # create basic L pattern
     n_scans = 3
     film = np.zeros((10, 10, 10, n_scans))
-    film[-3:, 5:-1, ..., ...] = 1
-    film[..., 2:5, ..., ...] = 1
+    film[-3:, 5:-1, :, :] = 1
+    film[:, 2:5, :, :] = 1
     affine = np.array(
         [[-2.99256921e+00, -1.12436414e-01, -2.23214120e-01,
           1.01544670e+02],

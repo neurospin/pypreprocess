@@ -17,7 +17,7 @@ dependencies:
     # Installing Pypreprocess dependencies
     - pip install --upgrade pip
     - |
-      pip install numpy==1.11 scipy sklearn nibabel configobj nose coverage\
+      pip install numpy scipy sklearn nibabel configobj nose coverage\
           matplotlib pandas nipype nilearn configparser
 
   override:
