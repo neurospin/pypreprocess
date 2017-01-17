@@ -13,7 +13,7 @@ import re
 from io import StringIO
 from configobj import ConfigObj
 import numpy as np
-from subject_data import SubjectData
+from .subject_data import SubjectData
 from io_utils import _expand_path, get_relative_path
 
 from nilearn._utils.compat import _basestring
