@@ -12,7 +12,7 @@ import os
 import sys
 import numpy as np
 import nibabel
-import commands
+import subprocess
 from nipy.modalities.fmri.glm import FMRILinearModel
 from nilearn.masking import intersect_masks
 from nilearn._utils.compat import _basestring
@@ -98,7 +98,7 @@ def _do_fmri_distortion_correction(subject_data,
             fslroi_cmd = "fsl5.0-fslroi %s %s 0 1" % (
                 fieldmap_file, zeroth_fieldmap_file)
             print("\r\nExecuting '%s' ..." % fslroi_cmd)
-            print(mem.cache(commands.getoutput)(fslroi_cmd))
+            print(mem.cache(subprocess.check_output)(fslroi_cmd))
 
             zeroth_fieldmap_files.append(zeroth_fieldmap_file)
 
@@ -110,7 +110,7 @@ def _do_fmri_distortion_correction(subject_data,
             merged_zeroth_fieldmap_file, zeroth_fieldmap_files[0],
             zeroth_fieldmap_files[1])
         print("\r\nExecuting '%s' ..." % fslmerge_cmd)
-        print(mem.cache(commands.getoutput)(fslmerge_cmd))
+        print(mem.cache(subprocess.check_output)(fslmerge_cmd))
 
         # do topup (learn distortion model)
         topup_results_basename = os.path.join(subject_data.output_dir,
@@ -120,7 +120,7 @@ def _do_fmri_distortion_correction(subject_data,
             "--out=%s" % (merged_zeroth_fieldmap_file, acq_params_file,
                           topup_results_basename))
         print("\r\nExecuting '%s' ..." % topup_cmd)
-        print(mem.cache(commands.getoutput)(topup_cmd))
+        print(mem.cache(subprocess.check_output)(topup_cmd))
 
         # apply learn deformations to absorb distortion
         dc_fmri_files = []
@@ -134,7 +134,7 @@ def _do_fmri_distortion_correction(subject_data,
             fslmerge_cmd = "fsl5.0-fslmerge -t %s %s %s" % (
                 fourD_plus_sbref, sbref_files[sess], subject_data.func[sess])
             print("\r\nExecuting '%s' ..." % fslmerge_cmd)
-            print(mem.cache(commands.getoutput)(fslmerge_cmd))
+            print(mem.cache(subprocess.check_output)(fslmerge_cmd))
 
             # realign task BOLD to SBRef
             sess_output_dir = subject_data.session_output_dirs[sess]
@@ -154,14 +154,14 @@ def _do_fmri_distortion_correction(subject_data,
                     rfourD_plus_sbref, sess + 1, topup_results_basename,
                     dc_rfourD_plus_sbref, acq_params_file))
             print("\r\nExecuting '%s' ..." % applytopup_cmd)
-            print(mem.cache(commands.getoutput)(applytopup_cmd))
+            print(mem.cache(subprocess.check_output)(applytopup_cmd))
 
             # recover undistorted task BOLD
             dc_rfmri_file = dc_rfourD_plus_sbref.replace("sbref_plus_", "")
             fslroi_cmd = "fsl5.0-fslroi %s %s 1 -1" % (
                 dc_rfourD_plus_sbref, dc_rfmri_file)
             print("\r\nExecuting '%s' ..." % fslroi_cmd)
-            print(mem.cache(commands.getoutput)(fslroi_cmd))
+            print(mem.cache(subprocess.check_output)(fslroi_cmd))
 
             # sanity tricks
             if dc_rfmri_file.endswith(".nii"):

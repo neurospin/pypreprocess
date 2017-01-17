@@ -4,7 +4,7 @@ Author: Bertrand Thirion, Alexandre Abraham, DOHMATOB Elvis Dopgima
 """
 
 import os
-import commands
+import subprocess
 import nipype.interfaces.fsl as fsl
 from nipype.caching import Memory as NipypeMemory
 from sklearn.externals.joblib import Memory  as JoblibMemory
@@ -45,7 +45,7 @@ def do_fsl_merge(in_files, output_dir, output_prefix='merged_',
     cmdline = "%sfslmerge -t %s %s" % (cmd_prefix, output_filename,
                                        " ".join(in_files))
     print(cmdline)
-    print(commands.getoutput(cmdline))
+    print(subprocess.check_output(cmdline))
 
     return output_filename
 

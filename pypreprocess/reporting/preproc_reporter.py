@@ -9,7 +9,7 @@ import os
 import glob
 import re
 import shutil
-import commands
+import subprocess
 import time
 import json
 import numpy as np
@@ -381,7 +381,7 @@ def export_report(src, tag="", make_archive=True):
     if make_archive:
         dst_archive = dst + ".zip"
         print("Writing archive %s .." % dst_archive)
-        print(commands.getoutput(
+        print(subprocess.check_output(
             'cd %s; zip -r %s %s; cd -' % (os.path.dirname(dst),
                                            os.path.basename(dst_archive),
                                            os.path.basename(dst))))
