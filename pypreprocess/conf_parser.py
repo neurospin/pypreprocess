@@ -6,11 +6,11 @@
 
 import os
 import sys
-import StringIO
 import contextlib
 import warnings
 import glob
 import re
+from io import StringIO
 from configobj import ConfigObj
 import numpy as np
 from subject_data import SubjectData
