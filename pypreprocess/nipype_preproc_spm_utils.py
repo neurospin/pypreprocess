@@ -14,18 +14,18 @@ import inspect
 import numpy as np
 import nibabel
 from .slice_timing import get_slice_indices
-from conf_parser import _generate_preproc_pipeline
+from .conf_parser import _generate_preproc_pipeline
 import matplotlib
 matplotlib.use('Agg')
 from sklearn.externals.joblib import Parallel, delayed, Memory as JoblibMemory
 from nilearn._utils.compat import _basestring
 import nipype.interfaces.spm as spm
 from nipype.caching import Memory as NipypeMemory
-from configure_spm import _configure_spm, _get_version_spm
+from .configure_spm import _configure_spm, _get_version_spm
 from .io_utils import (
     load_vols, ravel_filenames, unravel_filenames, get_vox_dims,
     niigz2nii, resample_img, compute_output_voxel_size, sanitize_fwhm)
-from subject_data import SubjectData
+from .subject_data import SubjectData
 from .reporting.base_reporter import (
     ResultsGallery, ProgressReport, copy_web_conf_files,
     get_module_source_code, dict_to_html_ul)
@@ -34,7 +34,7 @@ from .reporting.preproc_reporter import (
     get_dataset_report_log_html_template,
     get_dataset_report_preproc_html_template,
     get_dataset_report_html_template)
-from purepython_preproc_utils import (
+from .purepython_preproc_utils import (
     _do_subject_slice_timing as _pp_do_subject_slice_timing,
     _do_subject_realign as _pp_do_subject_realign,
     _do_subject_coregister as _pp_do_subject_coregister,

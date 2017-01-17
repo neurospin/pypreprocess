@@ -295,9 +295,9 @@ def execute_glm(doc, out_dir, contrast_definitions=None,
         model=glm_model,
         )
 
-    print("Report for subject %s written to %s" % ()
+    print("Report for subject %s written to %s" % (
         doc['subject'],
-        subject_stats_report_filename)
+        subject_stats_report_filename))
 
 
 def inv_perm(perm):

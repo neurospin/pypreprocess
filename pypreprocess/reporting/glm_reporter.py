@@ -10,7 +10,7 @@ from pypreprocess.external.nistats.design_matrix import plot_design_matrix
 from pypreprocess.external.nistats.glm import FirstLevelGLM
 import pandas as pd
 from nilearn.masking import intersect_masks
-import base_reporter
+from . import base_reporter
 from ..cluster_level_analysis import cluster_stats
 
 

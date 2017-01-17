@@ -8,7 +8,7 @@
 
 import os
 import inspect
-from reporting.preproc_reporter import (
+from .reporting.preproc_reporter import (
     generate_preproc_undergone_docstring)
 from sklearn.externals.joblib import Memory
 from nilearn._utils.compat import _basestring
