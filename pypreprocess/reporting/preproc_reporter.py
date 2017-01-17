@@ -11,7 +11,6 @@ import re
 import shutil
 import commands
 import time
-import json
 import numpy as np
 import pylab as pl
 import nibabel
@@ -25,17 +24,12 @@ from ..configure_spm import _configure_spm, _get_version_spm
 from .base_reporter import (Thumbnail,
                             ResultsGallery,
                             ProgressReport,
-                            a,
-                            img,
+                            a, img,
                             lines2breaks,
-                            get_dataset_report_html_template,
-                            get_dataset_report_preproc_html_template,
                             get_subject_report_html_template,
                             get_subject_report_preproc_html_template,
                             PYPREPROCESS_URL, DARTEL_URL, ROOT_DIR,
-                            commit_subject_thumnbail_to_parent_gallery,
-                            get_dataset_report_log_html_template,
-                            copy_web_conf_files)
+                            commit_subject_thumnbail_to_parent_gallery)
 
 
 # misc

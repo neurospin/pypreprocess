@@ -3,6 +3,7 @@ from nose.tools import assert_equal, assert_true
 from ._test_utils import _make_sd
 from pypreprocess.subject_data import SubjectData
 
+# config
 DATA_DIR = "test_tmp_data"
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)

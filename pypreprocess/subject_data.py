@@ -21,7 +21,8 @@ from .reporting.base_reporter import (
     commit_subject_thumnbail_to_parent_gallery,
     ResultsGallery, Thumbnail, a, img, copy_web_conf_files,
     ProgressReport, get_subject_report_html_template,
-    get_subject_report_preproc_html_template, copy_failed_png)
+    get_subject_report_preproc_html_template, copy_failed_png,
+    _get_software_versions)
 
 from .reporting.preproc_reporter import (generate_tsdiffana_thumbnail,
                                          generate_realignment_thumbnails,
@@ -588,7 +589,8 @@ class SubjectData(object):
         # html markup
         preproc = get_subject_report_preproc_html_template(
             results=self.results_gallery, start_time=time.ctime(),
-            preproc_undergone=preproc_undergone, subject_id=self.subject_id)
+            preproc_undergone=preproc_undergone, subject_id=self.subject_id,
+            softwares=_get_software_versions())
         main_html = get_subject_report_html_template(
             start_time=time.ctime(), subject_id=self.subject_id)
         with open(self.report_preproc_filename, 'w') as fd:

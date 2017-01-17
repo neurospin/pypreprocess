@@ -1,9 +1,9 @@
 <!-- author: d0hm4t06 3lv15 d0p91m4 -->
-
 {{default preproc_undergone = None}}
 {{default references = ["Russel A. Poldrack et al. <i>Handbook of Functional MRI Data Analysis</i>"]}}
 {{default report_html = "report.html"}}
 {{default conf_path="."}}
+{{default softwares = []}}
 
 <html>
   <head>
@@ -30,7 +30,15 @@
       <li>{{ref | html}}</li>
       {{endfor}}
       </ul>
-    <hr/>
+
+      <br/><b>Software versions</b><br/>
+      <ul>
+	{{for soft in softwares}}
+	<li>{{soft | html}}</li>
+	{{endfor}}
+      </ul>
+      <hr/>
+      <hr/>
     {{endif}}
 
     <script type="text/javascript">
