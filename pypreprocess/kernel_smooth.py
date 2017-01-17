@@ -200,8 +200,10 @@ class LinearFilter(object):
         self._norm = _get_kernel_norm(kernel, self._normalization)
 
         self._kernel = kernel
-        self._shape = (np.ceil((np.asarray(self._bshape) +
-                              np.asarray(kernel.shape)) / 2) * 2 + 2)
+        shape_array = (np.ceil((np.asarray(self._bshape) +
+                                np.asarray(kernel.shape)) / 2) * 2 + 2)
+        # shape needs to be a list of ints
+        self._shape = shape_array.astype('uint64').tolist()
         self.fkernel = np.zeros(self._shape)
         slices = [slice(0, kernel.shape[i]) for i in range(kernel.ndim)]
         self.fkernel[slices] = kernel

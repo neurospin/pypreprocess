@@ -70,8 +70,8 @@ def check_STC(true_signal, corrected_signal, ref_slice=0,
               rtol=None, atol=None):
     n_slices = true_signal.shape[2]
     np.testing.assert_array_almost_equal(
-        corrected_signal[..., ref_slice, ...],
-        true_signal[..., ref_slice, ...])
+        corrected_signal[..., ref_slice, :],
+        true_signal[..., ref_slice, :])
     for _ in range(1, n_slices):
         # relative closeness
         if rtol is not None:
@@ -187,7 +187,7 @@ def test_STC_for_HRF():
     # sample the time and the signal
     freq = 100
     TR = 3.
-    acquisition_time = time[::TR * freq]
+    acquisition_time = time[::int(TR * freq)]
     n_scans = len(acquisition_time)
 
     # corrupt the sampled time by shifting it to the right
