@@ -780,7 +780,7 @@ def generate_realignment_thumbnails(
         if isinstance(x, _basestring):
             x = np.loadtxt(x)
         tmp.append(x)
-    lengths = map(len, tmp)
+    lengths = [len(each) for each in tmp]
     estimated_motion = np.vstack(tmp)
     rp_plot = os.path.join(output_dir, 'rp_plot.png')
     plot_spm_motion_parameters(
