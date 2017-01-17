@@ -10,7 +10,10 @@ import contextlib
 import warnings
 import glob
 import re
-from io import StringIO
+try:
+    import StringIO as io
+except ImportError:
+    import io
 from configobj import ConfigObj
 import numpy as np
 from .subject_data import SubjectData
@@ -25,7 +28,7 @@ def _stdoutIO(stdout=None):
     """
     old = sys.stdout
     if stdout is None:
-        stdout = StringIO()
+        stdout = io.StringIO()
     sys.stdout = stdout
     yield stdout
     sys.stdout = old
