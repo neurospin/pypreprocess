@@ -46,7 +46,7 @@ def get_slice_indices(n_slices, slice_order='ascending',
     """
 
     if isinstance(slice_order, _basestring):
-        slice_indices = range(n_slices)
+        slice_indices = list(range(n_slices))
         if interleaved:
             # python indexing begins from 0 (MATLAB begins from 1)
             slice_indices = slice_indices[0::2] + slice_indices[1::2]
@@ -294,7 +294,7 @@ class STC(object):
             # frequency
             phi = np.ndarray(N)
             phi[0] = 0.
-            for f in range(N / 2):
+            for f in range(int(N / 2)):
                 phi[f + 1] = -1. * shift_amount * 2 * np.pi * (f + 1) / N
 
             # check if signal length is odd or even -- impacts how phases
