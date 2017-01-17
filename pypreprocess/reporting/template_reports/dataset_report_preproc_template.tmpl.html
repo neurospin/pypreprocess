@@ -1,9 +1,9 @@
 <!-- author: d0hm4t06 3lv15 d0p91m4 -->
-
 {{default done = 0}}
 {{default preproc_undergone = None}}
 {{default dataset_description = "NOT PROVIDED!"}}
 {{default references = ["Russel A. Poldrack et al. <i>Handbook of Functional MRI Data Analysis</i>"]}}
+{{default softwares = []}}
 {{default conf_path = "."}}
 {{default source_script_name = None}}
 {{default source_code = None}}
@@ -48,14 +48,22 @@
     </div>
     {{endif}}
 
-    <br/>References</b><br/>
-      <ul>
+    <br/><b>References</b><br/>
+    <ul>
       {{for ref in references}}
       <li>{{ref | html}}</li>
       {{endfor}}
-      </ul>
-      <br clear="all"/>
+    </ul>
+    
+    <br/><b>Software versions</b><br/>
+    <ul>
+      {{for soft in softwares}}
+      <li>{{soft | html}}</li>
+      {{endfor}}
+    </ul>
     <hr/>
+
+    <br clear="all"/>
 
     <script type="text/javascript">
       {{py: import os; loader=os.path.basename(results.loader_filename);}}

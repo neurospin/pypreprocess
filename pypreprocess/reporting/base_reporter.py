@@ -11,7 +11,9 @@ import time
 import matplotlib as mpl
 import pylab as pl
 import numpy as np
+import nipype
 from ..external.tempita import HTMLTemplate, bunch
+from ..configure_spm import _configure_spm, _get_version_spm
 
 # find package path
 ROOT_DIR = os.path.split(os.path.abspath(__file__))[0]
@@ -27,6 +29,17 @@ DARTEL_URL = ("http://www.fil.ion.ucl.ac.uk/spm/software/spm8/"
               "SPM8_Release_Notes.pdf")
 NIPYPE_URL = "http://nipy.sourceforge.net/nipype/"
 NISTATS_URL = "https://github.com/nistats/nistats"
+
+
+def _get_software_versions():
+    """
+    Report versions of the different software used.
+    """
+    spm_dir = _configure_spm()
+    return ["SPM: %s (found in %s)" % (_get_version_spm(spm_dir),
+                                       spm_dir),
+            "Nipype: %s" % nipype.__version__]
+
 
 def lines2breaks(lines, delimiter="\n", number_lines=False):
     """

@@ -27,9 +27,10 @@ from .io_utils import (
 from subject_data import SubjectData
 from .reporting.base_reporter import (
     ResultsGallery, ProgressReport, copy_web_conf_files,
-    get_module_source_code, dict_to_html_ul)
+    get_module_source_code, dict_to_html_ul, _get_software_versions)
 from .reporting.preproc_reporter import (
-    _set_templates, generate_preproc_undergone_docstring,
+    _set_templates, generate_preproc_undergone_docstring)
+from .reporting.base_reporter import (
     get_dataset_report_log_html_template,
     get_dataset_report_preproc_html_template,
     get_dataset_report_html_template)
@@ -1659,7 +1660,8 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
             results=parent_results_gallery, start_time=time.ctime(),
             dataset_description=dataset_description,
             source_code=user_source_code,
-            source_script_name=user_script_name)
+            source_script_name=user_script_name,
+            softwares=_get_software_versions())
         main_html = get_dataset_report_html_template(
             results=parent_results_gallery, start_time=time.ctime(),
             dataset_id=dataset_id)
