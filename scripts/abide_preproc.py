@@ -140,16 +140,16 @@ def preproc_abide_institute(institute_id, abide_data_dir, abide_output_dir,
 
 """sanitize cmd-line input"""
 if len(sys.argv) < 3:
-    print(("\r\nUsage: source /etc/fsl/4.1/fsl.sh; python %s ")
-           "<path_to_ABIDE_folder> <output_dir> [comma-separated institute"
-           " ids]\r\n") % sys.argv[0]
-    print(("Examples:\r\nsource /etc/fsl/4.1/fsl.sh; python %s ")
-           "/volatile/home/aa013911/ABIDE "
-           "/volatile/home/aa013911/DED/ABIDE_runs") % sys.argv[0]
-    print(("source /etc/fsl/4.1/fsl.sh; python %s ")
-           "/volatile/home/aa013911/ABIDE "
-           "/volatile/home/aa013911/DED/ABIDE_runs Leveun,KKI,NYU"
-           ) % sys.argv[0]
+    print("\r\nUsage: source /etc/fsl/4.1/fsl.sh; python %s "
+          "<path_to_ABIDE_folder> <output_dir> [comma-separated institute"
+          " ids]\r\n" % sys.argv[0])
+    print("Examples:\r\nsource /etc/fsl/4.1/fsl.sh; python %s "
+          "/volatile/home/aa013911/ABIDE "
+          "/volatile/home/aa013911/DED/ABIDE_runs" % sys.argv[0])
+    print("source /etc/fsl/4.1/fsl.sh; python %s "
+          "/volatile/home/aa013911/ABIDE "
+          "/volatile/home/aa013911/DED/ABIDE_runs Leveun,KKI,NYU"
+          % sys.argv[0])
     sys.exit(1)
 
 ABIDE_DIR = os.path.abspath(sys.argv[1])

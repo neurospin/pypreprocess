@@ -87,8 +87,8 @@ def _do_fmri_distortion_correction(subject_data,
         zeroth_fieldmap_files = []
         for fieldmap_file in fieldmap_files:
             if not os.path.isfile(fieldmap_file):
-                print("Can't find fieldmap file %s; skipping subject %s" % ()
-                    fieldmap_file, subject_data.subject_id)
+                print("Can't find fieldmap file %s; skipping subject %s" %
+                      fieldmap_file, subject_data.subject_id)
                 return
 
             # peel 0th volume of each fieldmap
@@ -261,8 +261,8 @@ def run_suject_level1_glm(subject_data,
                 #                    "tfMRI_%s_%s_hp200_s4_level1.fsf" % (
                 # protocol, direction))
         if not os.path.isfile(design_file):
-            print("Can't find design file %s; skipping subject %s" % ()
-                design_file, subject_data.subject_id)
+            print("Can't find design file %s; skipping subject %s" %
+                  design_file, subject_data.subject_id)
             return
 
         # read the experimental setup
@@ -351,10 +351,10 @@ def run_suject_level1_glm(subject_data,
     # fit GLM
     def tortoise(*args):
         print(args)
-        print(()
+        print(
             'Fitting a "Fixed Effect" GLM for merging LR and RL '
-            'phase-encoding directions for subject %s ...' % (
-                subject_data.subject_id))
+            'phase-encoding directions for subject %s ...' %
+            subject_data.subject_id)
         fmri_glm = FMRILinearModel(subject_data.func,
                                    [design_matrix.matrix
                                     for design_matrix in design_matrices],
