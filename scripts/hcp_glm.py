@@ -1,5 +1,6 @@
 import os
 import time
+import glob
 import numpy as np
 import nibabel
 from sklearn.externals.joblib import Memory, Parallel, delayed
@@ -11,16 +12,11 @@ from pypreprocess.fsl_to_nistats import (read_fsl_design_file,
 # from pypreprocess.reporting.glm_reporter import group_one_sample_t_test
 
 # sanitize directories
+n_subjects = int(os.environ.get("N_SUBJECTS", 900))
 root = os.environ.get("ROOT", "/")
-experiment_dir = os.path.join(root, "storage/data/HCP/S500-1")
-data_dir = experiment_dir
 output_dir = os.path.join(root, "storage/workspace/elvis/HCP_GLM")
 cache_dir = os.path.join(root, "storage/workspace/elvis/nilearn_cache")
 mem = Memory(cache_dir)
-for place in [experiment_dir, data_dir]:
-    if not os.path.isdir(place):
-        raise RuntimeError("%s doesn't exist! Export ROOT variable" % (
-            place))
 
 tr = .72
 # hrf_model = "Canonical with Derivative"
@@ -36,21 +32,21 @@ hfcut = 100.
 cons = ["LH-RH", "RH-LH", "RF-LF", "LF-RF", "T-AVG"]
 
 
-def do_subject_glm(subject_id, task, cons, memory=None, smoothing_fwhm=0.,
+def do_subject_glm(subject_dir, task, cons, memory=None, smoothing_fwhm=0.,
                    directions=None, report=True):
+    subject_id = os.path.basename(subject_dir)
     stats_start_time = time.ctime()
     if directions is None:
         directions = ['LR', 'RL']
-    subject_dir = os.path.join(experiment_dir, subject_id)
     subject_output_dir = os.path.join(output_dir, subject_id)
     if not os.path.exists(subject_output_dir):
         os.makedirs(subject_output_dir)
-    fmri_files = [os.path.join(data_dir, subject_id,
+    fmri_files = [os.path.join(subject_dir,
                                "MNINonLinear/Results/",
                                "tfMRI_%s_%s/tfMRI_%s_%s.nii.gz" % (
                                    task, direction, task, direction))
                   for direction in directions]
-    anat_file = os.path.join(data_dir, subject_id,
+    anat_file = os.path.join(subject_dir,
                              "MNINonLinear/T1w_restore_brain.nii.gz")
     design_files = [os.path.join(subject_dir,
                                  "MNINonLinear/Results/tfMRI_%s_%s/",
@@ -186,35 +182,17 @@ def do_subject_glm(subject_id, task, cons, memory=None, smoothing_fwhm=0.,
 
 
 if __name__ == "__main__":
-    # get subject ids to process
-    subject_ids = ['994273', '140117', '139637', '139233', '138534', '138231',
-                   '137936', '137633', '137128', '137027', '136833', '136227',
-                   '135932', '135528', '135225', '134324', '133928', '133827',
-                   '133625', '133019', '132118', '131924', '131722', '131217',
-                   '130922', '130316', '130013', '129028', '128632', '128127',
-                   '127933', '127630', '126628', '126325', '125525', '124826',
-                   '124422', '124220', '123925', '123420', '123117', '122620',
-                   '122317', '121618', '121315', '120515', '120212', '120111',
-                   '119833', '118932', '118730', '118528', '117324', '117122',
-                   '116524', '114924', '114419', '113922', '113821', '113619',
-                   '113215', '112819', '111716', '111413', '111312', '110411',
-                   '109325', '109123', '108828', '108525', '108323', '108121',
-                   '107422', '107321', '106521', '106319', '106016', '105216',
-                   '105014', '104820', '103818', '103515', '103414', '103111',
-                   '102816', '102311', '102008', '101915', '101410', '101309',
-                   '101107']
-    for bad in ['105115', '100408', '124422', '113619', '133625', '114924']:
-        if bad in subject_ids:
-            subject_ids.remove(bad)
-    subject_ids = ["100307"]
+    # get subjects to process
+    subject_dirs = sorted(glob.glob(os.path.join(
+        root, "storage/data/HCP/S500-1/??????")))[:n_subjects]
 
     for task in ["MOTOR"]:
         # run first-level GLM
-        n_jobs = min(os.environ.get("N_JOBS", len(subject_ids)),
-                     len(subject_ids))
+        n_jobs = min(os.environ.get("N_JOBS", len(subject_dirs)),
+                     len(subject_dirs))
         first_levels = Parallel(n_jobs=n_jobs)(delayed(do_subject_glm)(
-            subject_id, task, cons, memory=mem, directions=["LR"])
-            for subject_id in subject_ids if subject_id not in [])
+            subject_dir, task, cons, memory=mem,
+            directions=["LR"]) for subject_dir in subject_dirs)
         first_levels = [x for x in first_levels if x is not None]
         print(task, len(first_levels))
 
