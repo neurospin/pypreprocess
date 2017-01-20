@@ -13,6 +13,7 @@ import warnings
 import numpy as np
 from matplotlib.pyplot import cm
 from sklearn.externals.joblib import Memory
+from nilearn._utils.compat import _basestring
 from .io_utils import (niigz2nii as do_niigz2nii, dcm2nii as do_dcm2nii,
                        nii2niigz as do_nii2niigz,
                        isdicom, delete_orientation, hard_link, get_shape,
@@ -281,7 +282,7 @@ class SubjectData(object):
         """
         self.isdicom = False
         if self.func:
-            if not isinstance(self.func[0], basestring):
+            if not isinstance(self.func[0], _basestring):
                 if not is_niimg(self.func[0]):
                     self.isdicom = isdicom(self.func[0][0])
             self.func = [do_dcm2nii(sess_func, output_dir=self.output_dir)[0]
@@ -302,7 +303,7 @@ class SubjectData(object):
                 continue
 
             # functional images for this session must all be distinct abspaths
-            if not isinstance(self.func[sess1], basestring):
+            if not isinstance(self.func[sess1], _basestring):
                 if len(self.func[sess1]) != len(set(self.func[sess1])):
                     # Oops! there must be a repetition somewhere
                     for x in self.func[sess1]:
@@ -316,7 +317,7 @@ class SubjectData(object):
                             sess1 + 1, rep, count))
 
             # all functional data for this session should constitute a 4D film
-            if isinstance(self.func[sess1], basestring):
+            if isinstance(self.func[sess1], _basestring):
                 if not is_4D(self.func[sess1]):
                     warnings.warn(
                         "Functional images for session number %i"
@@ -344,14 +345,14 @@ class SubjectData(object):
                         ('The same image %s specified for session number %i '
                          'and %i' % (self.func[sess1], sess1 + 1,
                                      sess2 + 1)))
-                if isinstance(self.func[sess1], basestring):
+                if isinstance(self.func[sess1], _basestring):
                     if self.func[sess1] == self.func[sess2]:
                         raise RuntimeError(
                             'The same image %s specified for session '
                             "number %i and %i" % (
                                 self.func[sess1], sess1 + 1, sess2 + 1))
                 else:
-                    if not isinstance(self.func[sess2], basestring):
+                    if not isinstance(self.func[sess2], _basestring):
                         if self.func[sess2] in self.func[sess1]:
                             raise RuntimeError(
                                 'The same image %s specified for session'
@@ -374,7 +375,7 @@ class SubjectData(object):
     def _set_session_ids(self):
         if self.func is None:
             return
-        elif isinstance(self.func, basestring): self.func = [self.func]
+        elif isinstance(self.func, _basestring): self.func = [self.func]
         if self.session_ids is None:
             if len(self.func) > 10:
                 warnings.warn(
@@ -384,7 +385,7 @@ class SubjectData(object):
             self.session_ids = ["Session%i" % (sess + 1)
                                 for sess in range(len(self.func))]
         else:
-            if isinstance(self.session_ids, (basestring, int)):
+            if isinstance(self.session_ids, (_basestring, int)):
                 assert len(self.func) == 1
                 self.session_ids = [self.session_ids]
             else:
@@ -412,7 +413,7 @@ class SubjectData(object):
         self._sanitize_output_dirs()
 
         # sanitize func
-        if isinstance(self.func, basestring):
+        if isinstance(self.func, _basestring):
             self.func = [self.func]
 
         # sanitize anat
@@ -452,11 +453,11 @@ class SubjectData(object):
         rp_filenames = []
         for sess in range(self.n_sessions):
             sess_rps = getattr(self, "realignment_parameters")[sess]
-            if isinstance(sess_rps, basestring):
+            if isinstance(sess_rps, _basestring):
                 rp_filenames.append(sess_rps)
             else:
                 sess_basename = self.basenames[sess]
-                if not isinstance(sess_basename, basestring):
+                if not isinstance(sess_basename, _basestring):
                     sess_basename = sess_basename[0]
 
                 rp_filename = os.path.join(
@@ -498,7 +499,7 @@ class SubjectData(object):
             tmp = []
             if hasattr(self, item):
                 filenames = getattr(self, item)
-                if isinstance(filenames, basestring):
+                if isinstance(filenames, _basestring):
                     assert self.n_sessions == 1, filenames
                     filenames = [filenames]
                 for sess in range(self.n_sessions):
@@ -636,9 +637,9 @@ class SubjectData(object):
             commit_subject_thumnbail_to_parent_gallery(
                 self.final_thumbnail, self.subject_id, parent_results_gallery)
 
-        print ("\r\nPreproc report for subject %s written to %s"
-               " .\r\n" % (self.subject_id,
-                           self.report_preproc_filename))
+        print("\r\nPreproc report for subject %s written to %s"
+              " .\r\n" % (self.subject_id,
+                          self.report_preproc_filename))
 
     def __getitem__(self, key):
         return self.__dict__[key]

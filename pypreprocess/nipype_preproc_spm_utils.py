@@ -13,18 +13,19 @@ import warnings
 import inspect
 import numpy as np
 import nibabel
-from slice_timing import get_slice_indices
-from conf_parser import _generate_preproc_pipeline
+from .slice_timing import get_slice_indices
+from .conf_parser import _generate_preproc_pipeline
 import matplotlib
 matplotlib.use('Agg')
 from sklearn.externals.joblib import Parallel, delayed, Memory as JoblibMemory
+from nilearn._utils.compat import _basestring
 import nipype.interfaces.spm as spm
 from nipype.caching import Memory as NipypeMemory
-from configure_spm import _configure_spm, _get_version_spm
+from .configure_spm import _configure_spm, _get_version_spm
 from .io_utils import (
     load_vols, ravel_filenames, unravel_filenames, get_vox_dims,
     niigz2nii, resample_img, compute_output_voxel_size, sanitize_fwhm)
-from subject_data import SubjectData
+from .subject_data import SubjectData
 from .reporting.base_reporter import (
     ResultsGallery, ProgressReport, copy_web_conf_files,
     get_module_source_code, dict_to_html_ul)
@@ -33,7 +34,7 @@ from .reporting.preproc_reporter import (
     get_dataset_report_log_html_template,
     get_dataset_report_preproc_html_template,
     get_dataset_report_html_template)
-from purepython_preproc_utils import (
+from .purepython_preproc_utils import (
     _do_subject_slice_timing as _pp_do_subject_slice_timing,
     _do_subject_realign as _pp_do_subject_realign,
     _do_subject_coregister as _pp_do_subject_coregister,
@@ -147,7 +148,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
     assert 1 <= ref_slice <= nslices, ref_slice
 
     # compute slice indices / order
-    if not isinstance(slice_order, basestring):
+    if not isinstance(slice_order, _basestring):
         slice_order = np.array(slice_order) - 1
     slice_order = get_slice_indices(nslices, slice_order=slice_order,
                                     interleaved=interleaved)
@@ -170,7 +171,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
     # compute TA (possibly from formula specified as a string)
-    if isinstance(TA, basestring):
+    if isinstance(TA, _basestring):
         TA = TA.replace("/", "* 1. /")
         TA = eval(TA)
 
@@ -327,7 +328,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     subject_data.realignment_parameters = \
         realign_result.outputs.realignment_parameters
-    if isinstance(subject_data.realignment_parameters, basestring):
+    if isinstance(subject_data.realignment_parameters, _basestring):
         assert subject_data.n_sessions == 1
         subject_data.realignment_parameters = [
             subject_data.realignment_parameters]
@@ -338,7 +339,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     subject_data.nipype_results['realign'] = realign_result
 
-    if isinstance(subject_data.func, basestring):
+    if isinstance(subject_data.func, _basestring):
         assert subject_data.n_sessions == 1
         subject_data.func = [subject_data.func]
     if subject_data.n_sessions == 1 and len(subject_data.func) > 1:
@@ -480,7 +481,7 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
             coreg_source = subject_data.mean_realigned_file
         else:
             ref_func = joblib_mem.cache(load_vols)(
-                subject_data.func if isinstance(subject_data.func, basestring)
+                subject_data.func if isinstance(subject_data.func, _basestring)
                 else subject_data.func[0])[0]
             coreg_source = os.path.join(subject_data.scratch,
                                         "_coreg_first_func_vol.nii")
@@ -509,7 +510,7 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
         subject_data.anat = coreg_result.outputs.coregistered_source
     else:
         coregistered_files = coreg_result.outputs.coregistered_files
-        if isinstance(coregistered_files, basestring):
+        if isinstance(coregistered_files, _basestring):
             coregistered_files = [coregistered_files]
         subject_data.func = unravel_filenames(
             coregistered_files, file_types)
@@ -921,7 +922,7 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
             ['func', 'anat'], [fwhm] + [anat_fwhm] * 7):
         brain = getattr(subject_data, brain_name)
         if not brain: continue
-        print brain_name
+        print(brain_name)
         if not np.sum(width): continue
         in_files = brain
         if brain_name == "func":
@@ -1066,7 +1067,7 @@ def _do_subject_dartelnorm2mni(subject_data,
                 for sess_func in subject_data.func:
                     assert get_vox_dims(sess_func) == vox_dims
                     func.append(_resample_img(sess_func) if isinstance(
-                            sess_func, basestring) else [_resample_img(x)
+                            sess_func, _basestring) else [_resample_img(x)
                                                          for x in sess_func])
                 subject_data.func = func
 
@@ -1519,7 +1520,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     """
     # load .ini ?
     preproc_details = None
-    if isinstance(subject_factory, basestring):
+    if isinstance(subject_factory, _basestring):
         try:
             with open(subject_factory, "r") as fd:
                 preproc_details = fd.read()
@@ -1553,9 +1554,9 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     if "n_jobs" in preproc_params:
         preproc_params.pop("n_jobs")
 
-    print "Using the following parameters for preprocessing:"
-    for k, v in preproc_params.iteritems():
-        print "\t%s=%s" % (k, v)
+    print("Using the following parameters for preprocessing:")
+    for k, v in preproc_params.items():
+        print("\t%s=%s" % (k, v))
 
     # generate subjects (if generator)
     subjects = [subject_data for subject_data in subject_factory]
@@ -1683,7 +1684,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         progress_logger.log("<b>Environ Variables</b><br/>")
         progress_logger.log(
             "<ul>" + "".join(["<li>%s: %s</li>" % (item, value)
-                              for item, value in os.environ.iteritems()])
+                              for item, value in os.environ.items()])
             + "</ul><hr/>")
 
     def finalize_report():
@@ -1691,9 +1692,9 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
             return
         progress_logger.finish(report_preproc_filename)
         if shutdown_reloaders:
-            print "Finishing %s..." % output_dir
+            print("Finishing %s..." % output_dir)
             progress_logger.finish_dir(output_dir)
-        print "\r\n\tHTML report written to %s" % report_preproc_filename
+        print("\r\n\tHTML report written to %s" % report_preproc_filename)
 
     normalize = preproc_params.get("normalize", True)
 

@@ -11,6 +11,9 @@ import scipy.special
 from scipy.signal import sepfir2d
 import numpy as np
 import nibabel
+
+from nilearn._utils.compat import _basestring
+
 from .affine_transformations import (spm_matrix, apply_realignment,
                                      nibabel2spm_affine)
 from .io_utils import loaduint8, get_basenames, save_vols
@@ -207,7 +210,7 @@ def _run_powell(params, direct, tolsc, *otherargs):
         # verbose
         token = "".join(['%-12.4g ' % z for z in x])
         token += '|  %.5g' % output
-        print token
+        print(token)
 
         return output
 
@@ -354,8 +357,8 @@ class Coregister(object):
         # pyramidal loop
         self.params_ = np.array(self.params_init)
         for samp in self.sep:
-            print ("\r\nRunning Powell gradient-less local optimization "
-                   "(pyramidal level = %smm)...") % samp
+            print("\r\nRunning Powell gradient-less local optimization "
+                  "(pyramidal level = %smm)...") % samp
 
             # create sampled grid for target img
             grid = make_sampled_grid(target.shape, samp=_correct_voxel_samp(
@@ -412,7 +415,7 @@ class Coregister(object):
         coregistered_source = list(apply_realignment(source, self.params_,
                                                      inverse=True))
         if not output_dir is None:
-            concat = isinstance(basenames, basestring)
+            concat = isinstance(basenames, _basestring)
             coregistered_source = save_vols(coregistered_source,
                                             output_dir=output_dir,
                                             basenames=basenames,

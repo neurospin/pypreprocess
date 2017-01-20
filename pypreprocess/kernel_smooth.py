@@ -15,6 +15,8 @@ import numpy.fft as npfft
 import nibabel as ni
 import scipy.linalg
 import gc
+from nilearn._utils.compat import _basestring
+
 from .affine_transformations import get_physical_coords
 from .io_utils import is_niimg
 
@@ -367,7 +369,7 @@ def smooth_image(img, fwhm, **kwargs):
 
     """
 
-    if isinstance(img, basestring):
+    if isinstance(img, _basestring):
         img = ni.load(img)
     elif isinstance(img, tuple):
         assert len(img) == 2

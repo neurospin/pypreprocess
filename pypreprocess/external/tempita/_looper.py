@@ -6,7 +6,7 @@ previously up, if this is the first or last item in the sequence, etc.
 These can be awkward to manage in a normal Python loop, but using the
 looper you can get a better sense of the context.  Use like::
 
-    >>> for loop, item in looper(['a', 'b', 'c']):
+    >>> for loop, item in looper(['a', 'b', 'c']):  # doctest: +SKIP
     ...     print loop.number, item
     ...     if not loop.last:
     ...         print '---'
@@ -19,7 +19,7 @@ looper you can get a better sense of the context.  Use like::
 """
 
 import sys
-from ..tempita.compat3 import basestring_
+from .compat3 import basestring_
 
 __all__ = ['looper']
 

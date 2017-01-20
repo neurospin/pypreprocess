@@ -10,6 +10,7 @@ import numpy as np
 import scipy.ndimage as ndimage
 import scipy.linalg
 import nibabel
+from nilearn._utils.compat import _basestring
 from .kernel_smooth import smooth_image
 from .affine_transformations import (
     get_initial_motion_params, transform_coords, apply_realignment_to_vol,
@@ -433,7 +434,7 @@ class MRIMotionCorrection(object):
         """
 
         # sanitize vols and n_sessions
-        if isinstance(vols, basestring) or isinstance(
+        if isinstance(vols, _basestring) or isinstance(
                 vols, nibabel.Nifti1Image):
             vols = [vols]
         if len(vols) != self.n_sessions:
@@ -442,7 +443,7 @@ class MRIMotionCorrection(object):
                 % (len(vols), self.n_sessions))
 
         self.vols_ = vols
-        self.vols = [vols] if isinstance(vols, basestring) else list(vols)
+        self.vols = [vols] if isinstance(vols, _basestring) else list(vols)
         if len(self.vols) != self.n_sessions:
             if self.n_sessions == 1:
                 self.vols = [self.vols]
@@ -563,7 +564,7 @@ class MRIMotionCorrection(object):
 
         for sess in range(self.n_sessions):
             concat_sess = concat
-            if (isinstance(self.vols_[sess], basestring) or is_niimg(
+            if (isinstance(self.vols_[sess], _basestring) or is_niimg(
                     self.vols_[sess])) and reslice:
                 concat_sess = True
 
@@ -595,11 +596,11 @@ class MRIMotionCorrection(object):
                 # make basenames for output files
                 sess_basenames = None
                 if basenames is None:
-                    if isinstance(self.vols[sess], basestring):
+                    if isinstance(self.vols[sess], _basestring):
                         sess_basenames = get_basenames(self.vols[sess],
                                                        ext=ext)
                     elif isinstance(self.vols[sess], list):
-                        if isinstance(self.vols[sess][0], basestring):
+                        if isinstance(self.vols[sess][0], _basestring):
                             sess_basenames = get_basenames(self.vols[sess],
                                                            ext=ext)
                     else:
@@ -619,7 +620,7 @@ class MRIMotionCorrection(object):
                         sess_rvols,
                         output_dir,
                         basenames=sess_basenames if isinstance(
-                            sess_basenames, basestring)
+                            sess_basenames, _basestring)
                         else sess_basenames[0], concat=concat_sess, ext=ext,
                         prefix=prefix)
                 else:
@@ -637,7 +638,7 @@ class MRIMotionCorrection(object):
                     sess_realignment_parameters_filename = os.path.join(
                         output_dir, "rp.txt")
                 else:
-                    if isinstance(sess_basenames, basestring):
+                    if isinstance(sess_basenames, _basestring):
                         sess_realignment_parameters_filename = os.path.join(
                             output_dir,
                             "rp_" + sess_basenames + ".txt")

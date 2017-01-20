@@ -97,7 +97,7 @@ def _export(doc, out_dir, outputs):
     #         map_dir = os.path.join(subject_dir, dtype)
     #         if not os.path.exists(map_dir):
     #             os.makedirs(map_dir)
-    #         for label, fpath in doc[dtype].iteritems():
+    #         for label, fpath in doc[dtype].items():
     #             img = nb.load(fpath)
     #             fname = '%s.nii.gz' % label.replace(' ', '_')
     #             nb.save(img, os.path.join(map_dir, fname))
@@ -141,7 +141,7 @@ def _get_timeseries(data, row_mask, affine=None):
 
 def load_glm_params(doc):
     # for i in range(0, len(doc['data']), 100):
-    #     print doc['data'][i]
+    #     print(doc['data'][i])
 
     params = {}
 
@@ -248,10 +248,10 @@ def execute_glm(doc, out_dir, contrast_definitions=None,
 
     # compute stats maps
     for index, contrast_id in enumerate(contrasts):
-        print ' study[%s] subject[%s] contrast [%s]: %i/%i' % (
+        print(' study[%s] subject[%s] contrast [%s]: %i/%i' % (
             doc['study'], doc['subject'],
             contrast_id, index + 1, len(contrasts)
-            )
+            ))
 
         contrast = [c[contrast_id] for c in params['contrasts']]
         contrast_name = contrast_id.replace(' ', '_')
@@ -295,9 +295,9 @@ def execute_glm(doc, out_dir, contrast_definitions=None,
         model=glm_model,
         )
 
-    print "Report for subject %s written to %s" % (
+    print("Report for subject %s written to %s" % (
         doc['subject'],
-        subject_stats_report_filename)
+        subject_stats_report_filename))
 
 
 def inv_perm(perm):

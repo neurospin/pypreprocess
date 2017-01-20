@@ -1,6 +1,7 @@
 import os
 import nibabel
 import numpy as np
+from nilearn._utils.compat import _basestring
 from pypreprocess.subject_data import SubjectData
 
 DATA_DIR = "test_tmp_data"
@@ -95,12 +96,12 @@ def _make_sd(func_filenames=None, anat_filename=None, ext=".nii.gz",
     _save_img(anat, anat_filename)
     if not func_filenames is None:
         for sess_func, filename in zip(func, func_filenames):
-            if isinstance(filename, basestring):
+            if isinstance(filename, _basestring):
                 _save_img(sess_func, filename)
             else:
                 vols = nibabel.four_to_three(sess_func)
                 for x, y in zip(vols, filename):
-                    assert isinstance(y, basestring), type(y)
+                    assert isinstance(y, _basestring), type(y)
                     _save_img(x, y)
     else:
         func_filenames = []
