@@ -1,3 +1,8 @@
+"""
+Run GLM on HCP data using nistats.
+"""
+# Author: Elvis Dohmatob
+
 import os
 import time
 import glob
@@ -11,15 +16,11 @@ from pypreprocess.fsl_to_nistats import (read_fsl_design_file,
                                          make_dmtx_from_timing_files)
 # from pypreprocess.reporting.glm_reporter import group_one_sample_t_test
 
-# sanitize directories
+# config
 n_subjects = int(os.environ.get("N_SUBJECTS", 900))
 root = os.environ.get("ROOT", "/")
 output_dir = os.path.join(root, "storage/workspace/elvis/HCP_GLM")
-cache_dir = os.path.join(root, "storage/workspace/elvis/nilearn_cache")
-mem = Memory(cache_dir)
-
 tr = .72
-# hrf_model = "Canonical with Derivative"
 hrf_model = "spm + derivative"
 drift_model = "Cosine"
 hfcut = 100.
@@ -32,13 +33,14 @@ hfcut = 100.
 cons = ["LH-RH", "RH-LH", "RF-LF", "LF-RF", "T-AVG"]
 
 
-def do_subject_glm(subject_dir, task, cons, memory=None, smoothing_fwhm=0.,
-                   directions=None, report=True):
+def do_subject_glm(subject_dir, task, cons, smoothing_fwhm=0., directions=None,
+                   report=True):
     subject_id = os.path.basename(subject_dir)
     stats_start_time = time.ctime()
     if directions is None:
         directions = ['LR', 'RL']
     subject_output_dir = os.path.join(output_dir, subject_id)
+    memory = Memory(os.path.join(output_dir, "cache_dir", subject_id))
     if not os.path.exists(subject_output_dir):
         os.makedirs(subject_output_dir)
     fmri_files = [os.path.join(subject_dir,
@@ -58,7 +60,8 @@ def do_subject_glm(subject_dir, task, cons, memory=None, smoothing_fwhm=0.,
         if not os.path.exists(x):
             print("%s is missing; skipping subject %s ..." % (x, subject_id))
             return
-    assert len(fmri_files) == len(design_files)
+    if len(fmri_files) != len(design_files):
+        raise RuntimeError
 
     # the actual GLM stuff
     n_scans = []
@@ -139,7 +142,7 @@ def do_subject_glm(subject_dir, task, cons, memory=None, smoothing_fwhm=0.,
         print("\tcontrast id: %s" % contrast_id)
         z_map, eff_map = fmri_glm.transform(
             contrast_val, contrast_name=contrast_id, output_z=True,
-            output_effects=True, output_variance=True)
+            output_effects=True)
 
         # store stat maps to disk
         for map_type, out_map in zip(['z', 'effects'],
@@ -166,7 +169,7 @@ def do_subject_glm(subject_dir, task, cons, memory=None, smoothing_fwhm=0.,
                                              "report_stats.html")
         generate_subject_stats_report(
             stats_report_filename, contrasts, z_maps,
-            fmri_glm.masker_.mask_img_, threshold=3., cluster_th=15,
+            fmri_glm.masker_.mask_img_, threshold=2.3, cluster_th=15,
             design_matrices=design_matrices, TR=tr, subject_id=subject_id,
             start_time=stats_start_time, n_scans=n_scans, paradigm=paradigm,
             frametimes=frametimes, drift_model=drift_model, hfcut=hfcut,
@@ -191,8 +194,8 @@ if __name__ == "__main__":
         n_jobs = min(os.environ.get("N_JOBS", len(subject_dirs)),
                      len(subject_dirs))
         first_levels = Parallel(n_jobs=n_jobs)(delayed(do_subject_glm)(
-            subject_dir, task, cons, memory=mem,
-            directions=["LR"]) for subject_dir in subject_dirs)
+            subject_dir, task, cons)
+            for subject_dir in subject_dirs)
         first_levels = [x for x in first_levels if x is not None]
         print(task, len(first_levels))
 
