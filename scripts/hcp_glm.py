@@ -14,7 +14,9 @@ from pypreprocess.fsl_to_nistats import (read_fsl_design_file,
 root = os.environ.get("ROOT", "/")
 experiment_dir = os.path.join(root, "storage/data/HCP/S500-1")
 data_dir = experiment_dir
-output_dir = "GLM"  # XXX change to have more control
+output_dir = os.path.join(root, "storage/workspace/elvis/HCP_GLM")
+cache_dir = os.path.join(root, "storage/workspace/elvis/nilearn_cache")
+mem = Memory(cache_dir)
 for place in [experiment_dir, data_dir]:
     if not os.path.isdir(place):
         raise RuntimeError("%s doesn't exist! Export ROOT variable" % (
@@ -25,7 +27,6 @@ tr = .72
 hrf_model = "spm + derivative"
 drift_model = "Cosine"
 hfcut = 100.
-mem = Memory(os.path.join(output_dir, "cache_dir"))
 # cons = [
 #     "0BK-2BK", "PLACE-AVG", "FACE-AVG", "TOOL-AVG", "BODY-AVG",
 #     "LH-RH", "LF-RF", "T-AVG",
@@ -142,7 +143,7 @@ def do_subject_glm(subject_id, task, cons, memory=None, smoothing_fwhm=0.,
         print("\tcontrast id: %s" % contrast_id)
         z_map, eff_map = fmri_glm.transform(
             contrast_val, contrast_name=contrast_id, output_z=True,
-            output_effects=True)
+            output_effects=True, output_variance=True)
 
         # store stat maps to disk
         for map_type, out_map in zip(['z', 'effects'],
@@ -212,7 +213,7 @@ if __name__ == "__main__":
         n_jobs = min(os.environ.get("N_JOBS", len(subject_ids)),
                      len(subject_ids))
         first_levels = Parallel(n_jobs=n_jobs)(delayed(do_subject_glm)(
-            subject_id, task, cons, memory=mem)
+            subject_id, task, cons, memory=mem, directions=["LR"])
             for subject_id in subject_ids if subject_id not in [])
         first_levels = [x for x in first_levels if x is not None]
         print(task, len(first_levels))
