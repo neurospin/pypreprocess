@@ -9,7 +9,11 @@
 *.o
 *.so
 *.a
-
+*.swp
+*.log
+*.m
+build/
+examples/pure_python/demos_cache/
 .idea/
 .idea/workspace.xml
 .coverage
