@@ -181,7 +181,7 @@ def test_MRIMotionCorrection_fit():
 
     film = apply_realignment(film, rp)
 
-    for n_jobs in [None, 2]:
+    for n_jobs in [1, 2]:
         # instantiate object
         mrimc = MRIMotionCorrection(quality=1., lkp=lkp).fit([film],
                                                              n_jobs=n_jobs)
