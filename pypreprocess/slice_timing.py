@@ -221,7 +221,7 @@ class STC(object):
             additional information for sequence timing
             timing[0] = time between slices
             timing[1] = time between last slices and next volume
-
+ 
         Returns
         -------
         self: fitted STC object
