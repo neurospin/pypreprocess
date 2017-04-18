@@ -302,7 +302,7 @@ class STC(object):
             offset = N % 2
 
             # mirror phi about the center
-            phi[1 + N / 2 - offset:] = -phi[N / 2 + offset - 1:0:-1]
+            phi[int(1 + N / 2 - offset):] = -phi[int(N / 2 + offset - 1):0:-1]
 
             # map phi to frequency domain: phi -> complex
             # point z = exp(i * phi) on unit circle

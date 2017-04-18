@@ -275,7 +275,7 @@ class MRIMotionCorrection(object):
                         (1, A0.shape[1] + 1))
                     dets[t] = scipy.linalg.det(alpha - np.dot(tmp.T, tmp))
                 msk = np.argsort(det1 - dets)
-                msk = msk[:np.round(len(dets) / 10.)]
+                msk = msk[:int(np.round(len(dets) / 10.))]
 
                 # eliminate unimportant voxels
                 n_eliminated_voxels += len(msk)
