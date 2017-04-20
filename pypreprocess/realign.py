@@ -23,7 +23,7 @@ from .io_utils import save_vol, save_vols, get_basenames, is_niimg, load_vols
 INFINITY = np.inf
 
 
-def _single_volume_fit(moving_vol, fixed_vol, A0, affine_correction, b, x1, x2,
+def _single_volume_fit(moving_vol, fixed_vol_affine, fixed_vol_A0, affine_correction, b, x1, x2,
                        x3, fwhm, n_iterations, interp, lkp, tol,
                        log=lambda x: None):
     """
@@ -35,10 +35,10 @@ def _single_volume_fit(moving_vol, fixed_vol, A0, affine_correction, b, x1, x2,
     moving_vol: Nibabel object
         coregistration source
         
-    fixed_vol: Nibabel object
+    fixed_vol_affine: 2D array
         coregistration target
     
-    A0: 2D array
+    fixed_vol_A0: 2D array
         rate of change of chi2 w.r.t. parameter changes
     
     affine_correction: 2D array of shape (4, 4), optional (default None)
@@ -111,7 +111,7 @@ def _single_volume_fit(moving_vol, fixed_vol, A0, affine_correction, b, x1, x2,
 
         # pass from volume t's grid to that of the reference
         # volume (0)
-        y1, y2, y3 = transform_coords(np.zeros(6), fixed_vol.get_affine(),
+        y1, y2, y3 = transform_coords(np.zeros(6), fixed_vol_affine,
                                       moving_vol.get_affine(), [x1, x2, x3])
 
         # sanity mask: some voxels might have fallen out of business;
@@ -132,7 +132,7 @@ def _single_volume_fit(moving_vol, fixed_vol, A0, affine_correction, b, x1, x2,
                                     order=interp, mode='wrap')
 
         # formulate and solve LS problem for updating p
-        A = A0[msk, ...].copy()
+        A = fixed_vol_A0[msk, ...].copy()
         b1 = b[msk].copy()
         sc = np.sum(b1) / np.sum(F)
         b1 -= F * sc
@@ -464,8 +464,9 @@ class MRIMotionCorrection(object):
 
         if n_jobs > 1:
             rps = Parallel(n_jobs=n_jobs)(delayed(
-                  _single_volume_fit)(vol, vol_0, A0, affine_correction, b,
-                                      x1, x2, x3, fwhm=self.fwhm,
+                  _single_volume_fit)(vol, vol_0.get_affine(), A0,
+                                      affine_correction,
+                                      b, x1, x2, x3, fwhm=self.fwhm,
                                       n_iterations=self.n_iterations,
                                       interp=self.interp, lkp=self.lkp,
                                       tol=self.tol) for vol in vols[1:])
@@ -475,7 +476,8 @@ class MRIMotionCorrection(object):
                 self._log("\tRegistering volume %i/%i..." % (t + 1, n_scans))
 
                 vol = vols[t]
-                vol_rp = _single_volume_fit(vol, vol_0, A0, affine_correction,
+                vol_rp = _single_volume_fit(vol, vol_0.get_affine(), A0,
+                                            affine_correction,
                                             b, x1, x2, x3, fwhm=self.fwhm,
                                             n_iterations=self.n_iterations,
                                             interp=self.interp, lkp=self.lkp,
