@@ -23,19 +23,80 @@ from .io_utils import save_vol, save_vols, get_basenames, is_niimg, load_vols
 INFINITY = np.inf
 
 
-def _single_volume_fit(A0, affine_correction, b, vol, vol_0, x1, x2,
+def _single_volume_fit(moving_vol, fixed_vol, A0, affine_correction, b, x1, x2,
                        x3, fwhm, n_iterations, interp, lkp, tol,
                        log=lambda x: None):
     """
-    Realigns volume vol to vol_0.
+    Realigns moving_vol to fixed_vol.
+    
+    Paremeters
+    ----------
+    
+    moving_vol: Nibabel object
+        coregistration source
+        
+    fixed_vol: Nibabel object
+        coregistration target
+    
+    A0: 2D array
+        rate of change of chi2 w.r.t. parameter changes
+    
+    affine_correction: 2D array of shape (4, 4), optional (default None)
+        affine transformation to be applied to vols before realignment
+        (this is useful in multi-session realignment)
+        
+    b: array
+        intercept vector
+        
+    x1, x2, x3: arrays
+        grid
+
+    fwhm: float
+        the FWHM of the Gaussian smoothing kernel (mm) applied to the
+        images before estimating the realignment parameters.
+        
+    n_iterations: int
+        max number of Gauss-Newton iterations when solving LSP for
+        registering a volume to the reference
+        
+    interp: int
+        B-spline degree used for interpolation
+        
+    lkp: arry_like of ints
+        affine transformation parameters sought-for. Possible values of
+        elements of the list are:
+        0  - x translation
+        1  - y translation
+        2  - z translation
+        3  - x rotation about - {pitch} (radians)
+        4  - y rotation about - {roll}  (radians)
+        5  - z rotation about - {yaw}   (radians)
+        6  - x scaling
+        7  - y scaling
+        8  - z scaling
+        9  - x shear
+        10 - y shear
+        11 - z shear
+        
+    tol: float
+        tolerance for Gauss-Newton LS iterations
+        
+    log: function, optional (default lambda x: None)
+        function used for storing log messages
+        
+    Returns
+    -------
+        1D array of length len(self.lkp)
+            the estimated realignment parameters
+
     """
-    vol = nibabel.Nifti1Image(vol.get_data(),
-                              np.dot(affine_correction,
-                                     vol.get_affine()))
+    moving_vol = nibabel.Nifti1Image(moving_vol.get_data(),
+                                     np.dot(affine_correction,
+                                            moving_vol.get_affine()))
     # initialize final rp for this vol
     vol_rp = get_initial_motion_params()
     # smooth volume t
-    V = smooth_image(vol, fwhm).get_data()
+    V = smooth_image(moving_vol, fwhm).get_data()
     # global optical flow problem with affine motion model: run
     # Gauss-Newton iterated LS (this loop should normally converge
     # after about as few as 5 iterations)
@@ -50,8 +111,8 @@ def _single_volume_fit(A0, affine_correction, b, vol, vol_0, x1, x2,
 
         # pass from volume t's grid to that of the reference
         # volume (0)
-        y1, y2, y3 = transform_coords(np.zeros(6), vol_0.get_affine(),
-                                      vol.get_affine(), [x1, x2, x3])
+        y1, y2, y3 = transform_coords(np.zeros(6), fixed_vol.get_affine(),
+                                      moving_vol.get_affine(), [x1, x2, x3])
 
         # sanity mask: some voxels might have fallen out of business;
         # and zap'em
@@ -83,7 +144,7 @@ def _single_volume_fit(A0, affine_correction, b, vol, vol_0, x1, x2,
         vol_rp[lkp] -= q_update
 
         # update affine matrix for volume t by applying M_q
-        vol = apply_realignment_to_vol(vol, q)
+        moving_vol = apply_realignment_to_vol(moving_vol, q)
 
         # compute convergence criterion variables
         pss = ss
@@ -403,7 +464,7 @@ class MRIMotionCorrection(object):
 
         if n_jobs > 1:
             rps = Parallel(n_jobs=n_jobs)(delayed(
-                  _single_volume_fit)(A0, affine_correction, b, vol, vol_0,
+                  _single_volume_fit)(vol, vol_0, A0, affine_correction, b,
                                       x1, x2, x3, fwhm=self.fwhm,
                                       n_iterations=self.n_iterations,
                                       interp=self.interp, lkp=self.lkp,
@@ -414,8 +475,8 @@ class MRIMotionCorrection(object):
                 self._log("\tRegistering volume %i/%i..." % (t + 1, n_scans))
 
                 vol = vols[t]
-                vol_rp = _single_volume_fit(A0, affine_correction, b, vol,
-                                            vol_0, x1, x2, x3, fwhm=self.fwhm,
+                vol_rp = _single_volume_fit(vol, vol_0, A0, affine_correction,
+                                            b, x1, x2, x3, fwhm=self.fwhm,
                                             n_iterations=self.n_iterations,
                                             interp=self.interp, lkp=self.lkp,
                                             tol=self.tol, log=self._log)
