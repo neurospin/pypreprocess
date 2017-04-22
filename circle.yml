@@ -13,7 +13,7 @@ dependencies:
     - sudo apt-get update
     - sudo apt-get install libxp6 libxpm4 libxmu6 libxt6 bc
     # Installing SPM
-    - source continuous_integration/setup_spm12.sh
+    - source continuous_integration/setup_spm.sh
     # Installing Pypreprocess dependencies
     - pip install --upgrade pip
     - |
