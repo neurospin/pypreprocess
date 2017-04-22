@@ -48,29 +48,29 @@ Dependencies
 
 Installation
 ============
-To begin with, you may also want to install the pre-compiled version of SPM (in case you don't have matlab, etc.). Just run the following
+To begin with, you may also want to install the pre-compiled version of SPM (in case you don't have matlab, etc.). Just run the following::
 
-     bash continuous_integration/install_spm.sh
+     $ bash continuous_integration/install_spm.sh
 
-First, install neurodebian-travis
+First, install neurodebian-travis::
 
-      bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
+     $ bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
 
 Second, install the python packages pip, scipy, nose, nibabel, sklearn, nipype, pandas, matplotlib, nilearn and configobj.  If you have a python virtual environment, just run::
 
-      pip install scipy nose nibabel scikit-learn nipype pandas matplotlib nilearn configobj 
+     $ pip install scipy nose nibabel scikit-learn nipype pandas matplotlib nilearn configobj 
 
 If not, make sure to install pip (run: 'sudo apt-get install python-pip'). If you want to install these locally, use the --user option::
         
-      pip install scipy nose nibabel scikit-learn nipype pandas matplotlib nilearn configobj --user
+     $ pip install scipy nose nibabel scikit-learn nipype pandas matplotlib nilearn configobj --user
 
 If you want to install these for all users, use sudo::
 
-      sudo pip install scipy nose nibabel scikit-learn nipype pandas matplotlib nilearn configobj
+     $ sudo pip install scipy nose nibabel scikit-learn nipype pandas matplotlib nilearn configobj
 
 Finally, install pypreprocess itself by running the following in the pypreprocess::
 
-       python setup.py install --user
+     $ python setup.py install --user
 
 or simply 'python setup.py install' in a virtual environment.
 
@@ -83,21 +83,21 @@ There are three cases:
 * If you have used the pypreprocess/continuous_integration/setup_spm.sh or install_spm script, you have nothing to do. 
 
 * If you have matlab and spm installed, then specify the location of your
-  SPM installation directory and export this location as SPM_DIR: 
+  SPM installation directory and export this location as SPM_DIR:: 
 
-        export SPM_DIR=/path/to/spm/installation/dir
+       $ export SPM_DIR=/path/to/spm/installation/dir
 
 * If you have installed a pre-compiled version of SPM then, specify the
-  location of the SPM executable and export as SPM_MCR: 
+  location of the SPM executable and export as SPM_MCR:: 
 
-        export SPM_MCR=/path/to/spm_mcr_script (script implies spm8.sh)
+       $ export SPM_MCR=/path/to/spm_mcr_script (script implies spm8.sh)
 
 
 Getting started: pypreprocess 101
 =================================
-Simply ``cd`` to the ``examples/easy_start/`` sub-directory and run the following command:
+Simply ``cd`` to the ``examples/easy_start/`` sub-directory and run the following command::
 
-       python nipype_preproc_spm_auditory.py 
+       $ python nipype_preproc_spm_auditory.py 
 
 If you find nipype errors like "could not configure SPM", this is most likely that the export of SPM_DIR and SPM_MCR (see above) have not been done in this shell. 
 
@@ -131,13 +131,13 @@ Examples using pure Python (no SPM, FSL, etc. required)
 Using .ini configuration files to specify pipeline
 ==================================================
 
-It is possible (and recommended) to configure the preprocessing pipeline just by copying any of the `.ini` configuration files under the `examples` sub-directory and modifying it (usually, you only need to modify the `dataset_dir` parameter), and then run
+It is possible (and recommended) to configure the preprocessing pipeline just by copying any of the `.ini` configuration files under the `examples` sub-directory and modifying it (usually, you only need to modify the `dataset_dir` parameter), and then run::
 
-      `python pypreprocess.py your.ini`
+      $ python pypreprocess.py your.ini
       
-For example,
+For example,::
 
-      `python pypreprocess.py examples/easy_start/spm_auditory_preproc.ini`
+      $ python pypreprocess.py examples/easy_start/spm_auditory_preproc.ini
 
 
 Pipelines
@@ -168,19 +168,19 @@ Intra-subject preprocessing in pure Python (with no compiled code, etc.)
 ========================================================================
 A couple of modules for intra-subject preprocessing (slice-timing correction, motion-correction, coregistration, etc.)
 in pure (only using builtins and numpy/scipy official stuff, no compiled code, no wrappers) Python have been implemented.
-To demo this feature, simply run the following command:
+To demo this feature, simply run the following command::
 
-       python examples/pure_python/pure_python_preproc_demo.py
+       $ python examples/pure_python/pure_python_preproc_demo.py
 
 Development
 ===========
 You can check the latest version of the code with the command::
 
-       git clone git://github.com/neurospin/pypreprocess.git
+       $ git clone git://github.com/neurospin/pypreprocess.git
 
 or if you have write privileges::
 
-       git clone git@github.com:neurospin/pypreprocess.git
+       $ git clone git@github.com:neurospin/pypreprocess.git
        
 Common problems and fixes
 =========================
