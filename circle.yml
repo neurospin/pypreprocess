@@ -1,11 +1,11 @@
 machine:
   environment:
-    SPM_DIR: /home/ubuntu/opt/spm8/spm8_mcr/spm8
-    SPM_MCR: /home/ubuntu/opt/spm8/spm8.sh
+    SPM_DIR: /home/ubuntu/opt/spm12/spm12_mcr/spm12
+    SPM_MCR: /home/ubuntu/opt/spm12/spm12.sh
 
 dependencies:
   cache_directories:
-    - "~/opt/spm8"
+    - "~/opt/spm12"
     - "~/nilearn_data"
 
   pre:
@@ -13,7 +13,7 @@ dependencies:
     - sudo apt-get update
     - sudo apt-get install libxp6 libxpm4 libxmu6 libxt6 bc
     # Installing SPM
-    - source continuous_integration/setup_spm.sh
+    - source continuous_integration/setup_spm12.sh
     # Installing Pypreprocess dependencies
     - pip install --upgrade pip
     - |
