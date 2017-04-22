@@ -131,13 +131,13 @@ Examples using pure Python (no SPM, FSL, etc. required)
 Using .ini configuration files to specify pipeline
 ==================================================
 
-It is possible (and recommended) to configure the preprocessing pipeline just by copying any of the `.ini` configuration files under the `examples` sub-directory and modifying it (usually, you only need to modify the `dataset_dir` parameter), and then run
+It is possible (and recommended) to configure the preprocessing pipeline just by copying any of the `.ini` configuration files under the `examples` sub-directory and modifying it (usually, you only need to modify the `dataset_dir` parameter), and then run::
 
-      `$ python pypreprocess.py your.ini`
+      $ python pypreprocess.py your.ini
       
-For example,
+For example,::
 
-      `$ python pypreprocess.py examples/easy_start/spm_auditory_preproc.ini`
+      $ python pypreprocess.py examples/easy_start/spm_auditory_preproc.ini
 
 
 Pipelines
