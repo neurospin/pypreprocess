@@ -463,27 +463,18 @@ class MRIMotionCorrection(object):
             )  # don't mov the reference image
 
         if n_jobs > 1:
-            rps = Parallel(n_jobs=n_jobs)(delayed(
-                  _single_volume_fit)(vol, vol_0.get_affine(), A0,
-                                      affine_correction,
-                                      b, x1, x2, x3, fwhm=self.fwhm,
-                                      n_iterations=self.n_iterations,
-                                      interp=self.interp, lkp=self.lkp,
-                                      tol=self.tol) for vol in vols[1:])
-            rp[1:, ...] = np.array(rps)
+            log = None
         else:
-            for t in range(1, n_scans):
-                self._log("\tRegistering volume %i/%i..." % (t + 1, n_scans))
+            log = self._log
 
-                vol = vols[t]
-                vol_rp = _single_volume_fit(vol, vol_0.get_affine(), A0,
-                                            affine_correction,
-                                            b, x1, x2, x3, fwhm=self.fwhm,
-                                            n_iterations=self.n_iterations,
-                                            interp=self.interp, lkp=self.lkp,
-                                            tol=self.tol, log=self._log)
-
-                rp[t, ...] = vol_rp
+        rps = Parallel(n_jobs=n_jobs)(delayed(
+              _single_volume_fit)(vol, vol_0.get_affine(), A0,
+                                  affine_correction,
+                                  b, x1, x2, x3, fwhm=self.fwhm,
+                                  n_iterations=self.n_iterations,
+                                  interp=self.interp, lkp=self.lkp,
+                                  tol=self.tol, log=log) for vol in vols[1:])
+        rp[1:, ...] = np.array(rps)
 
         return rp
 
