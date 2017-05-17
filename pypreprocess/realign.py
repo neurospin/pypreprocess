@@ -11,6 +11,7 @@ import scipy.ndimage as ndimage
 import scipy.linalg
 import nibabel
 from nilearn._utils.compat import _basestring
+from sklearn.externals.joblib import Parallel, delayed
 from .kernel_smooth import smooth_image
 from .affine_transformations import (
     get_initial_motion_params, transform_coords, apply_realignment_to_vol,
@@ -20,6 +21,166 @@ from .io_utils import save_vol, save_vols, get_basenames, is_niimg, load_vols
 
 # useful constants
 INFINITY = np.inf
+
+
+def _single_volume_fit(moving_vol, fixed_vol_affine, fixed_vol_A0, affine_correction, b, x1, x2,
+                       x3, fwhm, n_iterations, interp, lkp, tol,
+                       log=lambda x: None):
+    """
+    Realigns moving_vol to fixed_vol.
+    
+    Paremeters
+    ----------
+    
+    moving_vol: Nibabel object
+        coregistration source
+        
+    fixed_vol_affine: 2D array
+        coregistration target
+    
+    fixed_vol_A0: 2D array
+        rate of change of chi2 w.r.t. parameter changes
+    
+    affine_correction: 2D array of shape (4, 4), optional (default None)
+        affine transformation to be applied to vols before realignment
+        (this is useful in multi-session realignment)
+        
+    b: array
+        intercept vector
+        
+    x1, x2, x3: arrays
+        grid
+
+    fwhm: float
+        the FWHM of the Gaussian smoothing kernel (mm) applied to the
+        images before estimating the realignment parameters.
+        
+    n_iterations: int
+        max number of Gauss-Newton iterations when solving LSP for
+        registering a volume to the reference
+        
+    interp: int
+        B-spline degree used for interpolation
+        
+    lkp: arry_like of ints
+        affine transformation parameters sought-for. Possible values of
+        elements of the list are:
+        0  - x translation
+        1  - y translation
+        2  - z translation
+        3  - x rotation about - {pitch} (radians)
+        4  - y rotation about - {roll}  (radians)
+        5  - z rotation about - {yaw}   (radians)
+        6  - x scaling
+        7  - y scaling
+        8  - z scaling
+        9  - x shear
+        10 - y shear
+        11 - z shear
+        
+    tol: float
+        tolerance for Gauss-Newton LS iterations
+        
+    log: function, optional (default lambda x: None)
+        function used for storing log messages
+        
+    Returns
+    -------
+        1D array of length len(self.lkp)
+            the estimated realignment parameters
+
+    """
+    moving_vol = nibabel.Nifti1Image(moving_vol.get_data(),
+                                     np.dot(affine_correction,
+                                            moving_vol.get_affine()))
+    # initialize final rp for this vol
+    vol_rp = get_initial_motion_params()
+    # smooth volume t
+    V = smooth_image(moving_vol, fwhm).get_data()
+    # global optical flow problem with affine motion model: run
+    # Gauss-Newton iterated LS (this loop should normally converge
+    # after about as few as 5 iterations)
+    dim = np.hstack((V.shape, [1, 1]))
+    dim = dim[:3]
+    ss = INFINITY
+    countdown = -1
+    iteration = None
+    for iteration in range(n_iterations):
+        # starting point
+        q = get_initial_motion_params()
+
+        # pass from volume t's grid to that of the reference
+        # volume (0)
+        y1, y2, y3 = transform_coords(np.zeros(6), fixed_vol_affine,
+                                      moving_vol.get_affine(), [x1, x2, x3])
+
+        # sanity mask: some voxels might have fallen out of business;
+        # and zap'em
+        msk = np.nonzero((y1 >= 0) & (y1 < dim[0]) & (y2 >= 0)
+                         & (y2 < dim[1]) & (y3 >= 0)
+                         & (y3 < dim[2]))[0]
+
+        # if mask is too small, then we're screwed anyway
+        if len(msk) < 32:
+            raise RuntimeError(
+                ("Almost all voxels have fallen out of the FOV. Only "
+                 "%i voxels survived. Registration can't work." % len(
+                    msk)))
+
+        # warp: resample volume t on this new grid
+        F = ndimage.map_coordinates(V, [y1[msk], y2[msk], y3[msk]],
+                                    order=interp, mode='wrap')
+
+        # formulate and solve LS problem for updating p
+        A = fixed_vol_A0[msk, ...].copy()
+        b1 = b[msk].copy()
+        sc = np.sum(b1) / np.sum(F)
+        b1 -= F * sc
+        q_update = scipy.linalg.lstsq(np.dot(A.T, A),
+                                      np.dot(A.T, b1))[0]
+
+        # update q
+        q[lkp] += q_update
+        vol_rp[lkp] -= q_update
+
+        # update affine matrix for volume t by applying M_q
+        moving_vol = apply_realignment_to_vol(moving_vol, q)
+
+        # compute convergence criterion variables
+        pss = ss
+        ss = np.sum(b1 ** 2) / len(b1)
+
+        # compute relative gain over last iteration
+        relative_gain = np.abs((pss - ss) / pss
+                               ) if np.isfinite(pss) else INFINITY
+
+        # verbose
+        token = "\t" + "".join(['%-12.4g ' % z for z in q[lkp]])
+        token += '|  %.5g' % relative_gain
+        log(token)
+
+        # check whether we've stopped converging altogether
+        if relative_gain < tol and countdown == -1:
+            countdown = 2
+
+        # countdown
+        if countdown != -1:
+            # converge
+            if countdown == 0:
+                break
+            countdown -= 1
+
+    # what happened ?
+    comments = " after %i iterations" % (iteration + 1)
+    if iteration + 1 == n_iterations:
+        comments = "did not coverge" + comments
+    else:
+        if relative_gain < tol:
+            comments = "converged" + comments
+        else:
+            comments = "stopped converging" + comments
+    log(comments)
+    return vol_rp
 
 
 def _compute_rate_of_change_of_chisq(M, coords, gradG, lkp=range(6)):
@@ -171,7 +332,7 @@ class MRIMotionCorrection(object):
     def __repr__(self):
         return str(self.__dict__)
 
-    def _single_session_fit(self, vols, quality=None,
+    def _single_session_fit(self, vols, n_jobs=1, quality=None,
                             affine_correction=None):
         """
         Realigns volumes (vols) from a single session.
@@ -300,112 +461,24 @@ class MRIMotionCorrection(object):
         rp = np.ndarray((n_scans, 12))
         rp[0, ...] = get_initial_motion_params(
             )  # don't mov the reference image
-        for t in range(1, n_scans):
-            self._log("\tRegistering volume %i/%i..." % (t + 1, n_scans))
 
-            # load volume t
-            vol = vols[t]
-            vol = nibabel.Nifti1Image(vol.get_data(),
-                                      np.dot(affine_correction,
-                                             vol.get_affine()))
+        if n_jobs > 1:
+            svf_kwargs = {}
+        else:
+            svf_kwargs = {'log': self._log}
 
-            # initialize final rp for this vol
-            rp[t, ...] = get_initial_motion_params()
-
-            # smooth volume t
-            V = smooth_image(vol, self.fwhm).get_data()
-
-            # intialize motion params for this vol
-            rp[t, ...] = get_initial_motion_params()
-
-            # global optical flow problem with affine motion model: run
-            # Gauss-Newton iterated LS (this loop should normally converge
-            # after about as few as 5 iterations)
-            dim = np.hstack((V.shape, [1, 1]))
-            dim = dim[:3]
-            ss = INFINITY
-            countdown = -1
-            iteration = None
-            for iteration in range(self.n_iterations):
-                # starting point
-                q = get_initial_motion_params()
-
-                # pass from volume t's grid to that of the reference
-                # volume (0)
-                y1, y2, y3 = transform_coords(np.zeros(6), vol_0.get_affine(),
-                                              vol.get_affine(), [x1, x2, x3])
-
-                # sanity mask: some voxels might have fallen out of business;
-                # and zap'em
-                msk = np.nonzero((y1 >= 0) & (y1 < dim[0]) & (y2 >= 0)
-                                 & (y2 < dim[1]) & (y3 >= 0)
-                                 & (y3 < dim[2]))[0]
-
-                # if mask is too small, then we're screwed anyway
-                if len(msk) < 32:
-                    raise RuntimeError(
-                        ("Almost all voxels have fallen out of the FOV. Only "
-                         "%i voxels survived. Registration can't work." % len(
-                             msk)))
-
-                # warp: resample volume t on this new grid
-                F = ndimage.map_coordinates(V, [y1[msk], y2[msk], y3[msk]],
-                                            order=self.interp, mode='wrap')
-
-                # formulate and solve LS problem for updating p
-                A = A0[msk, ...].copy()
-                b1 = b[msk].copy()
-                sc = np.sum(b1) / np.sum(F)
-                b1 -= F * sc
-                q_update = scipy.linalg.lstsq(np.dot(A.T, A),
-                                              np.dot(A.T, b1))[0]
-
-                # update q
-                q[self.lkp] += q_update
-                rp[t, self.lkp] -= q_update
-
-                # update affine matrix for volume t by applying M_q
-                vol = apply_realignment_to_vol(vol, q)
-
-                # compute convergence criterion variables
-                pss = ss
-                ss = np.sum(b1 ** 2) / len(b1)
-
-                # compute relative gain over last iteration
-                relative_gain = np.abs((pss - ss) / pss
-                                       ) if np.isfinite(pss) else INFINITY
-
-                # verbose
-                token = "\t" + "".join(['%-12.4g ' % z for z in q[self.lkp]])
-                token += '|  %.5g' % relative_gain
-                self._log(token)
-
-                # check whether we've stopped converging altogether
-                if relative_gain < self.tol and countdown == -1:
-                    countdown = 2
-
-                # countdown
-                if countdown != -1:
-                    # converge
-                    if countdown == 0:
-                        break
-                    countdown -= 1
-
-            # what happened ?
-            comments = " after %i iterations" % (iteration + 1)
-            if iteration + 1 == self.n_iterations:
-                comments = "did not coverge" + comments
-            else:
-                if relative_gain < self.tol:
-                    comments = "converged" + comments
-                else:
-                    comments = "stopped converging" + comments
-
-            self._log("")
+        rps = Parallel(n_jobs=n_jobs)(delayed(
+              _single_volume_fit)(vol, vol_0.get_affine(), A0,
+                                  affine_correction,
+                                  b, x1, x2, x3, fwhm=self.fwhm,
+                                  n_iterations=self.n_iterations,
+                                  interp=self.interp, lkp=self.lkp,
+                                  tol=self.tol, **svf_kwargs) for vol in vols[1:])
+        rp[1:, ...] = np.array(rps)
 
         return rp
 
-    def fit(self, vols):
+    def fit(self, vols, n_jobs=1):
         """Estimation of within-modality rigid-body movement parameters.
 
         All operations are performed relative to the first image. That is,
@@ -421,6 +494,9 @@ class MRIMotionCorrection(object):
             list of single 4D images or nibabel image objects
             (one per session), or list of lists of filenames or nibabel image
             objects (one list per session)
+            
+        n_jobs: int
+            number of parallel jobs
 
         Returns
         -------
@@ -495,7 +571,8 @@ class MRIMotionCorrection(object):
 
             sess_rp = self._single_session_fit(
                 self.vols_[sess],
-                affine_correction=affine_correction)
+                affine_correction=affine_correction,
+                n_jobs=n_jobs)
 
             self.realignment_parameters_.append(sess_rp)
             self._log('...done; session %i.\r\n' % (sess + 1))
