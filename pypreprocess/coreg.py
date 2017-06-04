@@ -358,7 +358,7 @@ class Coregister(object):
         self.params_ = np.array(self.params_init)
         for samp in self.sep:
             print("\r\nRunning Powell gradient-less local optimization "
-                  "(pyramidal level = %smm)...") % samp
+                  "(pyramidal level = %smm)..." % samp)
 
             # create sampled grid for target img
             grid = make_sampled_grid(target.shape, samp=_correct_voxel_samp(
@@ -406,7 +406,7 @@ class Coregister(object):
             the coregistered source volume
         """
         # save output unto disk
-        if not output_dir is None:
+        if output_dir is not None:
             if basenames is None:
                 basenames = get_basenames(source)
 
@@ -414,7 +414,7 @@ class Coregister(object):
         # XXX backend should handle nasty i/o logic!!
         coregistered_source = list(apply_realignment(source, self.params_,
                                                      inverse=True))
-        if not output_dir is None:
+        if output_dir is not None:
             concat = isinstance(basenames, _basestring)
             coregistered_source = save_vols(coregistered_source,
                                             output_dir=output_dir,

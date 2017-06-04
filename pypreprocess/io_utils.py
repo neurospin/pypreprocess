@@ -31,7 +31,8 @@ def is_niimg(img):
     if isinstance(img, (nibabel.Nifti1Image,
                         nibabel.Nifti1Pair,
                         nibabel.Spm2AnalyzeImage,
-                        nibabel.Spm99AnalyzeImage
+                        nibabel.Spm99AnalyzeImage,
+                        nibabel.MGHImage,
                         # add other supported image types below (e.g
                         # AnalyseImage, etc.)
                         )):
