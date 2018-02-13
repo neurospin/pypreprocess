@@ -5,7 +5,7 @@ set -e
 
 SPM_ROOT_DIR=~/opt/spm12   #  Installation directory
 
-SPM_SRC=spm12_r6914.zip
+SPM_SRC=spm12_r7219.zip  # this used to be spm12_r6914.zip, watch out it might get pulled down again!!!
 MCRINST=MCRInstaller.bin
 
 mkdir -p $SPM_ROOT_DIR && cd $SPM_ROOT_DIR
