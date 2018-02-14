@@ -1,5 +1,4 @@
 """
-:Module: st
 :Synopsis: module for STC (Slice-Timing Correction) in fMRI data
 :Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 

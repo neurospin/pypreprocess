@@ -2,6 +2,7 @@
 """
 Created on Thu Aug  6 10:01:12 2015
 
+:Synopsis: Checks SPM configuration
 :Author: RAHIM Mehdi, DOCKES Jerome
 """
 import os
