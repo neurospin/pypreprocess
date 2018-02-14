@@ -1,5 +1,7 @@
 set -e
 
+NIPYPE_VERSION=0.13.0
+
 print_conda_requirements() {
     # Echo a conda requirement string for example
     # "pip python=2.7.3 scikit-learn=*". It has a hardcoded
@@ -56,7 +58,7 @@ elif [[ "$DISTRIB" == "conda" ]]; then
     create_new_conda_env
 
     # dependencies that are only available through pip
-    pip install nilearn nipype configobj
+    pip install nilearn>=0.1.3 nipype==${NIPYPE_VERSION} configobj
 else
     echo "Unknown distrib: $DISTRIB"
     exit 1
