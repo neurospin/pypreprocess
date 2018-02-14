@@ -868,12 +868,23 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
     # sanitize subject_data (do things like .nii.gz -> .nii conversion, etc.)
     subject_data.sanitize(niigz2nii=(software == "spm"))
 
+    # XXX get spm version
+    spm_version = _get_version_spm(SPM_DIR)
+
     # prepare for smart caching
     if caching:
         cache_dir = os.path.join(subject_data.scratch, 'cache_dir')
         if not os.path.exists(cache_dir): os.makedirs(cache_dir)
-        normalize = NipypeMemory(base_dir=cache_dir).cache(spm.Normalize)
-    else: normalize = spm.Normalize().run
+        if spm_version == 'spm8':
+            normalize = NipypeMemory(base_dir=cache_dir).cache(spm.Normalize)
+        elif spm_version == 'spm12':
+            normalize = NipypeMemory(base_dir=cache_dir).cache(spm.Normalize12)
+    else:
+        # XXX normalize or normalize12
+        if spm_version == 'spm8':
+            normalize = spm.Normalize().run
+        elif spm_version == 'spm12':
+            normalize = spm.Normalize12().run
 
     segmented = 'segment' in subject_data.nipype_results
 
@@ -889,6 +900,8 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
     else:
         parameter_file = subject_data.nipype_results[
             'segment'].outputs.transformation_mat
+        deformation_file = subject_data.nipype_results[
+            'segment'].outputs.forward_deformation_field
 
     subject_data.parameter_file = parameter_file
 
@@ -908,13 +921,13 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                     write_voxel_sizes = get_vox_dims(apply_to_files)
                 else: write_voxel_sizes = anat_write_voxel_sizes
                 apply_to_files = subject_data.anat
-
-            # run node
+            # XXX replace by normalize12
+            print('[DEFORMATION FILE]', deformation_file)
+            print('[APPLY TO FILE]', apply_to_files)
             normalize_result = normalize(
-                parameter_file=parameter_file,
+                deformation_file=deformation_file,
                 apply_to_files=apply_to_files,
                 write_voxel_sizes=list(write_voxel_sizes),
-                # write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
                 write_interp=1, jobtype='write', ignore_exception=True)
 
             # failed node ?
