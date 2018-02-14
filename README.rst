@@ -191,9 +191,9 @@ or if you have write privileges::
        
 Common problems and fixes
 =========================
-* libXp.so.6 missing (in ubuntu >= 15.10, for example)
-You'll need to install it manually by executing the following lines in a terminal (you'll need root)
-       $ sudo add-apt-repository "deb http://securuty.ubuntu.com/ubuntu precise-security main"
+* libXp.so.6 missing (in ubuntu >= 15.10, for example). You'll need to install it manually by executing the following lines in a terminal (you'll need root)::
+
+       $ sudo add-apt-repository "deb http://securuty.ubuntu.com/ubuntu precise-security main"   
        $ sudo apt update
        $ sudo apt install lixp6
        $ sudo add-apt-repository -r "deb http://securuty.ubuntu.com/ubuntu precise-security main"
