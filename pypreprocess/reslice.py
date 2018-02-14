@@ -2,7 +2,7 @@
 :Module: spm_reslice
 :Synopsis: Routine functions for reslicing volumes after affine registration
 (as in motion correction, coregistration, etc)
-:Author: DOHMATOB Elvis Dopgima
+:Author: DOHMATOB Elvis Dopgimap <gmdopp@gmail.com>
 
 """
 

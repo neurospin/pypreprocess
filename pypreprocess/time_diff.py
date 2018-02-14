@@ -1,17 +1,18 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
-''' Time series diagnostics
-
+"""
+:Synopsis: Time series diagnostics
 These started life as ``tsdiffana.m`` - see
 http://imaging.mrc-cbu.cam.ac.uk/imaging/DataDiagnostics
 
-Oliver Josephs (FIL) gave Matthew Brett the idea of time-point to time-point
+:Author: Oliver Josephs (FIL) gave Matthew Brett the idea of time-point to time-point
 subtraction as a diagnostic for motion and other sudden image changes.
 This has been implemented in the Nipy package.
 
-We give here a simpler implementation with modified dependences
+We give here a simpler implementation with modified dependencies
 
-'''
+"""
+
 import numpy as np
 import nibabel as nib
 from nilearn.plotting import plot_stat_map

@@ -3,8 +3,8 @@
 :Synopsis: assorted utilities for smoothing images (to absorb noise before
 computing a gradient, etc.). A good starting point for understanding this code
 is the smooth_image(..) wrapper function
-:Author: DOHMATOB Elvis Dopgima, adapted from nipy source code. Credits
-to nipy dev.
+:Author: DOHMATOB Elvis Dopgima (adapted from nipy source code. Credits
+to nipy dev).
 
 """
 

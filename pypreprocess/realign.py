@@ -1,7 +1,7 @@
 """
 :Module: spm_realign
 :Synopsis: MRI within-modality Motion Correction, SPM style
-:Author: DOHMATOB Elvis Dopgima
+:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
 """
 
