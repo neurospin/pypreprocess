@@ -1,7 +1,8 @@
-""" Utilities to describe the result of cluster-level analysis of statistical
+"""
+:Synopsis: Utilities to describe the result of cluster-level analysis of statistical
 maps.
+:Author: THIRION Bertrand
 
-Author: Bertrand Thirion, 2015
 """
 import numpy as np
 from scipy.ndimage import label, maximum_filter

@@ -1,11 +1,11 @@
 """
-Encapsulation of subject data. Handles subject data logic
+:Synopsis: Encapsulation of subject data. Handles subject data logic
 like filetypes, extensions, .nii.gz -> .nii conversions, setup and
 teardown for reports, etc., general sanitization, etc. Also handles
 progressive report generation for subject during preprocessing.
+:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
 """
-# Author: DOHMATOB Elvis Dopgima
 
 import os
 import time
