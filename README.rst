@@ -50,7 +50,7 @@ Installation
 ============
 To begin with, you may also want to install the pre-compiled version of SPM (in case you don't have matlab, etc.). Just run the following::
 
-     $ bash continuous_integration/install_spm.sh
+     $ . continuous_integration/install_spm12.sh
 
 First, install neurodebian-travis::
 
