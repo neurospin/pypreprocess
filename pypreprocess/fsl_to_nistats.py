@@ -9,7 +9,7 @@ into Dataframe format.
 import os
 import re
 import numpy as np
-from pypreprocess.external.nistats.design_matrix import make_design_matrix
+from nistats.design_matrix import make_design_matrix
 import pandas as pd
 
 from nilearn._utils.compat import _basestring

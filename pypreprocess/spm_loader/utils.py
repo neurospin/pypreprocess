@@ -9,7 +9,7 @@ import multiprocessing
 import nibabel as nb
 import numpy as np
 
-from pypreprocess.external.nistats.glm import FirstLevelGLM
+from nistats.first_level_model import FirstLevelModel
 
 
 # pypreprocess imports

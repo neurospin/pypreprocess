@@ -13,9 +13,8 @@ import numpy as np
 import scipy.io
 
 # imports for GLM buusiness
-from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
-                                                         check_design_matrix)
-from pypreprocess.external.nistats.glm import FirstLevelGLM
+from nistats.design_matrix import make_design_matrix, check_design_matrix
+from nistats.first_level_model import FirstLevelModel
 import pandas as pd
 
 # pypreprocess imports

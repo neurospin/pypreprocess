@@ -7,9 +7,8 @@ on FSL's FEEDS fMRI single-subject example data
 import os
 import numpy as np
 import pandas as pd
-from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
-                                                         check_design_matrix)
-from pypreprocess.external.nistats.glm import FirstLevelGLM
+from nistats.design_matrix import make_design_matrix, check_design_matrix
+from nistats.first_level_model import FirstLevelModel
 import nibabel
 import time
 from pypreprocess.nipype_preproc_spm_utils import (SubjectData,
