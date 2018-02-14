@@ -1,7 +1,7 @@
 """
 :Module: utils
 :Synopsis: routine business related to image i/o manips
-:Author: dohmatob elvis dopgima
+:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
 """
 

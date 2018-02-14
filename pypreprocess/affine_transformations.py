@@ -1,7 +1,7 @@
 """
 :Module: affine_transformations
 :Synopsis: routine functions for doing affine transformation-related business
-:Author: DOHMATOB Elvis Dopgima
+:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
 References
 ----------

@@ -1,5 +1,5 @@
 """
-Author: Bertrand Thirion, Alexandre Abraham, DOHMATOB Elvis Dopgima
+:Author: THIRION Bertrand, ABRAHAM Alexandre, DOHMATOB Elvis Dopgima
 
 """
 
