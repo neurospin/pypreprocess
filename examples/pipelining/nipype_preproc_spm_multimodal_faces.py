@@ -1,7 +1,8 @@
 """
-:Author: yannick schwartz, dohmatob elvis dopgima
 :Synopsis: Minimal script for preprocessing single-subject data
 + GLM with nistats
+:Author: SCHWARTZ Yannick, DOHMATOB Elvis Dopgima
+
 """
 
 # standard imports

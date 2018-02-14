@@ -1,7 +1,8 @@
 """
-Author: DOHMATOB Elvis Dopgima elvis[dot]dohmatob[at]inria[dot]fr
 Synopsis: Demo script for nipy's GLM and inference + reporting
 on FSL's FEEDS fMRI single-subject example data
+Author: DOHMATOB Elvis Dopgima
+
 """
 
 import os

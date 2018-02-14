@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Demo script for anatomical MRI segmentation with SPM.
-
+:Synopsis: Demo script for anatomical MRI segmentation with SPM.
 It demos segmentations on SPM single-subject auditory.
+:Author: RAHIM Mehdi
 
-@author: Mehdi RAHIM
 """
 
 import os

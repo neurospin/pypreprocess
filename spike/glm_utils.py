@@ -9,9 +9,9 @@ XXX TODO: take into account multi-models (a model is simply a
 one-to-one mapping a subset of bold files, unto onset / timing
 files.
 
+:Author: DOHMATOB Elvis Dopgima
 
 """
-# Author: Elvis DOHMATOB, Christophe PALIER
 
 import os
 import glob

@@ -1,7 +1,7 @@
 """
 :Module: nipype_preproc_spm_abide
 :Synopsis: SPM use-case for preprocessing ABIDE rest dataset
-:Author: dohmatob elvis dopgima
+:Author: DOHMATOB Elvis Dopgima
 
 """
 

@@ -1,6 +1,7 @@
 """
-Author: dohmatob elvis dopgima elvis[dot]dohmatob[at]inria[dot]fr
-Synopsis: Minimal script for preprocessing single-subject data
+:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
+:Synopsis: Minimal script for preprocessing single-subject data
+
 """
 
 import os
