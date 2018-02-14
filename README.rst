@@ -192,7 +192,13 @@ or if you have write privileges::
 Common problems and fixes
 =========================
 * libXp.so.6 missing (in ubuntu >= 15.10, for example)
-This is a known is http://askubuntu.com/questions/719839/libxp-so-6-missing-15-10. The idea is to install it manually from official sources https://launchpad.net/ubuntu/wily/+package/libxp6
+You'll need to install it manually by executing the following lines in a terminal (you'll need root)
+       $ sudo add-apt-repository "deb http://securuty.ubuntu.com/ubuntu precise-security main"
+       $ sudo apt update
+       $ sudo apt install lixp6
+       $ sudo add-apt-repository -r "deb http://securuty.ubuntu.com/ubuntu precise-security main"
+
+
 
 * whitespaces in the directory name for the variable 'scratch' triggers a bug in nipype and results in a crash (have not tested if this also occur for other path variables)
 
