@@ -4,6 +4,10 @@ sudo: required
 
 language: python
 
+env:
+  global:
+    - TEST_RUN_FOLDER="/tmp" # folder where the tests are run from
+
 matrix:
   # Do not wait for the allowed_failures entry to finish before
   # setting the status
