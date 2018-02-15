@@ -24,6 +24,7 @@ dependencies:
             SCIKIT_LEARN_VERSION: "*"
             MATPLOTLIB_VERSION: "*"
             NIPYPE_VERSION: "0.13.0"
+            SPM_VERSION: "8"
 
 test:
   override:
