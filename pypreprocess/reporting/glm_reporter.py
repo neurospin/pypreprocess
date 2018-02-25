@@ -5,11 +5,12 @@ import pylab as pl
 import nibabel
 from nilearn.plotting import plot_stat_map
 from nilearn.image import reorder_img
+from nilearn._utils.compat import _basestring
 from pypreprocess.external.nistats.design_matrix import plot_design_matrix
 from pypreprocess.external.nistats.glm import FirstLevelGLM
 import pandas as pd
 from nilearn.masking import intersect_masks
-import base_reporter
+from . import base_reporter
 from ..cluster_level_analysis import cluster_stats
 
 
@@ -67,9 +68,9 @@ def generate_level1_stats_table(zmap, mask,
 
     """
     # sanity
-    if isinstance(zmap, basestring):
+    if isinstance(zmap, _basestring):
         zmap = nibabel.load(zmap)
-    if isinstance(mask, basestring):
+    if isinstance(mask, _basestring):
         mask = nibabel.load(mask)
 
     # Compute cluster statistics
@@ -311,10 +312,10 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
                                     range(len(design_matrices))):
             
             # Nistats: design matrices should be strings or pandas dataframes
-            if isinstance(design_matrix, basestring):
+            if isinstance(design_matrix, _basestring):
                 if not isinstance(design_matrix, pd.DataFrame):
                     # XXX should be a DataFrame pickle here ?
-                    print design_matrix
+                    print(design_matrix)
                     design_matrix = pd.read_pickle(design_matrix)
                 else:
                     raise TypeError(
@@ -341,11 +342,11 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
             design_thumbs.commit_thumbnails(thumb)
 
     # create activation thumbs
-    for contrast_id, contrast_val in contrasts.iteritems():
+    for contrast_id, contrast_val in contrasts.items():
         z_map = z_maps[contrast_id]
 
         # load the map
-        if isinstance(z_map, basestring):
+        if isinstance(z_map, _basestring):
             z_map = nibabel.load(z_map)
 
         # generate level 1 stats table
@@ -441,7 +442,7 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
     group_level_z_maps = {}
     group_level_t_maps = {}
     for contrast_id in contrasts:
-        print "\tcontrast id: %s" % contrast_id
+        print("\tcontrast id: %s" % contrast_id)
 
         # effects maps will be the input to the second level GLM
         first_level_image = nibabel.concat_images(
@@ -466,7 +467,7 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
                 os.makedirs(map_dir)
             map_path = os.path.join(map_dir, 'group_level_%s.nii.gz' % (
                     contrast_id))
-            print "\t\tWriting %s ..." % map_path
+            print("\t\tWriting %s ..." % map_path)
             nibabel.save(map_img, map_path)
             if map_type == "z":
                 group_level_z_maps[contrast_id] = map_path
@@ -480,7 +481,6 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
                                   start_time=start_time,
                                   **kwargs)
 
-    print "\r\nStatistic report written to %s\r\n" % (
-        stats_report_filename)
+    print("\r\nStatistic report written to %s\r\n" % stats_report_filename)
 
     return group_level_z_maps

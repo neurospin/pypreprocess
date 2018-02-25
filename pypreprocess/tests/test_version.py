@@ -10,4 +10,4 @@ from ..version import __version__
 
 def test_version():
     version = pypreprocess.__version__
-    assert_true(isinstance(version, basestring))
+    assert_true(isinstance(version, str))

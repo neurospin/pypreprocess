@@ -6,7 +6,6 @@ Synopsis: Minimal script for preprocessing single-subject data
 import os
 import time
 import numpy as np
-import matplotlib.pyplot as plt
 import nibabel
 from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
 from pypreprocess.datasets import fetch_spm_auditory
@@ -16,6 +15,7 @@ from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
                                                          check_design_matrix,
                                                          plot_design_matrix)
 from pypreprocess.external.nistats.glm import FirstLevelGLM
+import matplotlib.pyplot as plt
 
 # file containing configuration for preprocessing the data
 this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -82,17 +82,17 @@ fmri_glm = FirstLevelGLM(noise_model='ar1', standardize=False).fit(
 
 # save computed mask
 mask_path = os.path.join(subject_data.output_dir, "mask.nii.gz")
-print "Saving mask image %s" % mask_path
+print("Saving mask image %s" % mask_path)
 nibabel.save(fmri_glm.masker_.mask_img_, mask_path)
 
 # compute bg unto which activation will be projected
 anat_img = nibabel.load(subject_data.anat)
 
-print "Computing contrasts .."
+print("Computing contrasts ..")
 z_maps = {}
 effects_maps = {}
-for contrast_id, contrast_val in contrasts.iteritems():
-    print "\tcontrast id: %s" % contrast_id
+for contrast_id, contrast_val in contrasts.items():
+    print("\tcontrast id: %s" % contrast_id)
     z_map, t_map, eff_map, var_map = fmri_glm.transform(
         contrasts[contrast_id], contrast_name=contrast_id, output_z=True,
         output_stat=True, output_effects=True, output_variance=True)
@@ -112,7 +112,7 @@ for contrast_id, contrast_val in contrasts.iteritems():
         if contrast_id == 'active-rest' and dtype == "z":
             z_maps[contrast_id] = map_path
 
-        print "\t\t%s map: %s" % (dtype, map_path)
+        print("\t\t%s map: %s" % (dtype, map_path))
 
     print
 
@@ -141,4 +141,4 @@ generate_subject_stats_report(
     drift_model=drift_model,
     hrf_model=hrf_model)
 
-print "\r\nStatistic report written to %s\r\n" % stats_report_filename
+print("\r\nStatistic report written to %s\r\n" % stats_report_filename)

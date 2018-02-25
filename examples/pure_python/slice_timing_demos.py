@@ -7,11 +7,13 @@ import sys
 import os
 import warnings
 from collections import namedtuple
+from tempfile import mkdtemp
 import numpy as np
 import matplotlib.pyplot as plt
 import nibabel
 from pypreprocess.slice_timing import STC, fMRISTC
 from nilearn.datasets import fetch_nyu_rest
+from nilearn._utils.compat import _basestring
 from pypreprocess.datasets import fetch_spm_multimodal_fmri
 from pypreprocess.reporting.preproc_reporter import generate_stc_thumbnails
 
@@ -19,12 +21,13 @@ from pypreprocess.reporting.preproc_reporter import generate_stc_thumbnails
 SubjectData = namedtuple('SubjectData', 'subject_id func output_dir')
 
 
-def demo_random_brain(n_rows=62, n_columns=40, n_slices=10, n_scans=240):
+def demo_random_brain(output_dir, n_rows=62, n_columns=40, n_slices=10,
+                      n_scans=240):
     """Now, how about STC for brain packed with white-noise ? ;)
 
     """
 
-    print "\r\n\t\t ---demo_random_brain---"
+    print("\r\n\t\t ---demo_random_brain---")
 
     # populate brain with white-noise (for BOLD values)
     brain_data = np.random.randn(n_rows, n_columns, n_slices, n_scans)
@@ -40,10 +43,10 @@ def demo_random_brain(n_rows=62, n_columns=40, n_slices=10, n_scans=240):
 
     # QA clinic
     generate_stc_thumbnails([brain_data], [stc.get_last_output_data()],
-                            '/tmp/', close=False)
+                            output_dir, close=False)
 
 
-def demo_sinusoidal_mixture(n_slices=10, n_rows=3, n_columns=2,
+def demo_sinusoidal_mixture(output_dir, n_slices=10, n_rows=3, n_columns=2,
                           introduce_artefact_in_these_volumes=None,
                           artefact_std=4.,
                           white_noise_std=1e-2):
@@ -72,7 +75,7 @@ def demo_sinusoidal_mixture(n_slices=10, n_rows=3, n_columns=2,
 
     """
 
-    print "\r\n\t\t ---demo_sinusoid_mixture---"
+    print("\r\n\t\t ---demo_sinusoid_mixture---")
     slice_indices = np.arange(n_slices, dtype=int)
     timescale = .01
     sine_freq = [.5, .8, .11, .7]
@@ -140,10 +143,10 @@ def demo_sinusoidal_mixture(n_slices=10, n_rows=3, n_columns=2,
 
     # QA clinic
     generate_stc_thumbnails(acquired_signal,
-                            st_corrected_signal, '/tmp/', close=False)
+                            st_corrected_signal, output_dir, close=False)
 
 
-def demo_HRF(n_slices=10,
+def demo_HRF(output_dir, n_slices=10,
              n_rows=2,
              n_columns=3,
              white_noise_std=1e-4,
@@ -163,7 +166,7 @@ def demo_HRF(n_slices=10,
 
     """
 
-    print "\r\n\t\t ---demo_HRF---"
+    print("\r\n\t\t ---demo_HRF---")
 
     import math
 
@@ -230,11 +233,12 @@ def demo_HRF(n_slices=10,
 
     # QA clinic
     generate_stc_thumbnails(acquired_sample,
-                            stc.get_last_output_data(), '/tmp/',
+                            stc.get_last_output_data(), output_dir,
                             close=False)
 
 
-def _fmri_demo_runner(subjects, dataset_id, **spm_slice_timing_kwargs):
+def _fmri_demo_runner(output_dir, subjects, dataset_id,
+                      **spm_slice_timing_kwargs):
     """Demo runner.
 
     Parameters
@@ -261,7 +265,7 @@ def _fmri_demo_runner(subjects, dataset_id, **spm_slice_timing_kwargs):
         if isinstance(fmri_files, np.ndarray):
             return fmri_files
 
-        if isinstance(fmri_files, basestring):
+        if isinstance(fmri_files, _basestring):
             return nibabel.load(fmri_files).get_data()
         else:
             n_scans = len(fmri_files)
@@ -298,13 +302,14 @@ def _fmri_demo_runner(subjects, dataset_id, **spm_slice_timing_kwargs):
         # plot results
         generate_stc_thumbnails([stc.get_raw_data()],
                                 [stc.get_last_output_data()],
-                                '/tmp', close=False)
+                                output_dir, close=False)
 
 
-def demo_localizer(output_dir="/tmp/localizer_output"):
+def demo_localizer(output_dir):
+    output_dir = os.path.join(output_dir, "localizer_output")
     data_path = os.path.join(
         os.environ["HOME"],
-        ".nipy/tests/data/s12069_swaloc1_corr.nii.gz")
+        ".nipy", "tests", "data", "s12069_swaloc1_corr.nii.gz")
     if not os.path.exists(data_path):
         warnings.warn("You don't have nipy test data installed!")
         return
@@ -313,22 +318,19 @@ def demo_localizer(output_dir="/tmp/localizer_output"):
     subject_data = SubjectData(subject_id=subject_id, func=data_path,
                                output_dir=os.path.join(output_dir, subject_id))
 
-    _fmri_demo_runner([subject_data], "localizer")
+    _fmri_demo_runner(output_dir, [subject_data], "localizer")
 
 
-def demo_spm_multimodal_fmri(output_dir="/tmp/spm_multimodal_fmri_output"):
+def demo_spm_multimodal_fmri(output_dir):
     """Demo for SPM multimodal fmri (faces vs scrambled)
 
     Parameters
     ----------
-    data_dir: string, optional
-        where the data is located on your disk, where it will be
-        downloaded to
-    output_dir: string, optional
+    output_dir: string
         where output will be written to
 
     """
-
+    output_dir = os.path.join(output_dir, "spm_multimodal_fmri_output")
     # fetch data
     spm_multimodal_fmri = fetch_spm_multimodal_fmri()
 
@@ -340,12 +342,11 @@ def demo_spm_multimodal_fmri(output_dir="/tmp/spm_multimodal_fmri_output"):
                           output_dir=os.path.join(output_dir, subject_id))
 
     # invoke demon to run de demo
-    _fmri_demo_runner(subject_factory(),
+    _fmri_demo_runner(output_dir, subject_factory(),
                       "SPM Multimodal fMRI faces vs scrambled session 1")
 
 
-def demo_nyu_rest(data_dir="/tmp/nyu_data", n_subjects=1,
-                  output_dir="/tmp/nyu_rest_output"):
+def demo_nyu_rest(output_dir, n_subjects=1):
     """Demo for FSL Feeds data.
 
     Parameters
@@ -353,13 +354,13 @@ def demo_nyu_rest(data_dir="/tmp/nyu_data", n_subjects=1,
     data_dir: string, optional
         where the data is located on your disk, where it will be
         downloaded to
-    output_dir: string, optional
+    output_dir: string
         where output will be written to
 
     """
-
+    output_dir = os.path.join(output_dir, "nyu_rest_output")
     # fetch data
-    nyu_data = fetch_nyu_rest(data_dir=data_dir, n_subjects=n_subjects)
+    nyu_data = fetch_nyu_rest(n_subjects=n_subjects)
 
     # subject data factory
     def subject_factory(session=1):
@@ -378,20 +379,29 @@ def demo_nyu_rest(data_dir="/tmp/nyu_data", n_subjects=1,
                                   subject_id))
 
     # invoke demon to run de demo
-    _fmri_demo_runner(subject_factory(), "NYU Resting State")
+    _fmri_demo_runner(output_dir, subject_factory(), "NYU Resting State")
 
 
 if __name__ == '__main__':
     this_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
     jobfile = os.path.join(this_dir, "multimodal_faces_preproc.ini")
 
+    output_root_dir = None
+    if (len(sys.argv) > 1):
+        output_root_dir = os.path.abspath(os.path.expanduser(sys.argv[1]))
+
+    if (output_root_dir is None or not os.path.isdir(output_root_dir)):
+        output_root_dir = mkdtemp()
+
     # demo on simulated data
-    demo_random_brain()
-    demo_sinusoidal_mixture()
-    demo_HRF()
+    demo_random_brain(output_root_dir)
+    demo_sinusoidal_mixture(output_root_dir)
+    demo_HRF(output_root_dir)
 
     # demo on real data
-    demo_localizer()
-    demo_spm_multimodal_fmri()
+    demo_localizer(output_root_dir)
+    demo_spm_multimodal_fmri(output_root_dir)
+
+    print("output written in {0}".format(output_root_dir))
 
     plt.show()

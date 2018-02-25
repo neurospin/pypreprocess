@@ -181,35 +181,37 @@ def test_MRIMotionCorrection_fit():
 
     film = apply_realignment(film, rp)
 
-    # instantiate object
-    mrimc = MRIMotionCorrection(quality=1., lkp=lkp).fit([film])
+    for n_jobs in [1, 2]:
+        # instantiate object
+        mrimc = MRIMotionCorrection(quality=1., lkp=lkp).fit([film],
+                                                             n_jobs=n_jobs)
 
-    # check shape of realignment params
-    np.testing.assert_array_equal(np.array(
-        mrimc.realignment_parameters_).shape, [1] + [n_scans, 6])
+        # check shape of realignment params
+        np.testing.assert_array_equal(np.array(
+            mrimc.realignment_parameters_).shape, [1] + [n_scans, 6])
 
-    # check that we estimated the correct motion params
-    # XXX refine the notion of "closeness" below
-    for t in range(n_scans):
-        _tmp = get_initial_motion_params()[:6]
+        # check that we estimated the correct motion params
+        # XXX refine the notion of "closeness" below
+        for t in range(n_scans):
+            _tmp = get_initial_motion_params()[:6]
 
-        # check the estimated motion is well within our MAX_RE limit
-        _tmp[:3] += _make_vol_specific_translation(translation, n_scans, t)
-        _tmp[3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
-        if t > 0: np.testing.assert_allclose(
-                mrimc.realignment_parameters_[0][t][lkp],
-                _tmp[lkp], rtol=MAX_RE)
-        else: np.testing.assert_array_equal(
-                mrimc.realignment_parameters_[0][t],
-                get_initial_motion_params()[:6])
+            # check the estimated motion is well within our MAX_RE limit
+            _tmp[:3] += _make_vol_specific_translation(translation, n_scans, t)
+            _tmp[3:6] += _make_vol_specific_rotation(rotation, n_scans, t)
+            if t > 0: np.testing.assert_allclose(
+                    mrimc.realignment_parameters_[0][t][lkp],
+                    _tmp[lkp], rtol=MAX_RE)
+            else: np.testing.assert_array_equal(
+                    mrimc.realignment_parameters_[0][t],
+                    get_initial_motion_params()[:6])
 
-    ####################
-    # check transform
-    ####################
-    mrimc_output = mrimc.transform(output_dir)
-    assert_equal(len(mrimc_output['realigned_images']), 1)
-    assert_equal(len(set(mrimc_output['realigned_images'][0])), n_scans)
-    assert_equal(len(set(mrimc_output['realigned_images'][0])), n_scans)
+        ####################
+        # check transform
+        ####################
+        mrimc_output = mrimc.transform(output_dir)
+        assert_equal(len(mrimc_output['realigned_images']), 1)
+        assert_equal(len(set(mrimc_output['realigned_images'][0])), n_scans)
+        assert_equal(len(set(mrimc_output['realigned_images'][0])), n_scans)
 
 
 @nottest

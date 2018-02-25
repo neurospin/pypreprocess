@@ -5,12 +5,13 @@ import numpy as np
 from nose.tools import assert_equal, assert_true, assert_false
 import nibabel
 from nilearn.image.image import check_niimg_4d
+from nilearn._utils.compat import _basestring
 from numpy.testing import assert_array_equal
 
 from pypreprocess.io_utils import delete_orientation
 
 from ..io_utils import (
-    do_3Dto4D_merge, load_vols, save_vols, save_vol, hard_link,
+    do_3Dto4D_merge, load_vols, save_vols, save_vol, hard_link, nii2niigz,
     get_basename, get_basenames, is_niimg, is_4D, is_3D, get_vox_dims,
     niigz2nii, _expand_path, isdicom, get_shape, get_relative_path,
     loaduint8)
@@ -92,7 +93,7 @@ def test_save_vols():
                         assert_equal(os.path.basename(saved_vols_filenames[7]),
                                      'fMETHODS-000007.nii.gz')
                 else:
-                    assert_true(isinstance(saved_vols_filenames, basestring))
+                    assert_true(isinstance(saved_vols_filenames, _basestring))
                     assert_true(saved_vols_filenames.endswith('.nii.gz'),
                                 msg=saved_vols_filenames)
                     assert_true(is_4D(check_niimg_4d(
@@ -120,7 +121,7 @@ def test_save_vols_from_ndarray_with_affine():
                 assert_true(isinstance(saved_vols_filenames, list))
                 assert_equal(len(saved_vols_filenames), n_scans)
             else:
-                assert_true(isinstance(saved_vols_filenames, basestring))
+                assert_true(isinstance(saved_vols_filenames, _basestring))
 
 
 def test_do_3Dto4D_merge():
@@ -179,7 +180,7 @@ def test_hardlink():
     hl_filenames = hard_link(filenames, output_dir)
 
     def _check_ok(x, y):
-        if isinstance(x, basestring):
+        if isinstance(x, _basestring):
             # check that hardlink was actually made
             assert_true(os.path.exists(x))
             if x.endswith('.img'):
@@ -456,9 +457,59 @@ def test_delete_orientation():
     data_vol1 = vol1.get_data()
     data_vol2 = vol2.get_data()
     assert_array_equal(data_vol1, data_vol2)
-    header = vol2.header
+    header = vol2.get_header()
     for key in ['dim_info', 'quatern_b', 'quatern_c', 'quatern_d',
                 'qoffset_x', 'qoffset_y', 'qoffset_z',
                 'srow_x', 'srow_x', 'srow_z']:
         print(header[key])
         assert_array_equal(header[key], 0)
+
+
+def test_nii2niigz_with_filename():
+    # create and save .nii image
+    img = create_random_image()
+    ifilename = '/tmp/toto.nii'
+    nibabel.save(img, ifilename)
+
+    # convert img to .nii.gz
+    ofilename = nii2niigz(ifilename, output_dir='/tmp/titi')
+
+    # checks
+    assert_equal(ofilename, '/tmp/titi/toto.nii.gz')
+    nibabel.load(ofilename)
+
+
+def test_nii2niigz_with_list_of_filenames():
+    # creates and save .nii image
+    ifilenames = []
+    for i in range(4):
+        img = create_random_image()
+        ifilename = '/tmp/img%i.nii' % i
+        nibabel.save(img, ifilename)
+        ifilenames.append(ifilename)
+
+    # convert imgs to .nii.gz
+    ofilenames = nii2niigz(ifilenames, output_dir='/tmp/titi')
+
+    # checks
+    assert_equal(len(ifilenames), len(ofilenames))
+    for x in range(len(ifilenames)):
+        nibabel.load(ofilenames[x])
+
+
+def test_nii2niigz_with_list_of_lists_of_filenames():
+    # creates and save .nii image
+    ifilenames = []
+    for i in range(4):
+        img = create_random_image()
+        ifilename = '/tmp/img%i.nii' % i
+        nibabel.save(img, ifilename)
+        ifilenames.append(ifilename)
+
+    # convert imgs to .nii.gz
+    ofilenames = nii2niigz([ifilenames], output_dir='/tmp/titi')
+
+    # checks
+    assert_equal(1, len(ofilenames))
+    for x in range(len(ofilenames[0])):
+        nibabel.load(ofilenames[0][x])

@@ -157,7 +157,7 @@ def do_subject_glm(subject_data):
     contrasts["diff"] = diff_contrasts
 
     # fit GLM
-    print 'Fitting a GLM (this takes time)...'
+    print('Fitting a GLM (this takes time)...')
     fmri_glm = FMRILinearModel([nibabel.concat_images(sess_func,
                                                       check_affines=False)
                                 for sess_func in func_files],
@@ -170,14 +170,14 @@ def do_subject_glm(subject_data):
     # save computed mask
     mask_path = os.path.join(output_dir, "mask.nii.gz")
 
-    print "Saving mask image %s" % mask_path
+    print("Saving mask image %s" % mask_path)
     nibabel.save(fmri_glm.mask, mask_path)
 
     # compute contrasts
     z_maps = {}
     effects_maps = {}
-    for contrast_id, contrast_val in contrasts.iteritems():
-        print "\tcontrast id: %s" % contrast_id
+    for contrast_id, contrast_val in contrasts.items():
+        print("\tcontrast id: %s" % contrast_id)
         if np.ndim(contrast_val) > 1:
             contrast_type = "t"
         else:
@@ -201,7 +201,7 @@ def do_subject_glm(subject_data):
                 os.makedirs(map_dir)
             map_path = os.path.join(
                 map_dir, '%s.nii.gz' % contrast_id)
-            print "\t\tWriting %s ..." % map_path
+            print("\t\tWriting %s ..." % map_path)
             nibabel.save(out_map, map_path)
 
             # collect zmaps for contrasts we're interested in
@@ -263,7 +263,7 @@ if __name__ == "__maih__":
         anat_img = nibabel.load(anat)
         z_map = nibabel.load(z_maps.values()[0])
         all_effects_maps.append(effects_maps)
-        for contrast_id, z_map in z_maps.iteritems():
+        for contrast_id, z_map in z_maps.items():
             plot_stat_map(z_map, black_bg=True, threshold=2.3,
                           title="%s: %s" % (subject_id, contrast_id))
             plt.savefig("%s_%s.png" % (subject_id, contrast_id))

@@ -13,7 +13,9 @@ import warnings
 import numpy as np
 from matplotlib.pyplot import cm
 from sklearn.externals.joblib import Memory
+from nilearn._utils.compat import _basestring
 from .io_utils import (niigz2nii as do_niigz2nii, dcm2nii as do_dcm2nii,
+                       nii2niigz as do_nii2niigz,
                        isdicom, delete_orientation, hard_link, get_shape,
                        is_4D, is_3D, get_basenames, is_niimg)
 from .reporting.base_reporter import (
@@ -59,15 +61,18 @@ tsdiffana_tooltips = [
     ("(Squared) differences across sequential volumes. "
      "A large value indicates an artifact that occurred during the "
      "slice acquisition, possibly related to motion."),
-    ("Average signal over each volume. A large drop/peak (e.g. 5%) indicates "
-     "an artefact."),
+    ("Average signal over each volume. A large drop / peak (e.g. 1%)"
+     " w.r.t the mean level indicates an artefact. For example, there are "
+     " usually large values peaks in the first few slices due to T2 "
+     " relaxation effects, and these slices are usually adviced to be "
+     "discarded."),
     ("Variance index per slice. Note that acquisition artifacts can be slice"
      "-specific. Look at the data if there is a peak somewhere."),
     ("Scaled variance per slice indicates slices where artifacts occur."
-    "A slice/time with large variance should be eyeballed."),
+    " A slice/time with large variance should be eyeballed."),
     ("Large variations should be confined to vascular structures "
      "or ventricles. Large variations around the brain indicate"
-     " (uncorrected) motion effects."),
+     " residual motion effects."),
     ("Large variations should be confined to vascular structures or"
      " ventricles. Large variations around the brain indicate (uncorrected)"
      " motion effects.")]
@@ -141,6 +146,9 @@ class SubjectData(object):
         self.nipype_results = {}
         self._set_items(**kwargs)
         self.scratch = output_dir if scratch is None else scratch
+        self.anat_scratch_dir = anat_output_dir if scratch is None else scratch
+        self.session_scratch_dirs = (session_output_dirs if scratch is None
+                                     else [scratch] * len(session_output_dirs))
 
     def _set_items(self, **kwargs):
         for k, v in kwargs.items():
@@ -203,6 +211,24 @@ class SubjectData(object):
             self.session_output_dirs[sess] = self._sanitize_output_dir(
                 sess_output_dir)
 
+    def _sanitize_session_scratch_dirs(self):
+        """func scratch dirs (one per session)"""
+        if self.session_scratch_dirs is None:
+            if self.n_sessions is None:
+                return
+            self.session_scratch_dirs = [None] * self.n_sessions
+
+        # session-wise func scratch directories
+        for sess, sess_scratch_dir in enumerate(self.session_scratch_dirs):
+            if sess_scratch_dir is None:
+                if self.n_sessions > 1:
+                    sess_scratch_dir = os.path.join(
+                        self.scratch, self.session_ids[sess])
+                else:
+                    sess_scratch_dir = self.scratch
+            self.session_scratch_dirs[sess] = self._sanitize_output_dir(
+                sess_scratch_dir)
+
     def _sanitize_output_dirs(self):
         # output dir
         self.output_dir = self._sanitize_output_dir(self.output_dir)
@@ -215,6 +241,19 @@ class SubjectData(object):
         # sanitize per-session func output dirs
         self._sanitize_session_output_dirs()
 
+    def _sanitize_scratch_dirs(self):
+        # scratch dir
+        self.scratch = self._sanitize_output_dir(self.scratch)
+
+        # anat scratch dir
+        if self.anat_scratch_dir is None:
+            self.anat_scratch_dir = self.scratch
+        self.anat_scratch_dir =\
+            self._sanitize_output_dir(self.anat_scratch_dir)
+
+        # sanitize per-session func scratch dirs
+        self._sanitize_session_scratch_dirs()
+
     def _niigz2nii(self):
         """
         Convert .nii.gz to .nii (crucial for SPM).
@@ -225,14 +264,16 @@ class SubjectData(object):
         cache_dir = os.path.join(self.scratch, 'cache_dir')
         mem = Memory(cache_dir, verbose=100)
         self._sanitize_session_output_dirs()
+        self._sanitize_session_scratch_dirs()
         if None not in [self.func, self.n_sessions,
-                        self.session_output_dirs]:
+                        self.session_scratch_dirs]:
             self.func = [mem.cache(do_niigz2nii)(
-                self.func[sess], output_dir=self.session_output_dirs[sess])
-                         for sess in range(self.n_sessions)]
+                self.func[sess], output_dir=self.session_scratch_dirs[sess])
+                for sess in range(self.n_sessions)]
         if self.anat is not None:
             self.anat = mem.cache(do_niigz2nii)(
-                self.anat, output_dir=self.anat_output_dir)
+                self.anat, output_dir=self.anat_scratch_dir)
+
 
     def _dcm2nii(self):
         """
@@ -241,7 +282,7 @@ class SubjectData(object):
         """
         self.isdicom = False
         if self.func:
-            if not isinstance(self.func[0], basestring):
+            if not isinstance(self.func[0], _basestring):
                 if not is_niimg(self.func[0]):
                     self.isdicom = isdicom(self.func[0][0])
             self.func = [do_dcm2nii(sess_func, output_dir=self.output_dir)[0]
@@ -262,7 +303,7 @@ class SubjectData(object):
                 continue
 
             # functional images for this session must all be distinct abspaths
-            if not isinstance(self.func[sess1], basestring):
+            if not isinstance(self.func[sess1], _basestring):
                 if len(self.func[sess1]) != len(set(self.func[sess1])):
                     # Oops! there must be a repetition somewhere
                     for x in self.func[sess1]:
@@ -276,7 +317,7 @@ class SubjectData(object):
                             sess1 + 1, rep, count))
 
             # all functional data for this session should constitute a 4D film
-            if isinstance(self.func[sess1], basestring):
+            if isinstance(self.func[sess1], _basestring):
                 if not is_4D(self.func[sess1]):
                     warnings.warn(
                         "Functional images for session number %i"
@@ -304,14 +345,14 @@ class SubjectData(object):
                         ('The same image %s specified for session number %i '
                          'and %i' % (self.func[sess1], sess1 + 1,
                                      sess2 + 1)))
-                if isinstance(self.func[sess1], basestring):
+                if isinstance(self.func[sess1], _basestring):
                     if self.func[sess1] == self.func[sess2]:
                         raise RuntimeError(
                             'The same image %s specified for session '
                             "number %i and %i" % (
                                 self.func[sess1], sess1 + 1, sess2 + 1))
                 else:
-                    if not isinstance(self.func[sess2], basestring):
+                    if not isinstance(self.func[sess2], _basestring):
                         if self.func[sess2] in self.func[sess1]:
                             raise RuntimeError(
                                 'The same image %s specified for session'
@@ -334,7 +375,7 @@ class SubjectData(object):
     def _set_session_ids(self):
         if self.func is None:
             return
-        elif isinstance(self.func, basestring): self.func = [self.func]
+        elif isinstance(self.func, _basestring): self.func = [self.func]
         if self.session_ids is None:
             if len(self.func) > 10:
                 warnings.warn(
@@ -344,7 +385,7 @@ class SubjectData(object):
             self.session_ids = ["Session%i" % (sess + 1)
                                 for sess in range(len(self.func))]
         else:
-            if isinstance(self.session_ids, (basestring, int)):
+            if isinstance(self.session_ids, (_basestring, int)):
                 assert len(self.func) == 1
                 self.session_ids = [self.session_ids]
             else:
@@ -372,7 +413,7 @@ class SubjectData(object):
         self._sanitize_output_dirs()
 
         # sanitize func
-        if isinstance(self.func, basestring):
+        if isinstance(self.func, _basestring):
             self.func = [self.func]
 
         # sanitize anat
@@ -412,11 +453,11 @@ class SubjectData(object):
         rp_filenames = []
         for sess in range(self.n_sessions):
             sess_rps = getattr(self, "realignment_parameters")[sess]
-            if isinstance(sess_rps, basestring):
+            if isinstance(sess_rps, _basestring):
                 rp_filenames.append(sess_rps)
             else:
                 sess_basename = self.basenames[sess]
-                if not isinstance(sess_basename, basestring):
+                if not isinstance(sess_basename, _basestring):
                     sess_basename = sess_basename[0]
 
                 rp_filename = os.path.join(
@@ -441,14 +482,16 @@ class SubjectData(object):
         self._set_session_ids()
 
         # anat stuff
-        for item in ["anat", 'gm', 'wm', 'csf', 'wgm', 'wwm', 'wcsf',
+        for item in ['anat', 'gm', 'wm', 'csf', 'wgm', 'wwm', 'wcsf',
                      'mwgm', 'mwwm', 'mwcsf']:
             if hasattr(self, item):
                 filename = getattr(self, item)
                 if filename is not None:
-                    linked_filename = hard_link(filename, self.anat_output_dir)
-                if final:
-                    setattr(self, item, linked_filename)
+                    filename = do_nii2niigz(filename, self.anat_scratch_dir)
+                    linked_filename = hard_link(filename,
+                                                self.anat_output_dir)
+            if final:
+                setattr(self, item, linked_filename)
 
         # func stuff
         self.save_realignment_parameters()
@@ -456,12 +499,15 @@ class SubjectData(object):
             tmp = []
             if hasattr(self, item):
                 filenames = getattr(self, item)
-                if isinstance(filenames, basestring):
+                if isinstance(filenames, _basestring):
                     assert self.n_sessions == 1, filenames
                     filenames = [filenames]
                 for sess in range(self.n_sessions):
                     filename = filenames[sess]
                     if filename is not None:
+                        # gzip before hard link
+                        if item == 'func':
+                            filename = do_nii2niigz(filename)
                         linked_filename = hard_link(
                             filename, self.session_output_dirs[sess])
                         tmp.append(linked_filename)
@@ -591,9 +637,9 @@ class SubjectData(object):
             commit_subject_thumnbail_to_parent_gallery(
                 self.final_thumbnail, self.subject_id, parent_results_gallery)
 
-        print ("\r\nPreproc report for subject %s written to %s"
-               " .\r\n" % (self.subject_id,
-                           self.report_preproc_filename))
+        print("\r\nPreproc report for subject %s written to %s"
+              " .\r\n" % (self.subject_id,
+                          self.report_preproc_filename))
 
     def __getitem__(self, key):
         return self.__dict__[key]

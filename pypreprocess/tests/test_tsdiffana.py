@@ -14,8 +14,8 @@ from nose.tools import assert_true, assert_false
 def make_test_data(n_scans=3):
     shape = (7, 8, 9, n_scans)
     film = np.zeros(shape)
-    film[-3:, 5:-1, ..., ...] = 1
-    film[..., 2:5, ..., ...] = 1
+    film[-3:, 5:-1, :, :] = 1
+    film[:, 2:5, :, :] = 1
     scal = np.sum(film) * 1. / film.size
     affine = np.eye(4)
     return nibabel.Nifti1Image(film, affine), scal
@@ -48,8 +48,8 @@ def test_ts_diff_ana():
     n_scans = 2
     shape = (7, 8, 9, n_scans)
     film = np.zeros(shape)
-    film[-3:, 5:-1, ..., ...] = 1
-    film[..., 2:5, ..., ...] = 1
+    film[-3:, 5:-1, :, :] = 1
+    film[:, 2:5, :, :] = 1
     ref = film.copy()
     scal = np.sum(ref) * 1. / ref.size
     film = np.dot(film, np.diag(np.arange(n_scans)))

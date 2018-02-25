@@ -4,11 +4,12 @@ descr = """A set of python modules for neuroimaging..."""
 
 import sys
 import os
+import io
 import shutil
 
 DISTNAME = 'pypreprocess'
 DESCRIPTION = 'Statistical learning for neuroimaging in Python'
-LONG_DESCRIPTION = open('README.rst').read()
+LONG_DESCRIPTION = io.open('README.rst', encoding="utf8").read()
 MAINTAINER = 'Gael Varoquaux'
 MAINTAINER_EMAIL = 'gael.varoquaux@normalesup.org'
 URL = 'http://pypreprocess.github.com'

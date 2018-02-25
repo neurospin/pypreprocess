@@ -6,15 +6,20 @@
 
 import os
 import sys
-import StringIO
 import contextlib
 import warnings
 import glob
 import re
+try:
+    import StringIO as io
+except ImportError:
+    import io
 from configobj import ConfigObj
 import numpy as np
-from subject_data import SubjectData
-from io_utils import _expand_path, get_relative_path
+from .subject_data import SubjectData
+from .io_utils import _expand_path, get_relative_path
+
+from nilearn._utils.compat import _basestring
 
 
 @contextlib.contextmanager
@@ -23,7 +28,7 @@ def _stdoutIO(stdout=None):
     """
     old = sys.stdout
     if stdout is None:
-        stdout = StringIO.StringIO()
+        stdout = io.StringIO()
     sys.stdout = stdout
     yield stdout
     sys.stdout = old
@@ -41,13 +46,13 @@ def _del_nones_from_dict(some_dict):
 
 def _sanitize(section, key, **replacements):
     val = section[key]
-    if isinstance(val, basestring):
+    if isinstance(val, _basestring):
         for k, v in replacements.items():
             val = val.replace("%" + k + "%", v)
     if key == "slice_order":
-        if isinstance(val, basestring):
+        if isinstance(val, _basestring):
             return
-    if isinstance(val, basestring):
+    if isinstance(val, _basestring):
         if val.lower() in ["true", "yes"]:
             # positive answers
             val = True
@@ -73,7 +78,7 @@ def _sanitize(section, key, **replacements):
                "func_write_voxel_sizes", "slice_order",
                "anat_write_voxel_size", "func_write_voxel_sizes"]:
         dtype = np.int if key == "slice_order" else np.float
-        if not isinstance(val, basestring):
+        if not isinstance(val, _basestring):
             val = ",".join(val)
         for x in "()[]":
             val = val.replace(x, "")
@@ -81,13 +86,13 @@ def _sanitize(section, key, **replacements):
         if len(val) == 1:
             val = val[0]
     section[key] = val
-    if isinstance(val, basestring) and val.startswith("pycmd:"):
+    if isinstance(val, _basestring) and val.startswith("pycmd:"):
         match = re.match("pycmd: (.+)", val, re.DOTALL)
         if match is None:
             raise RuntimeError("Invalid pycmd specification '%s'" % val)
         cmd = match.group(1)
         with _stdoutIO() as s:
-            exec cmd
+            exec(cmd)
         section[key] = s.getvalue().rstrip("\r\n")
 
 
@@ -155,7 +160,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
     assert options["output_dir"]
 
     # load data from multiple dataset_dirs
-    if not isinstance(dataset_dir, basestring):
+    if not isinstance(dataset_dir, _basestring):
         kwargs["output_dir"] = output_dir
         tmp = [_generate_preproc_pipeline(config_file, dataset_dir=dsd,
                                           options_callback=options_callback,
@@ -297,7 +302,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
 
     # subject data factory
     subject_data_dirs = options.get("subject_dirs", "*")
-    if isinstance(subject_data_dirs, basestring):
+    if isinstance(subject_data_dirs, _basestring):
         subject_dir_wildcard = os.path.join(dataset_dir, subject_data_dirs)
         subject_data_dirs = [x for x in sorted(glob.glob(subject_dir_wildcard))
                              if os.path.isdir(x)]
@@ -396,7 +401,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
 
             # skip subject if anat absent
             if len(anat) < 1:
-                print (
+                print(
                     "subject %s: anat image matching %s not found!; skipping"
                     " subject" % (subject_id, anat_wildcard))
                 continue
@@ -447,4 +452,4 @@ import_data = _generate_preproc_pipeline
 
 if __name__ == '__main__':
     from pypreprocess.reporting.base_reporter import dict_to_html_ul
-    print dict_to_html_ul(_parse_job("job.conf"))
+    print(dict_to_html_ul(_parse_job("job.conf")))

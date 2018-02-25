@@ -12,9 +12,10 @@ import os
 import sys
 import numpy as np
 import nibabel
-import commands
+import subprocess
 from nipy.modalities.fmri.glm import FMRILinearModel
 from nilearn.masking import intersect_masks
+from nilearn._utils.compat import _basestring
 from pypreprocess.nipype_preproc_spm_utils import (SubjectData,
                                                    _do_subject_realign,
                                                    do_subject_preproc)
@@ -86,8 +87,8 @@ def _do_fmri_distortion_correction(subject_data,
         zeroth_fieldmap_files = []
         for fieldmap_file in fieldmap_files:
             if not os.path.isfile(fieldmap_file):
-                print "Can't find fieldmap file %s; skipping subject %s" % (
-                    fieldmap_file, subject_data.subject_id)
+                print("Can't find fieldmap file %s; skipping subject %s" %
+                      fieldmap_file, subject_data.subject_id)
                 return
 
             # peel 0th volume of each fieldmap
@@ -96,8 +97,8 @@ def _do_fmri_distortion_correction(subject_data,
                     fieldmap_file))
             fslroi_cmd = "fsl5.0-fslroi %s %s 0 1" % (
                 fieldmap_file, zeroth_fieldmap_file)
-            print "\r\nExecuting '%s' ..." % fslroi_cmd
-            print mem.cache(commands.getoutput)(fslroi_cmd)
+            print("\r\nExecuting '%s' ..." % fslroi_cmd)
+            print(mem.cache(subprocess.check_output)(fslroi_cmd))
 
             zeroth_fieldmap_files.append(zeroth_fieldmap_file)
 
@@ -108,8 +109,8 @@ def _do_fmri_distortion_correction(subject_data,
         fslmerge_cmd = "fsl5.0-fslmerge -t %s %s %s" % (
             merged_zeroth_fieldmap_file, zeroth_fieldmap_files[0],
             zeroth_fieldmap_files[1])
-        print "\r\nExecuting '%s' ..." % fslmerge_cmd
-        print mem.cache(commands.getoutput)(fslmerge_cmd)
+        print("\r\nExecuting '%s' ..." % fslmerge_cmd)
+        print(mem.cache(subprocess.check_output)(fslmerge_cmd))
 
         # do topup (learn distortion model)
         topup_results_basename = os.path.join(subject_data.output_dir,
@@ -118,8 +119,8 @@ def _do_fmri_distortion_correction(subject_data,
             "fsl5.0-topup --imain=%s --datain=%s --config=b02b0.cnf "
             "--out=%s" % (merged_zeroth_fieldmap_file, acq_params_file,
                           topup_results_basename))
-        print "\r\nExecuting '%s' ..." % topup_cmd
-        print mem.cache(commands.getoutput)(topup_cmd)
+        print("\r\nExecuting '%s' ..." % topup_cmd)
+        print(mem.cache(subprocess.check_output)(topup_cmd))
 
         # apply learn deformations to absorb distortion
         dc_fmri_files = []
@@ -132,8 +133,8 @@ def _do_fmri_distortion_correction(subject_data,
                     subject_data.func[sess]))
             fslmerge_cmd = "fsl5.0-fslmerge -t %s %s %s" % (
                 fourD_plus_sbref, sbref_files[sess], subject_data.func[sess])
-            print "\r\nExecuting '%s' ..." % fslmerge_cmd
-            print mem.cache(commands.getoutput)(fslmerge_cmd)
+            print("\r\nExecuting '%s' ..." % fslmerge_cmd)
+            print(mem.cache(subprocess.check_output)(fslmerge_cmd))
 
             # realign task BOLD to SBRef
             sess_output_dir = subject_data.session_output_dirs[sess]
@@ -152,15 +153,15 @@ def _do_fmri_distortion_correction(subject_data,
                 "--topup=%s --out=%s --datain=%s --method=jac" % (
                     rfourD_plus_sbref, sess + 1, topup_results_basename,
                     dc_rfourD_plus_sbref, acq_params_file))
-            print "\r\nExecuting '%s' ..." % applytopup_cmd
-            print mem.cache(commands.getoutput)(applytopup_cmd)
+            print("\r\nExecuting '%s' ..." % applytopup_cmd)
+            print(mem.cache(subprocess.check_output)(applytopup_cmd))
 
             # recover undistorted task BOLD
             dc_rfmri_file = dc_rfourD_plus_sbref.replace("sbref_plus_", "")
             fslroi_cmd = "fsl5.0-fslroi %s %s 1 -1" % (
                 dc_rfourD_plus_sbref, dc_rfmri_file)
-            print "\r\nExecuting '%s' ..." % fslroi_cmd
-            print mem.cache(commands.getoutput)(fslroi_cmd)
+            print("\r\nExecuting '%s' ..." % fslroi_cmd)
+            print(mem.cache(subprocess.check_output)(fslroi_cmd))
 
             # sanity tricks
             if dc_rfmri_file.endswith(".nii"):
@@ -169,7 +170,7 @@ def _do_fmri_distortion_correction(subject_data,
             dc_fmri_files.append(dc_rfmri_file)
 
         subject_data.func = dc_fmri_files
-        if isinstance(subject_data.func, basestring):
+        if isinstance(subject_data.func, _basestring):
             subject_data.func = [subject_data.func]
 
     # continue preprocessing
@@ -260,22 +261,22 @@ def run_suject_level1_glm(subject_data,
                 #                    "tfMRI_%s_%s_hp200_s4_level1.fsf" % (
                 # protocol, direction))
         if not os.path.isfile(design_file):
-            print "Can't find design file %s; skipping subject %s" % (
-                design_file, subject_data.subject_id)
+            print("Can't find design file %s; skipping subject %s" %
+                  design_file, subject_data.subject_id)
             return
 
         # read the experimental setup
-        print "Reading experimental setup from %s ..." % design_file
+        print("Reading experimental setup from %s ..." % design_file)
         fsl_condition_ids, timing_files, fsl_contrast_ids, contrast_values = \
             read_fsl_design_file(design_file)
-        print "... done.\r\n"
+        print("... done.\r\n")
 
         # fix timing filenames
         timing_files = [tf.replace("EVs", "tfMRI_%s_%s/EVs" % (
                     protocol, direction)) for tf in timing_files]
 
         # make design matrix
-        print "Constructing design matrix for direction %s ..." % direction
+        print("Constructing design matrix for direction %s ..." % direction)
         _n_scans = nibabel.load(subject_data.func[sess]).shape[-1]
         n_scans.append(_n_scans)
         add_regs_file = add_regs_files[
@@ -301,7 +302,7 @@ def run_suject_level1_glm(subject_data,
             else None,
             )
 
-        print "... done."
+        print("... done.")
         paradigms.append(paradigm)
         frametimes_list.append(frametimes)
         design_matrices.append(design_matrix)
@@ -327,11 +328,11 @@ def run_suject_level1_glm(subject_data,
                 contrasts['RF'] - contrasts['LF'])
             contrasts['F-H'] = -contrasts['H-F']
 
-        contrasts = dict((k, v) for k, v in contrasts.iteritems() if "-" in k)
+        contrasts = dict((k, v) for k, v in contrasts.items() if "-" in k)
 
     # replicate contrasts across sessions
     contrasts = dict((cid, [cval] * 2)
-                     for cid, cval in contrasts.iteritems())
+                     for cid, cval in contrasts.items())
 
     cache_dir = cache_dir = os.path.join(subject_data.output_dir,
                                          'cache_dir')
@@ -349,31 +350,31 @@ def run_suject_level1_glm(subject_data,
 
     # fit GLM
     def tortoise(*args):
-        print args
-        print (
+        print(args)
+        print(
             'Fitting a "Fixed Effect" GLM for merging LR and RL '
-            'phase-encoding directions for subject %s ...' % (
-                subject_data.subject_id))
+            'phase-encoding directions for subject %s ...' %
+            subject_data.subject_id)
         fmri_glm = FMRILinearModel(subject_data.func,
                                    [design_matrix.matrix
                                     for design_matrix in design_matrices],
                                    mask='compute'
                                    )
         fmri_glm.fit(do_scaling=True, model='ar1')
-        print "... done.\r\n"
+        print("... done.\r\n")
 
         # save computed mask
         mask_path = os.path.join(subject_data.output_dir, "mask.nii")
-        print "Saving mask image to %s ..." % mask_path
+        print("Saving mask image to %s ..." % mask_path)
         nibabel.save(fmri_glm.mask, mask_path)
-        print "... done.\r\n"
+        print("... done.\r\n")
 
         z_maps = {}
         effects_maps = {}
         map_dirs = {}
         try:
-            for contrast_id, contrast_val in contrasts.iteritems():
-                print "\tcontrast id: %s" % contrast_id
+            for contrast_id, contrast_val in contrasts.items():
+                print("\tcontrast id: %s" % contrast_id)
                 z_map, eff_map = fmri_glm.contrast(
                     contrast_val,
                     con_id=contrast_id,
@@ -391,7 +392,7 @@ def run_suject_level1_glm(subject_data,
                         os.makedirs(map_dir)
                     map_path = os.path.join(
                         map_dir, '%s_%s.nii' % (map_type, contrast_id))
-                    print "\t\tWriting %s ..." % map_path
+                    print("\t\tWriting %s ..." % map_path)
 
                     nibabel.save(out_map, map_path)
 
@@ -414,9 +415,9 @@ def run_suject_level1_glm(subject_data,
     effects_maps, z_maps, mask_path, map_dirs = stuff
 
     # remove repeated contrasts
-    contrasts = dict((cid, cval[0]) for cid, cval in contrasts.iteritems())
+    contrasts = dict((cid, cval[0]) for cid, cval in contrasts.items())
     import json
-    json.dump(dict((k, list(v)) for k, v in contrasts.iteritems()),
+    json.dump(dict((k, list(v)) for k, v in contrasts.items()),
               open(os.path.join(subject_data.tmp_output_dir,
                                 "contrasts.json"), "w"))
     subject_data.contrasts = contrasts
@@ -430,7 +431,7 @@ def run_suject_level1_glm(subject_data,
 
         # warp effects maps and mask from native to standard space (MNI)
         apply_to_files = [
-            v for _, v in subject_data.native_effects_maps.iteritems()
+            v for _, v in subject_data.native_effects_maps.items()
             ] + [subject_data.native_mask_path]
         tmp = nipype_mem.cache(spm.Normalize)(
             parameter_file=getattr(subject_data, "parameter_file"),
@@ -531,8 +532,8 @@ if __name__ == '__main__':
         nibabel.save(group_mask, os.path.join(
                 task_output_dir, "mask.nii.gz"))
 
-        print "... done.\r\n"
-        print "Group GLM"
+        print("... done.\r\n")
+        print("Group GLM")
         contrasts = subjects[0].contrasts
         subjects_effects_maps = [subject_data.effects_maps
                                  for subject_data in subjects]

@@ -12,6 +12,9 @@ import numpy as np
 from pypreprocess.external.nistats.design_matrix import make_design_matrix
 import pandas as pd
 
+from nilearn._utils.compat import _basestring
+
+
 # regex for contrasts
 CON_REAL_REGX = ("set fmri\(con_real(?P<con_num>\d+?)\.(?P<ev_num>\d+?)\)"
             " (?P<con_val>\S+)")
@@ -63,7 +66,7 @@ def _get_abspath_relative_to_file(filename, ref_filename):
 
 
 def _insert_directory_in_file_name(filename, directory, level):
-    if not isinstance(filename, basestring):
+    if not isinstance(filename, _basestring):
         return [_insert_directory_in_file_name(x, directory, level)
                 for x in filename]
 
@@ -128,7 +131,7 @@ def read_fsl_design_file(design_filename):
     # # lookup EV (condition) shapes
     # condition_shapes = [int(item.group("shape")) for item in re.finditer(
     #         EV_SHAPE_REGX, design_conf)]
-    # print condition_shapes
+    # print(condition_shapes)
 
     # lookup EV (condition) custom files
     timing_files = [_get_abspath_relative_to_file(item.group("custom"),

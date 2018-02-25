@@ -4,6 +4,8 @@ Synopsis: single_subject_pipeline.py demo
 """
 
 import os
+import sys
+from tempfile import mkdtemp
 from collections import namedtuple
 import matplotlib.pyplot as plt
 from sklearn.externals.joblib import Memory
@@ -64,20 +66,17 @@ def _demo_runner(subjects, dataset_id, **spm_realign_kwargs):
                     subject_data.subject_id, sess, dataset_id))
 
 
-def demo_nyu_rest(output_dir="/tmp/nyu_mrimc_output",
-                  ):
+def demo_nyu_rest(output_dir):
     """Demo for FSL Feeds data.
 
     Parameters
     ----------
-    data_dir: string, optional
-        where the data is located on your disk, where it will be
-        downloaded to
-    output_dir: string, optional
+    output_dir: string
         where output will be written to
 
     """
 
+    output_dir = os.path.join(output_dir, 'nyu_mrimc_output')
     # fetch data
     nyu_data = fetch_nyu_rest()
 
@@ -101,18 +100,16 @@ def demo_nyu_rest(output_dir="/tmp/nyu_mrimc_output",
     _demo_runner(subjects, "NYU resting state")
 
 
-def demo_fsl_feeds(output_dir="/tmp/fsl_feeds_mrimc_output"):
+def demo_fsl_feeds(output_dir):
     """Demo for FSL Feeds data.
 
     Parameters
     ----------
-    data_dir: string, optional
-        where the data is located on your disk, where it will be
-        downloaded to
-    output_dir: string, optional
+    output_dir: string
         where output will be written to
 
     """
+    output_dir = os.path.join(output_dir, "fsl_feeds_mrimc_output")
     fsl_feeds = fetch_fsl_feeds()
     subject_id = "sub001"
     subjects = [SubjectData(subject_id=subject_id,
@@ -121,18 +118,16 @@ def demo_fsl_feeds(output_dir="/tmp/fsl_feeds_mrimc_output"):
     _demo_runner(subjects, "FSL FEEDS")
 
 
-def demo_spm_multimodal_fmri(output_dir="/tmp/spm_multimodal_fmri_output"):
+def demo_spm_multimodal_fmri(output_dir):
     """Demo for SPM multimodal fmri (faces vs scrambled)
 
     Parameters
     ----------
-    data_dir: string, optional
-        where the data is located on your disk, where it will be
-        downloaded to
-    output_dir: string, optional
+    output_dir: string
         where output will be written to
 
     """
+    output_dir = os.path.join(output_dir, "spm_multimodal_fmri_output")
     spm_multimodal_fmri = fetch_spm_multimodal_fmri()
     subject_id = "sub001"
     subjects = [SubjectData(subject_id=subject_id,
@@ -143,18 +138,16 @@ def demo_spm_multimodal_fmri(output_dir="/tmp/spm_multimodal_fmri_output"):
                  n_sessions=2)
 
 
-def demo_spm_auditory(output_dir="/tmp/spm_auditory_output"):
+def demo_spm_auditory(output_dir):
     """Demo for SPM single-subject Auditory
 
     Parameters
     ----------
-    data_dir: string, optional
-        where the data is located on your disk, where it will be
-        downloaded to
-    output_dir: string, optional
+    output_dir: string
         where output will be written to
 
     """
+    output_dir = os.path.join(output_dir, "spm_auditory_output")
     spm_auditory = fetch_spm_auditory()
     subject_id = "sub001"
     subjects = [SubjectData(subject_id=subject_id,
@@ -163,16 +156,25 @@ def demo_spm_auditory(output_dir="/tmp/spm_auditory_output"):
     _demo_runner(subjects, "SPM single-subject Auditory")
 
 if __name__ == '__main__':
+
+    output_root_dir = None
+    if (len(sys.argv) > 1):
+        output_root_dir = os.path.abspath(os.path.expanduser(sys.argv[1]))
+
+    if (output_root_dir is None or not os.path.isdir(output_root_dir)):
+        output_root_dir = mkdtemp()
+
     # run spm multimodal demo
-    demo_spm_auditory()
+    demo_spm_auditory(output_root_dir)
 
     # # run spm multimodal demo
-    # demo_spm_multimodal_fmri()
+    # demo_spm_multimodal_fmri(output_root_dir)
 
     # # run fsl feeds demo
-    # demo_fsl_feeds()
+    # demo_fsl_feeds(output_root_dir)
 
     # # run nyu_rest demo
-    # demo_nyu_rest()
+    # demo_nyu_rest(output_root_dir)
+    print("output written in {0}".format(output_root_dir))
 
     plt.show()
