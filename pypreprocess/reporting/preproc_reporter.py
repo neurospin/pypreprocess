@@ -1069,7 +1069,7 @@ def generate_subject_preproc_report(
             subject_gm_file=gm,
             subject_wm_file=wm,
             subject_csf_file=csf,
-            cmap=pl.cm.spectral,
+            cmap=pl.cm.nipy_spectral,
             brain="EPI",
             results_gallery=results_gallery,
             )

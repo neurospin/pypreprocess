@@ -762,7 +762,7 @@ class SubjectData(object):
         # generate thumbnails proper
         for brain_name, brain, cmap in zip(
                 ['anatomical_image', 'mean_functional_image'],
-                [self.anat, self.func], [cm.gray, cm.spectral]):
+                [self.anat, self.func], [cm.gray, cm.nipy_spectral]):
             if not brain:
                 continue
             thumbs = generate_segmentation_thumbnails(
@@ -794,7 +794,7 @@ class SubjectData(object):
         # generate thumbnails proper
         for brain_name, brain, cmap in zip(
                 ['anatomical_image', 'mean_functional_image'],
-                [self.anat, self.func], [cm.gray, cm.spectral]):
+                [self.anat, self.func], [cm.gray, cm.nipy_spectral]):
             if not brain:
                 continue
 
