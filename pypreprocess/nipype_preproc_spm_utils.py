@@ -13,6 +13,8 @@ import warnings
 import inspect
 import numpy as np
 import nibabel
+import nipype
+from distutils.version import LooseVersion
 from .slice_timing import get_slice_indices
 from .conf_parser import _generate_preproc_pipeline
 import matplotlib
@@ -20,6 +22,7 @@ matplotlib.use('Agg')
 from sklearn.externals.joblib import Parallel, delayed, Memory as JoblibMemory
 from nilearn._utils.compat import _basestring
 import nipype.interfaces.spm as spm
+from nipype.interfaces import base
 from nipype.caching import Memory as NipypeMemory
 from .configure_spm import _configure_spm, _get_version_spm
 from .io_utils import (
@@ -44,6 +47,27 @@ from .purepython_preproc_utils import (
 EPI_TEMPLATE = SPM_DIR = SPM_T1_TEMPLATE = T1_TEMPLATE = None
 GM_TEMPLATE = WM_TEMPLATE = CSF_TEMPLATE = None
 TISSUES = None
+
+
+# This patch is needed as a work around for issue as reported in
+# pypreprocess #288
+# Complete discussion is happened in Nipype issue tracker
+# https://github.com/nipy/nipype/issues/2406
+
+if LooseVersion(nipype.__version__) > LooseVersion("0.13.0"):
+    # The functionality in this patch only works for recent nipype
+    # versions > 0.13.0. Less than 0.13.0 will recieve an
+    # AttributeError: 'module' object has no attribute 'ImageFileSPM'
+    class PatchedRealignInputSpec(spm.Realign.input_spec):
+        in_files = base.InputMultiPath(
+            base.InputMultiPath(spm.base.ImageFileSPM(exists=True)),
+            field='data',
+            mandatory=True,
+            copyfile=True,
+            desc='list of filenames to realign')
+
+    class PatchedRealign(spm.Realign):
+        input_spec = PatchedRealignInputSpec
 
 
 def _configure_backends(spm_dir=None, matlab_exec=None, spm_mcr=None,
@@ -302,6 +326,19 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     if not hasattr(subject_data, 'nipype_results'):
         subject_data.nipype_results = {}
+
+    # This work around is needed for issue as reported in
+    # pypreprocess #288
+    # Complete discussion is happened in Nipype issue tracker
+    # https://github.com/nipy/nipype/issues/2406
+    if LooseVersion(nipype.__version__) > LooseVersion("0.13.0"):
+        # We check for more recent versions of nipype and fall back to
+        # input specifications to older versions. For newer versions,
+        # input specifications are changed.
+        # XXX: This needs to be checked and removed after a nipype
+        # release 1.0.1
+        patched = PatchedRealign()
+        spm.Realign.input_spec = patched.input_spec
 
     # create node
     if caching:
