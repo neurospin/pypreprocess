@@ -485,7 +485,7 @@ def _configure_spm_using_mcr(spm_mcr, spm_dir, spm_version):
     _logger.info('setting SPM MCR path to "{}" '
                  'and "use_mcr" to True'.format(spm_mcr))
     spm.SPMCommand.set_mlab_paths(
-        matlab_cmd='{} run script'.format(spm_mcr), use_mcr=True)
+        matlab_cmd='{} batch'.format(spm_mcr), use_mcr=True)
     _logger.info('SPM configuration succeeded using SPM MCR.')
 
 
