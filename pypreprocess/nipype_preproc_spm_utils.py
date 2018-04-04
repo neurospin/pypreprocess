@@ -196,7 +196,6 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
                          time_acquisition=TA, num_slices=nslices,
                          ref_slice=ref_slice + 1,
                          slice_order=list(slice_order + 1),  # SPM
-                         ignore_exception=True
                          )
         if stc_result.outputs is None:
             subject_data.failed = True
@@ -495,7 +494,6 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
                          source=coreg_source,
                          apply_to_files=apply_to_files,
                          jobtype=jobtype,
-                         ignore_exception=True
                          )
 
     # failed node ?
@@ -633,7 +631,6 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
         wm_output_type=gm_output_type,
         csf_output_type=csf_output_type,
         tissue_prob_maps=[GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE],
-        ignore_exception=True
         )
 
     # failed node
@@ -746,7 +743,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                                 output_dir=subject_data.scratch)
         normalize_result = normalize(
             source=subject_data.anat, template=t1_template,
-            write_preserve=False, ignore_exception=True)
+            write_preserve=False)
         parameter_file = normalize_result.outputs.normalization_parameters
     else:
         parameter_file = subject_data.nipype_results[
@@ -777,7 +774,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                 apply_to_files=apply_to_files,
                 write_voxel_sizes=list(write_voxel_sizes),
                 # write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-                write_interp=1, jobtype='write', ignore_exception=True)
+                write_interp=1, jobtype='write')
 
             # failed node ?
             if normalize_result.outputs is None:
@@ -807,9 +804,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                 write_voxel_sizes=list(write_voxel_sizes),
                 write_wrap=[0, 0, 0],
                 write_interp=1,
-                jobtype='write',
-                ignore_exception=True
-                )
+                jobtype='write')
 
             # failed node
             subject_data.nipype_results['normalize_%s' % brain_name
@@ -933,7 +928,7 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
             in_files = [getattr(subject_data, x) for x in anat_like]
 
         smooth_result = smooth(
-            in_files=in_files, fwhm=width, ignore_exception=True)
+            in_files=in_files, fwhm=width)
 
         # failed node ?
         subject_data.nipype_results['smooth'][brain_name] = smooth_result
@@ -1025,7 +1020,7 @@ def _do_subject_dartelnorm2mni(subject_data,
             flowfield_files=subject_data.dartel_flow_fields,
             template_file=template_file,
             modulate=output_modulated_tpms,  # don't modulate
-            fwhm=anat_fwhm, ignore_exception=True, **tricky_kwargs)
+            fwhm=anat_fwhm, **tricky_kwargs)
         setattr(subject_data, "mw" + tissue,
                 dartelnorm2mni_result.outputs.normalized_files)
 
@@ -1034,7 +1029,6 @@ def _do_subject_dartelnorm2mni(subject_data,
         apply_to_files=subject_data.anat,
         flowfield_files=subject_data.dartel_flow_fields,
         template_file=template_file,
-        ignore_exception=True,
         modulate=output_modulated_tpms,
         fwhm=anat_fwhm,
         **tricky_kwargs
@@ -1049,7 +1043,6 @@ def _do_subject_dartelnorm2mni(subject_data,
         createwarped_result = createwarped(
             image_files=subject_data.func,
             flowfield_files=subject_data.dartel_flow_fields,
-            ignore_exception=True
             )
         subject_data.func = createwarped_result.outputs.warped_files
 
@@ -1406,9 +1399,8 @@ def _do_subjects_newsegment(
 
     # run node
     newsegment_result = newsegment(
-        channel_files=[subject_data.anat for subject_data in subjects],
-        tissues=TISSUES,
-        ignore_exception=True)
+        channel_files=[subject_data.anat.replace(".nii.gz", ".nii")
+                       for subject_data in subjects], tissues=TISSUES)
     if newsegment_result.outputs is None:
         return
     else:
