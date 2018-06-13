@@ -129,7 +129,8 @@ class SubjectData(object):
 
     def __init__(self, func=None, anat=None, subject_id="sub001",
                  session_ids=None, output_dir=None, session_output_dirs=None,
-                 anat_output_dir=None, scratch=None, warpable=None, **kwargs):
+                 anat_output_dir=None, scratch=None, warpable=None, 
+                 caching=True, **kwargs):
         if warpable is None:
             warpable = ['anat', 'func']
         self.func = func
@@ -149,6 +150,7 @@ class SubjectData(object):
         self.anat_scratch_dir = anat_output_dir if scratch is None else scratch
         self.session_scratch_dirs = (session_output_dirs if scratch is None
                                      else [scratch] * len(session_output_dirs))
+        self.caching = caching
 
     def _set_items(self, **kwargs):
         for k, v in kwargs.items():
@@ -164,10 +166,13 @@ class SubjectData(object):
         # prepare for smart caching
         if self.scratch is None:
             self.scratch = self.output_dir
-        cache_dir = os.path.join(self.scratch, 'cache_dir')
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
-        mem = Memory(cachedir=cache_dir, verbose=5)
+        if self.caching:
+            cache_dir = os.path.join(self.scratch, 'cache_dir')
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
+            mem = Memory(cachedir=cache_dir, verbose=5)
+        else:
+            mem = Memory(None, verbose=0)
 
         # deleteorient for func
         for attr in ['n_sessions', 'session_output_dirs']:
@@ -261,8 +266,11 @@ class SubjectData(object):
         """
         if self.scratch is None:
             self.scratch = self.output_dir
-        cache_dir = os.path.join(self.scratch, 'cache_dir')
-        mem = Memory(cache_dir, verbose=100)
+        if self.caching:
+            cache_dir = os.path.join(self.scratch, 'cache_dir')
+            mem = Memory(cache_dir, verbose=100)
+        else:
+            mem = Memory(None, verbose=0)
         self._sanitize_session_output_dirs()
         self._sanitize_session_scratch_dirs()
         if None not in [self.func, self.n_sessions,
