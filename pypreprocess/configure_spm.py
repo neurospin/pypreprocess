@@ -16,35 +16,45 @@ from nipype.interfaces import spm
 import nipype
 
 
-def prepare_logging():
-    _logger = logging.getLogger(__name__)
+def prepare_logging(log_stream=True, log_file="./configure_spm.log"):
+    """ Define the logger handlers.
+
+    Parameters
+    ----------
+    log_stream: bool, default True
+        if True create a stream INFO handler.
+    log_file: str, default './configure_spm.log'
+        if specified create a file DEBUG handler, if None don't create such
+        handler.
+    """
+    _logger = logging.getLogger("pypreprocess")
     if(_logger.handlers):
         return _logger
-    LOG_FILE = os.path.abspath('./configure_spm.log')
     _logger.propagate = False
     _logger.setLevel(logging.DEBUG)
-    console_logger = logging.StreamHandler()
-    console_logger.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s:%(levelname)s: %(message)s')
-    console_logger.setFormatter(formatter)
-    _logger.addHandler(console_logger)
+    if log_stream:
+        console_logger = logging.StreamHandler()
+        console_logger.setLevel(logging.INFO)
+        console_logger.setFormatter(formatter)
+        _logger.addHandler(console_logger)
+    if log_file is not None:
+        try:
+            with open(log_file, 'a') as log_f:
+                pass
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setLevel(logging.DEBUG)
+            file_handler.setFormatter(formatter)
+            _logger.addHandler(file_handler)
 
-    try:
-        with open(LOG_FILE, 'a') as log_f:
-            pass
-        file_handler = logging.FileHandler(LOG_FILE)
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(formatter)
-        _logger.addHandler(file_handler)
-
-    except IOEroor as e:
-        _logger.warning(
-            'could not open log file for writing: {}'.format(LOG_FILE))
+        except IOEroor as e:
+            _logger.warning(
+                'could not open log file for writing: {}'.format(log_file))
 
     return _logger
 
 
-_logger = prepare_logging()
+_logger = logging.getLogger("pypreprocess")
 
 # TODO: read this from config?
 _ACCEPT_SPM_MCR_WITH_UNKNOWN_VERSION = False
@@ -484,8 +494,12 @@ def _configure_spm_using_mcr(spm_mcr, spm_dir, spm_version):
         _logger.info('using SPM version: {}'.format(spm_version))
     _logger.info('setting SPM MCR path to "{}" '
                  'and "use_mcr" to True'.format(spm_mcr))
-    spm.SPMCommand.set_mlab_paths(
-        matlab_cmd='{} run script'.format(spm_mcr), use_mcr=True)
+    if spm_version >= 12:
+        spm.SPMCommand.set_mlab_paths(
+            matlab_cmd='{} batch'.format(spm_mcr), use_mcr=True)
+    else:
+        spm.SPMCommand.set_mlab_paths(
+            matlab_cmd='{} run script'.format(spm_mcr), use_mcr=True)
     _logger.info('SPM configuration succeeded using SPM MCR.')
 
 
