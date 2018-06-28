@@ -386,7 +386,8 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
                            matlab_exec=None, spm_mcr=None,
                            coreg_anat_to_func=False, caching=True,
-                           report=True, software="spm", hardlink_output=True):
+                           report=True, software="spm", hardlink_output=True,
+                           **kwargs):
     """Wrapper for running spm.Coregister with optional reporting.
 
     If subject_data has a `results_gallery` attribute, then QA thumbnails will
