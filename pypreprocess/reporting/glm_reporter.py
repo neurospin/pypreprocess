@@ -6,8 +6,8 @@ import nibabel
 from nilearn.plotting import plot_stat_map
 from nilearn.image import reorder_img
 from nilearn._utils.compat import _basestring
-from pypreprocess.external.nistats.design_matrix import plot_design_matrix
-from pypreprocess.external.nistats.glm import FirstLevelGLM
+from nistats.reporting import plot_design_matrix
+from nistats.first_level_model import FirstLevelModel
 import pandas as pd
 from nilearn.masking import intersect_masks
 from . import base_reporter

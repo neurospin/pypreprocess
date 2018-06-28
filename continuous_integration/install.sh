@@ -108,6 +108,12 @@ elif [[ "$DISTRIB" == "conda" ]]; then
     if [ -n "$NILEARN_VERSION" ]; then
         pip install nilearn=="$NILEARN_VERSION"
     fi
+    if [ -n "$NISTATS_VERSION" ]; then
+        pip install nistats=="$NISTATS_VERSION"
+    fi
+    if [ -n "$PATSY_VERSION" ]; then
+        pip install patsy=="$PATSY_VERSION"
+    fi
 
 else
     echo "Unrecognized distribution ($DISTRIB); cannot setup CI environment."

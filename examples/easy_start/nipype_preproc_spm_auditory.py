@@ -11,10 +11,9 @@ from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
 from pypreprocess.datasets import fetch_spm_auditory
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
 import pandas as pd
-from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
-                                                         check_design_matrix,
-                                                         plot_design_matrix)
-from pypreprocess.external.nistats.glm import FirstLevelGLM
+from nistats.design_matrix import make_design_matrix, check_design_matrix
+from nistats.reporting import plot_design_matrix
+from nistats.first_level_model import FirstLevelModel
 import matplotlib.pyplot as plt
 
 # file containing configuration for preprocessing the data

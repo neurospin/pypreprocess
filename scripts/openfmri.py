@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import nibabel
 from sklearn.externals.joblib import Parallel, delayed, Memory
-from nistats.design_matrix import (make_design_matrix, check_design_matrix)
+from nistats.design_matrix import make_design_matrix, check_design_matrix
 from pypreprocess.external.nistats.glm import FMRILinearModel
 from pypreprocess.reporting.base_reporter import ProgressReport
 from pypreprocess.reporting.glm_reporter import (generate_subject_stats_report,
