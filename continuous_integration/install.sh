@@ -100,13 +100,13 @@ elif [[ "$DISTRIB" == "conda" ]]; then
     # useful if you happen to want a specific nibabel version rather
     # than the latest available one.
     if [ -n "$NIBABEL_VERSION" ]; then
-        pip install nibabel=="$NIBABEL_VERSION"
+        pip install nibabel=="$NIBABEL_VERSION" --upgrade
     fi
     if [ -n "$NIPYPE_VERSION" ]; then
-        pip install nipype=="$NIPYPE_VERSION"
+        pip install nipype=="$NIPYPE_VERSION" --upgrade
     fi
     if [ -n "$NILEARN_VERSION" ]; then
-        pip install nilearn=="$NILEARN_VERSION"
+        pip install nilearn=="$NILEARN_VERSION" --upgrade
     fi
 
 else

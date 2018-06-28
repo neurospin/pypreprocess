@@ -4,6 +4,10 @@ sudo: required
 
 language: python
 
+env:
+  global:
+    - TEST_RUN_FOLDER="/tmp" # folder where the tests are run from
+
 matrix:
   # Do not wait for the allowed_failures entry to finish before
   # setting the status
@@ -39,12 +43,8 @@ virtualenv:
 
 install: source continuous_integration/install.sh
 
-script:
-    - make clean
-    - make test-code
+before_script: make clean
 
-after_success:
-    - |
-      if [[ "$COVERAGE" == "true" ]]; then
-          coveralls || echo "coverage upload failed"
-      fi
+script: source continuous_integration/test_script.sh
+
+after_success: source continuous_integration/after_success.sh

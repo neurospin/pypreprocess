@@ -5,12 +5,15 @@
 PYTHON ?= python
 CYTHON ?= cython
 NOSETESTS ?= nosetests
+NOSETESTS_OPTIONS := $(shell pip list | grep nose-timer > /dev/null && \
+                       echo '--with-timer --timer-top-n 50')
 CTAGS ?= ctags
 
-all: clean test
+all: clean test doc-noplot
 
 clean-pyc:
 	find . -name "*.pyc" | xargs rm -f
+	find . -name "__pycache__" | xargs rm -rf
 
 clean-so:
 	find . -name "*.so" | xargs rm -f
@@ -29,14 +32,17 @@ inplace:
 	$(PYTHON) setup.py build_ext -i
 
 test-code:
-	$(NOSETESTS) -s pypreprocess
+	$(NOSETESTS) -s pypreprocess $(NOSETESTS_OPTIONS)
+test-doc:
+	$(NOSETESTS) -s --with-doctest --doctest-tests --doctest-extension=rst \
+	--doctest-extension=inc --doctest-fixtures=_fixture `find doc/ -name '*.rst'`
 
 test-coverage:
 	rm -rf coverage .coverage
 	$(NOSETESTS) -s --with-coverage --cover-html --cover-html-dir=coverage \
 	--cover-package=pypreprocess pypreprocess
 
-test: test-code
+test: test-code test-doc
 
 trailing-spaces:
 	find . -name "*.py" | xargs perl -pi -e 's/[ \t]*$$//'
@@ -48,3 +54,15 @@ ctags:
 	# make tags for symbol based navigation in emacs and vim
 	# Install with: sudo apt-get install exuberant-ctags
 	$(CTAGS) -R *
+
+.PHONY : doc-plot
+doc-plot:
+	make -C doc html
+
+.PHONY : doc
+doc:
+	make -C doc html-noplot
+
+.PHONY : pdf
+pdf:
+	make -C doc pdf

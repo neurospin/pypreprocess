@@ -458,7 +458,7 @@ def _find_spm_mcr_and_spm_dir(cli_spm_mcr, config_spm_mcr,
             'nipype version {} too old.'
             ' No support for precompiled SPM'.format(nipype.__version__))
         return None
-
+    _logger.info("using nipype version {}".format(nipype.__version__))
     check_mcr = _IsValidMCR(cli_spm_dir, config_spm_dir, defaults)
     spm_mcr_envs = _get_exported('spm_mcr_env_template',
                                  templates_dict=defaults)

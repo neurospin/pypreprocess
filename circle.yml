@@ -1,10 +1,14 @@
 machine:
   environment:
-    SPM_DIR: /home/ubuntu/opt/spm12/spm12_mcr/spm12
-    SPM_MCR: /home/ubuntu/opt/spm12/spm12.sh
+    SPM_VERSION: 8
+    SPM_DIR: /home/ubuntu/opt/spm8/spm8/spm8_mcr/spm8
+    SPM_MCR: /home/ubuntu/opt/spm8/spm8.sh
+    # SPM_DIR: /home/ubuntu/opt/spm12/spm12_mcr/spm12
+    # SPM_MCR: /home/ubuntu/opt/spm12/spm12.sh
 
 dependencies:
   cache_directories:
+    - "~/opt/spm8"
     - "~/opt/spm12"
     - "~/nilearn_data"
 
@@ -12,8 +16,19 @@ dependencies:
     # Installing dependencies for SPM and MCR
     - sudo apt-get update
     - sudo apt-get install libxp6 libxpm4 libxmu6 libxt6 bc
+    # Installing SPM
+    - source continuous_integration/setup_spm.sh
+    # Installing Pypreprocess dependencies
+    - pip install --upgrade pip
+    - pip install nose coverage configparser
 
   override:
+    # Installing pypreprocess
+    - pip install -e .
+    # Fetching Auditory and Multimodal datasets in order to be cached in the future
+    - python -c "from pypreprocess import datasets; datasets.fetch_spm_auditory(); datasets.fetch_spm_multimodal_fmri(); datasets.fetch_fsl_feeds()"
+    # Caching terminates here. Outputs from test won't be saved.
+
     # Moving to nilearn directory before performing the installation.
     - source continuous_integration/install.sh:
         environment:
@@ -30,7 +45,7 @@ test:
     - make clean
     - make test-code
     - cd examples/easy_start && python nipype_preproc_spm_auditory.py
-    - cd examples/pipelining && python nipype_preproc_spm_multimodal_faces.py
+    # - cd examples/pipelining && python nipype_preproc_spm_multimodal_faces.py
     - cd examples/pipelining && python nistats_glm_fsl_feeds_fmri.py
     - sh continuous_integration/clean_output.sh
 
