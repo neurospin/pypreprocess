@@ -26,7 +26,7 @@ matrix:
            NUMPY_VERSION="*" SCIPY_VERSION="*" PANDAS_VERSION="*"
            SCIKIT_LEARN_VERSION="*" MATPLOTLIB_VERSION="*" COVERAGE="true"
            NIPYPE_VERSION="0.13.0"
-           NILEARN_VERSION="0.4.0"
+           NILEARN_VERSION="0.4.2"
            NETWORKX_VERSION="*"
            CONFIGOBJ_VERSION="*"
     # FLAKE8 linting on diff wrt common ancestor with upstream/master

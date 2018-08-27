@@ -9,10 +9,12 @@ The most useful functions are do_subject_preproc and do_subjects_preproc
 import os
 import sys
 import time
+import json
 import warnings
 import inspect
 import numpy as np
 import nibabel
+import logging
 from .slice_timing import get_slice_indices
 from .conf_parser import _generate_preproc_pipeline
 import matplotlib
@@ -45,9 +47,23 @@ EPI_TEMPLATE = SPM_DIR = SPM_T1_TEMPLATE = T1_TEMPLATE = None
 GM_TEMPLATE = WM_TEMPLATE = CSF_TEMPLATE = None
 TISSUES = None
 
+_logger = logging.getLogger("pypreprocess")
+_INTERFACE_ERROR_MSG = (
+    "Interface {0} (version {1}) failed with parameters\n{2} \nand with "
+    "error\n{3}.")
+
+
+def _update_interface_inputs(**kwargs):
+    """ Update kwargs interface inputs stored in 'interface_kwargs'.
+    """
+    interface_kwargs = kwargs.pop("interface_kwargs", {})
+    _kwargs = kwargs
+    _kwargs.update(interface_kwargs)
+    return _kwargs
+
 
 def _configure_backends(spm_dir=None, matlab_exec=None, spm_mcr=None,
-                        critical=True):
+                        critical=True, epi_template=None, t1_template=None):
     """ Configure SPM backend.
     """
 
@@ -90,8 +106,12 @@ def _configure_backends(spm_dir=None, matlab_exec=None, spm_mcr=None,
             TISSUES = [tissue1, tissue2, tissue3, tissue4, tissue5, tissue6]
 
             # configure template images
-            EPI_TEMPLATE = os.path.join(SPM_DIR, template_path, 'EPI.nii')
-            SPM_T1_TEMPLATE = os.path.join(SPM_DIR, template_path, 'T1.nii')
+            EPI_TEMPLATE = epi_template
+            if EPI_TEMPLATE is None:
+                EPI_TEMPLATE = os.path.join(SPM_DIR, template_path, 'EPI.nii')
+            SPM_T1_TEMPLATE = t1_template
+            if SPM_T1_TEMPLATE is None:
+                SPM_T1_TEMPLATE = os.path.join(SPM_DIR, template_path, 'T1.nii')
             T1_TEMPLATE = "/usr/share/data/fsl-mni152-templates/avg152T1.nii"
             if not os.path.isfile(T1_TEMPLATE):
                 T1_TEMPLATE += '.gz'
@@ -114,10 +134,10 @@ except RuntimeError:
 
 
 def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
-                             matlab_exec=None, spm_mcr=None, ref_slice=0,
+                             matlab_exec=None, spm_mcr=None, ref_slice=1,
                              slice_order="ascending", interleaved=False,
                              caching=True, software="spm",
-                             hardlink_output=True, report=True):
+                             hardlink_output=True, report=True, **kwargs):
     """
     Slice-Timing Correction.
 
@@ -148,6 +168,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
     assert 1 <= ref_slice <= nslices, ref_slice
 
     # compute slice indices / order
+    ref_slice -= 1
     if not isinstance(slice_order, _basestring):
         slice_order = np.array(slice_order) - 1
     slice_order = get_slice_indices(nslices, slice_order=slice_order,
@@ -192,14 +213,17 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
     stc_func = []
     subject_data.nipype_results['slice_timing'] = []
     for sess_func in subject_data.func:
-        stc_result = stc(in_files=sess_func, time_repetition=TR,
-                         time_acquisition=TA, num_slices=nslices,
-                         ref_slice=ref_slice + 1,
-                         slice_order=list(slice_order + 1),  # SPM
-                         ignore_exception=True
-                         )
+        stc_result = stc(**_update_interface_inputs(
+            in_files=sess_func, time_repetition=TR,
+            time_acquisition=TA, num_slices=nslices,
+            ref_slice=ref_slice + 1,
+            slice_order=list(slice_order + 1),  # SPM
+            interface_kwargs=kwargs))
         if stc_result.outputs is None:
             subject_data.failed = True
+            _logger.error(_INTERFACE_ERROR_MSG.format(
+                stc_result.interface, stc_result.version, stc_result.inputs,
+                stc_result.runtime.traceback))
             return subject_data
         else:
             subject_data.nipype_results['slice_timing'].append(stc_result)
@@ -314,13 +338,16 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
         realign = spm.Realign().run
 
     # run node
-    realign_result = realign(
+    realign_result = realign(**_update_interface_inputs(
         in_files=subject_data.func, register_to_mean=register_to_mean,
-        jobtype=jobtype, **kwargs)
+        jobtype=jobtype, interface_kwargs=kwargs))
 
     # failed node
     if realign_result.outputs is None:
         subject_data.failed = True
+        _logger.error(_INTERFACE_ERROR_MSG.format(
+            realign_result.interface, realign_result.version,
+            realign_result.inputs, realign_result.runtime.traceback))
         return subject_data
 
     # collect output
@@ -359,7 +386,8 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
                            matlab_exec=None, spm_mcr=None,
                            coreg_anat_to_func=False, caching=True,
-                           report=True, software="spm", hardlink_output=True):
+                           report=True, software="spm", hardlink_output=True,
+                           **kwargs):
     """Wrapper for running spm.Coregister with optional reporting.
 
     If subject_data has a `results_gallery` attribute, then QA thumbnails will
@@ -491,17 +519,20 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
         apply_to_files, file_types = ravel_filenames(subject_data.func)
 
     # run node
-    coreg_result = coreg(target=coreg_target,
-                         source=coreg_source,
-                         apply_to_files=apply_to_files,
-                         jobtype=jobtype,
-                         ignore_exception=True
-                         )
+    coreg_result = coreg(**_update_interface_inputs(
+        target=coreg_target,
+        source=coreg_source,
+        apply_to_files=apply_to_files,
+        jobtype=jobtype,
+        interface_kwargs=kwargs))
 
     # failed node ?
     if coreg_result.outputs is None:
         subject_data.nipype_results['coreg'] = coreg_result
         subject_data.failed = True
+        _logger.error(_INTERFACE_ERROR_MSG.format(
+            coreg_result.interface, coreg_result.version,
+            coreg_result.inputs, coreg_result.runtime.traceback))
         return subject_data
 
     # collect output
@@ -632,14 +663,16 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
         gm_output_type=wm_output_type,
         wm_output_type=gm_output_type,
         csf_output_type=csf_output_type,
-        tissue_prob_maps=[GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE],
-        ignore_exception=True
+        tissue_prob_maps=[GM_TEMPLATE, WM_TEMPLATE, CSF_TEMPLATE]
         )
 
     # failed node
     subject_data.nipype_results['segment'] = segment_result
     if segment_result.outputs is None:
         subject_data.failed = True
+        _logger.error(_INTERFACE_ERROR_MSG.format(
+            segment_result.interface, segment_result.version,
+            segment_result.inputs, segment_result.runtime.traceback))
         return subject_data
 
     # collect output
@@ -669,7 +702,8 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                           func_write_voxel_sizes=[3, 3, 3],
                           anat_write_voxel_sizes=[1, 1, 1], report=True,
                           software="spm", hardlink_output=True,
-                          smooth_software="spm"):
+                          smooth_software="spm", epi_template=None,
+                          t1_template=None, coregister=True, **kwargs):
     """
     Wrapper for running spm.Segment with optional reporting.
 
@@ -698,6 +732,17 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
     report: bool, optional (default True)
        flag controlling whether post-preprocessing reports should be generated
 
+    epi_template: str, otpional (default None)
+        the path to a custom functional template.
+
+    t1_template: str, otpional (default None)
+        the path to a custom anatomical template.
+
+    coregister: str, optional (default True)
+        specify if the coregistration step was performed. If it is not the
+        case, use the mean fMRI volume as a moving image during the
+        normalization, the anatomical image otherwise.
+
     Returns
     -------
     subject_data: `SubjectData` object
@@ -723,7 +768,8 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
 
     # configure SPM back-end
     _configure_backends(spm_dir=spm_dir, matlab_exec=matlab_exec,
-                        spm_mcr=spm_mcr)
+                        spm_mcr=spm_mcr, epi_template=epi_template,
+                        t1_template=t1_template)
     assert not SPM_DIR is None and os.path.isdir(SPM_DIR), (
         "SPM_DIR '%s' doesn't exist; you need to export it!" % SPM_DIR)
 
@@ -735,7 +781,8 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
         cache_dir = os.path.join(subject_data.scratch, 'cache_dir')
         if not os.path.exists(cache_dir): os.makedirs(cache_dir)
         normalize = NipypeMemory(base_dir=cache_dir).cache(spm.Normalize)
-    else: normalize = spm.Normalize().run
+    else:
+        normalize = spm.Normalize().run
 
     segmented = 'segment' in subject_data.nipype_results
 
@@ -744,20 +791,51 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
         # learn T1 deformation without segmentation
         t1_template = niigz2nii(SPM_T1_TEMPLATE,
                                 output_dir=subject_data.scratch)
-        normalize_result = normalize(
-            source=subject_data.anat, template=t1_template,
-            write_preserve=False, ignore_exception=True)
+        if coregister:
+            moving = subject_data.anat
+        else:
+            if hasattr(subject_data, "mean_realigned_file"):
+                moving = subject_data.mean_realigned_file
+            else:
+                ref_func = joblib_mem.cache(load_vols)(
+                    subject_data.func if isinstance(subject_data.func, _basestring)
+                    else subject_data.func[0])[0]
+                moving = os.path.join(subject_data.scratch,
+                                      "_coreg_first_func_vol.nii")
+                joblib_mem.cache(nibabel.save)(ref_func, coreg_source)
+        normalize_result = normalize(**_update_interface_inputs(
+            source=moving, template=t1_template,
+            write_preserve=False,
+            interface_kwargs=kwargs))
         parameter_file = normalize_result.outputs.normalization_parameters
+        subject_data.nipype_results["normalize"] = normalize_result
     else:
         parameter_file = subject_data.nipype_results[
             'segment'].outputs.transformation_mat
 
     subject_data.parameter_file = parameter_file
 
+    # no smart-caching, create a clean interface otherwise conflict between
+    # XOR source and parameter_file parameters
+    if not caching:
+        interface = spm.Normalize()
+        mfile = interface.mlab.inputs.script_file
+        normalize = interface.run
+
     # do normalization proper
     for brain_name, brain in zip(
         ['anat', 'func'], [subject_data.anat, subject_data.func]):
         if not brain: continue
+
+        # skip anat if the coregistration step was not performed
+        if not coregister and brain_name == "anat":
+            continue
+
+        # no smart-caching, rename batch to avoid overwrite
+        if not caching:
+            interface.mlab.inputs.script_file = (
+                mfile.split(".")[0] + "_write_{0}.m".format(brain_name))
+
         if segmented:
             if brain_name == 'func':
                 apply_to_files, file_types = ravel_filenames(subject_data.func)
@@ -772,18 +850,23 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                 apply_to_files = subject_data.anat
 
             # run node
-            normalize_result = normalize(
+            normalize_result = normalize(**_update_interface_inputs(
                 parameter_file=parameter_file,
                 apply_to_files=apply_to_files,
                 write_voxel_sizes=list(write_voxel_sizes),
-                # write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
-                write_interp=1, jobtype='write', ignore_exception=True)
+                write_bounding_box=write_bounding_box,
+                write_interp=1, jobtype='write',
+                interface_kwargs=kwargs))
 
             # failed node ?
             if normalize_result.outputs is None:
                 subject_data.nipype_results['normalize_%s' % brain_name
                                             ] = normalize_result
                 subject_data.failed = True
+                _logger.error(_INTERFACE_ERROR_MSG.format(
+                    normalize_result.interface, normalize_result.version,
+                    normalize_result.inputs,
+                    normalize_result.runtime.traceback))
                 return subject_data
         else:
             if brain_name == 'func':
@@ -800,16 +883,14 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                 else: write_voxel_sizes = anat_write_voxel_sizes
 
             # run node
-            normalize_result = normalize(
+            normalize_result = normalize(**_update_interface_inputs(
                 parameter_file=parameter_file,
                 apply_to_files=apply_to_files,
-                write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
                 write_voxel_sizes=list(write_voxel_sizes),
                 write_wrap=[0, 0, 0],
                 write_interp=1,
                 jobtype='write',
-                ignore_exception=True
-                )
+                interface_kwargs=kwargs))
 
             # failed node
             subject_data.nipype_results['normalize_%s' % brain_name
@@ -817,6 +898,10 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
             if normalize_result is None:
                 # catch dirty exception from SPM back-end
                 subject_data.failed = True
+                _logger.error(_INTERFACE_ERROR_MSG.format(
+                    normalize_result.interface, normalize_result.version,
+                    normalize_result.inputs,
+                    normalize_result.runtime.traceback))
                 return subject_data
 
             if brain_name == 'func':
@@ -922,7 +1007,6 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
             ['func', 'anat'], [fwhm] + [anat_fwhm] * 7):
         brain = getattr(subject_data, brain_name)
         if not brain: continue
-        print(brain_name)
         if not np.sum(width): continue
         in_files = brain
         if brain_name == "func":
@@ -933,12 +1017,15 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
             in_files = [getattr(subject_data, x) for x in anat_like]
 
         smooth_result = smooth(
-            in_files=in_files, fwhm=width, ignore_exception=True)
+            in_files=in_files, fwhm=width)
 
         # failed node ?
         subject_data.nipype_results['smooth'][brain_name] = smooth_result
         if smooth_result.outputs is None:
             subject_data.failed = True
+            _logger.error(_INTERFACE_ERROR_MSG.format(
+                smooth_result.interface, smooth_result.version,
+                smooth_result.inputs, smooth_result.runtime.traceback))
             warnings.warn("Failed smoothing %s" % brain_name)
             return subject_data
 
@@ -1025,7 +1112,7 @@ def _do_subject_dartelnorm2mni(subject_data,
             flowfield_files=subject_data.dartel_flow_fields,
             template_file=template_file,
             modulate=output_modulated_tpms,  # don't modulate
-            fwhm=anat_fwhm, ignore_exception=True, **tricky_kwargs)
+            fwhm=anat_fwhm, **tricky_kwargs)
         setattr(subject_data, "mw" + tissue,
                 dartelnorm2mni_result.outputs.normalized_files)
 
@@ -1034,7 +1121,6 @@ def _do_subject_dartelnorm2mni(subject_data,
         apply_to_files=subject_data.anat,
         flowfield_files=subject_data.dartel_flow_fields,
         template_file=template_file,
-        ignore_exception=True,
         modulate=output_modulated_tpms,
         fwhm=anat_fwhm,
         **tricky_kwargs
@@ -1049,7 +1135,6 @@ def _do_subject_dartelnorm2mni(subject_data,
         createwarped_result = createwarped(
             image_files=subject_data.func,
             flowfield_files=subject_data.dartel_flow_fields,
-            ignore_exception=True
             )
         subject_data.func = createwarped_result.outputs.warped_files
 
@@ -1111,6 +1196,8 @@ def do_subject_preproc(
     coregister_software="spm",
     segment=True,
     normalize=True,
+    epi_template=None,
+    t1_template=None,
     dartel=False,
     fwhm=0.,
     anat_fwhm=0.,
@@ -1173,6 +1260,12 @@ def do_subject_preproc(
 
        subject_data.nipype_results['normalize'] will contain the result from
        the spm.Normalize node.
+
+    epi_template: str, otpional (default None)
+        the path to a custom functional template.
+
+    t1_template: str, otpional (default None)
+        the path to a custom anatomical template.
 
     fwhm: float or list of 3 floats, optional (default 0)
         FWHM for smoothing the functional data (subject_data.func).
@@ -1273,12 +1366,12 @@ def do_subject_preproc(
     #############################
     if slice_timing:
         subject_data = _do_subject_slice_timing(
-            subject_data, TR, ref_slice=ref_slice,
+            subject_data, TR, caching=caching, ref_slice=ref_slice,
             TA=TA, slice_order=slice_order, interleaved=interleaved,
             report=report,  # post-stc reporting bugs like hell!
             software=slice_timing_software,
-            hardlink_output=hardlink_output
-            )
+            hardlink_output=hardlink_output,
+            **kwargs.get("interface_slice_timing", {}))
 
         # handle failed node
         if subject_data.failed:
@@ -1295,8 +1388,8 @@ def do_subject_preproc(
             register_to_mean=register_to_mean,
             report=report,
             hardlink_output=hardlink_output,
-            software=realign_software
-            )
+            software=realign_software,
+            **kwargs.get("interface_realign", {}))
 
         # handle failed node
         if subject_data.failed:
@@ -1313,8 +1406,8 @@ def do_subject_preproc(
             reslice=coregister_reslice,
             report=report,
             hardlink_output=hardlink_output,
-            software=coregister_software
-            )
+            software=coregister_software,
+            **kwargs.get("interface_coregister", {}))
 
         # handle failed node
         if subject_data.failed:
@@ -1344,7 +1437,11 @@ def do_subject_preproc(
             anat_write_voxel_sizes=anat_write_voxel_sizes,
             caching=caching, report=report,
             hardlink_output=hardlink_output,
-            smooth_software=smooth_software)
+            smooth_software=smooth_software,
+            epi_template=epi_template,
+            t1_template=t1_template,
+            coregister=coregister,
+            **kwargs.get("interface_normalize", {}))
 
         # handle failed node
         if subject_data.failed:
@@ -1407,8 +1504,7 @@ def _do_subjects_newsegment(
     # run node
     newsegment_result = newsegment(
         channel_files=[subject_data.anat for subject_data in subjects],
-        tissues=TISSUES,
-        ignore_exception=True)
+        tissues=TISSUES)
     if newsegment_result.outputs is None:
         return
     else:
