@@ -3,7 +3,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/python:3.5
+      - image: circleci/buildpack-deps:14.04-curl-browsers
     environemnt:
       DISTRIB: "conda"
       PYTHON_VERSION: "3.5"
