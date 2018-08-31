@@ -26,6 +26,7 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get install libxp6 libxpm4 libxmu6 libxt6 bc
       - run: |
+          source continuous_integration/install.sh
           make clean
           make test-code
           cd examples/easy_start && python nipype_preproc_spm_auditory.py
