@@ -16,34 +16,34 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: spm+datasets-{{ .Branch }}
+          key: spm+datasets+pypi-{{ .Branch }}
       - run:
           name: Export spm paths to the envronment.
           command: |
-            echo 'export SPM_DIR="/home/circleci/opt/spm12/spm12_mcr/spm12"' >> $BASH_ENV
-            echo 'export SPM_MCR="/home/circleci/opt/spm12/spm12.sh"' >> $ BASH_ENV
-            echo 'export PATH="/home/circleci/.local/bin:$PATH"' >> $BASH_ENV
+            echo 'export SPM_DIR="$HOME/opt/spm12/spm12_mcr/spm12"' >> $BASH_ENV
+            echo 'export SPM_MCR="$HOME/opt/spm12/spm12.sh"' >> $ BASH_ENV
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> $BASH_ENV
 
-      - run: |
-          sudo apt-get update
-          sudo apt-get install libxm4 libxpm4 libxmu6 libxt6 bc
-          source continuous_integration/setup_spm.sh
-          pip install --user --upgrade pip
-          pip install --user scipy sklearn nibabel configobj nose coverage
-          pip install --user matplotlib pandas nipype nilearn
-          pip install --user -e .
-          python -c "from pypreprocess import datasets; datasets.fetch_spm_auditory(); datasets.fetch_spm_multimodal_fmri(); datasets.fetch_fsl_feeds()"
-          make clean
-          make test-code
-          cd examples/easy_start && python nipype_preproc_spm_auditory.py
-          cd examples/pipelining && python nipype_preproc_spm_multimodal_faces.py
-          cd examples/pipelining && python nistats_glm_fsl_feeds_fmri.py
-          sh continuous_integration/clean_output.sh
+      - run: sudo apt-get update
+      - run: sudo apt-get install libxm4 libxpm4 libxmu6 libxt6 bc
+      - run: source continuous_integration/setup_spm.sh
+      - run: pip install --user --upgrade pip
+      - run: pip install --user scipy sklearn nibabel configobj nose coverage -q
+      - run: pip install --user matplotlib pandas nipype nilearn -q
+      - run: pip install --user -e . -q
+      - run: python -c "from pypreprocess import datasets; datasets.fetch_spm_auditory(); datasets.fetch_spm_multimodal_fmri(); datasets.fetch_fsl_feeds()"
+      - run: make clean
+      - run: make test-code
+      - run: cd examples/easy_start && python nipype_preproc_spm_auditory.py
+      - run: cd examples/pipelining && python nipype_preproc_spm_multimodal_faces.py
+      - run: cd examples/pipelining && python nistats_glm_fsl_feeds_fmri.py
+      - run: sh continuous_integration/clean_output.sh
       - save_cache:
-          key: spm+datasets-{{ .Branch }}
+          key: spm+datasets+pypi-{{ .Branch }}
           paths:
             - $HOME/opt/spm12
             - $HOME/nilearn_data
+            - $HOME/.local/bin
 
       - store_artifacts:
           path: $HOME/nilearn_data/spm_auditory/pypreprocess_output/
