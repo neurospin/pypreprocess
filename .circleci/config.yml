@@ -20,8 +20,9 @@ jobs:
       - run:
           name: Export spm paths to the envronment.
           command: |
-            echo 'export SPM_DIR="/home/ubuntu/opt/spm12/spm12_mcr/spm12"' >> $BASH_ENV
-            echo 'export SPM_MCR="/home/ubuntu/opt/spm12/spm12.sh"' >> $ BASH_ENV
+            echo 'export SPM_DIR="/home/circleci/opt/spm12/spm12_mcr/spm12"' >> $BASH_ENV
+            echo 'export SPM_MCR="/home/circleci/opt/spm12/spm12.sh"' >> $ BASH_ENV
+            echo 'export PATH="/home/circleci/.local/bin:$PATH"' >> $BASH_ENV
 
       - run: |
           sudo apt-get update
