@@ -24,7 +24,7 @@ jobs:
             echo 'export SPM_MCR="/home/ubuntu/opt/spm12/spm12.sh"' >> $ BASH_ENV
 
       - run: sudo apt-get update
-      - run: sudo apt-get install libxp6 libxpm4 libxmu6 libxt6 bc
+      - run: sudo apt-get install libxm4 libxpm4 libxmu6 libxt6 bc
       - run: |
           source continuous_integration/install.sh
           make clean
