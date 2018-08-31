@@ -4,45 +4,45 @@ jobs:
   build:
     docker:
       - image: circleci/python:3.5
-        environemnt:
-          DISTRIB: "conda"
-          PYTHON_VERSION: "3.5"
-          NUMPY_VERSION: "*"
-          SCIPY_VERSION: "*"
-          SCIKIT_LEARN_VERSION: "*"
-          MATPLOTLIB_VERSION: "*"
-          NIPYPE_VERSION: "0.13.0"
+    environemnt:
+      DISTRIB: "conda"
+      PYTHON_VERSION: "3.5"
+      NUMPY_VERSION: "*"
+      SCIPY_VERSION: "*"
+      SCIKIT_LEARN_VERSION: "*"
+      MATPLOTLIB_VERSION: "*"
+      NIPYPE_VERSION: "0.13.0"
 
-  steps:
-    - checkout
-    - restore_cache:
-        key: spm+datasets-{{ .Branch }}
-    - run:
-        name: Export spm paths to the envronment.
-        command: |
-          export SPM_DIR = "/home/ubuntu/opt/spm12/spm12_mcr/spm12"
-          export SPM_MCR = "/home/ubuntu/opt/spm12/spm12.sh"
+    steps:
+      - checkout
+      - restore_cache:
+          key: spm+datasets-{{ .Branch }}
+      - run:
+          name: Export spm paths to the envronment.
+          command: |
+            export SPM_DIR = "/home/ubuntu/opt/spm12/spm12_mcr/spm12"
+            export SPM_MCR = "/home/ubuntu/opt/spm12/spm12.sh"
 
-    - run: sudo apt-get update
-    - run: sudo apt-get install libxp6 libxpm4 libxmu6 libxt6 bc
-    - run: |
-        make clean
-        make test-code
-        cd examples/easy_start && python nipype_preproc_spm_auditory.py
-        cd examples/pipelining && python nipype_preproc_spm_multimodal_faces.py
-        cd examples/pipelining && python nistats_glm_fsl_feeds_fmri.py
-        sh continuous_integration/clean_output.sh
-    - save_cache:
-        key: spm+datasets-{{ .Branch }}
-        paths:
-          - $HOME/opt/spm12
-          - $HOME/nilearn_data
+      - run: sudo apt-get update
+      - run: sudo apt-get install libxp6 libxpm4 libxmu6 libxt6 bc
+      - run: |
+          make clean
+          make test-code
+          cd examples/easy_start && python nipype_preproc_spm_auditory.py
+          cd examples/pipelining && python nipype_preproc_spm_multimodal_faces.py
+          cd examples/pipelining && python nistats_glm_fsl_feeds_fmri.py
+          sh continuous_integration/clean_output.sh
+      - save_cache:
+          key: spm+datasets-{{ .Branch }}
+          paths:
+            - $HOME/opt/spm12
+            - $HOME/nilearn_data
 
 
-    - store_artifacts:
-        path: $HOME/nilearn_data/spm_auditory/pypreprocess_output/
-    - store_artifacts:
-        path: $HOME/nilearn_data/spm_multimodal_fmri/pypreprocess_output/
-    - store_artifacts:
-        path: $HOME/nilearn_data/fsl_feeds/pypreprocess_output/
+      - store_artifacts:
+          path: $HOME/nilearn_data/spm_auditory/pypreprocess_output/
+      - store_artifacts:
+          path: $HOME/nilearn_data/spm_multimodal_fmri/pypreprocess_output/
+      - store_artifacts:
+          path: $HOME/nilearn_data/fsl_feeds/pypreprocess_output/
 
