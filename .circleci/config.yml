@@ -27,7 +27,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install libxm4 libxpm4 libxmu6 libxt6 bc
           source continuous_integration/setup_spm.sh
-          source continuous_integration/install.sh
           pip install --upgrade pip
           pip install scipy sklearn nibabel configobj nose coverage
           pip install matplotlib pandas nipype nilearn
