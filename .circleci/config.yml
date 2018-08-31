@@ -27,10 +27,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install libxm4 libxpm4 libxmu6 libxt6 bc
           source continuous_integration/setup_spm.sh
-          pip install --upgrade pip
-          pip install scipy sklearn nibabel configobj nose coverage
-          pip install matplotlib pandas nipype nilearn
-          pip install -e .
+          pip install --user --upgrade pip
+          pip install --user scipy sklearn nibabel configobj nose coverage
+          pip install --user matplotlib pandas nipype nilearn
+          pip install --user -e .
           python -c "from pypreprocess import datasets; datasets.fetch_spm_auditory(); datasets.fetch_spm_multimodal_fmri(); datasets.fetch_fsl_feeds()"
           make clean
           make test-code
