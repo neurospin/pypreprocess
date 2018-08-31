@@ -4,7 +4,7 @@ jobs:
   build:
     docker:
       - image: circleci/python:3.5
-    parallelism: 4
+    parallelism: 1
     environemnt:
       DISTRIB: "conda"
       PYTHON_VERSION: "3.5"
@@ -35,10 +35,10 @@ jobs:
       - run: python -c "from pypreprocess import datasets; datasets.fetch_spm_auditory(); datasets.fetch_spm_multimodal_fmri(); datasets.fetch_fsl_feeds()"
       - run: make clean
 #      - run: make test-code
-      - run: cd examples/easy_start && python nipype_preproc_spm_auditory.py
-      - run: cd examples/pipelining && python nipype_preproc_spm_multimodal_faces.py
-      - run: cd examples/pipelining && python nistats_glm_fsl_feeds_fmri.py
-      - run: sh continuous_integration/clean_output.sh
+#      - run: cd examples/easy_start && python nipype_preproc_spm_auditory.py
+#      - run: cd examples/pipelining && python nipype_preproc_spm_multimodal_faces.py
+#      - run: cd examples/pipelining && python nistats_glm_fsl_feeds_fmri.py
+#      - run: sh continuous_integration/clean_output.sh
       - save_cache:
           key: spm+datasets+pypi-{{ .Branch }}
           paths:
