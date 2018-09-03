@@ -31,7 +31,7 @@ jobs:
       - run: pip install --user --upgrade pip
       - run: pip install --user scipy sklearn nibabel configobj nose coverage pytest -q
       - run: pip install --user matplotlib pandas nipype nilearn -q
-      - run: pip install --user -e . -q
+      - run: pip install --user .
       - run: python -c "from pypreprocess import datasets; datasets.fetch_spm_auditory(); datasets.fetch_spm_multimodal_fmri(); datasets.fetch_fsl_feeds()"
       - run: make clean
       - run: make test-code
