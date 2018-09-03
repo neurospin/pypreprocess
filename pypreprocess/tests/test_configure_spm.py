@@ -10,7 +10,7 @@ import json
 import nipype
 import pytest
 
-from nilearn import LooseVersion
+from distutils.version import LooseVersion
 from nose.tools import assert_equal
 from pypreprocess.configure_spm import (
     _get_version_spm, _logger, _configure_spm,
