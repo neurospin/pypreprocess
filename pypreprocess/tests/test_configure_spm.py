@@ -7,7 +7,10 @@ Created on Thu Aug  6 10:01:12 2015
 import os
 import stat
 import json
+import nipype
+import pytest
 
+from nilearn import LooseVersion
 from nose.tools import assert_equal
 from pypreprocess.configure_spm import (
     _get_version_spm, _logger, _configure_spm,
@@ -291,7 +294,11 @@ def _execute_spm_config_test(defaults, explicitly_set, spm_root):
 
     _logger.info('SPM config test succeeded')
 
-
+@pytest.mark.skipif(LooseVersion(nipype.__version__) < LooseVersion('1.1.3'),
+                    reason='NiPype ver < 1.1.3 has a bug due to which'
+                           'it fails to catch a legitimate exception, '
+                           'causing spurious test failures',
+                    )
 def test_spm_config(scratch_dir='/tmp/'):
     """prepare dir containing fake Matlab and SPM installs and launch tests."""
     scratch_dir = os.path.abspath(os.path.expanduser(scratch_dir))
@@ -331,3 +338,4 @@ if __name__ == '__main__':
     test_get_version_spm()
     test_guess_spm_version()
     test_spm_config()
+
