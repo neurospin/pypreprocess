@@ -22,7 +22,7 @@ create_new_venv() {
     deactivate
     virtualenv --system-site-packages testvenv
     source testvenv/bin/activate
-    pip install nose
+    pip install nose pytest
 }
 
 print_conda_requirements() {
@@ -33,7 +33,7 @@ print_conda_requirements() {
     # if yes which version to install. For example:
     #   - for numpy, NUMPY_VERSION is used
     #   - for scikit-learn, SCIKIT_LEARN_VERSION is used
-    TO_INSTALL_ALWAYS="pip nose"
+    TO_INSTALL_ALWAYS="pip nose pytest"
     REQUIREMENTS="$TO_INSTALL_ALWAYS"
     TO_INSTALL_MAYBE="python numpy scipy matplotlib scikit-learn pandas flake8 networkx configobj"
     for PACKAGE in $TO_INSTALL_MAYBE; do
@@ -61,10 +61,10 @@ create_new_conda_env() {
 
     # Use the miniconda installer for faster download / install of conda
     # itself
-    wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh \
+    wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
         -O ~/miniconda.sh
     chmod +x ~/miniconda.sh && ~/miniconda.sh -b
-    export PATH=$HOME/miniconda2/bin:$PATH
+    export PATH=$HOME/miniconda3/bin:$PATH
     echo $PATH
     conda update --quiet --yes conda
 
@@ -88,13 +88,13 @@ create_new_conda_env() {
 
 if [[ "$DISTRIB" == "neurodebian" ]]; then
     create_new_venv
-    pip install nose-timer
+    pip install nose-timer pytest
     bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
     sudo apt-get install -qq python-scipy python-nose python-nibabel python-sklearn
 
 elif [[ "$DISTRIB" == "conda" ]]; then
     create_new_conda_env
-    pip install nose-timer
+    pip install nose-timer pytest
     # Note: nibabel is in setup.py install_requires so nibabel will
     # always be installed eventually. Defining NIBABEL_VERSION is only
     # useful if you happen to want a specific nibabel version rather
