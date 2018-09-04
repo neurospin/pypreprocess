@@ -21,12 +21,14 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get install libxm4 libxpm4 libxmu6 libxt6 bc
       - run:
-          name: Installing SPM & exporting its paths
+          name: Installing SPM & exporting its paths + other path
           command: |
             source continuous_integration/setup_spm.sh
             echo 'export SPM_ROOT_DIR="$HOME/opt/spm12"' >> $BASH_ENV
             echo 'export SPM_DIR="$SPM_ROOT_DIR/spm12/"' >> $BASH_ENV
             echo 'export SPM_MCR="$SPM_ROOT_DIR/spm12.sh"' >> $BASH_ENV
+            echo 'export PATH="/home/circleci/.local/bin:$PATH"' >> $BASH_ENV
+
       - run: pip install --user --upgrade pip
       - run: pip install --user scipy sklearn nibabel configobj nose coverage pytest -q
       - run: pip install --user matplotlib pandas nipype nilearn -q
