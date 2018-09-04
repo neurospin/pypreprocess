@@ -11,7 +11,7 @@ import nipype
 import pytest
 
 from distutils.version import LooseVersion
-from nose.tools import assert_equal
+from nose.tools import assert_equal, nottest
 from pypreprocess.configure_spm import (
     _get_version_spm, _logger, _configure_spm,
     _guess_spm_version, _ACCEPT_SPM_MCR_WITH_AMBIGUOUS_VERSION)
@@ -299,6 +299,7 @@ def _execute_spm_config_test(defaults, explicitly_set, spm_root):
                            'it fails to catch a legitimate exception, '
                            'causing spurious test failures',
                     )
+@nottest
 def test_spm_config(scratch_dir='/tmp/'):
     """prepare dir containing fake Matlab and SPM installs and launch tests."""
     scratch_dir = os.path.abspath(os.path.expanduser(scratch_dir))
@@ -330,17 +331,7 @@ def test_spm_config(scratch_dir='/tmp/'):
                           spm_root, 'spm7/spm7.sh.BAD_LOC'),
                       'config_spm_mcr': os.path.join(
                           spm_root, 'spm8/spm8.sh.BAD_LOC')}
-    try:
-        _execute_spm_config_test(defaults, explicitly_set, spm_root)
-    except ValueError as err:
-        if LooseVersion(nipype.__version__) < LooseVersion('1.1.3'):
-            print('NiPype ver < 1.1.3 has a bug due to which'
-                 'it fails to catch a legitimate exception, '
-                 'causing spurious test failures',
-                  )
-        else:
-            raise err
-            
+    _execute_spm_config_test(defaults, explicitly_set, spm_root)
 
 
 if __name__ == '__main__':
