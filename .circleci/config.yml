@@ -17,23 +17,16 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: spm+datasets+pypi-{{ .Branch }}
-      - run:
-          name: Export spm paths to the envronment.
-          command: |
-            echo 'export SPM_DIR="$HOME/opt/spm12/spm12_mcr/spm12"' >> $BASH_ENV
-            echo 'export SPM_MCR="$HOME/opt/spm12/spm12.sh"' >> $ BASH_ENV
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >> $BASH_ENV
-
+          key: spm12+datasets+pypi-{{ .Branch }}
       - run: sudo apt-get update
       - run: sudo apt-get install libxm4 libxpm4 libxmu6 libxt6 bc
       - run:
-          name: Installing SPM
+          name: Installing SPM & exporting its paths
           command: |
             source continuous_integration/setup_spm.sh
-            echo 'export SPM_ROOT_DIR="$HOME/opt/spm8"' >> $BASH_ENV
-            echo 'export SPM_DIR="$SPM_ROOT_DIR/spm8/spm8_mcr/spm8"' >> $BASH_ENV
-            echo 'export SPM_MCR="$SPM_ROOT_DIR/spm8.sh"' >> $BASH_ENV
+            echo 'export SPM_ROOT_DIR="$HOME/opt/spm12"' >> $BASH_ENV
+            echo 'export SPM_DIR="$SPM_ROOT_DIR/spm12/"' >> $BASH_ENV
+            echo 'export SPM_MCR="$SPM_ROOT_DIR/spm12.sh"' >> $BASH_ENV
       - run: pip install --user --upgrade pip
       - run: pip install --user scipy sklearn nibabel configobj nose coverage pytest -q
       - run: pip install --user matplotlib pandas nipype nilearn -q
@@ -46,9 +39,9 @@ jobs:
       - run: cd examples/pipelining && python nistats_glm_fsl_feeds_fmri.py
       - run: sh continuous_integration/clean_output.sh
       - save_cache:
-          key: spm+datasets+pypi-{{ .Branch }}
+          key: spm12+datasets+pypi-{{ .Branch }}
           paths:
-            - $HOME/opt/spm12
+            - $SPM_ROOT_DIR
             - $HOME/nilearn_data
             - $HOME/.local/bin
 
