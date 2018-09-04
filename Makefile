@@ -4,7 +4,7 @@
 
 PYTHON ?= python
 CYTHON ?= cython
-NOSETESTS ?= pytest
+NOSETESTS ?= nosetests
 CTAGS ?= ctags
 
 all: clean test
