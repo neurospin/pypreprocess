@@ -230,11 +230,9 @@ def plot_tsdiffs(results, use_same_figure=True):
 
     # slice plots min max mean
     ax = next(iter_axes)
-    ax.hold(True)
     ax.plot(np.mean(scaled_slice_diff, 0), 'k')
     ax.plot(np.min(scaled_slice_diff, 0), 'b')
     ax.plot(np.max(scaled_slice_diff, 0), 'r')
-    ax.hold(False)
     xmax_labels(ax, S + 1, 'Slice number',
                 'Max/mean/min \n slice variation')
 

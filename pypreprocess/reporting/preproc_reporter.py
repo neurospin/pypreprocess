@@ -869,7 +869,6 @@ def generate_stc_thumbnails(original_bold, st_corrected_bold, output_dir,
                                        'stc_plot_%s.png' % session_id)
         pl.figure()
         pl.plot(o_ts, 'o-')
-        pl.hold('on')
         pl.plot(stc_ts, 's-')
         pl.legend(('original BOLD', 'ST corrected BOLD'))
         pl.title("session %s: STC QA for voxel (%s, %s, %s)" % (
