@@ -202,7 +202,7 @@ def make_paradigm_from_timing_files(timing_files, condition_ids=None):
                 "the onsets, the second for the durations, and the "
                 "third --if present-- if for the amplitudes; got %s" % timing)
 
-    return pd.DataFrame({'name': condition_ids,
+    return pd.DataFrame({'name': _condition_ids,
                          'onset': onsets,
                          'duration': durations,
                          'modulation': amplitudes})
