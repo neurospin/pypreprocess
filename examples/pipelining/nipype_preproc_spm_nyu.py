@@ -1,6 +1,7 @@
 """
-:Author: DOHMATOB Elvis Dopgima
 :Synopsis: Preprocessing of NYU rest data.
+:Author: DOHMATOB Elvis Dopgima
+
 """
 
 import sys

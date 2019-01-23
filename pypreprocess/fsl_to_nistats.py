@@ -2,7 +2,7 @@
 :Module: fsl_to_nistats
 :Synopsis: Utility script for converting FSL configuration (design, etc.) files
 into Dataframe format.
-:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com> <elvis.dohmatob@inria.fr>
+:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
 """
 

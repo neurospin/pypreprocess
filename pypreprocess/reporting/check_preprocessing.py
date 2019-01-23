@@ -2,7 +2,7 @@
 :Module: check_preprocessing
 :Synopsis: module for generating post-preproc plots (registration,
 segmentation, etc.)
-:Author: bertrand thirion, dohmatob elvis dopgima
+:Author: THIRION Bertrand, DOHMATOB Elvis Dopgima
 
 """
 

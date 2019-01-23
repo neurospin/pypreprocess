@@ -2,7 +2,8 @@
 """
 Created on Thu Aug  6 10:01:12 2015
 
-@author: Mehdi RAHIM, Jerome DOCKES
+:Synopsis: Checks SPM configuration
+:Author: RAHIM Mehdi, DOCKES Jerome
 """
 import os
 import stat

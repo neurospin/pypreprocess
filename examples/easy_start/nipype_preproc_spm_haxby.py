@@ -1,6 +1,7 @@
 """
-Author: DOHMATOB Elvis Dopgima elvis[dot]dohmatob[at]inria[dot]fr
-Synopsis: Preprocessing of HAXBY 2001 dataset
+:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
+:Synopsis: Preprocessing of HAXBY 2001 dataset
+
 """
 
 import os

@@ -1,10 +1,9 @@
 """
-Utility functions for single- and mult-subject preprocessing of fMRI
-
+:Synopsis: Utility functions for single- and mult-subject preprocessing of fMRI
 The most useful functions are do_subject_preproc and do_subjects_preproc
-"""
+:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
-# Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
+"""
 
 import os
 import sys

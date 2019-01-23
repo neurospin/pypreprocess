@@ -1,6 +1,6 @@
 """
-Author: yannick schwartz, DOHMATOB Elvis Dopgima
-Synopsis: Command line interface to preprocess OpenfMRI
+:Synopsis: Command line interface to preprocess OpenfMRI
+:Author: SCHWARTZ Yannick , DOHMATOB Elvis Dopgima
 """
 
 import os

@@ -1,6 +1,6 @@
 """
 :Synopsis: preprocessing and/or analysis of HCP task fMRI data
-:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com> <elvis.dohmatob@inria.fr>
+:Author: DOHMATOB Elvis Dopgima
 
 """
 

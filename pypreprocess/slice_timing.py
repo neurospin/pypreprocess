@@ -1,7 +1,6 @@
 """
-:module: st
-:synopsis: module for STC (Slice-Timing Correction) in fMRI data
-:author: elvis[dot]dohmatob[at]inria[dot]fr
+:Synopsis: module for STC (Slice-Timing Correction) in fMRI data
+:Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com>
 
 """
 

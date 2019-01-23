@@ -1,7 +1,7 @@
 """
 :Module: reporter
 :Synopsis: utility module for report generation business
-:Author: dohmatob elvis dopgima
+:Author: DOHMATOB Elvis Dopgima
 
 """
 
