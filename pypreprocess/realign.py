@@ -80,6 +80,10 @@ def _single_volume_fit(moving_vol, fixed_vol_affine, fixed_vol_A0, affine_correc
         
     tol: float
         tolerance for Gauss-Newton LS iterations
+
+    smooth_func: function, optional (default pypreprocess' smooth_image)
+        the smoothing function to apply during estimation. The given function
+        must accept 2 positional args (vol, fwhm)
         
     log: function, optional (default lambda x: None)
         function used for storing log messages
@@ -291,6 +295,10 @@ class MRIMotionCorrection(object):
     n_iterations: int, optional (dafault 64)
         max number of Gauss-Newton iterations when solving LSP for
         registering a volume to the reference
+
+    smooth_func: function, optional (default pypreprocess' smooth_image)
+        the smoothing function to apply during estimation. The given function
+        must accept 2 positional args (vol, fwhm)
 
     Attributes
     ----------
