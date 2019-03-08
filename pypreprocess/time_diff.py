@@ -12,8 +12,10 @@ This has been implemented in the Nipy package.
 We give here a simpler implementation with modified dependences
 
 '''
+import matplotlib
 import numpy as np
 import nibabel as nib
+from distutils.version import LooseVersion
 from nilearn.plotting import plot_stat_map
 from nilearn.image.image import check_niimg_4d
 from nilearn.image import mean_img, reorder_img
@@ -230,11 +232,13 @@ def plot_tsdiffs(results, use_same_figure=True):
 
     # slice plots min max mean
     ax = next(iter_axes)
-    ax.hold(True)
+    if LooseVersion(matplotlib.__version__) < LooseVersion("2.0"):
+        ax.hold(True)
     ax.plot(np.mean(scaled_slice_diff, 0), 'k')
     ax.plot(np.min(scaled_slice_diff, 0), 'b')
     ax.plot(np.max(scaled_slice_diff, 0), 'r')
-    ax.hold(False)
+    if LooseVersion(matplotlib.__version__) < LooseVersion("2.0"):
+        ax.hold(False)
     xmax_labels(ax, S + 1, 'Slice number',
                 'Max/mean/min \n slice variation')
 
