@@ -12,9 +12,11 @@ import shutil
 import subprocess
 import time
 import json
+import matplotlib
 import numpy as np
 import pylab as pl
 import nibabel
+from distutils.version import LooseVersion
 from nilearn._utils.compat import _basestring
 from sklearn.externals import joblib
 from .check_preprocessing import (plot_registration,
@@ -869,7 +871,8 @@ def generate_stc_thumbnails(original_bold, st_corrected_bold, output_dir,
                                        'stc_plot_%s.png' % session_id)
         pl.figure()
         pl.plot(o_ts, 'o-')
-        pl.hold('on')
+        if LooseVersion(matplotlib.__version__) < LooseVersion("2.0"):
+            pl.hold('on')
         pl.plot(stc_ts, 's-')
         pl.legend(('original BOLD', 'ST corrected BOLD'))
         pl.title("session %s: STC QA for voxel (%s, %s, %s)" % (
