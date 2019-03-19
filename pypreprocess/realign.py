@@ -24,7 +24,7 @@ INFINITY = np.inf
 
 
 def _single_volume_fit(moving_vol, fixed_vol_affine, fixed_vol_A0, affine_correction, b, x1, x2,
-                       x3, fwhm, n_iterations, interp, lkp, tol,
+                       x3, fwhm, n_iterations, interp, lkp, tol, smooth_func=smooth_image,
                        log=lambda x: None):
     """
     Realigns moving_vol to fixed_vol.
@@ -80,6 +80,10 @@ def _single_volume_fit(moving_vol, fixed_vol_affine, fixed_vol_A0, affine_correc
         
     tol: float
         tolerance for Gauss-Newton LS iterations
+
+    smooth_func: function, optional (default pypreprocess' smooth_image)
+        the smoothing function to apply during estimation. The given function
+        must accept 2 positional args (vol, fwhm)
         
     log: function, optional (default lambda x: None)
         function used for storing log messages
@@ -96,7 +100,7 @@ def _single_volume_fit(moving_vol, fixed_vol_affine, fixed_vol_A0, affine_correc
     # initialize final rp for this vol
     vol_rp = get_initial_motion_params()
     # smooth volume t
-    V = smooth_image(moving_vol, fwhm).get_data()
+    V = smooth_func(moving_vol, fwhm).get_data()
     # global optical flow problem with affine motion model: run
     # Gauss-Newton iterated LS (this loop should normally converge
     # after about as few as 5 iterations)
@@ -292,6 +296,10 @@ class MRIMotionCorrection(object):
         max number of Gauss-Newton iterations when solving LSP for
         registering a volume to the reference
 
+    smooth_func: function, optional (default pypreprocess' smooth_image)
+        the smoothing function to apply during estimation. The given function
+        must accept 2 positional args (vol, fwhm)
+
     Attributes
     ----------
     realignment_parameters_: 3D array of shape (n_sessions, n_scans_session, 6)
@@ -304,7 +312,8 @@ class MRIMotionCorrection(object):
     """
 
     def __init__(self, sep=4, interp=3, fwhm=5., quality=.9, tol=1e-8,
-                 lkp=None, verbose=1, n_iterations=64, n_sessions=1):
+                 lkp=None, verbose=1, n_iterations=64, n_sessions=1,
+                 smooth_func=smooth_image):
         lkp = [0, 1, 2, 3, 4, 5] if lkp is None else lkp
         self.sep = sep
         self.interp = interp
@@ -315,6 +324,7 @@ class MRIMotionCorrection(object):
         self.verbose = verbose
         self.n_iterations = n_iterations
         self.n_sessions = n_sessions
+        self.smooth_func = smooth_func
 
     def _log(self, msg):
         """Logs a message, according to verbose level.
@@ -387,7 +397,7 @@ class MRIMotionCorrection(object):
                               0:dim[2] - .5 - 1:skip[2]].reshape((3, -1))
 
         # smooth 0th volume to absorb noise before differentiating
-        sref_vol = smooth_image(vol_0, self.fwhm).get_data()
+        sref_vol = self.smooth_func(vol_0, self.fwhm).get_data()
 
         # resample the smoothed reference volume unto doped working grid
         G = ndimage.map_coordinates(sref_vol, [x1, x2, x3], order=self.interp,
@@ -473,7 +483,8 @@ class MRIMotionCorrection(object):
                                   b, x1, x2, x3, fwhm=self.fwhm,
                                   n_iterations=self.n_iterations,
                                   interp=self.interp, lkp=self.lkp,
-                                  tol=self.tol, **svf_kwargs) for vol in vols[1:])
+                                  tol=self.tol, smooth_func=self.smooth_func,
+                                  **svf_kwargs) for vol in vols[1:])
         rp[1:, ...] = np.array(rps)
 
         return rp
