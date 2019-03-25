@@ -71,7 +71,7 @@ def _do_fmri_distortion_correction(subject_data,
                     subject_data.func[sess]),
                                        "%s_3T_SpinEchoFieldMap_%s.nii.gz" % (
                     subject_data.subject_id, directions[sess]))
-                          for sess in xrange(subject_data.n_sessions)]
+                          for sess in range(subject_data.n_sessions)]
         sbref_files = [sess_func.replace(".nii", "_SBRef.nii")
                        for sess_func in subject_data.func]
 
@@ -125,7 +125,7 @@ def _do_fmri_distortion_correction(subject_data,
         # apply learn deformations to absorb distortion
         dc_fmri_files = []
 
-        for sess in xrange(2):
+        for sess in range(2):
             # merge SBRef + task BOLD for current PE direction
             assert len(subject_data.func) == 2, subject_data
             fourD_plus_sbref = os.path.join(
@@ -251,8 +251,8 @@ def run_suject_level1_glm(subject_data,
     design_matrices = []
     # fmri_files = []
     n_scans = []
-    # for direction, direction_index in zip(['LR', 'RL'], xrange(2)):
-    for sess in xrange(subject_data.n_sessions):
+    # for direction, direction_index in zip(['LR', 'RL'], range(2)):
+    for sess in range(subject_data.n_sessions):
         direction = ['LR', 'RL'][sess]
         # glob the design file
         # design_file = os.path.join(# _subject_data_dir, "tfMRI_%s_%s" % (

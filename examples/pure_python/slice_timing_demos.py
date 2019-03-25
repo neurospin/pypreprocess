@@ -107,8 +107,8 @@ def demo_sinusoidal_mixture(output_dir, n_slices=10, n_rows=3, n_columns=2,
     # acquire the signal at the corrupt sampled time points
     acquired_signal = np.array([
             [[my_sinusoid(shifted_acquisition_time[j])
-              for j in xrange(n_slices)]
-             for _ in xrange(n_columns)] for _ in xrange(n_rows)]
+              for j in range(n_slices)]
+             for _ in range(n_columns)] for _ in range(n_rows)]
                                )
 
     # add white noise
@@ -216,7 +216,7 @@ def demo_HRF(output_dir, n_slices=10,
     # acquire the signal at the corrupt sampled time points
     acquired_sample = np.array([np.vectorize(compute_hrf)(
                 shifted_acquisition_time[j])
-                                for j in xrange(n_slices)])
+                                for j in range(n_slices)])
     acquired_sample = np.array([acquired_sample, ] * n_columns)
     acquired_sample = np.array([acquired_sample, ] * n_rows)
 
@@ -273,7 +273,7 @@ def _fmri_demo_runner(output_dir, subjects, dataset_id,
             data = np.ndarray(tuple(list(_first.shape[:3]
                                          ) + [n_scans]))
             data[..., 0] = _first
-            for scan in xrange(1, n_scans):
+            for scan in range(1, n_scans):
                 data[..., scan] = _load_fmri(fmri_files[scan])
 
             return data
