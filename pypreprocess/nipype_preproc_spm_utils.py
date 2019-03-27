@@ -854,7 +854,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                 parameter_file=parameter_file,
                 apply_to_files=apply_to_files,
                 write_voxel_sizes=list(write_voxel_sizes),
-                write_bounding_box=write_bounding_box,
+                write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
                 write_interp=1, jobtype='write',
                 interface_kwargs=kwargs))
 
