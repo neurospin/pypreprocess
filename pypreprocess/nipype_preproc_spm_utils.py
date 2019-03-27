@@ -794,6 +794,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
     if caching:
         cache_dir = os.path.join(subject_data.scratch, 'cache_dir')
         if not os.path.exists(cache_dir): os.makedirs(cache_dir)
+        joblib_mem = JoblibMemory(cache_dir)
         normalize = NipypeMemory(base_dir=cache_dir).cache(spm.Normalize)
     else:
         normalize = spm.Normalize().run
@@ -869,6 +870,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                 apply_to_files=apply_to_files,
                 write_voxel_sizes=list(write_voxel_sizes),
                 write_bounding_box=[[-78, -112, -50], [78, 76, 85]],
+                # write_bounding_box=write_bounding_box,
                 write_interp=1, jobtype='write',
                 interface_kwargs=kwargs))
 
@@ -1511,7 +1513,7 @@ def _do_subjects_newsegment(
     # run node
     newsegment_result = newsegment(
         channel_files=[subject_data.anat for subject_data in subjects],
-        tissues=TISSUES)
+        tissues=TISSUES, ignore_exception=True)
     if newsegment_result.outputs is None:
         return
     else:
