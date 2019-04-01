@@ -59,7 +59,7 @@ if time_units == "tr":
     time_units = tr
 
 # re-write onset files into compatible format
-for sess in xrange(2):
+for sess in range(2):
     trials = getattr(subject_data, "trials_ses%i" % (sess + 1))
     fd = open(trials.split(".")[0] + ".txt", 'w')
     timing = scipy.io.loadmat(trials, squeeze_me=True, struct_as_record=False)
@@ -67,7 +67,7 @@ for sess in xrange(2):
     durations = np.hstack(timing['durations'])
     amplitudes = np.ones_like(onsets)
     conditions = [list(timing['names'][i:i + 1]) * len(timing['onsets'][i])
-                  for i in xrange(len(timing['names']))]
+                  for i in range(len(timing['names']))]
     conditions = np.hstack(conditions)
     assert len(amplitudes) == len(onsets) == len(durations) == len(conditions)
     for condition, onset, duration, amplitude in zip(conditions, onsets,
@@ -152,7 +152,7 @@ def do_subject_glm(subject_data):
     # specify contrasts
     n_columns = len(design_matrices[0].names)
     contrasts = {}
-    for i in xrange(paradigm.n_conditions):
+    for i in range(paradigm.n_conditions):
         contrasts['%s' % design_matrices[0].names[2 * i]
                   ] = np.eye(n_columns)[2 * i]
 
@@ -165,7 +165,7 @@ def do_subject_glm(subject_data):
 
     # effects of interest F-test
     diff_contrasts = []
-    for i in xrange(paradigm.n_conditions - 1):
+    for i in range(paradigm.n_conditions - 1):
         a = contrasts[design_matrices[0].names[2 * i]]
         b = contrasts[design_matrices[0].names[2 * (i + 1)]]
         diff_contrasts.append(a - b)

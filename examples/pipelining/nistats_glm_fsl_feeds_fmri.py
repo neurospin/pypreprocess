@@ -87,7 +87,7 @@ _, matrix, names = check_design_matrix(design_matrix)
 contrasts = {}
 n_columns = len(names)
 I = np.eye(len(names))
-for i in xrange(2):
+for i in range(2):
     contrasts['%s' % names[2 * i]] = I[2 * i]
 
 """more interesting contrasts"""

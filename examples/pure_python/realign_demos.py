@@ -58,7 +58,7 @@ def _demo_runner(subjects, dataset_id, **spm_realign_kwargs):
 
         # plot results
         for sess, rp_filename in zip(
-                xrange(len(mrimc.realignment_parameters_)),
+                range(len(mrimc.realignment_parameters_)),
                 mrimc.realignment_parameters_):
             plot_spm_motion_parameters(
                 rp_filename,
