@@ -797,7 +797,7 @@ class SubjectData(object):
         warped_tpms = dict(
             (tpm, getattr(self, tpm, None))
             for tpm in ["mwgm", "mwwm", "mwcsf"])
-        segmented = warped_tpms.values().count(None) < len(warped_tpms)
+        segmented = list(warped_tpms.values()).count(None) < len(warped_tpms)
 
         # generate thumbnails proper
         for brain_name, brain, cmap in zip(
