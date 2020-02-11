@@ -4,8 +4,7 @@ jobs:
   build:
     docker:
       - image: circleci/buildpack-deps:xenial
-      - image: circleci/python:3.5
-      #- image: circleci/dynamodb:8-jdk
+      - image: python:3.5
     parallelism: 1
     environment:
       DISTRIB: "conda"
