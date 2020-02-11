@@ -3,14 +3,14 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/python:3.5
-      - image: circleci/dynamodb:8-jdk
       - image: circleci/buildpack-deps:xenial
+      - image: circleci/python:3.5
+      #- image: circleci/dynamodb:8-jdk
     parallelism: 1
     environment:
       DISTRIB: "conda"
       PYTHON_VERSION: "3.5"
-      NUMPY_VERSION: "*"
+      NUMPY_VERSION: "1.17.3"
       SCIPY_VERSION: "*"
       SCIKIT_LEARN_VERSION: "*"
       MATPLOTLIB_VERSION: "*"
@@ -36,12 +36,12 @@ jobs:
       - run: pip install --user matplotlib pandas nipype nilearn -q
       - run: python setup.py install --user
       - run: python -c "from pypreprocess import datasets; datasets.fetch_spm_auditory(); datasets.fetch_spm_multimodal_fmri(); datasets.fetch_fsl_feeds()"
-      - run: make clean
-      - run: make test-code
-      - run: cd examples/easy_start && python nipype_preproc_spm_auditory.py
-      - run: cd examples/pipelining && python nipype_preproc_spm_multimodal_faces.py
-      - run: cd examples/pipelining && python nistats_glm_fsl_feeds_fmri.py
-      - run: sh continuous_integration/clean_output.sh
+      #- run: make clean
+      #- run: make test-code
+      #- run: cd examples/easy_start && python nipype_preproc_spm_auditory.py
+      #- run: cd examples/pipelining && python nipype_preproc_spm_multimodal_faces.py
+      #- run: cd examples/pipelining && python nistats_glm_fsl_feeds_fmri.py
+      #- run: sh continuous_integration/clean_output.sh
       - save_cache:
           key: spm12+datasets+pypi-{{ .Branch }}
           paths:
@@ -49,10 +49,9 @@ jobs:
             - $HOME/nilearn_data
             - $HOME/.local/bin
 
-      - store_artifacts:
-          path: $HOME/nilearn_data/spm_auditory/pypreprocess_output/
-      - store_artifacts:
-          path: $HOME/nilearn_data/spm_multimodal_fmri/pypreprocess_output/
-      - store_artifacts:
-          path: $HOME/nilearn_data/fsl_feeds/pypreprocess_output/
-
+      #- store_artifacts:
+      #    path: $HOME/nilearn_data/spm_auditory/pypreprocess_output/
+      #- store_artifacts:
+      #    path: $HOME/nilearn_data/spm_multimodal_fmri/pypreprocess_output/
+      #- store_artifacts:
+      #    path: $HOME/nilearn_data/fsl_feeds/pypreprocess_output/
