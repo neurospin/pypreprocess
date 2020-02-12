@@ -17,7 +17,16 @@ jobs:
       - checkout
 
   build_pyp:
+    environment:
+      DISTRIB: "conda"
+      PYTHON_VERSION: "3.5"
+      NUMPY_VERSION: "1.17.3"
+      SCIPY_VERSION: "*"
+      SCIKIT_LEARN_VERSION: "*"
+      MATPLOTLIB_VERSION: "*"
+      NIPYPE_VERSION: "0.13.0"
     steps:
+      - checkout
       - restore_cache:
           key: spm12+datasets+pypi-{{ .Branch }}
       - run: sudo apt-get update
