@@ -9,7 +9,6 @@ jobs:
     environment:
       DISTRIB: "conda"
       PYTHON_VERSION: "3.5"
-      PYTHON_PIP_VERSION: "20.0.2"
       NUMPY_VERSION: "1.17.3"
       SCIPY_VERSION: "*"
       SCIKIT_LEARN_VERSION: "*"
@@ -31,7 +30,7 @@ jobs:
             echo 'export SPM_MCR="$SPM_ROOT_DIR/spm12.sh"' >> $BASH_ENV
             echo 'export PATH="/home/circleci/.local/bin:$PATH"' >> $BASH_ENV
 
-      - run: sudo pip install --upgrade pip
+      - run: python -m pip install --upgrade pip
       - run: sudo pip install scipy sklearn nibabel configobj nose coverage pytest -q
       - run: sudo pip install matplotlib pandas nipype nilearn -q
       - run: python setup.py install --user
