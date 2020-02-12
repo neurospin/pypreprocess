@@ -4,10 +4,10 @@ jobs:
   build_docker:
     docker:
       - image: circleci/buildpack-deps:16.04
-      - image: python:3.5
+      - image: python:3.6
     environment:
       DISTRIB: "conda"
-      PYTHON_VERSION: "3.5"
+      PYTHON_VERSION: "3.6"
       NUMPY_VERSION: "1.17.3"
       SCIPY_VERSION: "*"
       SCIKIT_LEARN_VERSION: "*"
@@ -24,10 +24,10 @@ jobs:
   build_pyp:
     docker:
       - image: circleci/buildpack-deps:16.04
-      - image: python:3.5
+      - image: python:3.6
     environment:
       DISTRIB: "conda"
-      PYTHON_VERSION: "3.5"
+      PYTHON_VERSION: "3.6"
       NUMPY_VERSION: "1.17.3"
       SCIPY_VERSION: "*"
       SCIKIT_LEARN_VERSION: "*"
