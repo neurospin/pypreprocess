@@ -60,10 +60,9 @@ jobs:
 
 workflows:
   version: 2
-  build_all:
+  push:
     jobs:
       - build_docker
       - build_pyp:
         requires:
           build_docker
-          
