@@ -4,7 +4,6 @@ jobs:
   build:
     docker:
       - image: circleci/buildpack-deps:16.04
-      - image: circleci/python:3.5
     parallelism: 1
     environment:
       DISTRIB: "conda"
@@ -58,6 +57,8 @@ jobs:
           name: Installing SPM & exporting its paths + other path
           command: |
             source activate testenv
+            sudo apt-get update
+            sudo apt-get install bc
             source continuous_integration/setup_spm.sh
             echo 'export SPM_ROOT_DIR="$HOME/opt/spm12"' >> $BASH_ENV
             echo 'export SPM_DIR="$SPM_ROOT_DIR/spm12/"' >> $BASH_ENV
