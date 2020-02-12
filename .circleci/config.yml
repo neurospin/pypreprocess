@@ -4,7 +4,7 @@ jobs:
   build_docker:
     docker:
       - image: circleci/buildpack-deps:16.04
-      - image: python:3.6
+      - image: circleci/python:3.6
     environment:
       DISTRIB: "conda"
       PYTHON_VERSION: "3.6"
@@ -24,7 +24,7 @@ jobs:
   build_pyp:
     docker:
       - image: circleci/buildpack-deps:16.04
-      - image: python:3.6
+      - image: circleci/python:3.6
     environment:
       DISTRIB: "conda"
       PYTHON_VERSION: "3.6"
