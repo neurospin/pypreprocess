@@ -3,12 +3,13 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/buildpack-deps:xenial
+      - image: circleci/buildpack-deps:16.04
       - image: python:3.5
     parallelism: 1
     environment:
       DISTRIB: "conda"
       PYTHON_VERSION: "3.5"
+      #PYTHON_PIP_VERSION: "20.0.2"
       NUMPY_VERSION: "1.17.3"
       SCIPY_VERSION: "*"
       SCIKIT_LEARN_VERSION: "*"
