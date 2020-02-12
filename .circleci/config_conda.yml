@@ -1,10 +1,11 @@
 version: 2
 
 jobs:
-  build_docker:
+  build:
     docker:
       - image: circleci/buildpack-deps:16.04
       - image: python:3.5
+    parallelism: 1
     environment:
       DISTRIB: "conda"
       PYTHON_VERSION: "3.5"
@@ -16,27 +17,38 @@ jobs:
 
     steps:
       - checkout
-
-jobs:
-  build_pyp:
-    steps:
+      - run: wget https://repo.continuum.io/miniconda/Miniconda3-4.6.14-Linux-x86_64.sh -O ~/miniconda.sh
+      - run: chmod +x ~/miniconda.sh && ~/miniconda.sh -b
+      - run: echo 'export PATH="$HOME/miniconda3/bin:$PATH"'  >> $BASH_ENV
+      - run:
+          name: Create conda env
+          command: |
+            conda create -n testenv python=3.5 numpy=1.17.3 -yq
       - restore_cache:
           key: spm12+datasets+pypi-{{ .Branch }}
-      - run: sudo apt-get update
-      - run: sudo apt-get install libxm4 libxpm4 libxmu6 libxt6 bc
+      #- run: sudo apt-get update
+      #- run: sudo apt-get install libxm4 libxpm4 libxmu6 libxt6 bc
       - run:
           name: Installing SPM & exporting its paths + other path
           command: |
+            source activate testenv
             source continuous_integration/setup_spm.sh
             echo 'export SPM_ROOT_DIR="$HOME/opt/spm12"' >> $BASH_ENV
             echo 'export SPM_DIR="$SPM_ROOT_DIR/spm12/"' >> $BASH_ENV
             echo 'export SPM_MCR="$SPM_ROOT_DIR/spm12.sh"' >> $BASH_ENV
             echo 'export PATH="/home/circleci/.local/bin:$PATH"' >> $BASH_ENV
 
-      - run: pip install --upgrade pip
-      - run: pip install scipy sklearn nibabel configobj nose coverage pytest -q
-      - run: pip install matplotlib pandas nipype nilearn -q
-      - run: python setup.py install --user
+      - run:
+          name: Setup environment
+          command: |
+            source activate testenv
+            pip install --upgrade pip
+            pip install scipy sklearn nibabel configobj nose coverage pytest -q
+            pip install matplotlib pandas nipype nilearn -q
+      - run:
+          name: Install pypreprocess
+          command: |
+            python setup.py install --user
       - run: python -c "from pypreprocess import datasets; datasets.fetch_spm_auditory(); datasets.fetch_spm_multimodal_fmri(); datasets.fetch_fsl_feeds()"
       - run: make clean
       - run: make test-code
@@ -57,13 +69,3 @@ jobs:
       #    path: $HOME/nilearn_data/spm_multimodal_fmri/pypreprocess_output/
       #- store_artifacts:
       #    path: $HOME/nilearn_data/fsl_feeds/pypreprocess_output/
-
-workflows:
-  version: 2
-  build_all:
-    jobs:
-      - build_docker
-      - build_pyp:
-        requires:
-          build_docker
-          

@@ -1,10 +1,11 @@
 version: 2
 
 jobs:
-  build_docker:
+  build:
     docker:
       - image: circleci/buildpack-deps:16.04
       - image: python:3.5
+    parallelism: 1
     environment:
       DISTRIB: "conda"
       PYTHON_VERSION: "3.5"
@@ -16,10 +17,6 @@ jobs:
 
     steps:
       - checkout
-
-jobs:
-  build_pyp:
-    steps:
       - restore_cache:
           key: spm12+datasets+pypi-{{ .Branch }}
       - run: sudo apt-get update
@@ -57,13 +54,3 @@ jobs:
       #    path: $HOME/nilearn_data/spm_multimodal_fmri/pypreprocess_output/
       #- store_artifacts:
       #    path: $HOME/nilearn_data/fsl_feeds/pypreprocess_output/
-
-workflows:
-  version: 2
-  build_all:
-    jobs:
-      - build_docker
-      - build_pyp:
-        requires:
-          build_docker
-          
