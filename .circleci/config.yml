@@ -13,11 +13,9 @@ jobs:
       SCIKIT_LEARN_VERSION: "*"
       MATPLOTLIB_VERSION: "*"
       NIPYPE_VERSION: "0.13.0"
-
     steps:
       - checkout
 
-jobs:
   build_pyp:
     steps:
       - restore_cache:
