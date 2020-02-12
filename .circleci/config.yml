@@ -13,10 +13,18 @@ jobs:
       SCIKIT_LEARN_VERSION: "*"
       MATPLOTLIB_VERSION: "*"
       NIPYPE_VERSION: "0.13.0"
+    working_directory: ~/circlec-temp
     steps:
       - checkout
+      - save_cache:
+          key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
+          paths:
+            - ~/circleci-temp
 
   build_pyp:
+    docker:
+      - image: circleci/buildpack-deps:16.04
+      - image: python:3.5
     environment:
       DISTRIB: "conda"
       PYTHON_VERSION: "3.5"
@@ -25,8 +33,11 @@ jobs:
       SCIKIT_LEARN_VERSION: "*"
       MATPLOTLIB_VERSION: "*"
       NIPYPE_VERSION: "0.13.0"
+    working_directory: ~/circlec-temp
     steps:
       - checkout
+      - restore_cache:
+          key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
       - restore_cache:
           key: spm12+datasets+pypi-{{ .Branch }}
       - run: sudo apt-get update
