@@ -4,12 +4,12 @@ jobs:
   build:
     docker:
       - image: circleci/buildpack-deps:16.04
-      - image: python:3.5
+      - image: circleci/python:3.5
     parallelism: 1
     environment:
       DISTRIB: "conda"
       PYTHON_VERSION: "3.5"
-      NUMPY_VERSION: "1.17.3"
+      NUMPY_VERSION: "1.17"
       SCIPY_VERSION: "*"
       SCIKIT_LEARN_VERSION: "*"
       MATPLOTLIB_VERSION: "*"
@@ -17,15 +17,41 @@ jobs:
 
     steps:
       - checkout
+      # Get rid of existing virtualenvs on circle ci as they conflict with conda.
+      # Trick found here:
+      # https://discuss.circleci.com/t/disable-autodetection-of-project-or-application-of-python-venv/235/10
+      - run: cd && rm -rf ~/.pyenv && rm -rf ~/virtualenvs
+      # We need to remove conflicting texlive packages.
+      - run: sudo -E apt-get -yq remove texlive-binaries --purge
       - restore_cache:
           key: spm12+datasets+pypi-{{ .Branch }}
-      - run: wget https://repo.continuum.io/miniconda/Miniconda3-4.6.14-Linux-x86_64.sh -O ~/miniconda.sh
-      - run: chmod +x ~/miniconda.sh && ~/miniconda.sh -b
-      - run: echo 'export PATH="$HOME/miniconda3/bin:$PATH"'  >> $BASH_ENV
+
       - run:
-          name: Create conda env
+          name: Download & install conda if absent
           command: |
-            conda create -n testenv python=3.5 numpy=1.17.3 -yq
+            if
+              ls $HOME/miniconda3/bin | grep conda -q
+            then
+              echo "(Mini)Conda already present from the cache."
+            else
+              wget https://repo.continuum.io/miniconda/Miniconda3-4.6.14-Linux-x86_64.sh -O ~/miniconda.sh
+              chmod +x ~/miniconda.sh && ~/miniconda.sh -b
+            fi
+      - run:
+          name: Setup conda path in env variables
+          command: |
+            echo 'export PATH="$HOME/miniconda3/bin:$PATH"'  >> $BASH_ENV
+      - run:
+          name: Create new conda env
+          command: |
+            if
+              conda env list | grep testenv
+            then
+              echo "Conda env testenv already exists courtesy of the cache."
+            else
+              conda create -n testenv -yq
+            fi
+
       #- run: sudo apt-get update
       #- run: sudo apt-get install libxm4 libxpm4 libxmu6 libxt6 bc
       - run:
