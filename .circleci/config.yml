@@ -63,4 +63,4 @@ workflows:
       - build_docker
       - build_pyp:
         requires:
-          build_docker
+          - build_docker
