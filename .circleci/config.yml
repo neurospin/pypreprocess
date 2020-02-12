@@ -82,5 +82,5 @@ workflows:
     jobs:
       - build_docker
       - build_pyp:
-        requires:
-          - build_docker
+          requires:
+            - build_docker
