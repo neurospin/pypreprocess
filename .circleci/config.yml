@@ -3,7 +3,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/buildpack-deps:16
+      - image: circleci/buildpack-deps:16.04
     parallelism: 1
     environment:
       DISTRIB: "conda"
