@@ -7,12 +7,12 @@ jobs:
     parallelism: 1
     environment:
       DISTRIB: "conda"
-      PYTHON_VERSION: "3.5"
-      NUMPY_VERSION: "1.17"
+      PYTHON_VERSION: "*"
+      NUMPY_VERSION: "*"
       SCIPY_VERSION: "*"
       SCIKIT_LEARN_VERSION: "*"
       MATPLOTLIB_VERSION: "*"
-      NIPYPE_VERSION: "0.13.0"
+      NIPYPE_VERSION: "*"
 
     steps:
       - checkout

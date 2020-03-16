@@ -1,8 +1,7 @@
 #! /bin/bash
-# Time-stamp: <2018-02-14 11:26:59 cp983411>
+# Time-stamp: <2020-03-13 11:26:59 cp983411>
 
 # Download and install SPM12 standalone (no Matlab license required)
-# see https://en.wikibooks.org/wiki/SPM/Standalone
 
 set -e
 # set -x  # echo on for debugging
@@ -12,37 +11,37 @@ set -e
 
 if [ $# -eq 0 ]
   then
-      SPM_ROOT_DIR=$HOME/opt/spm12   # default
+      SPM_ROOT_DIR=$HOME/opt_test/spm12   # default
 else
       SPM_ROOT_DIR=$1
 fi
 
 mkdir -p $SPM_ROOT_DIR
+mkdir -p $SPM_ROOT_DIR/mcr
 
 # Download
-SPM_SRC=spm12_r????.zip
-MCRINST=MCRInstaller.bin
+SPM_SRC=spm12_latest*2019b*.zip
+MCRINST=MATLAB*.zip
 
-wget -N -r -l1 --no-parent -nd  -P $SPM_ROOT_DIR -A.zip -R "index.html*" http://www.fil.ion.ucl.ac.uk/spm/download/restricted/utopia/
+wget -N -r -l1 --no-parent -nd  -P $SPM_ROOT_DIR https://www.fil.ion.ucl.ac.uk/spm/download/restricted/utopia/dev/spm12_latest_Linux_R2019b.zip --no-check-certificate
+wget -N -r -l1 --no-parent -nd  -P $SPM_ROOT_DIR/mcr https://ssd.mathworks.com/supportfiles/downloads/R2019b/Release/4/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R2019b_Update_4_glnxa64.zip --no-check-certificate
 
-wget -N -r -l1 --no-parent -nd  -P $SPM_ROOT_DIR -A.bin http://www.fil.ion.ucl.ac.uk/spm/download/restricted/utopia/MCR/glnxa64/
-
-
-# Install
+# Install SPM
 cd $SPM_ROOT_DIR
 unzip -q -u ${SPM_SRC}
 chmod 755 spm12/run_spm12.sh
 
-if [ ! -d mcr ]; then
-   chmod 755 ${MCRINST}
-   ./${MCRINST} -P bean421.installLocation="mcr" -silent
-fi
-   
+# Install Matlab runtime compiler
+cd $SPM_ROOT_DIR/mcr
+unzip ${MCRINST}
+./install -mode silent -agreeToLicense yes -destinationFolder $SPM_ROOT_DIR/mcr -outputFile $SPM_ROOT_DIR/mcr
+
 # create start-up script
+cd $SPM_ROOT_DIR
 cat <<EOF > spm12.sh
 #!/bin/bash
 SPM12_STANDALONE_HOME=$SPM_ROOT_DIR/spm12
-exec "\${SPM12_STANDALONE_HOME}/run_spm12.sh" "\${SPM12_STANDALONE_HOME}/../mcr/v713" \${1+"\$@"}
+exec "\${SPM12_STANDALONE_HOME}/run_spm12.sh" "\${SPM12_STANDALONE_HOME}/../mcr/v97" \${1+"\$@"}
 EOF
 
 chmod 755 spm12.sh
@@ -50,12 +49,12 @@ chmod 755 spm12.sh
 if [ ! -f /usr/lib/x86_64-linux-gnu/libXp.so.6 ]; then
     echo "WARNING!!!"
     echo "/usr/lib/x86_64-linux-gnu/libXp.so.6 is missing"
-    echo 
+    echo
     echo To install it:
-    echo 'sudo add-apt-repository "deb http://securuty.ubuntu.com/ubuntu precise-security main"'
+    echo 'sudo add-apt-repository "deb http://security.ubuntu.com/ubuntu precise-security main"'
     echo 'sudo apt update'
     echo 'sudo apt install lixp6'
-    echo 'sudo add-apt-repository -r "deb http://securuty.ubuntu.com/ubuntu precise-security main"'
+    echo 'sudo add-apt-repository -r "deb http://security.ubuntu.com/ubuntu precise-security main"'
 fi
 
 # Create CTF
@@ -66,6 +65,3 @@ echo
 echo ${cmds}
 echo "IMPORTANT: you should now execute the following line: "
 echo "echo ${cmds} >> $HOME/.bashrc"
-
-
-
