@@ -3,7 +3,7 @@ import sys
 import re
 import time
 import json
-from sklearn.externals import joblib
+import joblib
 import multiprocessing
 
 import nibabel as nb

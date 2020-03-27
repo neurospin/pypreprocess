@@ -7,7 +7,7 @@ import os
 import subprocess
 import nipype.interfaces.fsl as fsl
 from nipype.caching import Memory as NipypeMemory
-from sklearn.externals.joblib import Memory  as JoblibMemory
+from joblib import Memory  as JoblibMemory
 from nilearn._utils.compat import _basestring
 
 fsl.FSLCommand.set_default_output_type('NIFTI_GZ')
