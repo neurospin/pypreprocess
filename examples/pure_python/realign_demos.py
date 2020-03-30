@@ -8,7 +8,7 @@ import sys
 from tempfile import mkdtemp
 from collections import namedtuple
 import matplotlib.pyplot as plt
-from sklearn.externals.joblib import Memory
+from joblib import Memory
 from pypreprocess.realign import MRIMotionCorrection
 from pypreprocess.reporting.check_preprocessing import (
     plot_spm_motion_parameters)

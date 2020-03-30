@@ -18,7 +18,7 @@ import pylab as pl
 import nibabel
 from distutils.version import LooseVersion
 from nilearn._utils.compat import _basestring
-from sklearn.externals import joblib
+import joblib
 from .check_preprocessing import (plot_registration,
                                   plot_segmentation,
                                   plot_spm_motion_parameters)

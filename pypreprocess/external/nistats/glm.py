@@ -22,7 +22,7 @@ import pandas as pd
 from nibabel import load, Nifti1Image
 
 from sklearn.base import BaseEstimator, TransformerMixin, clone
-from sklearn.externals.joblib import Memory
+from joblib import Memory
 from nilearn._utils import CacheMixin
 from nilearn._utils.class_inspect import get_params
 from nilearn.input_data import NiftiMasker
