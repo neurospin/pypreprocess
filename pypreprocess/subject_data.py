@@ -12,7 +12,7 @@ import time
 import warnings
 import numpy as np
 from matplotlib.pyplot import cm
-from sklearn.externals.joblib import Memory
+from joblib import Memory
 from nilearn._utils.compat import _basestring
 from .io_utils import (niigz2nii as do_niigz2nii, dcm2nii as do_dcm2nii,
                        nii2niigz as do_nii2niigz,

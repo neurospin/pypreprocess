@@ -28,7 +28,7 @@ from pypreprocess.reporting.base_reporter import (ProgressReport,
                                                   pretty_time
                                                   )
 from pypreprocess.conf_parser import _generate_preproc_pipeline
-from sklearn.externals.joblib import Parallel, delayed, Memory
+from joblib import Parallel, delayed, Memory
 from nipype.caching import Memory as NipypeMemory
 import nipype.interfaces.spm as spm
 from pypreprocess.io_utils import hard_link

@@ -11,7 +11,7 @@ import scipy.ndimage as ndimage
 import scipy.linalg
 import nibabel
 from nilearn._utils.compat import _basestring
-from sklearn.externals.joblib import Parallel, delayed
+from joblib import Parallel, delayed
 from .kernel_smooth import smooth_image
 from .affine_transformations import (
     get_initial_motion_params, transform_coords, apply_realignment_to_vol,
