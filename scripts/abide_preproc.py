@@ -162,7 +162,7 @@ if len(sys.argv) > 3:
     INSTITUTES = sys.argv[3].split(",")
 
 if DO_DARTEL:
-    from sklearn.externals import joblib
+    import joblib
     joblib.Parallel(n_jobs=1, verbose=100)(
         joblib.delayed(preproc_abide_institute)(
             institute_id,

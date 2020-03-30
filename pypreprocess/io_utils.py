@@ -13,7 +13,7 @@ import tempfile
 import filecmp
 import numpy as np
 import nibabel
-from sklearn.externals import joblib
+import joblib
 from nipype.interfaces.dcm2nii import Dcm2nii
 from nipype.caching import Memory
 from nilearn.image import iter_img

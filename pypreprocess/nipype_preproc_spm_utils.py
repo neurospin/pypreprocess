@@ -19,7 +19,7 @@ from .slice_timing import get_slice_indices
 from .conf_parser import _generate_preproc_pipeline
 import matplotlib
 matplotlib.use('Agg')
-from sklearn.externals.joblib import Parallel, delayed, Memory as JoblibMemory
+from joblib import Parallel, delayed, Memory as JoblibMemory
 from nilearn._utils.compat import _basestring
 import nipype.interfaces.spm as spm
 from nipype.caching import Memory as NipypeMemory
