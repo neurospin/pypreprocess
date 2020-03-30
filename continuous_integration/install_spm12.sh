@@ -11,7 +11,7 @@ set -e
 
 if [ $# -eq 0 ]
   then
-      SPM_ROOT_DIR=$HOME/opt_test/spm12   # default
+      SPM_ROOT_DIR=$HOME/opt/spm12   # default
 else
       SPM_ROOT_DIR=$1
 fi
