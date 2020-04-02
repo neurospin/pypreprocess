@@ -20,10 +20,10 @@ mkdir -p $SPM_ROOT_DIR
 mkdir -p $SPM_ROOT_DIR/mcr
 
 # Download
-SPM_SRC=spm12_latest*2019b*.zip
+SPM_SRC=spm12_r7771_Linux_R2019b.zip
 MCRINST=MATLAB*.zip
 
-wget -N -r -l1 --no-parent -nd  -P $SPM_ROOT_DIR https://www.fil.ion.ucl.ac.uk/spm/download/restricted/utopia/dev/spm12_latest_Linux_R2019b.zip --no-check-certificate
+wget -N -r -l1 --no-parent -nd  -P $SPM_ROOT_DIR https://www.fil.ion.ucl.ac.uk/spm/download/restricted/utopia/dev/$SPM_SRC --no-check-certificate
 wget -N -r -l1 --no-parent -nd  -P $SPM_ROOT_DIR/mcr https://ssd.mathworks.com/supportfiles/downloads/R2019b/Release/4/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R2019b_Update_4_glnxa64.zip --no-check-certificate
 
 # Install SPM
