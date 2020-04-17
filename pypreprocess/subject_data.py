@@ -129,7 +129,7 @@ class SubjectData(object):
 
     def __init__(self, func=None, anat=None, subject_id="sub001",
                  session_ids=None, output_dir=None, session_output_dirs=None,
-                 anat_output_dir=None, scratch=None, warpable=None, 
+                 anat_output_dir=None, scratch=None, warpable=None,
                  caching=True, **kwargs):
         if warpable is None:
             warpable = ['anat', 'func']
