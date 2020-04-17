@@ -17,13 +17,13 @@ matrix:
            NUMPY_VERSION="*" SCIPY_VERSION="*" PANDAS_VERSION="*"
            SCIKIT_LEARN_VERSION="*" JOBLIB_VERSION="*" LXML_VERSION="*"
   include:
-    - name: "Python 3.5 minimum package versions without Matplotlib"
-      python: "3.5"
-      env: DISTRIB="conda" PYTHON_VERSION="3.5" NIBABEL_VERSION="2.0.2"
-           NUMPY_VERSION="1.11" SCIPY_VERSION="0.19" PANDAS_VERSION="0.23.0"
-           SCIKIT_LEARN_VERSION="0.19" COVERAGE="true" JOBLIB_VERSION="0.12"
-           LXML_VERSION="*" NIPYPE_VERSION="0.13.0" NILEARN_VERSION="0.4.2"
-           NETWORKX_VERSION="*" CONFIGOBJ_VERSION="*" MATPLOTLIB_VERSION="*"
+    # - name: "Python 3.5 minimum package versions without Matplotlib"
+    #   python: "3.5"
+    #   env: DISTRIB="conda" PYTHON_VERSION="3.5" NIBABEL_VERSION="2.0.2"
+    #        NUMPY_VERSION="1.11" SCIPY_VERSION="0.19" PANDAS_VERSION="0.23.0"
+    #        SCIKIT_LEARN_VERSION="0.19" COVERAGE="true" JOBLIB_VERSION="0.12"
+    #        LXML_VERSION="*" NIPYPE_VERSION="0.13.0" NILEARN_VERSION="0.4.2"
+    #        NETWORKX_VERSION="*" CONFIGOBJ_VERSION="*" MATPLOTLIB_VERSION="*"
 
 
     - name: "Python 3.5 latest package versions"
