@@ -35,7 +35,7 @@ echo_requirements_string() {
     #   - for scikit-learn, SCIKIT_LEARN_VERSION is used
     TO_INSTALL_ALWAYS="pip nose pytest"
     REQUIREMENTS="$TO_INSTALL_ALWAYS"
-    TO_INSTALL_MAYBE="numpy scipy matplotlib scikit-learn pandas flake8 lxml joblib networkx configobj"
+    TO_INSTALL_MAYBE="numpy scipy matplotlib scikit-learn nilearn nipype pandas flake8 lxml joblib networkx configobj"
     for PACKAGE in $TO_INSTALL_MAYBE; do
         # Capitalize package name and add _VERSION
         PACKAGE_VERSION_VARNAME="${PACKAGE^^}_VERSION"
