@@ -35,7 +35,7 @@ echo_requirements_string() {
     #   - for scikit-learn, SCIKIT_LEARN_VERSION is used
     TO_INSTALL_ALWAYS="pip nose pytest"
     REQUIREMENTS="$TO_INSTALL_ALWAYS"
-    TO_INSTALL_MAYBE="numpy scipy matplotlib scikit-learn nilearn nipype pandas flake8 lxml joblib networkx configobj"
+    TO_INSTALL_MAYBE="numpy scipy matplotlib scikit-learn nilearn nipype pandas flake8 joblib networkx configobj"
     for PACKAGE in $TO_INSTALL_MAYBE; do
         # Capitalize package name and add _VERSION
         PACKAGE_VERSION_VARNAME="${PACKAGE^^}_VERSION"
@@ -67,41 +67,6 @@ create_new_travisci_env() {
         pip install mkl
     fi
 }
-
-# create_new_conda_env() {
-#     # Skip Travis related code on circle ci.
-#     if [ -z $CIRCLECI ]; then
-#         # Deactivate the travis-provided virtual environment and setup a
-#         # conda-based environment instead
-#         deactivate
-#     fi
-#
-#     # Use the miniconda installer for faster download / install of conda
-#     # itself
-#     wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-#         -O ~/miniconda.sh
-#     chmod +x ~/miniconda.sh && ~/miniconda.sh -b
-#     export PATH=$HOME/miniconda3/bin:$PATH
-#     echo $PATH
-#     conda update --quiet --yes conda
-#
-#     # Configure the conda environment and put it in the path using the
-#     # provided versions
-#     REQUIREMENTS=$(print_conda_requirements)
-#     echo "conda requirements string: $REQUIREMENTS"
-#     conda create -n testenv --quiet --yes $REQUIREMENTS
-#     source activate testenv
-#
-#     if [[ "$INSTALL_MKL" == "true" ]]; then
-#         # Make sure that MKL is used
-#         conda install --quiet --yes mkl
-#     elif [[ -z $CIRCLECI ]]; then
-#         # Travis doesn't use MKL but circle ci does for speeding up examples
-#         # generation in the html documentation.
-#         # Make sure that MKL is not used
-#         conda remove --yes --features mkl || echo "MKL not installed"
-#     fi
-# }
 
 if [[ "$DISTRIB" == "neurodebian" ]]; then
     create_new_venv

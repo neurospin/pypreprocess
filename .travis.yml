@@ -12,27 +12,13 @@ matrix:
   # allow_failures keyed to python 3.5 & skipping tests.
     - python: "3.5"
       env: DISTRIB="travisci" PYTHON_VERSION="3.5" FLAKE8_VERSION="*" SKIP_TESTS="true"
-    - python: "3.7"
-      env: DISTRIB="travisci" PIP_FLAGS="--pre" COVERAGE="true"
-           NUMPY_VERSION="*" SCIPY_VERSION="*" PANDAS_VERSION="*"
-           SCIKIT_LEARN_VERSION="*" JOBLIB_VERSION="*" LXML_VERSION="*"
   include:
-    # - name: "Python 3.5 minimum package versions without Matplotlib"
-    #   python: "3.5"
-    #   env: DISTRIB="travisci" PYTHON_VERSION="3.5" NIBABEL_VERSION="2.0.2"
-    #        NUMPY_VERSION="1.11" SCIPY_VERSION="0.19" PANDAS_VERSION="0.23.0"
-    #        SCIKIT_LEARN_VERSION="0.19" COVERAGE="true" JOBLIB_VERSION="0.12"
-    #        LXML_VERSION="*" NIPYPE_VERSION="0.13.0" NILEARN_VERSION="0.4.2"
-    #        NETWORKX_VERSION="*" CONFIGOBJ_VERSION="*" MATPLOTLIB_VERSION="*"
-
-
     - name: "Python 3.5 latest package versions"
       python: "3.5"
       env: DISTRIB="travisci" PYTHON_VERSION="3.5"
            NUMPY_VERSION="*" SCIPY_VERSION="*" PANDAS_VERSION="*"
            SCIKIT_LEARN_VERSION="*" MATPLOTLIB_VERSION="*" COVERAGE="true"
-           JOBLIB_VERSION="*" LXML_VERSION="*"
-           NIPYPE_VERSION="*" NILEARN_VERSION="*"
+           JOBLIB_VERSION="*" NIPYPE_VERSION="*" NILEARN_VERSION="*"
            NETWORKX_VERSION="*" CONFIGOBJ_VERSION="*"
 
     - name: "Python 3.6 latest package versions"
@@ -40,7 +26,7 @@ matrix:
       env: DISTRIB="travisci" PYTHON_VERSION="3.6"
            NUMPY_VERSION="*" SCIPY_VERSION="*" PANDAS_VERSION="*"
            SCIKIT_LEARN_VERSION="*" MATPLOTLIB_VERSION="*" COVERAGE="true"
-           JOBLIB_VERSION="0.12" LXML_VERSION="*" NIPYPE_VERSION="*"
+           JOBLIB_VERSION="0.12" NIPYPE_VERSION="*"
            NILEARN_VERSION="*" NETWORKX_VERSION="*" CONFIGOBJ_VERSION="*"
       # joblib.Memory switches from keyword cachedir to location in version 0.12
       # Making sure we get the deprecation warning.
@@ -50,14 +36,14 @@ matrix:
       env: DISTRIB="travisci" PYTHON_VERSION="3.7"
            NUMPY_VERSION="*" SCIPY_VERSION="*" PANDAS_VERSION="*"
            SCIKIT_LEARN_VERSION="*" MATPLOTLIB_VERSION="*" COVERAGE="true"
-           JOBLIB_VERSION="*" LXML_VERSION="*" NIPYPE_VERSION="*"
+           JOBLIB_VERSION="*" NIPYPE_VERSION="*"
            NILEARN_VERSION="*" NETWORKX_VERSION="*" CONFIGOBJ_VERSION="*"
 
     - name: "Python 3.7 pre-release checks"
       python: "3.7"
       env: DISTRIB="travisci" PIP_FLAGS="--pre" COVERAGE="true"
            NUMPY_VERSION="*" SCIPY_VERSION="*" PANDAS_VERSION="*"
-           SCIKIT_LEARN_VERSION="*" JOBLIB_VERSION="*" LXML_VERSION="*"
+           SCIKIT_LEARN_VERSION="*" JOBLIB_VERSION="*" 
            NIPYPE_VERSION="*" NILEARN_VERSION="*" NETWORKX_VERSION="*"
            MATPLOTLIB_VERSION="*" CONFIGOBJ_VERSION="*"
 
