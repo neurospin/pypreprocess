@@ -2,7 +2,7 @@ import os
 import glob
 import re
 import nibabel
-from sklearn.datasets.base import Bunch
+from sklearn.utils import Bunch
 
 # XXX nilearn.datasets.py got factorized recently. The following codeblock
 # is to ensure backward compat.
@@ -33,7 +33,7 @@ def fetch_spm_auditory(data_dir=None, data_name='spm_auditory',
 
     Returns
     -------
-    data: sklearn.datasets.base.Bunch
+    data: sklearn.utils.Bunch
         Dictionary-like object, the interest attributes are:
         - 'func': string list. Paths to functional images
         - 'anat': string list. Path to anat image
@@ -128,7 +128,7 @@ def fetch_fsl_feeds(data_dir=None, data_name="fsl_feeds", verbose=1):
 
     Returns
     -------
-    data: sklearn.datasets.base.Bunch
+    data: sklearn.utils.Bunch
         Dictionary-like object, the interest attributes are:
         - 'func': string list. Paths to functional images
         - 'anat': string list. Path to anat image
@@ -199,7 +199,7 @@ def fetch_spm_multimodal_fmri(data_dir=None, data_name="spm_multimodal_fmri",
 
     Returns
     -------
-    data: sklearn.datasets.base.Bunch
+    data: sklearn.utils.Bunch
         Dictionary-like object, the interest attributes are:
         - 'func1': string list. Paths to functional images for session 1
         - 'func2': string list. Paths to functional images for session 2
