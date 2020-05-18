@@ -87,8 +87,7 @@ def test_save_vols():
                         assert os.path.basename(saved_vols_filenames[7]) == 'fMETHODS-000007.nii.gz'
                 else:
                     assert isinstance(saved_vols_filenames), str
-                    assert saved_vols_filenames.endswith('.nii.gz'),
-                                saved_vols_filenames
+                    assert saved_vols_filenames.endswith('.nii.gz'), saved_vols_filenames
                     assert is_4D(check_niimg_4d(saved_vols_filenames))
 
 
@@ -307,19 +306,15 @@ def test_niigz2nii_with_list_of_lists_of_filenames():
 
 def test_expand_path():
     # paths with . (current directory)
-    assert _expand_path("./my/funky/brakes", relative_to="/tmp") ==
-                 "/tmp/my/funky/brakes"
+    assert _expand_path("./my/funky/brakes", relative_to="/tmp") == "/tmp/my/funky/brakes"
 
     # paths with .. (parent directory)
-    assert _expand_path("../my/funky/brakes", relative_to="/tmp") ==
-                 "/my/funky/brakes"
+    assert _expand_path("../my/funky/brakes", relative_to="/tmp") == "/my/funky/brakes"
     assert _expand_path(".../my/funky/brakes", relative_to="/tmp") == None
 
     # paths with tilde
-    assert _expand_path("~/my/funky/brakes") ==
-                 os.path.join(os.environ['HOME'], "my/funky/brakes")
-    assert _expand_path("my/funky/brakes", relative_to="~") ==
-                 os.path.join(os.environ['HOME'], "my/funky/brakes")
+    assert _expand_path("~/my/funky/brakes") == os.path.join(os.environ['HOME'], "my/funky/brakes")
+    assert _expand_path("my/funky/brakes", relative_to="~") == os.path.join(os.environ['HOME'], "my/funky/brakes")
 
 
 def test_isdicom():
@@ -365,11 +360,9 @@ def test_get_shape():
 def test_get_relative_path():
     assert get_relative_path("dop/", "dop/rob") == "rob"
 
-    assert get_relative_path("/toto/titi", "/toto/titi/tata/test.txt") ==
-                 "tata/test.txt"
+    assert get_relative_path("/toto/titi", "/toto/titi/tata/test.txt") == "tata/test.txt"
     assert get_relative_path("/toto/titi", "/toto/titi/tata/") == "tata")
-    assert get_relative_path("/toto/titi", "/toto/titI/tato/dada") ==
-                 None
+    assert get_relative_path("/toto/titi", "/toto/titI/tato/dada") == None
     assert get_relative_path("/toto/titi", "/toto/titi") == ""
 
 
