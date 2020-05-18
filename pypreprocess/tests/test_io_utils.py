@@ -81,7 +81,7 @@ def test_save_vols():
                                                  basenames=bn
                                                  )
                 if not concat and isinstance(stuff, list):
-                    assert isinstance(saved_vols_filenames, list))
+                    assert isinstance(saved_vols_filenames, list)
                     assert len(saved_vols_filenames) == n_scans)
                     if not bn is None:
                         assert os.path.basename(saved_vols_filenames[7]) ==

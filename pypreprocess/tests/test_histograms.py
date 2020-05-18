@@ -41,7 +41,7 @@ def test_trilinear_interp():
 
     assert trilinear_interp(f, shape, 1, 1, 1) == 0.
     assert trilinear_interp(f, shape, 2, 1, 1) == 1.
-    assert trilinear_interp(f, shape, 1 + shape[0], 1, 1) == shape[0])
+    assert trilinear_interp(f, shape, 1 + shape[0], 1, 1) == shape[0]
     assert 0. < trilinear_interp(f, shape, 1.5, 1., 1.) < 1.
 
 
