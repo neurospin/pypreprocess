@@ -361,7 +361,7 @@ def test_get_relative_path():
     assert get_relative_path("dop/", "dop/rob") == "rob"
 
     assert get_relative_path("/toto/titi", "/toto/titi/tata/test.txt") == "tata/test.txt"
-    assert get_relative_path("/toto/titi", "/toto/titi/tata/") == "tata")
+    assert get_relative_path("/toto/titi", "/toto/titi/tata/") == "tata"
     assert get_relative_path("/toto/titi", "/toto/titI/tato/dada") == None
     assert get_relative_path("/toto/titi", "/toto/titi") == ""
 
