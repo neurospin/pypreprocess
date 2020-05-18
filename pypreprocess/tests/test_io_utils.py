@@ -84,8 +84,7 @@ def test_save_vols():
                     assert isinstance(saved_vols_filenames, list)
                     assert len(saved_vols_filenames) == n_scans
                     if not bn is None:
-                        assert os.path.basename(saved_vols_filenames[7]) ==
-                                     'fMETHODS-000007.nii.gz'
+                        assert os.path.basename(saved_vols_filenames[7]) == 'fMETHODS-000007.nii.gz'
                 else:
                     assert isinstance(saved_vols_filenames), str)
                     assert saved_vols_filenames.endswith('.nii.gz'),
