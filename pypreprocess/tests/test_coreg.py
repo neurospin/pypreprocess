@@ -21,8 +21,7 @@ def test_compute_similarity_from_jhist():
         s = compute_similarity_from_jhist(jh, cost_fun=cost_fun)
         assert s <= 1
 
-xfail = pytest.mark.xfail
-@xfail(run=False)
+@pytest.mark.skip()
 def test_coregister_on_toy_data():
     shape = (23, 29, 31)
     ref = nibabel.Nifti1Image(np.arange(np.prod(shape)).reshape(shape),

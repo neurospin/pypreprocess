@@ -1,4 +1,4 @@
-str"""
+"""
 :Synopsis: Parser for pypreprocess .ini configuration files.
 :Author: DOHMATOB Elvis Dopgima <gmdopp@gmail.com> <elvis.dohmatob@inria.fr>
 

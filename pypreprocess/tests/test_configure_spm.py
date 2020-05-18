@@ -299,8 +299,7 @@ def _execute_spm_config_test(defaults, explicitly_set, spm_root):
                            'causing spurious test failures',
                     )
 
-xfail = pytest.mark.xfail
-@xfail
+@pytest.mark.skip()
 def test_spm_config(scratch_dir='/tmp/'):
     """prepare dir containing fake Matlab and SPM installs and launch tests."""
     scratch_dir = os.path.abspath(os.path.expanduser(scratch_dir))

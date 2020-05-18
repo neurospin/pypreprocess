@@ -219,8 +219,7 @@ def test_MRIMotionCorrection_fit():
             assert len(set(mrimc_output['realigned_images'][0])) == n_scans
             assert len(set(mrimc_output['realigned_images'][0])) == n_scans
 
-xfail = pytest.mark.xfail
-@xfail
+@pytest.mark.skip()
 def test_bug_fix_issue_36_on_realign():
     from pypreprocess.datasets import fetch_spm_auditory
     sd = fetch_spm_auditory("/tmp/spm_auditory/")
