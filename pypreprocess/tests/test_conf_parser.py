@@ -1,6 +1,4 @@
 import os
-from nose.tools import assert_true, assert_equal
-from nilearn._utils.testing import assert_raises_regex
 from ..conf_parser import _generate_preproc_pipeline
 from ._test_utils import _make_sd
 
@@ -25,12 +23,14 @@ def test_obligatory_params_config():
         os.makedirs(dataset_dir)
     config_file = os.path.join(dataset_dir, "empty.ini")
     _make_config(config_file)
-    assert_raises_regex(ValueError, "dataset_dir not specified",
-                        _generate_preproc_pipeline, config_file)
+    with pytest.raises(ValueError):
+        assert "dataset_dir not specified" in
+                _generate_preproc_pipeline(config_file)
 
     _make_config(config_file, dataset_dir=dataset_dir)
-    assert_raises_regex(ValueError, "output_dir not specified",
-                        _generate_preproc_pipeline, config_file)
+    with pytest.raises(ValueError):
+        assert "output_dir not specified" in
+                _generate_preproc_pipeline(config_file)
 
     # this should not give any errors
     _make_config(config_file, dataset_dir=dataset_dir, output_dir=output_dir,
@@ -47,7 +47,7 @@ def test_issue110():
     _make_config(config_file, newsegment=True, dataset_dir=dataset_dir,
                  output_dir=output_dir)
     _, options = _generate_preproc_pipeline(config_file)
-    assert_true(options["newsegment"])
+    assert options["newsegment"]
 
 
 def test_empty_params_default_to_none():
@@ -58,9 +58,9 @@ def test_empty_params_default_to_none():
         _make_config(config_file, dataset_dir=dataset_dir,
                      output_dir=output_dir)
         _make_config(config_file)
-        assert_raises_regex(ValueError, "dataset_dir not specified",
-                            _generate_preproc_pipeline, config_file)
-
+        with pytest.raises(ValueError):
+            assert "dataset_dir not specified" in
+                    _generate_preproc_pipeline(config_file)
 
 def test_bf_issue_62():
     dataset_dir = "/tmp/dataset"
@@ -83,8 +83,8 @@ def test_bf_issue_62():
                  session_2_func="session2/func.nii",
                  session_3_func="session3/func.nii")
     subjects, _ = _generate_preproc_pipeline(config_file)
-    assert_equal(len(subjects[0]['func']), 3)
-    assert_equal(len(subjects[1]['func']), 2)
+    assert len(subjects[0]['func']) == 3
+    assert len(subjects[1]['func']) == 2
 
 
 def test_newsegment_if_dartel():
@@ -95,8 +95,8 @@ def test_newsegment_if_dartel():
         _make_config(config_file, dataset_dir=dataset_dir,
                      output_dir=output_dir, dartel=True, **kwargs)
         _, params = _generate_preproc_pipeline(config_file)
-        assert_true(params["dartel"])
-        assert_true(params["newsegment"])
+        assert params["dartel"]
+        assert params["newsegment"]
 
 
 def test_bf_issue_122():
@@ -134,7 +134,7 @@ def test_explicit_list_subdirs():
             dataset_dir, "%s/session1/func_3D.nii" % subject_id)],
                  output_dir=os.path.join(output_dir, subject_id))
     subjects, _ = _generate_preproc_pipeline(config_file)
-    assert_equal(len(subjects), 2)
+    assert len(subjects) == 2
 
 
 def test_list_of_subj_wildcards():
@@ -150,7 +150,7 @@ def test_list_of_subj_wildcards():
     _make_config(config_file, subject_dirs=["subx*", "suby*"],
                  session_1_func="session1/func_3D.nii")
     subjects, _ = _generate_preproc_pipeline(config_file)
-    assert_equal(len(subjects), 4)
+    assert len(subjects) == 4
 
 
 def test_user_specified_scratch():
@@ -165,4 +165,4 @@ def test_user_specified_scratch():
              output_dir=os.path.join(output_dir, "sub001"),
              func_ndim=3)
     subjects, _ = _generate_preproc_pipeline(config_file)
-    assert_equal(subjects[0].scratch, "/tmp/scratch/sub001")
+    assert subjects[0].scratch == "/tmp/scratch/sub001"

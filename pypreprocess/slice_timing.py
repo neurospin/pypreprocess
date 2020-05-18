@@ -10,7 +10,6 @@ import nibabel
 import scipy
 import numpy as np
 from nilearn.image.image import check_niimg
-from nilearn._utils.compat import _basestring
 from .io_utils import is_niimg, save_vols, get_basenames
 
 
@@ -45,7 +44,7 @@ def get_slice_indices(n_slices, slice_order='ascending',
     ValueError
     """
 
-    if isinstance(slice_order, _basestring):
+    if isinstance(slice_order, str):
         slice_indices = list(range(n_slices))
         if interleaved:
             # python indexing begins from 0 (MATLAB begins from 1)
@@ -432,18 +431,18 @@ class fMRISTC(STC):
         if not hasattr(self, 'basenames_'):
             self.basenames_ = None
 
-        if isinstance(raw_data, _basestring):
-            # _basestring
-            if isinstance(raw_data, _basestring):
+        if isinstance(raw_data, str):
+            # str
+            if isinstance(raw_data, str):
                 self.basenames_ = os.path.basename(raw_data)
             img = nibabel.load(raw_data)
             raw_data, self.affine_ = img.get_data(), img.get_affine()
         elif is_niimg(raw_data):
             raw_data, self.affine_ = raw_data.get_data(), raw_data.get_affine()
         elif isinstance(raw_data, list) and (isinstance(
-                raw_data[0], _basestring) or is_niimg(raw_data[0])):
+                raw_data[0], str) or is_niimg(raw_data[0])):
             # list of strings or niimgs
-            if isinstance(raw_data[0], _basestring):
+            if isinstance(raw_data[0], str):
                 self.basenames_ = [os.path.basename(x) for x in raw_data]
             n_scans = len(raw_data)
             _first = check_niimg(raw_data[0])

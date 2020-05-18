@@ -1,6 +1,5 @@
 import numpy as np
 import nibabel
-from nose.tools import assert_equal
 import numpy.testing
 from ..kernel_smooth import fwhm2sigma, sigma2fwhm, smooth_image
 
@@ -57,12 +56,12 @@ def test_fwhm2sigma_and_sigma2fwhm_are_inverses():
 def test_smooth_image_for_3D_vol():
     vol = create_random_image()
     svol = smooth_image(vol, [5, 7, 11.])
-    assert_equal(svol.shape, vol.shape)
+    assert svol.shape == vol.shape
     numpy.testing.assert_array_equal(svol.get_affine(), vol.get_affine())
 
 
 def test_smooth_image_for_4D_film():
     film = create_random_image(ndim=4)
     sfilm = smooth_image(film, [5, 7., 11])
-    assert_equal(sfilm.shape, film.shape)
+    assert sfilm.shape == film.shape
     numpy.testing.assert_array_equal(sfilm.get_affine(), film.get_affine())

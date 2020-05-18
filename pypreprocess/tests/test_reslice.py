@@ -1,5 +1,4 @@
 import numpy as np
-from nose.tools import assert_false
 import nibabel
 from nilearn.image import iter_img
 from ..reslice import reslice_vols
@@ -34,8 +33,7 @@ def test_reslice_vols():
     film = apply_realignment(film, rp)
 
     # affines are not the same
-    assert_false(np.all(
-        film[1].get_affine() == film[0].get_affine()))
+    assert not np.all(film[1].get_affine() == film[0].get_affine())
 
     # reslice vols
     film = list(reslice_vols(film))

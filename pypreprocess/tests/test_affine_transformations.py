@@ -1,5 +1,4 @@
 import numpy as np
-from nose.tools import assert_equal
 import nibabel
 from ..affine_transformations import (
     get_initial_motion_params, spm_matrix, spm_imatrix, transform_coords,
@@ -49,7 +48,7 @@ def test_transform_coords():
     new_coords = transform_coords(p, M1, M2, coords)
 
     # coords shouldn't change
-    assert_equal(new_coords.shape, (3, 1))
+    assert new_coords.shape == (3, 1)
     np.testing.assert_array_equal(new_coords.ravel(), coords)
 
 
@@ -71,9 +70,9 @@ def test_physical_coords():
     affine = np.eye(4)
     affine[:-1, -1] = [1., -1., 1.]
     coords = get_physical_coords(affine, [1, 2, 3])
-    assert_equal(coords.ndim, 2)
-    assert_equal(coords.shape[1], 1)
-    assert_equal(coords.shape[0], 3)
+    assert coords.ndim == 2
+    assert coords.shape[1] == 1
+    assert coords.shape[0] == 3
     np.testing.assert_array_equal(coords.ravel(), [2., 1., 4.])
 
 

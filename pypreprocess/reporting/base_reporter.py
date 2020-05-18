@@ -11,7 +11,6 @@ import time
 import matplotlib as mpl
 import pylab as pl
 import numpy as np
-from nilearn._utils.compat import _basestring
 from ..external.tempita import HTMLTemplate, bunch
 
 # find package path
@@ -49,7 +48,7 @@ def lines2breaks(lines, delimiter="\n", number_lines=False):
     -------
     HTML-formatted string
     """
-    if isinstance(lines, _basestring):
+    if isinstance(lines, str):
         lines = lines.split(delimiter)
     if not number_lines:
         lines = ["%s" % line for line in lines]
@@ -94,7 +93,7 @@ def dict_to_html_ul(mydict):
             val = str(stuff)
         return val
 
-    if isinstance(mydict, _basestring):
+    if isinstance(mydict, str):
         return mydict
     elif isinstance(mydict, list):
         return make_li(mydict)
@@ -124,7 +123,7 @@ def get_module_source_code(mod):
     string, line-numbered HTML-formated code-block
 
     """
-    if isinstance(mod, _basestring):
+    if isinstance(mod, str):
         filename = mod
     elif isinstance(mod, type(os)):
         filename = mod.__file__
@@ -427,7 +426,7 @@ class ProgressReport(object):
         filename: string
             existing filename
         """
-        assert isinstance(filename, _basestring)
+        assert isinstance(filename, str)
         self.watched_files.append(filename)
 
 
@@ -601,7 +600,7 @@ def copy_web_conf_files(output_dir):
     def _copy_web_conf_file_ext(src_dir_basename, extentions, ignore=None):
         if ignore is None:
             ignore = []
-        if isinstance(ignore, _basestring):
+        if isinstance(ignore, str):
             ignore = [ignore]
 
         for ext in extentions:
