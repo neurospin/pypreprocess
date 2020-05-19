@@ -1,5 +1,6 @@
 import os
 import inspect
+import pytest
 import numpy as np
 import nibabel
 from ..slice_timing import STC, fMRISTC, get_slice_indices

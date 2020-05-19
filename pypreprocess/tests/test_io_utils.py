@@ -86,7 +86,7 @@ def test_save_vols():
                     if not bn is None:
                         assert os.path.basename(saved_vols_filenames[7]) == 'fMETHODS-000007.nii.gz'
                 else:
-                    assert isinstance(saved_vols_filenames), str
+                    assert isinstance(saved_vols_filenames, str)
                     assert saved_vols_filenames.endswith('.nii.gz'), saved_vols_filenames
                     assert is_4D(check_niimg_4d(saved_vols_filenames))
 
