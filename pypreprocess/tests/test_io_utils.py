@@ -335,14 +335,14 @@ def test_isdicom():
 def test_is_3D():
     vol = create_random_image(ndim=3)
     assert is_3D(vol)
-    assert is_4D(vol)
+    assert not is_4D(vol)
     assert not is_3D(create_random_image(shape=(64, 64, 64, 1)))
 
 
 def test_is_4d():
     film = create_random_image(ndim=4)
     assert is_4D(film)
-    assert is_3D(film)
+    assert not is_3D(film)
     assert is_4D(create_random_image(shape=(64, 64, 64, 1)))
 
 
