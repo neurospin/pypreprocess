@@ -44,7 +44,7 @@ def test_coregister_on_toy_data():
                                      [1., 1., 1.])
 
 
-@nottest
+@pytest.mark.skip()
 def test_coregister_on_real_data():
     # load data
     _tmp = scipy.io.loadmat(
