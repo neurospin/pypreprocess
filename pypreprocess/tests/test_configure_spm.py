@@ -306,11 +306,13 @@ def test_spm_config(scratch_dir='/tmp/'):
     spm_root, dir_spec = _spm_test_dummy_arborescence(root=scratch_dir)
 
     # break spm13 installation
-    dir_spec['dirs']['spm13']['dirs']['spm13']['dirs']['spm13_mcr']['dirs'] = {}
+    # dir_spec['dirs']['spm13']['dirs']['spm13']['dirs']['spm13_mcr']['dirs'] = {}
+    dir_spec['dirs']['spm12']['dirs']['spm12']['dirs']['spm12_mcr']['dirs'] = {}
 
     _make_dirs(spm_root, dir_spec)
 
-    for v_nb in [7, 8, 12, 13]:
+    # for v_nb in [7, 8, 12, 13]:
+    for v_nb in [8, 12]:
         spm_exec_path = os.path.join(
             spm_root, 'spm{nb}/spm{nb}.sh'.format(nb=v_nb))
         st = os.stat(spm_exec_path)
