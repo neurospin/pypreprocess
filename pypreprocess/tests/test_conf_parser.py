@@ -23,12 +23,12 @@ def test_obligatory_params_config():
         os.makedirs(dataset_dir)
     config_file = os.path.join(dataset_dir, "empty.ini")
     _make_config(config_file)
-    # with pytest.raises(ValueError):
-    assert "dataset_dir not specified" in _generate_preproc_pipeline(config_file)
+    with pytest.raises(ValueError):
+        assert "dataset_dir not specified" in _generate_preproc_pipeline(config_file)
 
     _make_config(config_file, dataset_dir=dataset_dir)
-    # with pytest.raises(ValueError):
-    assert "output_dir not specified" in _generate_preproc_pipeline(config_file)
+    with pytest.raises(ValueError):
+        assert "output_dir not specified" in _generate_preproc_pipeline(config_file)
 
     # this should not give any errors
     _make_config(config_file, dataset_dir=dataset_dir, output_dir=output_dir,
