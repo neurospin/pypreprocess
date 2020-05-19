@@ -29,7 +29,7 @@ from nilearn.input_data import NiftiMasker
 from nilearn.masking import compute_multi_epi_mask as compute_mask_sessions
 
 from .regression import OLSModel, ARModel
-from .utils import multiple_mahalanobis, z_score, _basestring
+from .utils import multiple_mahalanobis, z_score
 
 DEF_TINY = 1e-50
 DEF_DOFMAX = 1e10
@@ -316,14 +316,14 @@ class FirstLevelGLM(BaseEstimator, TransformerMixin, CacheMixin):
                 setattr(self.masker_, param_name, our_param)
 
         # make design_matrices a list of arrays
-        if isinstance(design_matrices, (_basestring, pd.DataFrame)):
+        if isinstance(design_matrices, (str, pd.DataFrame)):
             design_matrices_ = [design_matrices]
         else:
             design_matrices_ = [X for X in design_matrices]
 
         design_matrices = []
         for design_matrix in design_matrices_:
-            if isinstance(design_matrix, _basestring):
+            if isinstance(design_matrix, str):
                 loaded = pd.read_csv(design_matrix, index_col=0)
                 design_matrices.append(loaded.values)
             elif isinstance(design_matrix, pd.DataFrame):
@@ -334,7 +334,7 @@ class FirstLevelGLM(BaseEstimator, TransformerMixin, CacheMixin):
                     'string. A %s was provided' % type(design_matrix))
 
         # make imgs a list of Nifti1Images
-        if isinstance(imgs, (Nifti1Image, _basestring)):
+        if isinstance(imgs, (Nifti1Image, str)):
             imgs = [imgs]
 
         if len(imgs) != len(design_matrices):
