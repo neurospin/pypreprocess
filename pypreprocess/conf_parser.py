@@ -300,7 +300,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
 
     # subject data factory
     subject_data_dirs = options.get("subject_dirs", "*")
-    if isinstance(subject_data_dirs, _basestring):
+    if isinstance(subject_data_dirs, str):
         subject_dir_wildcard = os.path.join(dataset_dir, subject_data_dirs)
         subject_data_dirs = [x for x in sorted(glob.glob(subject_dir_wildcard))
                              if os.path.isdir(x)]
