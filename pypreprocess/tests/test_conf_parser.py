@@ -57,8 +57,8 @@ def test_empty_params_default_to_none():
         _make_config(config_file, dataset_dir=dataset_dir,
                      output_dir=output_dir)
         _make_config(config_file)
-        # with pytest.raises(ValueError):
-        assert "dataset_dir not specified" in _generate_preproc_pipeline(config_file)
+        with pytest.raises(ValueError):
+            assert "dataset_dir not specified" in _generate_preproc_pipeline(config_file)
 
 def test_bf_issue_62():
     dataset_dir = "/tmp/dataset"
