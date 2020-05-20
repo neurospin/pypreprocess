@@ -19,7 +19,7 @@ def test_compute_similarity_from_jhist():
 
     for cost_fun in ['mi', 'nmi', 'ecc']:
         s = compute_similarity_from_jhist(jh, cost_fun=cost_fun)
-        assert s <= 1
+        assert not (s > 1)
 
 @pytest.mark.skip()
 def test_coregister_on_toy_data():
