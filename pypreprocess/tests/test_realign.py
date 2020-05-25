@@ -2,7 +2,7 @@ import os
 import inspect
 import numpy as np
 import scipy.io
-from nose.tools import assert_true, assert_equal, nottest
+import pytest
 import nibabel
 from nibabel.processing import smooth_image as nibabel_smoothing
 from nilearn.image import index_img
@@ -215,14 +215,11 @@ def test_MRIMotionCorrection_fit():
             # check transform
             ####################
             mrimc_output = mrimc.transform(output_dir)
-            assert_equal(len(mrimc_output['realigned_images']), 1)
-            assert_equal(len(set(mrimc_output['realigned_images'][0])),
-                         n_scans)
-            assert_equal(len(set(mrimc_output['realigned_images'][0])),
-                         n_scans)
+            assert len(mrimc_output['realigned_images']) == 1
+            assert len(set(mrimc_output['realigned_images'][0])) == n_scans
+            assert len(set(mrimc_output['realigned_images'][0])) == n_scans
 
-
-@nottest
+@pytest.mark.skip()
 def test_bug_fix_issue_36_on_realign():
     from pypreprocess.datasets import fetch_spm_auditory
     sd = fetch_spm_auditory("/tmp/spm_auditory/")

@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import nibabel
 from nilearn.plotting import plot_img
 from nilearn.image import reorder_img, mean_img
-from nilearn._utils.compat import _basestring
 from ..io_utils import load_vols
 EPS = np.finfo(float).eps
 
@@ -34,7 +33,7 @@ def plot_spm_motion_parameters(parameter_file, title=None, close=False):
 
     # load parameters
     motion = np.loadtxt(parameter_file) if isinstance(
-        parameter_file, _basestring) else parameter_file[..., :6]
+        parameter_file, str) else parameter_file[..., :6]
 
     motion[:, 3:] *= (180. / np.pi)
 
@@ -109,7 +108,7 @@ def plot_registration(reference_img, coregistered_img,
 
     # XXX nilearn complains about rotations in affine, etc.
     reference_img = reorder_img(reference_img, resample="continuous")
-    
+
     _slicer.add_edges(reference_img)
     # misc
     _slicer.title(title, size=12, color='w', alpha=0)

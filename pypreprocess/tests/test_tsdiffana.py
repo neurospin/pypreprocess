@@ -8,8 +8,6 @@ from numpy.testing import assert_array_almost_equal
 from ..time_diff import (time_slice_diffs, multi_session_time_slice_diffs,
                          plot_tsdiffs)
 from ._test_utils import _make_sd
-from nose.tools import assert_true, assert_false
-
 
 def make_test_data(n_scans=3):
     shape = (7, 8, 9, n_scans)
@@ -133,11 +131,11 @@ def test_ts_diff_ana_nan():
 
     report = time_slice_diffs(film)
 
-    assert_false(np.isnan(report['volume_means']).any())
-    assert_false(np.isnan(report['volume_mean_diff2']).any())
-    assert_false(np.isnan(report['slice_mean_diff2']).any())
-    assert_false(np.isnan(report['diff2_mean_vol'].get_data()).any())
-    assert_false(np.isnan(report['slice_diff2_max_vol'].get_data()).any())
+    assert not np.any(np.isnan(report['volume_means']))
+    assert not np.any(np.isnan(report['volume_mean_diff2']))
+    assert not np.any(np.isnan(report['slice_mean_diff2']))
+    assert not np.any(np.isnan(report['diff2_mean_vol'].get_data()))
+    assert not np.any(np.isnan(report['slice_diff2_max_vol'].get_data()))
 
 
 def test_issue_144():
@@ -147,6 +145,6 @@ def test_issue_144():
     sd.sanitize()
     try:
         time_slice_diffs(sd.func[0])
-        assert_true(False)
+        assert False
     except Exception:
         pass

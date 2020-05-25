@@ -11,9 +11,6 @@ import scipy.special
 from scipy.signal import sepfir2d
 import numpy as np
 import nibabel
-
-from nilearn._utils.compat import _basestring
-
 from .affine_transformations import (spm_matrix, apply_realignment,
                                      nibabel2spm_affine)
 from .io_utils import loaduint8, get_basenames, save_vols
@@ -415,7 +412,7 @@ class Coregister(object):
         coregistered_source = list(apply_realignment(source, self.params_,
                                                      inverse=True))
         if output_dir is not None:
-            concat = isinstance(basenames, _basestring)
+            concat = isinstance(basenames, str)
             coregistered_source = save_vols(coregistered_source,
                                             output_dir=output_dir,
                                             basenames=basenames,

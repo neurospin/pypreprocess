@@ -1,8 +1,8 @@
 import os
 import inspect
+import pytest
 import numpy as np
 import nibabel
-from nose.tools import assert_equal, assert_true, raises
 from ..slice_timing import STC, fMRISTC, get_slice_indices
 from ..io_utils import save_vols
 
@@ -44,26 +44,26 @@ def test_get_slice_indices_explicit():
         [4, 0, 3, 2, 1])
 
 
-@raises(ValueError)
 def test_get_slice_indices_explicit_interleaved():
     slice_order = [1, 4, 3, 2, 0]
-    np.testing.assert_array_equal(
-        get_slice_indices(5, slice_order=slice_order,
-                          interleaved=True), [2, 0, 4, 1, 3])
+    with pytest.raises(ValueError):
+        np.testing.assert_array_equal(
+            get_slice_indices(5, slice_order=slice_order,
+                              interleaved=True), [2, 0, 4, 1, 3])
 
 
 def test_STC_constructor():
     stc = STC()
-    assert_equal(stc.ref_slice, 0)
-    assert_equal(stc.interleaved, False)
-    assert_true(stc.verbose == 1)
+    assert stc.ref_slice == 0
+    assert stc.interleaved == False
+    assert stc.verbose == 1
 
 
 def test_fMRISTC_constructor():
     fmristc = fMRISTC()
-    assert_equal(fmristc.ref_slice, 0)
-    assert_equal(fmristc.interleaved, False)
-    assert_true(fmristc.verbose == 1)
+    assert fmristc.ref_slice == 0
+    assert fmristc.interleaved == False
+    assert fmristc.verbose == 1
 
 
 def check_STC(true_signal, corrected_signal, ref_slice=0,
@@ -246,16 +246,13 @@ def test_transform():
 
             # test output type, shape, etc.
             if isinstance(stuff, list):
-                assert_true(isinstance(
-                        output, list))
-                assert_equal(len(output),
-                             film.shape[-1])
+                assert isinstance(output, list)
+                assert len(output) == film.shape[-1]
                 if as_files:
-                    assert_equal(os.path.basename(output[7]),
-                                 'afMETHODS-000007.nii')
+                    assert os.path.basename(output[7]) == 'afMETHODS-000007.nii'
             else:
                 if as_files:
-                    assert_equal(os.path.basename(output), 'afilm.nii.gz')
+                    assert os.path.basename(output) == 'afilm.nii.gz'
 
 
 def test_get_slice_indices_not_final():

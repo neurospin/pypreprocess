@@ -15,7 +15,6 @@ import nibabel
 import subprocess
 from nipy.modalities.fmri.glm import FMRILinearModel
 from nilearn.masking import intersect_masks
-from nilearn._utils.compat import _basestring
 from pypreprocess.nipype_preproc_spm_utils import (SubjectData,
                                                    _do_subject_realign,
                                                    do_subject_preproc)
@@ -170,7 +169,7 @@ def _do_fmri_distortion_correction(subject_data,
             dc_fmri_files.append(dc_rfmri_file)
 
         subject_data.func = dc_fmri_files
-        if isinstance(subject_data.func, _basestring):
+        if isinstance(subject_data.func, str):
             subject_data.func = [subject_data.func]
 
     # continue preprocessing

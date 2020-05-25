@@ -2,10 +2,8 @@ import os
 import tempfile
 import inspect
 import numpy as np
-from nose.tools import assert_equal, assert_true, assert_false
 import nibabel
 from nilearn.image.image import check_niimg_4d
-from nilearn._utils.compat import _basestring
 from numpy.testing import assert_array_equal
 
 from pypreprocess.io_utils import delete_orientation
@@ -45,12 +43,10 @@ def test_save_vol():
     vol = create_random_image(ndim=3)
     output_filename = save_vol(vol, output_dir=output_dir,
                                basename='123.nii.gz')
-    assert_equal(os.path.basename(output_filename),
-                 '123.nii.gz')
+    assert os.path.basename(output_filename) == '123.nii.gz'
     output_filename = save_vol(vol, output_dir=output_dir, basename='123.img',
                                prefix='s')
-    assert_equal(os.path.basename(output_filename),
-                 's123.img')
+    assert os.path.basename(output_filename) == 's123.img'
 
 
 def test_save_vols():
@@ -85,19 +81,14 @@ def test_save_vols():
                                                  basenames=bn
                                                  )
                 if not concat and isinstance(stuff, list):
-                    assert_true(isinstance(
-                        saved_vols_filenames, list))
-                    assert_equal(len(saved_vols_filenames),
-                                 n_scans)
+                    assert isinstance(saved_vols_filenames, list)
+                    assert len(saved_vols_filenames) == n_scans
                     if not bn is None:
-                        assert_equal(os.path.basename(saved_vols_filenames[7]),
-                                     'fMETHODS-000007.nii.gz')
+                        assert os.path.basename(saved_vols_filenames[7]) == 'fMETHODS-000007.nii.gz'
                 else:
-                    assert_true(isinstance(saved_vols_filenames, _basestring))
-                    assert_true(saved_vols_filenames.endswith('.nii.gz'),
-                                msg=saved_vols_filenames)
-                    assert_true(is_4D(check_niimg_4d(
-                                saved_vols_filenames)))
+                    assert isinstance(saved_vols_filenames, str)
+                    assert saved_vols_filenames.endswith('.nii.gz'), saved_vols_filenames
+                    assert is_4D(check_niimg_4d(saved_vols_filenames))
 
 
 def test_save_vols_from_ndarray_with_affine():
@@ -118,10 +109,10 @@ def test_save_vols_from_ndarray_with_affine():
                 stuff, output_dir, ext='.nii.gz', affine=np.eye(4),
                 concat=concat)
             if not concat and isinstance(stuff, list):
-                assert_true(isinstance(saved_vols_filenames, list))
-                assert_equal(len(saved_vols_filenames), n_scans)
+                assert isinstance(saved_vols_filenames, list)
+                assert len(saved_vols_filenames) == n_scans
             else:
-                assert_true(isinstance(saved_vols_filenames, _basestring))
+                assert isinstance(saved_vols_filenames, str)
 
 
 def test_do_3Dto4D_merge():
@@ -137,7 +128,7 @@ def test_do_3Dto4D_merge():
 
     _film = do_3Dto4D_merge(threeD_vols)
 
-    assert_equal(_film.shape, film.shape)
+    assert _film.shape == film.shape
 
     save_vols(threeD_vols, output_dir, ext='.nii.gz')
 
@@ -180,11 +171,11 @@ def test_hardlink():
     hl_filenames = hard_link(filenames, output_dir)
 
     def _check_ok(x, y):
-        if isinstance(x, _basestring):
+        if isinstance(x, str):
             # check that hardlink was actually made
-            assert_true(os.path.exists(x))
+            assert os.path.exists(x)
             if x.endswith('.img'):
-                assert_true(os.path.exists(x.replace(".img", ".hdr")))
+                assert os.path.exists(x.replace(".img", ".hdr"))
 
             # cleanup
             os.unlink(x)
@@ -194,8 +185,8 @@ def test_hardlink():
                 os.unlink(y.replace(".img", ".hdr"))
         else:
             # assuming list_like; recursely do this check
-            assert_true(isinstance(x, list))
-            assert_true(isinstance(y, list))
+            assert isinstance(x, list)
+            assert isinstance(y, list)
 
             for _x, _y in zip(x, y):
                 _check_ok(_x, _y)
@@ -204,24 +195,16 @@ def test_hardlink():
 
 
 def test_get_basename():
-    assert_equal(get_basename("/tmp/toto/titi.nii.gz", ext=".img"),
-                 "titi.img")
-    assert_equal(get_basename("/tmp/toto/titi.nii.gz"),
-                 "titi.nii.gz")
-
-    assert_equal(get_basename("/tmp/toto/titi.nii", ext=".img"),
-                 "titi.img")
-    assert_equal(get_basename("/tmp/toto/titi.nii"),
-                 "titi.nii")
+    assert get_basename("/tmp/toto/titi.nii.gz", ext=".img") == "titi.img"
+    assert get_basename("/tmp/toto/titi.nii.gz") == "titi.nii.gz"
+    assert get_basename("/tmp/toto/titi.nii", ext=".img") == "titi.img"
+    assert get_basename("/tmp/toto/titi.nii") ==  "titi.nii"
 
 
 def test_get_basenames():
-    assert_equal(get_basenames("/path/to/file/file.nii.gz"),
-                 "file.nii.gz")
-
-    assert_equal(get_basenames(["/path/to/file/file-%04i.nii.gz" % i
-                                for i in range(10)])[3],
-                 "file-0003.nii.gz")
+    assert get_basenames("/path/to/file/file.nii.gz") == "file.nii.gz"
+    assert get_basenames(["/path/to/file/file-%04i.nii.gz" % i
+                                for i in range(10)])[3] ==  "file-0003.nii.gz"
 
 
 def test_get_vox_dims():
@@ -261,14 +244,14 @@ def test_is_niimg():
 
     # 4D niimg
     film = create_random_image(n_scans=10)
-    assert_true(is_niimg(film))
+    assert is_niimg(film)
 
     # 3D niimg
     vol = create_random_image()
-    assert_true(is_niimg(vol))
+    assert is_niimg(vol)
 
     # filename is not niimg
-    assert_false(is_niimg("/path/to/some/nii.gz"))
+    assert not is_niimg("/path/to/some/nii.gz")
 
 
 def test_niigz2nii_with_filename():
@@ -281,7 +264,7 @@ def test_niigz2nii_with_filename():
     ofilename = niigz2nii(ifilename, output_dir='/tmp/titi')
 
     # checks
-    assert_equal(ofilename, '/tmp/titi/toto.nii')
+    assert ofilename == '/tmp/titi/toto.nii'
     nibabel.load(ofilename)
 
 
@@ -298,7 +281,7 @@ def test_niigz2nii_with_list_of_filenames():
     ofilenames = niigz2nii(ifilenames, output_dir='/tmp/titi')
 
     # checks
-    assert_equal(len(ifilenames), len(ofilenames))
+    assert len(ifilenames) == len(ofilenames)
     for x in range(len(ifilenames)):
         nibabel.load(ofilenames[x])
 
@@ -316,94 +299,84 @@ def test_niigz2nii_with_list_of_lists_of_filenames():
     ofilenames = niigz2nii([ifilenames], output_dir='/tmp/titi')
 
     # checks
-    assert_equal(1, len(ofilenames))
+    assert len(ofilenames) == 1
     for x in range(len(ofilenames[0])):
         nibabel.load(ofilenames[0][x])
 
 
 def test_expand_path():
     # paths with . (current directory)
-    assert_equal(_expand_path("./my/funky/brakes", relative_to="/tmp"),
-                 "/tmp/my/funky/brakes")
+    assert _expand_path("./my/funky/brakes", relative_to="/tmp") == "/tmp/my/funky/brakes"
 
     # paths with .. (parent directory)
-    assert_equal(_expand_path("../my/funky/brakes", relative_to="/tmp"),
-                 "/my/funky/brakes")
-    assert_equal(_expand_path(".../my/funky/brakes", relative_to="/tmp"),
-                 None)
+    assert _expand_path("../my/funky/brakes", relative_to="/tmp") == "/my/funky/brakes"
+    assert _expand_path(".../my/funky/brakes", relative_to="/tmp") == None
 
     # paths with tilde
-    assert_equal(_expand_path("~/my/funky/brakes"),
-                 os.path.join(os.environ['HOME'], "my/funky/brakes"))
-    assert_equal(_expand_path("my/funky/brakes", relative_to="~"),
-                 os.path.join(os.environ['HOME'], "my/funky/brakes"))
+    assert _expand_path("~/my/funky/brakes") == os.path.join(os.environ['HOME'], "my/funky/brakes")
+    assert _expand_path("my/funky/brakes", relative_to="~") == os.path.join(os.environ['HOME'], "my/funky/brakes")
 
 
 def test_isdicom():
     # +ve
-    assert_true(isdicom("/toto/titi.dcm"))
-    assert_true(isdicom("/toto/titi.DCM"))
-    assert_true(isdicom("/toto/titi.ima"))
-    assert_true(isdicom("/toto/titi.IMA"))
+    assert isdicom("/toto/titi.dcm")
+    assert isdicom("/toto/titi.DCM")
+    assert isdicom("/toto/titi.ima")
+    assert isdicom("/toto/titi.IMA")
 
     # -ve
-    assert_false(isdicom("/toto/titi.nii.gz"))
-    assert_false(isdicom("/toto/titi.nii"))
-    assert_false(isdicom("/toto/titi.img"))
-    assert_false(isdicom("/toto/titi.hdr"))
-    assert_false(isdicom("bad"))
+    assert not isdicom("/toto/titi.nii.gz")
+    assert not isdicom("/toto/titi.nii")
+    assert not isdicom("/toto/titi.img")
+    assert not isdicom("/toto/titi.hdr")
+    assert not isdicom("bad")
 
 
 def test_is_3D():
     vol = create_random_image(ndim=3)
-    assert_true(is_3D(vol))
-    assert_false(is_4D(vol))
-    assert_false(is_3D(create_random_image(shape=(64, 64, 64, 1))))
+    assert is_3D(vol)
+    assert not is_4D(vol)
+    assert not is_3D(create_random_image(shape=(64, 64, 64, 1)))
 
 
 def test_is_4d():
     film = create_random_image(ndim=4)
-    assert_true(is_4D(film))
-    assert_false(is_3D(film))
-    assert_true(is_4D(create_random_image(shape=(64, 64, 64, 1))))
+    assert is_4D(film)
+    assert not is_3D(film)
+    assert is_4D(create_random_image(shape=(64, 64, 64, 1)))
 
 
 def test_get_shape():
     shape = (61, 62, 63, 64)
     img = create_random_image(shape)
-    assert_equal(get_shape(img), shape)
+    assert get_shape(img) == shape
 
     shape = (34, 45, 65)
     n_scans = 10
     img = [create_random_image(shape) for _ in range(n_scans)]
-    assert_equal(get_shape(img), tuple(list(shape) + [n_scans]))
+    assert get_shape(img) == tuple(list(shape) + [n_scans])
 
 
 def test_get_relative_path():
-    assert_equal(get_relative_path("dop/", "dop/rob"), "rob")
+    assert get_relative_path("dop/", "dop/rob") == "rob"
 
-    assert_equal(get_relative_path("/toto/titi",
-                                   "/toto/titi/tata/test.txt"),
-                 "tata/test.txt")
-    assert_equal(get_relative_path("/toto/titi", "/toto/titi/tata/"),
-                 "tata")
-    assert_equal(get_relative_path("/toto/titi",
-                                   "/toto/titI/tato/dada"),
-                 None)
-    assert_equal(get_relative_path("/toto/titi", "/toto/titi"), "")
+    assert get_relative_path("/toto/titi", "/toto/titi/tata/test.txt") == "tata/test.txt"
+    assert get_relative_path("/toto/titi", "/toto/titi/tata/") == "tata"
+    assert get_relative_path("/toto/titi", "/toto/titI/tato/dada") == None
+    assert get_relative_path("/toto/titi", "/toto/titi") == ""
 
 
 def test_load_vols():
     vol = nibabel.Nifti1Image(np.zeros((3, 3, 3)), np.eye(4))
-    assert_equal(len(load_vols([vol])), 1)
+    assert len(load_vols([vol])) == 1
 
     vols = load_vols(vol)
 
     # all loaded vols should be 3-dimensional
     for v in vols:
-        assert_equal(len(v.shape), 3)
+        assert len(v.shape) == 3
 
-    assert_equal(len(vols), 1)
+    assert len(vols) == 1
 
 
 def test_loaduint8():
@@ -430,7 +403,7 @@ def test_load_vols_from_single_filename():
         vols = nibabel.Nifti1Image(np.zeros(shape), np.eye(4))
         vols.to_filename("/tmp/test.nii.gz")
         vols = load_vols("/tmp/test.nii.gz")
-        for vol in vols: assert_equal(vol.shape, tuple(shape[:3]))
+        for vol in vols: assert vol.shape == tuple(shape[:3])
 
 
 def test_load_vols_from_singleton_list_of_4D_img():
@@ -442,7 +415,7 @@ def test_load_vols_from_singleton_list_of_4D_img():
                 vols.to_filename("/tmp/test.nii.gz")
                 vols = "/tmp/test.nii.gz"
             vols = load_vols([vols])
-            assert_equal(len(vols), n_scans)
+            assert len(vols) == n_scans
 
 
 def test_delete_orientation():
@@ -475,7 +448,7 @@ def test_nii2niigz_with_filename():
     ofilename = nii2niigz(ifilename, output_dir='/tmp/titi')
 
     # checks
-    assert_equal(ofilename, '/tmp/titi/toto.nii.gz')
+    assert ofilename == '/tmp/titi/toto.nii.gz'
     nibabel.load(ofilename)
 
 
@@ -492,7 +465,7 @@ def test_nii2niigz_with_list_of_filenames():
     ofilenames = nii2niigz(ifilenames, output_dir='/tmp/titi')
 
     # checks
-    assert_equal(len(ifilenames), len(ofilenames))
+    assert len(ifilenames) == len(ofilenames)
     for x in range(len(ifilenames)):
         nibabel.load(ofilenames[x])
 
@@ -510,6 +483,6 @@ def test_nii2niigz_with_list_of_lists_of_filenames():
     ofilenames = nii2niigz([ifilenames], output_dir='/tmp/titi')
 
     # checks
-    assert_equal(1, len(ofilenames))
+    assert len(ofilenames) == 1
     for x in range(len(ofilenames[0])):
         nibabel.load(ofilenames[0][x])

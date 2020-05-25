@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from nose.tools import assert_true, nottest
+import pytest
 import numpy.testing
 import nibabel
 import scipy.io
@@ -19,10 +19,9 @@ def test_compute_similarity_from_jhist():
 
     for cost_fun in ['mi', 'nmi', 'ecc']:
         s = compute_similarity_from_jhist(jh, cost_fun=cost_fun)
-        assert_true(s <= 1)
+        assert not (s > 1)
 
-
-@nottest
+@pytest.mark.skip()
 def test_coregister_on_toy_data():
     shape = (23, 29, 31)
     ref = nibabel.Nifti1Image(np.arange(np.prod(shape)).reshape(shape),
@@ -45,7 +44,7 @@ def test_coregister_on_toy_data():
                                      [1., 1., 1.])
 
 
-@nottest
+@pytest.mark.skip()
 def test_coregister_on_real_data():
     # load data
     _tmp = scipy.io.loadmat(

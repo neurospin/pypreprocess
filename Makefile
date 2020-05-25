@@ -4,7 +4,6 @@
 
 PYTHON ?= python
 CYTHON ?= cython
-NOSETESTS ?= nosetests
 CTAGS ?= ctags
 
 all: clean test
@@ -29,12 +28,11 @@ inplace:
 	$(PYTHON) setup.py build_ext -i
 
 test-code:
-	$(NOSETESTS) -s pypreprocess
+	python -m pytest --pyargs pypreprocess
 
 test-coverage:
 	rm -rf coverage .coverage
-	$(NOSETESTS) -s --with-coverage --cover-html --cover-html-dir=coverage \
-	--cover-package=pypreprocess pypreprocess
+	pytest --pyargs pypreprocess --showlocals
 
 test: test-code
 

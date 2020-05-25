@@ -19,8 +19,6 @@ import numpy as np
 from .subject_data import SubjectData
 from .io_utils import _expand_path, get_relative_path
 
-from nilearn._utils.compat import _basestring
-
 
 @contextlib.contextmanager
 def _stdoutIO(stdout=None):
@@ -46,13 +44,13 @@ def _del_nones_from_dict(some_dict):
 
 def _sanitize(section, key, **replacements):
     val = section[key]
-    if isinstance(val, _basestring):
+    if isinstance(val, str):
         for k, v in replacements.items():
             val = val.replace("%" + k + "%", v)
     if key == "slice_order":
-        if isinstance(val, _basestring):
+        if isinstance(val, str):
             return
-    if isinstance(val, _basestring):
+    if isinstance(val, str):
         if val.lower() in ["true", "yes"]:
             # positive answers
             val = True
@@ -78,7 +76,7 @@ def _sanitize(section, key, **replacements):
                "func_write_voxel_sizes", "slice_order",
                "anat_write_voxel_size", "func_write_voxel_sizes"]:
         dtype = np.int if key == "slice_order" else np.float
-        if not isinstance(val, _basestring):
+        if not isinstance(val, str):
             val = ",".join(val)
         for x in "()[]":
             val = val.replace(x, "")
@@ -86,7 +84,7 @@ def _sanitize(section, key, **replacements):
         if len(val) == 1:
             val = val[0]
     section[key] = val
-    if isinstance(val, _basestring) and val.startswith("pycmd:"):
+    if isinstance(val, str) and val.startswith("pycmd:"):
         match = re.match("pycmd: (.+)", val, re.DOTALL)
         if match is None:
             raise RuntimeError("Invalid pycmd specification '%s'" % val)
@@ -160,7 +158,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
     assert options["output_dir"]
 
     # load data from multiple dataset_dirs
-    if not isinstance(dataset_dir, _basestring):
+    if not isinstance(dataset_dir, str):
         kwargs["output_dir"] = output_dir
         tmp = [_generate_preproc_pipeline(config_file, dataset_dir=dsd,
                                           options_callback=options_callback,
@@ -302,7 +300,7 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
 
     # subject data factory
     subject_data_dirs = options.get("subject_dirs", "*")
-    if isinstance(subject_data_dirs, _basestring):
+    if isinstance(subject_data_dirs, str):
         subject_dir_wildcard = os.path.join(dataset_dir, subject_data_dirs)
         subject_data_dirs = [x for x in sorted(glob.glob(subject_dir_wildcard))
                              if os.path.isdir(x)]

@@ -1,8 +1,6 @@
 import numpy as np
 import nibabel
 import numpy.testing
-import nose
-import nose.tools
 from ..histograms import(_correct_voxel_samp,
                          make_sampled_grid,
                          trilinear_interp,
@@ -41,11 +39,10 @@ def test_trilinear_interp():
     shape = (23, 29, 31)
     f = np.arange(np.prod(shape))
 
-    nose.tools.assert_equal(trilinear_interp(f, shape, 1, 1, 1), 0.)
-    nose.tools.assert_equal(trilinear_interp(f, shape, 2, 1, 1), 1.)
-    nose.tools.assert_equal(trilinear_interp(f, shape, 1 + shape[0], 1, 1),
-                            shape[0])
-    nose.tools.assert_true(0. < trilinear_interp(f, shape, 1.5, 1., 1.) < 1.)
+    assert trilinear_interp(f, shape, 1, 1, 1) == 0.
+    assert trilinear_interp(f, shape, 2, 1, 1) == 1.
+    assert trilinear_interp(f, shape, 1 + shape[0], 1, 1) == shape[0]
+    assert 0. < trilinear_interp(f, shape, 1.5, 1., 1.) < 1.
 
 
 def test_joint_histogram():
@@ -58,15 +55,13 @@ def test_joint_histogram():
     grid = make_sampled_grid(ref_shape, samp=2.)
     sampled_ref = trilinear_interp(ref.ravel(order='F'), ref_shape, *grid)
     jh = joint_histogram(sampled_ref, src, grid=grid, M=np.eye(4))
-    nose.tools.assert_equal(jh.shape, (256, 256))
-    nose.tools.assert_true(np.all(jh >= 0))
+    assert jh.shape == (256, 256)
+    assert np.all(jh >= 0)
 
     # ref not presampled
     jh = joint_histogram(nibabel.Nifti1Image(ref, np.eye(4)),
                          src, samp=np.pi, M=np.eye(4))
-    nose.tools.assert_equal(jh.shape, (256, 256))
-    nose.tools.assert_true(np.all(jh >= 0))
+    assert jh.shape == (256, 256)
+    assert np.all(jh >= 0)
 
     return jh
-
-

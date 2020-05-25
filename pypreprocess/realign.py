@@ -10,7 +10,6 @@ import numpy as np
 import scipy.ndimage as ndimage
 import scipy.linalg
 import nibabel
-from nilearn._utils.compat import _basestring
 from joblib import Parallel, delayed
 from .kernel_smooth import smooth_image
 from .affine_transformations import (
@@ -28,40 +27,40 @@ def _single_volume_fit(moving_vol, fixed_vol_affine, fixed_vol_A0, affine_correc
                        log=lambda x: None):
     """
     Realigns moving_vol to fixed_vol.
-    
+
     Paremeters
     ----------
-    
+
     moving_vol: Nibabel object
         coregistration source
-        
+
     fixed_vol_affine: 2D array
         coregistration target
-    
+
     fixed_vol_A0: 2D array
         rate of change of chi2 w.r.t. parameter changes
-    
+
     affine_correction: 2D array of shape (4, 4), optional (default None)
         affine transformation to be applied to vols before realignment
         (this is useful in multi-session realignment)
-        
+
     b: array
         intercept vector
-        
+
     x1, x2, x3: arrays
         grid
 
     fwhm: float
         the FWHM of the Gaussian smoothing kernel (mm) applied to the
         images before estimating the realignment parameters.
-        
+
     n_iterations: int
         max number of Gauss-Newton iterations when solving LSP for
         registering a volume to the reference
-        
+
     interp: int
         B-spline degree used for interpolation
-        
+
     lkp: arry_like of ints
         affine transformation parameters sought-for. Possible values of
         elements of the list are:
@@ -77,17 +76,17 @@ def _single_volume_fit(moving_vol, fixed_vol_affine, fixed_vol_A0, affine_correc
         9  - x shear
         10 - y shear
         11 - z shear
-        
+
     tol: float
         tolerance for Gauss-Newton LS iterations
 
     smooth_func: function, optional (default pypreprocess' smooth_image)
         the smoothing function to apply during estimation. The given function
         must accept 2 positional args (vol, fwhm)
-        
+
     log: function, optional (default lambda x: None)
         function used for storing log messages
-        
+
     Returns
     -------
         1D array of length len(self.lkp)
@@ -505,7 +504,7 @@ class MRIMotionCorrection(object):
             list of single 4D images or nibabel image objects
             (one per session), or list of lists of filenames or nibabel image
             objects (one list per session)
-            
+
         n_jobs: int
             number of parallel jobs
 
@@ -521,7 +520,7 @@ class MRIMotionCorrection(object):
         """
 
         # sanitize vols and n_sessions
-        if isinstance(vols, _basestring) or isinstance(
+        if isinstance(vols, str) or isinstance(
                 vols, nibabel.Nifti1Image):
             vols = [vols]
         if len(vols) != self.n_sessions:
@@ -530,7 +529,7 @@ class MRIMotionCorrection(object):
                 % (len(vols), self.n_sessions))
 
         self.vols_ = vols
-        self.vols = [vols] if isinstance(vols, _basestring) else list(vols)
+        self.vols = [vols] if isinstance(vols, str) else list(vols)
         if len(self.vols) != self.n_sessions:
             if self.n_sessions == 1:
                 self.vols = [self.vols]
@@ -652,7 +651,7 @@ class MRIMotionCorrection(object):
 
         for sess in range(self.n_sessions):
             concat_sess = concat
-            if (isinstance(self.vols_[sess], _basestring) or is_niimg(
+            if (isinstance(self.vols_[sess], str) or is_niimg(
                     self.vols_[sess])) and reslice:
                 concat_sess = True
 
@@ -684,11 +683,11 @@ class MRIMotionCorrection(object):
                 # make basenames for output files
                 sess_basenames = None
                 if basenames is None:
-                    if isinstance(self.vols[sess], _basestring):
+                    if isinstance(self.vols[sess], str):
                         sess_basenames = get_basenames(self.vols[sess],
                                                        ext=ext)
                     elif isinstance(self.vols[sess], list):
-                        if isinstance(self.vols[sess][0], _basestring):
+                        if isinstance(self.vols[sess][0], str):
                             sess_basenames = get_basenames(self.vols[sess],
                                                            ext=ext)
                     else:
@@ -708,7 +707,7 @@ class MRIMotionCorrection(object):
                         sess_rvols,
                         output_dir,
                         basenames=sess_basenames if isinstance(
-                            sess_basenames, _basestring)
+                            sess_basenames, str)
                         else sess_basenames[0], concat=concat_sess, ext=ext,
                         prefix=prefix)
                 else:
@@ -726,7 +725,7 @@ class MRIMotionCorrection(object):
                     sess_realignment_parameters_filename = os.path.join(
                         output_dir, "rp.txt")
                 else:
-                    if isinstance(sess_basenames, _basestring):
+                    if isinstance(sess_basenames, str):
                         sess_realignment_parameters_filename = os.path.join(
                             output_dir,
                             "rp_" + sess_basenames + ".txt")

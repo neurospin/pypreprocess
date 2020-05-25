@@ -92,7 +92,7 @@ def multiple_mahalanobis(effect, covariance):
     -------
     sqd: array of shape (n_samples,)
          the squared distances (one per sample)
-    """ 
+    """
     # check size
     if effect.ndim == 1:
         effect = effect[:, np.newaxis]
@@ -166,4 +166,4 @@ def pos_recipr(X):
     X = np.asarray(X)
     return np.where(X <= 0, 0, 1. / X)
 
-_basestring = str if py3 else basestring
+# _basestring = str if py3 else basestring

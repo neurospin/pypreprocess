@@ -11,7 +11,6 @@ import nipype
 import pytest
 
 from distutils.version import LooseVersion
-from nose.tools import assert_equal, nottest
 from pypreprocess.configure_spm import (
     _get_version_spm, _logger, _configure_spm,
     _guess_spm_version, _ACCEPT_SPM_MCR_WITH_AMBIGUOUS_VERSION)
@@ -20,26 +19,26 @@ from pypreprocess.configure_spm import (
 def test_get_version_spm():
     spm_version_1 = _get_version_spm('/tmp/path/to/spm8')
     spm_version_2 = _get_version_spm('/path/to/spm12')
-    assert_equal(spm_version_1, 'spm8')
-    assert_equal(spm_version_2, 'spm12')
+    assert spm_version_1 == 'spm8'
+    assert spm_version_2 == 'spm12'
 
 
 def test_guess_spm_version():
     spm_version = _guess_spm_version('/tmp/some23/Spm12/SPM12')
-    assert(spm_version == 12)
+    assert spm_version == 12
     spm_version = _guess_spm_version('/tmp/1/spm_8.sh')
-    assert(spm_version == 8)
+    assert spm_version == 8
     spm_version = _guess_spm_version('spm_using_mlab_8/spm/')
-    assert(spm_version is None)
+    assert spm_version is None
     spm_version = _guess_spm_version('spm/8/spm/')
-    assert(spm_version is None)
+    assert spm_version is None
     spm_version = _guess_spm_version('/home/sp12/spm/spm.sh')
-    assert(spm_version is None)
+    assert spm_version is None
     spm_version = _guess_spm_version('/opt/spm8/spm12.sh')
     if(_ACCEPT_SPM_MCR_WITH_AMBIGUOUS_VERSION):
-        assert(spm_version == 12)
+        assert spm_version == 12
     else:
-        assert(spm_version is None)
+        assert spm_version is None
 
 
 def _make_dirs(root, body):
@@ -242,18 +241,18 @@ def _execute_spm_config_test(defaults, explicitly_set, spm_root):
     # at the beginning all paths point to bad locations,
     # configuration should fail
     spm_dir = _configure_spm(defaults=defaults, **explicitly_set)
-    assert(spm_dir is None)
+    assert spm_dir is None
     _fix_spm_testing_default(defaults, 'matlab_exec')
     # path to Matlab was fixed but still no path to SPM home dir,
     # configuration should fail.
     spm_dir = _configure_spm(defaults=defaults, **explicitly_set)
-    assert(spm_dir is None)
+    assert spm_dir is None
     _fix_spm_testing_default(defaults, 'spm_dir_template')
     # path to Matlab is good, path to spm13 is valid but this installation
     # is broken (missing tpm dir), so spm12 should be selected.
     spm_dir = _configure_spm(defaults=defaults, **explicitly_set)
-    assert(os.path.samefile(
-        spm_dir, os.path.join(spm_root, 'spm12/spm12/spm12_mcr/spm12/')))
+    assert os.path.samefile(spm_dir,
+            os.path.join(spm_root, 'spm12/spm12/spm12_mcr/spm12/'))
     _break_spm_testing_default(defaults, 'spm_dir_template')
     _fix_spm_testing_default(defaults, 'spm_mcr_template')
     # path to Matlab is bad but paths to SPM MCRs are good,
@@ -261,27 +260,27 @@ def _execute_spm_config_test(defaults, explicitly_set, spm_root):
     # SPM MCR location; configuration should succeed and select
     # spm12 (spm13 is broken).
     spm_dir = _configure_spm(defaults=defaults, **explicitly_set)
-    assert(os.path.samefile(
-        spm_dir, os.path.join(spm_root, 'spm12/spm12/spm12_mcr/spm12/')))
+    assert os.path.samefile(spm_dir,
+            os.path.join(spm_root, 'spm12/spm12/spm12_mcr/spm12/'))
     _logger.debug('setting TEST_SPM_MCR env variable')
     os.environ['TEST_SPM_MCR'] = os.path.join(spm_root, 'spm7/spm7.sh/')
     # environment variables have priority over defaults, so spm7
     # should be preferred.
     spm_dir = _configure_spm(defaults=defaults, **explicitly_set)
-    assert(os.path.samefile(
-        spm_dir, os.path.join(spm_root, 'spm7/spm7/spm7_mcr/spm7/')))
+    assert os.path.samefile(spm_dir,
+            os.path.join(spm_root, 'spm7/spm7/spm7_mcr/spm7/'))
     _fix_spm_testing_explicitly_set_location(explicitly_set, 'config_spm_mcr')
     # path to spm specified in config file was fixed and points to
     # spm8, spm8 should be chosen.
     spm_dir = _configure_spm(defaults=defaults, **explicitly_set)
-    assert(os.path.samefile(
-        spm_dir, os.path.join(spm_root, 'spm8/spm8/spm8_mcr/spm8/')))
+    assert os.path.samefile(spm_dir,
+            os.path.join(spm_root, 'spm8/spm8/spm8_mcr/spm8/'))
     _fix_spm_testing_explicitly_set_location(explicitly_set, 'cli_spm_mcr')
     # path to spm specified in command line was fixed and points to spm7,
     # since cli has priority over config file, spm7 should be chosen.
     spm_dir = _configure_spm(defaults=defaults, **explicitly_set)
-    assert(os.path.samefile(
-        spm_dir, os.path.join(spm_root, 'spm7/spm7/spm7_mcr/spm7/')))
+    assert os.path.samefile(spm_dir,
+            os.path.join(spm_root, 'spm7/spm7/spm7_mcr/spm7/'))
     _logger.debug('setting "prefer_matlab"')
     _fix_spm_testing_default(defaults, 'spm_dir_template')
     # paths to SPM homes were fixed; since we prefer Matlab the version
@@ -289,8 +288,8 @@ def _execute_spm_config_test(defaults, explicitly_set, spm_root):
     # valid install (spm12) should be chosen.
     spm_dir = _configure_spm(defaults=defaults, prefer_matlab=True,
                              **explicitly_set)
-    assert(os.path.samefile(
-        spm_dir, os.path.join(spm_root, 'spm12/spm12/spm12_mcr/spm12/')))
+    assert os.path.samefile(spm_dir,
+            os.path.join(spm_root, 'spm12/spm12/spm12_mcr/spm12/'))
 
     _logger.info('SPM config test succeeded')
 
@@ -299,7 +298,8 @@ def _execute_spm_config_test(defaults, explicitly_set, spm_root):
                            'it fails to catch a legitimate exception, '
                            'causing spurious test failures',
                     )
-@nottest
+
+@pytest.mark.skip()
 def test_spm_config(scratch_dir='/tmp/'):
     """prepare dir containing fake Matlab and SPM installs and launch tests."""
     scratch_dir = os.path.abspath(os.path.expanduser(scratch_dir))
@@ -338,4 +338,3 @@ if __name__ == '__main__':
     test_get_version_spm()
     test_guess_spm_version()
     test_spm_config()
-
