@@ -47,7 +47,9 @@ matrix:
            NIPYPE_VERSION="*" NILEARN_VERSION="*" NETWORKX_VERSION="*"
            MATPLOTLIB_VERSION="*" CONFIGOBJ_VERSION="*" PYTEST_VERSION="4.3.0"
 
-install: source continuous_integration/install.sh
+install:
+    pip install --upgrade pytest
+    source continuous_integration/install.sh
 
 script:
     - make clean

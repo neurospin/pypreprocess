@@ -1538,7 +1538,7 @@ def _do_subjects_newsegment(
     # warp individual brains into group (DARTEL) space
     return Parallel(
         n_jobs=n_jobs, verbose=100,
-        pre_dispatch='1 * n_jobs')(
+        pre_dispatch='1.5 * n_jobs')(
             delayed(
                 _do_subject_dartelnorm2mni)(
                     subject_data,
