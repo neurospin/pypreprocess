@@ -48,8 +48,8 @@ matrix:
            MATPLOTLIB_VERSION="*" CONFIGOBJ_VERSION="*" PYTEST_VERSION="4.3.0"
 
 install:
-    pip install --upgrade pytest
-    source continuous_integration/install.sh
+    - pip install --upgrade pytest
+    - source continuous_integration/install.sh
 
 script:
     - make clean
