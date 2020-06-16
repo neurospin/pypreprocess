@@ -158,7 +158,7 @@ def test_STC_for_HRF():
     # create time values scaled at 1%
     timescale = .01
     n_timepoints = 24
-    time = np.linspace(0, n_timepoints, num=1 + (n_timepoints - 0) / timescale)
+    time = np.linspace(0, n_timepoints, num=int(1 + (n_timepoints - 0) / timescale))
 
     # create gamma functions
     n1 = 4
