@@ -56,7 +56,7 @@ def compute_similarity_from_jhist(jh, fwhm=None, cost_fun='nmi'):
     fwhm = fwhm[:2]
 
     # create separable filter for smoothing the joint-histogram
-    lim = np.ceil(fwhm * 2)
+    lim = np.ceil(fwhm * 2).astype(np.int)
     krn1 = centered_smoothing_kernel(fwhm[0],
                                      np.linspace(-1 * lim[0], lim[0],
                                                  num=2 * lim[0]))

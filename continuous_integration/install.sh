@@ -22,7 +22,7 @@ create_new_venv() {
     deactivate
     virtualenv --system-site-packages testvenv
     source testvenv/bin/activate
-    pip install nose pytest
+    pip install --upgrade pytest
 }
 
 echo_requirements_string() {
@@ -33,7 +33,7 @@ echo_requirements_string() {
     # if yes which version to install. For example:
     #   - for numpy, NUMPY_VERSION is used
     #   - for scikit-learn, SCIKIT_LEARN_VERSION is used
-    TO_INSTALL_ALWAYS="pip nose pytest"
+    TO_INSTALL_ALWAYS="pip pytest"
     REQUIREMENTS="$TO_INSTALL_ALWAYS"
     TO_INSTALL_MAYBE="numpy scipy matplotlib scikit-learn nilearn nipype pandas flake8 joblib networkx configobj"
     for PACKAGE in $TO_INSTALL_MAYBE; do
