@@ -70,6 +70,7 @@ jobs:
             python setup.py install --user
             python -c "from pypreprocess import datasets; datasets.fetch_spm_auditory(); datasets.fetch_spm_multimodal_fmri(); datasets.fetch_fsl_feeds()"
             chown -R $USER:$USER /home/circleci/opt/spm12/spm12/
+            chmod +755 /home/circleci/opt/spm12/spm12/spm12
             cd examples/easy_start && python nipype_preproc_spm_auditory.py
             cd examples/pipelining && python nipype_preproc_spm_multimodal_faces.py
             cd examples/pipelining && python nistats_glm_fsl_feeds_fmri.py
