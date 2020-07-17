@@ -51,10 +51,6 @@ jobs:
               conda create -n testenv -yq
             fi
 
-      #- run: sudo apt-get update
-      #- run: sudo apt-get install libxm4 libxpm4 libxmu6 libxt6 bc
-      # sudo chmod 755 /home/circleci/opt/spm12/spm12/spm12
-      # sudo chmod 755 /home/circleci/opt/spm12/spm12/run_spm12.sh
       - run:
           name: Installing SPM & exporting its paths + other path
           command: |
@@ -75,9 +71,7 @@ jobs:
             sudo chmod 755 /home/circleci/opt/spm12/spm12/spm12
             sudo chmod 777 /home/circleci/.matlab/mcr_v97/
             cd examples/easy_start && python nipype_preproc_spm_auditory.py
-            sudo chown -R $USER:$USER /home/circleci/
             cd examples/pipelining && python nipype_preproc_spm_multimodal_faces.py
-            sudo chown -R $USER:$USER /home/circleci/
             cd examples/pipelining && python nistats_glm_fsl_feeds_fmri.py
             sh continuous_integration/clean_output.sh
       - save_cache:
