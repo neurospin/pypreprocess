@@ -743,7 +743,8 @@ def generate_tsdiffana_thumbnail(image_files, sessions, subject_id,
     output_filenames = [output_filename_template.format(i)
                         for i in range(len(figures))]
     for fig, output_filename in zip(figures, output_filenames):
-        fig.savefig(output_filename, bbox_inches="tight", dpi=200)
+        # fig.savefig(output_filename, bbox_inches="tight", dpi=200)
+        fig.savefig(output_filename, format='pdf')
         pl.close(fig)
 
     if tooltips is None:
@@ -791,7 +792,8 @@ def generate_realignment_thumbnails(
     for l in lengths[:-1]:
         pl.axvline(aux + l, linestyle="--", c="k")
         aux += l
-    pl.savefig(rp_plot, bbox_inches="tight", dpi=200)
+    # pl.savefig(rp_plot, bbox_inches="tight", dpi=200)
+    fig.savefig(output_filename, format='pdf')
     pl.close()
 
     # create thumbnail
@@ -878,7 +880,8 @@ def generate_stc_thumbnails(original_bold, st_corrected_bold, output_dir,
                 session_id, voxel[0], voxel[1], voxel[2]))
         pl.xlabel('time (TR)')
 
-        pl.savefig(output_filename, bbox_inches="tight", dpi=200)
+        # pl.savefig(output_filename, bbox_inches="tight", dpi=200)
+        fig.savefig(output_filename, format='pdf')
         if close:
             pl.close()
 

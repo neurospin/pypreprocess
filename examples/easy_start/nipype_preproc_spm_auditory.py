@@ -11,10 +11,10 @@ from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
 from pypreprocess.datasets import fetch_spm_auditory
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
 import pandas as pd
-from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
-                                                         check_design_matrix,
-                                                         plot_design_matrix)
-from pypreprocess.external.nistats.glm import FirstLevelGLM
+from nilearn.stats.first_level_model.design_matrix import (make_first_level_design_matrix,
+                                                         check_design_matrix)
+from nilearn.reporting import plot_design_matrix
+from nilearn.stats.first_level_model import FirstLevelModel
 import matplotlib.pyplot as plt
 
 # file containing configuration for preprocessing the data
@@ -62,8 +62,8 @@ ax = plot_design_matrix(design_matrix)
 ax.set_position([.05, .25, .9, .65])
 ax.set_title('Design matrix')
 dmat_outfile = os.path.join(subject_data.output_dir, 'design_matrix.png')
-plt.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
-
+# plt.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
+fig.savefig(dmat_outfile, format='pdf')
 # specify contrasts
 contrasts = {}
 _, matrix, names = check_design_matrix(design_matrix)
