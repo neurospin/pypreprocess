@@ -7,9 +7,9 @@ on FSL's FEEDS fMRI single-subject example data
 import os
 import numpy as np
 import pandas as pd
-from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
+from nilearn.stats.first_level_model.design_matrix import (make_first_level_design_matrix,
                                                          check_design_matrix)
-from pypreprocess.external.nistats.glm import FirstLevelGLM
+from nilearn.stats.first_level_model import FirstLevelModel
 import nibabel
 import time
 from pypreprocess.nipype_preproc_spm_utils import (SubjectData,
@@ -48,7 +48,7 @@ hfcut = 1.5 * maximum_epoch_duration  # why ?
 """construct design matrix"""
 drift_model = 'Cosine'
 hrf_model = 'spm + derivative'
-design_matrix = make_design_matrix(frame_times=frametimes,
+design_matrix = make_first_level_design_matrix(frame_times=frametimes,
                                    paradigm=paradigm,
                                    hrf_model=hrf_model,
                                    drift_model=drift_model,
@@ -97,7 +97,7 @@ contrasts['effects_of_interest'] = contrasts['EV1'] + contrasts['EV2']
 
 """fit GLM"""
 print('\r\nFitting a GLM (this takes time) ..')
-fmri_glm = FirstLevelGLM()
+fmri_glm = FirstLevelModel()
 fmri_glm.fit(fmri_files, design_matrix)
 
 """save computed mask"""

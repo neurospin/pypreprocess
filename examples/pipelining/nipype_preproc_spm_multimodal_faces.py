@@ -12,10 +12,10 @@ import nibabel
 import numpy as np
 import scipy.io
 
-# imports for GLM buusiness
-from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
+# imports for GLM business
+from nilearn.stats.first_level_model.design_matrix import (make_first_level_design_matrix,
                                                          check_design_matrix)
-from pypreprocess.external.nistats.glm import FirstLevelGLM
+from nilearn.stats.first_level_model import FirstLevelModel
 import pandas as pd
 
 # pypreprocess imports
@@ -80,7 +80,7 @@ for x in range(2):
     # build design matrix
     frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)
     paradigm = pd.DataFrame({'name': conditions, 'onset': onsets})
-    design_matrix = make_design_matrix(frametimes, paradigm,
+    design_matrix = make_first_level_design_matrix(frametimes, paradigm,
                                        hrf_model=hrf_model,
                                        drift_model=drift_model,
                                        period_cut=hfcut)
@@ -101,7 +101,7 @@ contrasts['effects_of_interest'] = contrasts['faces'] + contrasts['scrambled']
 
 # fit GLM
 print('Fitting a GLM (this takes time)...')
-fmri_glm = FirstLevelGLM().fit(
+fmri_glm = FirstLevelModel().fit(
     [nibabel.concat_images(x) for x in subject_data.func],
     design_matrices)
 
