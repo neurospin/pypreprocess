@@ -77,9 +77,11 @@ for x in range(2):
     conditions = ['faces'] * len(faces_onsets) + ['scrambled'] * len(
         scrambled_onsets)
 
+    _duration = 0.6
+
     # build design matrix
     frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)
-    paradigm = pd.DataFrame({'name': conditions, 'onset': onsets})
+    paradigm = pd.DataFrame({'trial_type': conditions, 'duration': duration, 'onset': onsets})
     design_matrix = make_first_level_design_matrix(frametimes, paradigm,
                                        hrf_model=hrf_model,
                                        drift_model=drift_model,

@@ -72,8 +72,8 @@ jobs:
             sudo chmod 755 /home/circleci/opt/spm12/spm12/spm12
             sudo chmod 777 /home/circleci/.matlab/mcr_v97/
             python examples/easy_start/nipype_preproc_spm_auditory.py
-            python examples/pipelining/nipype_preproc_spm_multimodal_faces.py
             python examples/pipelining/nistats_glm_fsl_feeds_fmri.py
+            python examples/pipelining/nipype_preproc_spm_multimodal_faces.py
             sh continuous_integration/clean_output.sh
       - save_cache:
           key: spm12+datasets+pypi-{{ .Branch }}

@@ -39,7 +39,7 @@ EV2_on = 45
 conditions = ['EV1'] * EV1_epochs + ['EV2'] * EV2_epochs
 onset = list(EV1_onset) + list(EV2_onset)
 duration = [EV1_on] * EV1_epochs + [EV2_on] * EV2_epochs
-paradigm = pd.DataFrame({'name': conditions, 'onset': onset,
+paradigm = pd.DataFrame({'trial_type': conditions, 'onset': onset,
                          'duration': duration})
 frametimes = np.linspace(0, (n_scans - 1) * TR, n_scans)
 maximum_epoch_duration = max(EV1_epoch_duration, EV2_epoch_duration)
