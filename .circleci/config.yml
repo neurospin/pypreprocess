@@ -65,7 +65,7 @@ jobs:
             pip install --upgrade pip
             pip install scipy sklearn nibabel configobj nose coverage pytest -q
             pip install matplotlib pandas nipype -q
-            git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e .
+            git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e . -q; cd ..
             python setup.py install --user
             python -c "from pypreprocess import datasets; datasets.fetch_spm_auditory(); datasets.fetch_spm_multimodal_fmri(); datasets.fetch_fsl_feeds()"
             sudo chown -R $USER:$USER /home/circleci/
