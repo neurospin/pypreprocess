@@ -262,7 +262,7 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
         # reshape glm_kwargs['paradigm']
         if "paradigm" in glm_kwargs:
             paradigm_ = glm_kwargs['paradigm']
-            paradigm = {'name' : paradigm_['name'],
+            paradigm = {'name' : paradigm_['trial_type'],
                         'onset' : paradigm_['onset']}
             if 'duration' in paradigm_.keys():
                 paradigm['duration'] = paradigm_['duration']

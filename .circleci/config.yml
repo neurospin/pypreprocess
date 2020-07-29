@@ -64,7 +64,8 @@ jobs:
             echo 'export PATH="/home/circleci/.local/bin:$PATH"' >> $BASH_ENV
             pip install --upgrade pip
             pip install scipy sklearn nibabel configobj nose coverage pytest -q
-            pip install matplotlib pandas nipype nilearn -q
+            pip install matplotlib pandas nipype -q
+            git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e .
             python setup.py install --user
             python -c "from pypreprocess import datasets; datasets.fetch_spm_auditory(); datasets.fetch_spm_multimodal_fmri(); datasets.fetch_fsl_feeds()"
             sudo chown -R $USER:$USER /home/circleci/

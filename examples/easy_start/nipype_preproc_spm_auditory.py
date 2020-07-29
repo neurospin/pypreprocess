@@ -37,7 +37,7 @@ duration = epoch_duration * np.ones(len(conditions))
 onset = np.linspace(0, (len(conditions) - 1) * epoch_duration,
                     len(conditions))
 paradigm = pd.DataFrame(
-    {'onset': onset, 'duration': duration, 'name': conditions})
+    {'onset': onset, 'duration': duration, 'trial_type': conditions})
 
 hfcut = 2 * 2 * epoch_duration
 fd = open(sd.func[0].split(".")[0] + "_onset.txt", "w")
@@ -53,17 +53,17 @@ nscans = len(subject_data.func[0])
 frametimes = np.linspace(0, (nscans - 1) * tr, nscans)
 drift_model = 'Cosine'
 hrf_model = 'spm + derivative'
-design_matrix = make_design_matrix(
+design_matrix = make_first_level_design_matrix(
     frametimes, paradigm, hrf_model=hrf_model, drift_model=drift_model,
-    period_cut=hfcut)
+    high_pass=hfcut)
 
 # plot and save design matrix
 ax = plot_design_matrix(design_matrix)
 ax.set_position([.05, .25, .9, .65])
 ax.set_title('Design matrix')
 dmat_outfile = os.path.join(subject_data.output_dir, 'design_matrix.png')
-# plt.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
-fig.savefig(dmat_outfile, format='pdf')
+plt.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
+# plt.savefig(dmat_outfile, format='pdf')
 # specify contrasts
 contrasts = {}
 _, matrix, names = check_design_matrix(design_matrix)
@@ -76,8 +76,8 @@ contrasts = {'active-rest': contrasts['active'] - contrasts['rest']}
 
 # fit GLM
 print('\r\nFitting a GLM (this takes time) ..')
-fmri_glm = FirstLevelGLM(noise_model='ar1', standardize=False).fit(
-    [nibabel.concat_images(subject_data.func[0])], design_matrix)
+fmri_glm = FirstLevelModel(noise_model='ar1', standardize=False, t_r = tr).fit(
+    [nibabel.concat_images(subject_data.func[0])], design_matrices=design_matrix)
 
 
 # save computed mask
@@ -93,28 +93,29 @@ z_maps = {}
 effects_maps = {}
 for contrast_id, contrast_val in contrasts.items():
     print("\tcontrast id: %s" % contrast_id)
-    z_map, t_map, eff_map, var_map = fmri_glm.transform(
-        contrasts[contrast_id], contrast_name=contrast_id, output_z=True,
-        output_stat=True, output_effects=True, output_variance=True)
+    z_map = fmri_glm.compute_contrast(
+        contrasts[contrast_id], output_type='z_score')
 
-    # store stat maps to disk
-    for dtype, out_map in zip(['z', 't', 'effects', 'variance'],
-                              [z_map, t_map, eff_map, var_map]):
-        map_dir = os.path.join(
-            subject_data.output_dir, '%s_maps' % dtype)
-        if not os.path.exists(map_dir):
-            os.makedirs(map_dir)
-        map_path = os.path.join(
-            map_dir, '%s.nii.gz' % contrast_id)
-        nibabel.save(out_map, map_path)
+    z_maps[contrast_id] = z_map
 
-        # collect zmaps for contrasts we're interested in
-        if contrast_id == 'active-rest' and dtype == "z":
-            z_maps[contrast_id] = map_path
-
-        print("\t\t%s map: %s" % (dtype, map_path))
-
-    print
+    # # store stat maps to disk
+    # for dtype, out_map in zip(['z', 't', 'effects', 'variance'],
+    #                           [z_map, t_map, eff_map, var_map]):
+    #     map_dir = os.path.join(
+    #         subject_data.output_dir, '%s_maps' % dtype)
+    #     if not os.path.exists(map_dir):
+    #         os.makedirs(map_dir)
+    #     map_path = os.path.join(
+    #         map_dir, '%s.nii.gz' % contrast_id)
+    #     nibabel.save(out_map, map_path)
+    #
+    #     # collect zmaps for contrasts we're interested in
+    #     if contrast_id == 'active-rest' and dtype == "z":
+    #         z_maps[contrast_id] = map_path
+    #
+    #     print("\t\t%s map: %s" % (dtype, map_path))
+    #
+    # print
 
 # do stats report
 stats_report_filename = os.path.join(subject_data.reports_output_dir,
