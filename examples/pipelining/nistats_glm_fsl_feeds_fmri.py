@@ -112,7 +112,7 @@ z_maps = {}
 for contrast_id, contrast_val in contrasts.items():
     print("\tcontrast id: %s" % contrast_id)
     z_map = fmri_glm.compute_contrast(
-        con_vals=contrasts[contrast_id], output_type='z_score')
+        contrasts[contrast_id], output_type='z_score')
 
     z_maps[contrast_id] = z_map
 
