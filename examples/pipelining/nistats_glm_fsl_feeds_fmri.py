@@ -52,7 +52,7 @@ design_matrix = make_first_level_design_matrix(frame_times=frametimes,
                                    paradigm=paradigm,
                                    hrf_model=hrf_model,
                                    drift_model=drift_model,
-                                   period_cut=hfcut)
+                                   high_pass=hfcut)
 
 """fetch input data"""
 _subject_data = fetch_fsl_feeds()
@@ -98,7 +98,7 @@ contrasts['effects_of_interest'] = contrasts['EV1'] + contrasts['EV2']
 """fit GLM"""
 print('\r\nFitting a GLM (this takes time) ..')
 fmri_glm = FirstLevelModel()
-fmri_glm.fit(fmri_files, design_matrix)
+fmri_glm.fit(fmri_files, design_matrices=design_matrix)
 
 """save computed mask"""
 mask_path = os.path.join(subject_data.output_dir, "mask.nii.gz")
@@ -111,32 +111,28 @@ print("Computing contrasts ..")
 z_maps = {}
 for contrast_id, contrast_val in contrasts.items():
     print("\tcontrast id: %s" % contrast_id)
-    z_map, t_map, eff_map, var_map = fmri_glm.transform(
-        con_vals=contrasts[contrast_id],
-        contrast_name=contrast_id,
-        output_z=True,
-        output_stat=True,
-        output_effects=True,
-        output_variance=True,
-        )
+    z_map = fmri_glm.compute_contrast(
+        con_vals=contrasts[contrast_id], output_type='z_score')
 
-    # store stat maps to disk
-    for dtype, out_map in zip(['z', 't', 'effects', 'variance'],
-                              [z_map, t_map, eff_map, var_map]):
-        map_dir = os.path.join(
-            subject_data.output_dir, '%s_maps' % dtype)
-        if not os.path.exists(map_dir):
-            os.makedirs(map_dir)
-        map_path = os.path.join(
-            map_dir, '%s.nii.gz' % contrast_id)
-        nibabel.save(out_map, map_path)
+    z_maps[contrast_id] = z_map
 
-        if dtype == "z":
-            z_maps[contrast_id] = map_path
-
-        print("\t\t%s map: %s" % (dtype, map_path))
-
-    print
+    # # store stat maps to disk
+    # for dtype, out_map in zip(['z', 't', 'effects', 'variance'],
+    #                           [z_map, t_map, eff_map, var_map]):
+    #     map_dir = os.path.join(
+    #         subject_data.output_dir, '%s_maps' % dtype)
+    #     if not os.path.exists(map_dir):
+    #         os.makedirs(map_dir)
+    #     map_path = os.path.join(
+    #         map_dir, '%s.nii.gz' % contrast_id)
+    #     nibabel.save(out_map, map_path)
+    #
+    #     if dtype == "z":
+    #         z_maps[contrast_id] = map_path
+    #
+    #     print("\t\t%s map: %s" % (dtype, map_path))
+    #
+    # print
 
 """do stats report"""
 reports_dir = os.path.join(subject_data.output_dir, "reports")
@@ -153,7 +149,6 @@ generate_subject_stats_report(
     anat=anat_file,
     cluster_th=50,  # we're only interested in this 'large' clusters
     start_time=stats_start_time,
-
     # additional ``kwargs`` for more informative report
     paradigm=paradigm,
     TR=TR,
@@ -166,6 +161,6 @@ generate_subject_stats_report(
     )
 
 # shutdown main report page
-ProgressReport().finish_dir(output_dir)
+# ProgressReport().finish_dir(output_dir)
 
 print("\r\nStatistic report written to %s\r\n" % stats_report_filename)
