@@ -78,6 +78,7 @@ for x in range(2):
         scrambled_onsets)
 
     _duration = 0.6
+    duration = _duration * np.ones(len(conditions))
 
     # build design matrix
     frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)

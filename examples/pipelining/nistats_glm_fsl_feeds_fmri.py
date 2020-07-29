@@ -49,7 +49,7 @@ hfcut = 1.5 * maximum_epoch_duration  # why ?
 drift_model = 'Cosine'
 hrf_model = 'spm + derivative'
 design_matrix = make_first_level_design_matrix(frame_times=frametimes,
-                                   paradigm=paradigm,
+                                   events=paradigm,
                                    hrf_model=hrf_model,
                                    drift_model=drift_model,
                                    high_pass=hfcut)
