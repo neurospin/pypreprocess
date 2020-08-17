@@ -98,25 +98,6 @@ for contrast_id, contrast_val in contrasts.items():
 
     z_maps[contrast_id] = z_map
 
-    # # store stat maps to disk
-    # for dtype, out_map in zip(['z', 't', 'effects', 'variance'],
-    #                           [z_map, t_map, eff_map, var_map]):
-    #     map_dir = os.path.join(
-    #         subject_data.output_dir, '%s_maps' % dtype)
-    #     if not os.path.exists(map_dir):
-    #         os.makedirs(map_dir)
-    #     map_path = os.path.join(
-    #         map_dir, '%s.nii.gz' % contrast_id)
-    #     nibabel.save(out_map, map_path)
-    #
-    #     # collect zmaps for contrasts we're interested in
-    #     if contrast_id == 'active-rest' and dtype == "z":
-    #         z_maps[contrast_id] = map_path
-    #
-    #     print("\t\t%s map: %s" % (dtype, map_path))
-    #
-    # print
-
 # do stats report
 stats_report_filename = os.path.join(subject_data.reports_output_dir,
                                      "report_stats.html")

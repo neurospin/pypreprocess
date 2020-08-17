@@ -52,7 +52,7 @@ design_matrix = make_first_level_design_matrix(frame_times=frametimes,
                                    events=paradigm,
                                    hrf_model=hrf_model,
                                    drift_model=drift_model,
-                                   high_pass=hfcut)
+                                   high_pass=1./hfcut)
 
 """fetch input data"""
 _subject_data = fetch_fsl_feeds()
@@ -116,24 +116,6 @@ for contrast_id, contrast_val in contrasts.items():
 
     z_maps[contrast_id] = z_map
 
-    # # store stat maps to disk
-    # for dtype, out_map in zip(['z', 't', 'effects', 'variance'],
-    #                           [z_map, t_map, eff_map, var_map]):
-    #     map_dir = os.path.join(
-    #         subject_data.output_dir, '%s_maps' % dtype)
-    #     if not os.path.exists(map_dir):
-    #         os.makedirs(map_dir)
-    #     map_path = os.path.join(
-    #         map_dir, '%s.nii.gz' % contrast_id)
-    #     nibabel.save(out_map, map_path)
-    #
-    #     if dtype == "z":
-    #         z_maps[contrast_id] = map_path
-    #
-    #     print("\t\t%s map: %s" % (dtype, map_path))
-    #
-    # print
-
 """do stats report"""
 reports_dir = os.path.join(subject_data.output_dir, "reports")
 stats_report_filename = os.path.join(reports_dir, "report_stats.html")
@@ -159,8 +141,5 @@ generate_subject_stats_report(
     hrf_model=hrf_model,
     slicer='z'
     )
-
-# shutdown main report page
-# ProgressReport().finish_dir(output_dir)
 
 print("\r\nStatistic report written to %s\r\n" % stats_report_filename)

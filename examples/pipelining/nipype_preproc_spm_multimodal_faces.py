@@ -124,21 +124,6 @@ for contrast_id, contrast_val in contrasts.items():
 
     z_maps[contrast_id] = z_map
 
-    # for map_type, out_map in zip(['z', 't', 'effects', 'variance'],
-    #                           [z_map, t_map, effects_map, var_map]):
-    #     map_dir = os.path.join(
-    #         subject_data.output_dir, '%s_maps' % map_type)
-    #     if not os.path.exists(map_dir):
-    #         os.makedirs(map_dir)
-    #     map_path = os.path.join(
-    #         map_dir, '%s.nii.gz' % contrast_id)
-    #     print("\t\tWriting %s ..." % map_path)
-    #     nibabel.save(out_map, map_path)
-    #     if map_type == 'z':
-    #         z_maps[contrast_id] = map_path
-    #     if map_type == 'effects':
-    #         effects_maps[contrast_id] = map_path
-
 # generate stats report
 anat_img = nibabel.load(subject_data.anat)
 stats_report_filename = os.path.join(subject_data.output_dir, "reports",
