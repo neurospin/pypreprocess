@@ -44,6 +44,7 @@ paradigm = pd.DataFrame({'trial_type': conditions, 'onset': onset,
 frametimes = np.linspace(0, (n_scans - 1) * TR, n_scans)
 maximum_epoch_duration = max(EV1_epoch_duration, EV2_epoch_duration)
 hfcut = 1.5 * maximum_epoch_duration  # why ?
+hfcut = 1./hfcut
 
 """construct design matrix"""
 drift_model = 'Cosine'
@@ -52,7 +53,8 @@ design_matrix = make_first_level_design_matrix(frame_times=frametimes,
                                    events=paradigm,
                                    hrf_model=hrf_model,
                                    drift_model=drift_model,
-                                   high_pass=1./hfcut)
+                                   # high_pass = 0.01)
+                                   high_pass=hfcut)
 
 """fetch input data"""
 _subject_data = fetch_fsl_feeds()
@@ -115,31 +117,3 @@ for contrast_id, contrast_val in contrasts.items():
         contrasts[contrast_id], output_type='z_score')
 
     z_maps[contrast_id] = z_map
-
-"""do stats report"""
-reports_dir = os.path.join(subject_data.output_dir, "reports")
-stats_report_filename = os.path.join(reports_dir, "report_stats.html")
-contrasts = dict((contrast_id, contrasts[contrast_id])
-                 for contrast_id in z_maps.keys())
-generate_subject_stats_report(
-    stats_report_filename,
-    contrasts,
-    z_maps,
-    fmri_glm.masker_.mask_img_,
-    design_matrices=[design_matrix],
-    subject_id=subject_data.subject_id,
-    anat=anat_file,
-    cluster_th=50,  # we're only interested in this 'large' clusters
-    start_time=stats_start_time,
-    # additional ``kwargs`` for more informative report
-    paradigm=paradigm,
-    TR=TR,
-    n_scans=n_scans,
-    hfcut=hfcut,
-    frametimes=frametimes,
-    drift_model=drift_model,
-    hrf_model=hrf_model,
-    slicer='z'
-    )
-
-print("\r\nStatistic report written to %s\r\n" % stats_report_filename)

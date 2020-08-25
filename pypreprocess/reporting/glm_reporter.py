@@ -357,7 +357,7 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
             z_threshold=threshold, title=title)
 
         # plot activation proper
-        # XXX: nilearn's plotting bug's about rotations inf affine, etc.
+        # XXX: nilearn's plotting bug's about rotations inf affine, etc.[print(c['cluster_p_value']) for c in clusters]
         z_map = reorder_img(z_map, resample="continuous")
         if not anat is None:
             anat = reorder_img(anat, resample="continuous")
@@ -443,7 +443,7 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
     for contrast_id in contrasts:
         print("\tcontrast id: %s" % contrast_id)
 
-        # effects maps will be the input to the second level GLM
+        # effects maps will be the input to the second level GLMfirmfirmfirmfirm
         first_level_image = nibabel.concat_images(
             [x[contrast_id] for x in effects_maps])
 

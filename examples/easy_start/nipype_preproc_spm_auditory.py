@@ -40,6 +40,7 @@ paradigm = pd.DataFrame(
     {'onset': onset, 'duration': duration, 'trial_type': conditions})
 
 hfcut = 2 * 2 * epoch_duration
+# hfcut = 1./hfcut
 fd = open(sd.func[0].split(".")[0] + "_onset.txt", "w")
 for c, o, d in zip(conditions, onset, duration):
     fd.write("%s %s %s\r\n" % (c, o, d))
@@ -97,30 +98,3 @@ for contrast_id, contrast_val in contrasts.items():
         contrasts[contrast_id], output_type='z_score')
 
     z_maps[contrast_id] = z_map
-
-# do stats report
-stats_report_filename = os.path.join(subject_data.reports_output_dir,
-                                     "report_stats.html")
-contrasts = dict((contrast_id, contrasts[contrast_id])
-                 for contrast_id in z_maps.keys())
-generate_subject_stats_report(
-    stats_report_filename,
-    contrasts,
-    z_maps,
-    fmri_glm.masker_.mask_img_,
-    design_matrices=[design_matrix],
-    subject_id=subject_data.subject_id,
-    anat=anat_img,
-    display_mode='ortho',
-    threshold=3.,
-    cluster_th=50,  # 'large' clusters
-    start_time=stats_start_time,
-    paradigm=paradigm,
-    TR=tr,
-    nscans=nscans,
-    hfcut=hfcut,
-    frametimes=frametimes,
-    drift_model=drift_model,
-    hrf_model=hrf_model)
-
-print("\r\nStatistic report written to %s\r\n" % stats_report_filename)
