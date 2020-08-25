@@ -40,7 +40,8 @@ paradigm = pd.DataFrame(
     {'onset': onset, 'duration': duration, 'trial_type': conditions})
 
 hfcut = 2 * 2 * epoch_duration
-# hfcut = 1./hfcut
+hfcut = 1./hfcut
+
 fd = open(sd.func[0].split(".")[0] + "_onset.txt", "w")
 for c, o, d in zip(conditions, onset, duration):
     fd.write("%s %s %s\r\n" % (c, o, d))
@@ -64,7 +65,7 @@ ax.set_position([.05, .25, .9, .65])
 ax.set_title('Design matrix')
 dmat_outfile = os.path.join(subject_data.output_dir, 'design_matrix.png')
 plt.savefig(dmat_outfile, bbox_inches="tight", dpi=200)
-# plt.savefig(dmat_outfile, format='pdf')
+
 # specify contrasts
 contrasts = {}
 _, matrix, names = check_design_matrix(design_matrix)

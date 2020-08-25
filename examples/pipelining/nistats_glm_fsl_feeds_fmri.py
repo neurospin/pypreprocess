@@ -53,7 +53,6 @@ design_matrix = make_first_level_design_matrix(frame_times=frametimes,
                                    events=paradigm,
                                    hrf_model=hrf_model,
                                    drift_model=drift_model,
-                                   # high_pass = 0.01)
                                    high_pass=hfcut)
 
 """fetch input data"""

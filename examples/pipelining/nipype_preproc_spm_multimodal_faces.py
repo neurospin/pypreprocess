@@ -56,6 +56,7 @@ tr = 2.
 drift_model = 'Cosine'
 hrf_model = 'spm + derivative'
 hfcut = 128.
+hfcut = 1./hfcut
 
 # make design matrices
 first_level_effects_maps = []
