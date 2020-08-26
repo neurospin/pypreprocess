@@ -443,7 +443,7 @@ def group_one_sample_t_test(masks, effects_maps, contrasts, output_dir,
     for contrast_id in contrasts:
         print("\tcontrast id: %s" % contrast_id)
 
-        # effects maps will be the input to the second level GLMfirmfirmfirmfirm
+        # effects maps will be the input to the second level GLM
         first_level_image = nibabel.concat_images(
             [x[contrast_id] for x in effects_maps])
 
