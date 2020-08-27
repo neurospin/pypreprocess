@@ -262,7 +262,7 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
         # reshape glm_kwargs['paradigm']
         if "paradigm" in glm_kwargs:
             paradigm_ = glm_kwargs['paradigm']
-            paradigm = {'name' : paradigm_['name'],
+            paradigm = {'name' : paradigm_['trial_type'],
                         'onset' : paradigm_['onset']}
             if 'duration' in paradigm_.keys():
                 paradigm['duration'] = paradigm_['duration']
@@ -357,7 +357,7 @@ powered by <a href="%s">nistats</a>.""" % (user_script_name,
             z_threshold=threshold, title=title)
 
         # plot activation proper
-        # XXX: nilearn's plotting bug's about rotations inf affine, etc.
+        # XXX: nilearn's plotting bug's about rotations inf affine, etc.[print(c['cluster_p_value']) for c in clusters]
         z_map = reorder_img(z_map, resample="continuous")
         if not anat is None:
             anat = reorder_img(anat, resample="continuous")

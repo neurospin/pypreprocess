@@ -738,8 +738,7 @@ def generate_tsdiffana_thumbnail(image_files, sessions, subject_id,
     axes = plot_tsdiffs(results, use_same_figure=False)
     figures = [ax.get_figure() for ax in axes]
     output_filename_template = os.path.join(
-        output_dir,
-        "tsdiffana_plot_{0}.png")
+        output_dir, "tsdiffana_plot_{0}.png")
     output_filenames = [output_filename_template.format(i)
                         for i in range(len(figures))]
     for fig, output_filename in zip(figures, output_filenames):

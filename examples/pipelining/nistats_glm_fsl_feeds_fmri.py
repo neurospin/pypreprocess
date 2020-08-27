@@ -7,9 +7,9 @@ on FSL's FEEDS fMRI single-subject example data
 import os
 import numpy as np
 import pandas as pd
-from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
+from nilearn.stats.first_level_model.design_matrix import (make_first_level_design_matrix,
                                                          check_design_matrix)
-from pypreprocess.external.nistats.glm import FirstLevelGLM
+from nilearn.stats.first_level_model import FirstLevelModel
 import nibabel
 import time
 from pypreprocess.nipype_preproc_spm_utils import (SubjectData,
@@ -39,20 +39,21 @@ EV2_on = 45
 conditions = ['EV1'] * EV1_epochs + ['EV2'] * EV2_epochs
 onset = list(EV1_onset) + list(EV2_onset)
 duration = [EV1_on] * EV1_epochs + [EV2_on] * EV2_epochs
-paradigm = pd.DataFrame({'name': conditions, 'onset': onset,
+paradigm = pd.DataFrame({'trial_type': conditions, 'onset': onset,
                          'duration': duration})
 frametimes = np.linspace(0, (n_scans - 1) * TR, n_scans)
 maximum_epoch_duration = max(EV1_epoch_duration, EV2_epoch_duration)
 hfcut = 1.5 * maximum_epoch_duration  # why ?
+hfcut = 1./hfcut
 
 """construct design matrix"""
 drift_model = 'Cosine'
 hrf_model = 'spm + derivative'
-design_matrix = make_design_matrix(frame_times=frametimes,
-                                   paradigm=paradigm,
+design_matrix = make_first_level_design_matrix(frame_times=frametimes,
+                                   events=paradigm,
                                    hrf_model=hrf_model,
                                    drift_model=drift_model,
-                                   period_cut=hfcut)
+                                   high_pass=hfcut)
 
 """fetch input data"""
 _subject_data = fetch_fsl_feeds()
@@ -97,8 +98,8 @@ contrasts['effects_of_interest'] = contrasts['EV1'] + contrasts['EV2']
 
 """fit GLM"""
 print('\r\nFitting a GLM (this takes time) ..')
-fmri_glm = FirstLevelGLM()
-fmri_glm.fit(fmri_files, design_matrix)
+fmri_glm = FirstLevelModel()
+fmri_glm.fit(fmri_files, design_matrices=design_matrix)
 
 """save computed mask"""
 mask_path = os.path.join(subject_data.output_dir, "mask.nii.gz")
@@ -111,61 +112,7 @@ print("Computing contrasts ..")
 z_maps = {}
 for contrast_id, contrast_val in contrasts.items():
     print("\tcontrast id: %s" % contrast_id)
-    z_map, t_map, eff_map, var_map = fmri_glm.transform(
-        con_vals=contrasts[contrast_id],
-        contrast_name=contrast_id,
-        output_z=True,
-        output_stat=True,
-        output_effects=True,
-        output_variance=True,
-        )
+    z_map = fmri_glm.compute_contrast(
+        contrasts[contrast_id], output_type='z_score')
 
-    # store stat maps to disk
-    for dtype, out_map in zip(['z', 't', 'effects', 'variance'],
-                              [z_map, t_map, eff_map, var_map]):
-        map_dir = os.path.join(
-            subject_data.output_dir, '%s_maps' % dtype)
-        if not os.path.exists(map_dir):
-            os.makedirs(map_dir)
-        map_path = os.path.join(
-            map_dir, '%s.nii.gz' % contrast_id)
-        nibabel.save(out_map, map_path)
-
-        if dtype == "z":
-            z_maps[contrast_id] = map_path
-
-        print("\t\t%s map: %s" % (dtype, map_path))
-
-    print
-
-"""do stats report"""
-reports_dir = os.path.join(subject_data.output_dir, "reports")
-stats_report_filename = os.path.join(reports_dir, "report_stats.html")
-contrasts = dict((contrast_id, contrasts[contrast_id])
-                 for contrast_id in z_maps.keys())
-generate_subject_stats_report(
-    stats_report_filename,
-    contrasts,
-    z_maps,
-    fmri_glm.masker_.mask_img_,
-    design_matrices=[design_matrix],
-    subject_id=subject_data.subject_id,
-    anat=anat_file,
-    cluster_th=50,  # we're only interested in this 'large' clusters
-    start_time=stats_start_time,
-
-    # additional ``kwargs`` for more informative report
-    paradigm=paradigm,
-    TR=TR,
-    n_scans=n_scans,
-    hfcut=hfcut,
-    frametimes=frametimes,
-    drift_model=drift_model,
-    hrf_model=hrf_model,
-    slicer='z'
-    )
-
-# shutdown main report page
-ProgressReport().finish_dir(output_dir)
-
-print("\r\nStatistic report written to %s\r\n" % stats_report_filename)
+    z_maps[contrast_id] = z_map

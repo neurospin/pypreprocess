@@ -11,10 +11,10 @@ from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
 from pypreprocess.datasets import fetch_spm_auditory
 from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
 import pandas as pd
-from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
-                                                         check_design_matrix,
-                                                         plot_design_matrix)
-from pypreprocess.external.nistats.glm import FirstLevelGLM
+from nilearn.stats.first_level_model.design_matrix import (make_first_level_design_matrix,
+                                                         check_design_matrix)
+from nilearn.reporting import plot_design_matrix
+from nilearn.stats.first_level_model import FirstLevelModel
 import matplotlib.pyplot as plt
 
 # file containing configuration for preprocessing the data
@@ -37,9 +37,11 @@ duration = epoch_duration * np.ones(len(conditions))
 onset = np.linspace(0, (len(conditions) - 1) * epoch_duration,
                     len(conditions))
 paradigm = pd.DataFrame(
-    {'onset': onset, 'duration': duration, 'name': conditions})
+    {'onset': onset, 'duration': duration, 'trial_type': conditions})
 
 hfcut = 2 * 2 * epoch_duration
+hfcut = 1./hfcut
+
 fd = open(sd.func[0].split(".")[0] + "_onset.txt", "w")
 for c, o, d in zip(conditions, onset, duration):
     fd.write("%s %s %s\r\n" % (c, o, d))
@@ -53,9 +55,9 @@ nscans = len(subject_data.func[0])
 frametimes = np.linspace(0, (nscans - 1) * tr, nscans)
 drift_model = 'Cosine'
 hrf_model = 'spm + derivative'
-design_matrix = make_design_matrix(
+design_matrix = make_first_level_design_matrix(
     frametimes, paradigm, hrf_model=hrf_model, drift_model=drift_model,
-    period_cut=hfcut)
+    high_pass=hfcut)
 
 # plot and save design matrix
 ax = plot_design_matrix(design_matrix)
@@ -76,8 +78,8 @@ contrasts = {'active-rest': contrasts['active'] - contrasts['rest']}
 
 # fit GLM
 print('\r\nFitting a GLM (this takes time) ..')
-fmri_glm = FirstLevelGLM(noise_model='ar1', standardize=False).fit(
-    [nibabel.concat_images(subject_data.func[0])], design_matrix)
+fmri_glm = FirstLevelModel(noise_model='ar1', standardize=False, t_r=tr).fit(
+    [nibabel.concat_images(subject_data.func[0])], design_matrices=design_matrix)
 
 
 # save computed mask
@@ -93,52 +95,7 @@ z_maps = {}
 effects_maps = {}
 for contrast_id, contrast_val in contrasts.items():
     print("\tcontrast id: %s" % contrast_id)
-    z_map, t_map, eff_map, var_map = fmri_glm.transform(
-        contrasts[contrast_id], contrast_name=contrast_id, output_z=True,
-        output_stat=True, output_effects=True, output_variance=True)
+    z_map = fmri_glm.compute_contrast(
+        contrasts[contrast_id], output_type='z_score')
 
-    # store stat maps to disk
-    for dtype, out_map in zip(['z', 't', 'effects', 'variance'],
-                              [z_map, t_map, eff_map, var_map]):
-        map_dir = os.path.join(
-            subject_data.output_dir, '%s_maps' % dtype)
-        if not os.path.exists(map_dir):
-            os.makedirs(map_dir)
-        map_path = os.path.join(
-            map_dir, '%s.nii.gz' % contrast_id)
-        nibabel.save(out_map, map_path)
-
-        # collect zmaps for contrasts we're interested in
-        if contrast_id == 'active-rest' and dtype == "z":
-            z_maps[contrast_id] = map_path
-
-        print("\t\t%s map: %s" % (dtype, map_path))
-
-    print
-
-# do stats report
-stats_report_filename = os.path.join(subject_data.reports_output_dir,
-                                     "report_stats.html")
-contrasts = dict((contrast_id, contrasts[contrast_id])
-                 for contrast_id in z_maps.keys())
-generate_subject_stats_report(
-    stats_report_filename,
-    contrasts,
-    z_maps,
-    fmri_glm.masker_.mask_img_,
-    design_matrices=[design_matrix],
-    subject_id=subject_data.subject_id,
-    anat=anat_img,
-    display_mode='ortho',
-    threshold=3.,
-    cluster_th=50,  # 'large' clusters
-    start_time=stats_start_time,
-    paradigm=paradigm,
-    TR=tr,
-    nscans=nscans,
-    hfcut=hfcut,
-    frametimes=frametimes,
-    drift_model=drift_model,
-    hrf_model=hrf_model)
-
-print("\r\nStatistic report written to %s\r\n" % stats_report_filename)
+    z_maps[contrast_id] = z_map

@@ -12,10 +12,10 @@ import nibabel
 import numpy as np
 import scipy.io
 
-# imports for GLM buusiness
-from pypreprocess.external.nistats.design_matrix import (make_design_matrix,
+# imports for GLM business
+from nilearn.stats.first_level_model.design_matrix import (make_first_level_design_matrix,
                                                          check_design_matrix)
-from pypreprocess.external.nistats.glm import FirstLevelGLM
+from nilearn.stats.first_level_model import FirstLevelModel
 import pandas as pd
 
 # pypreprocess imports
@@ -55,7 +55,7 @@ stats_start_time = time.ctime()
 tr = 2.
 drift_model = 'Cosine'
 hrf_model = 'spm + derivative'
-hfcut = 128.
+hfcut = 1. / 128
 
 # make design matrices
 first_level_effects_maps = []
@@ -77,13 +77,16 @@ for x in range(2):
     conditions = ['faces'] * len(faces_onsets) + ['scrambled'] * len(
         scrambled_onsets)
 
+    _duration = 0.6
+    duration = _duration * np.ones(len(conditions))
+
     # build design matrix
     frametimes = np.linspace(0, (n_scans - 1) * tr, n_scans)
-    paradigm = pd.DataFrame({'name': conditions, 'onset': onsets})
-    design_matrix = make_design_matrix(frametimes, paradigm,
+    paradigm = pd.DataFrame({'trial_type': conditions, 'duration': duration, 'onset': onsets})
+    design_matrix = make_first_level_design_matrix(frametimes, paradigm,
                                        hrf_model=hrf_model,
                                        drift_model=drift_model,
-                                       period_cut=hfcut)
+                                       high_pass=hfcut)
     design_matrices.append(design_matrix)
 
 # specify contrasts
@@ -101,9 +104,9 @@ contrasts['effects_of_interest'] = contrasts['faces'] + contrasts['scrambled']
 
 # fit GLM
 print('Fitting a GLM (this takes time)...')
-fmri_glm = FirstLevelGLM().fit(
+fmri_glm = FirstLevelModel().fit(
     [nibabel.concat_images(x) for x in subject_data.func],
-    design_matrices)
+    design_matrices=design_matrices)
 
 # save computed mask
 mask_path = os.path.join(subject_data.output_dir, "mask.nii.gz")
@@ -116,35 +119,7 @@ z_maps = {}
 effects_maps = {}
 for contrast_id, contrast_val in contrasts.items():
     print("\tcontrast id: %s" % contrast_id)
-    z_map, t_map, effects_map, var_map = fmri_glm.transform(
-        [contrast_val] * 2, contrast_name=contrast_id, output_z=True,
-        output_stat=True, output_effects=True, output_variance=True)
-    for map_type, out_map in zip(['z', 't', 'effects', 'variance'],
-                              [z_map, t_map, effects_map, var_map]):
-        map_dir = os.path.join(
-            subject_data.output_dir, '%s_maps' % map_type)
-        if not os.path.exists(map_dir):
-            os.makedirs(map_dir)
-        map_path = os.path.join(
-            map_dir, '%s.nii.gz' % contrast_id)
-        print("\t\tWriting %s ..." % map_path)
-        nibabel.save(out_map, map_path)
-        if map_type == 'z':
-            z_maps[contrast_id] = map_path
-        if map_type == 'effects':
-            effects_maps[contrast_id] = map_path
+    z_map = fmri_glm.compute_contrast(
+        [contrast_val] * 2, output_type='z_score')
 
-# generate stats report
-anat_img = nibabel.load(subject_data.anat)
-stats_report_filename = os.path.join(subject_data.output_dir, "reports",
-                                     "report_stats.html")
-generate_subject_stats_report(
-    stats_report_filename, contrasts, z_maps, fmri_glm.masker_.mask_img_,
-    anat=anat_img, threshold=2.3, cluster_th=15,
-    design_matrices=design_matrices, TR=tr,
-    subject_id="sub001", start_time=stats_start_time, n_scans=n_scans,
-    title="GLM for subject %s" % subject_data.subject_id, hfcut=hfcut,
-    paradigm=paradigm, frametimes=frametimes,
-    drift_model=drift_model, hrf_model=hrf_model)
-ProgressReport().finish_dir(subject_data.output_dir)
-print("Statistic report written to %s\r\n" % stats_report_filename)
+    z_maps[contrast_id] = z_map
