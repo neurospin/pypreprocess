@@ -78,7 +78,7 @@ contrasts = {'active-rest': contrasts['active'] - contrasts['rest']}
 
 # fit GLM
 print('\r\nFitting a GLM (this takes time) ..')
-fmri_glm = FirstLevelModel(noise_model='ar1', standardize=False, t_r = tr).fit(
+fmri_glm = FirstLevelModel(noise_model='ar1', standardize=False, t_r=tr).fit(
     [nibabel.concat_images(subject_data.func[0])], design_matrices=design_matrix)
 
 
