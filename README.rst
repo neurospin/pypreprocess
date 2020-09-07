@@ -35,15 +35,16 @@ Important links
 
 Dependencies
 ============
-* Python >= 2.6
-* Numpy >= 1.3
-* SciPy >= 0.7
-* matplotlib >= 0.99.1
-* nibabel >= 1.3.0
-* nipype >= 0.8.0
+* Python >= 3.5
+* Numpy >= 1.11
+* SciPy >= 0.19
+* Scikit-learn >= 0.19
+* matplotlib >= 1.5.1
+* nibabel >= 2.0.2
+* nipype >= 1.4
 * configobj >= 5.0.6
-* nilearn >= 0.1.3
-* Pandas >= 0.12
+* nilearn >= 0.6.2
+* Pandas >= 0.23
 
 
 Installation
@@ -52,21 +53,20 @@ To begin with, you may also want to install the pre-compiled version of SPM (in 
 
      $ . continuous_integration/install_spm12.sh
 
-First, install neurodebian-travis::
+Second, install the python packages pip, scipy, pytest, nibabel, sklearn, nipype, pandas, matplotlib, nilearn and configobj.  If you have a python virtual environment, just run::
 
-     $ bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
-
-Second, install the python packages pip, scipy, nose, nibabel, sklearn, nipype, pandas, matplotlib, nilearn and configobj.  If you have a python virtual environment, just run::
-
-     $ pip install scipy nose nibabel scikit-learn nipype pandas matplotlib nilearn configobj 
+     $ pip install scipy sklearn nibabel configobj coverage pytest matplotlib pandas nipype --ignore-installed
+     $ git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e . -q; cd ..
 
 If not, make sure to install pip (run: 'sudo apt-get install python-pip'). If you want to install these locally, use the --user option::
-        
-     $ pip install scipy nose nibabel scikit-learn nipype pandas matplotlib nilearn configobj --user
+
+     $ pip install scipy sklearn nibabel configobj coverage pytest matplotlib pandas nipype --ignore-installed --user
+     $ git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e . --user; cd ..
 
 If you want to install these for all users, use sudo::
 
-     $ sudo pip install scipy nose nibabel scikit-learn nipype pandas matplotlib nilearn configobj
+     $ pip install scipy sklearn nibabel configobj coverage pytest matplotlib pandas nipype --ignore-installed
+     $ git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e . --user; cd ..
 
 Finally, install pypreprocess itself by running the following in the pypreprocess::
 
@@ -74,32 +74,32 @@ Finally, install pypreprocess itself by running the following in the pypreproces
 
 or simply 'python setup.py install' in a virtual environment.
 
-       
+
 
 After Installation: Few steps to configure SPM on your own device
 =================================================================
 There are three cases:
 
-* If you have used the pypreprocess/continuous_integration/setup_spm.sh or install_spm script, you have nothing to do. 
+* If you have used the pypreprocess/continuous_integration/setup_spm.sh or install_spm script, you have nothing to do.
 
 * If you have matlab and spm installed, then specify the location of your
-  SPM installation directory and export this location as SPM_DIR:: 
+  SPM installation directory and export this location as SPM_DIR::
 
        $ export SPM_DIR=/path/to/spm/installation/dir
 
 * If you have installed a pre-compiled version of SPM then, specify the
-  location of the SPM executable and export as SPM_MCR:: 
+  location of the SPM executable and export as SPM_MCR::
 
-       $ export SPM_MCR=/path/to/spm_mcr_script (script implies spm8.sh)
+       $ export SPM_MCR=/path/to/spm_mcr_script (script implies spm12.sh)
 
 
 Getting started: pypreprocess 101
 =================================
 Simply ``cd`` to the ``examples/easy_start/`` sub-directory and run the following command::
 
-       $ python nipype_preproc_spm_auditory.py 
+       $ python nipype_preproc_spm_auditory.py
 
-If you find nipype errors like "could not configure SPM", this is most likely that the export of SPM_DIR and SPM_MCR (see above) have not been done in this shell. 
+If you find nipype errors like "could not configure SPM", this is most likely that the export of SPM_DIR and SPM_MCR (see above) have not been done in this shell.
 
 Layout of examples
 ==================
@@ -134,7 +134,7 @@ Using .ini configuration files to specify pipeline
 It is possible (and recommended) to configure the preprocessing pipeline just by copying any of the `.ini` configuration files under the `examples` sub-directory and modifying it (usually, you only need to modify the `dataset_dir` parameter), and then run::
 
       $ python pypreprocess.py your.ini
-      
+
 For example,::
 
       $ python pypreprocess.py examples/easy_start/spm_auditory_preproc.ini
@@ -166,7 +166,7 @@ In the "Dartel pipeline", SPM's [DARTEL](http://www.fil.ion.ucl.ac.uk/spm/softwa
 
 * The idea is to register images by computing a “flow field” which can then be “exponentiated” to generate both forward and backward deformations. Processing begins with the “import” step. This involves taking the parameter files produced by the segmentation (NewSegment), and writing out rigidly transformed versions of the tissue class images, such that they are in as close alignment as possible with the tissue probability maps.
 
-* The next step is the registration itself. This involves the simultaneous registration of e.g. GM with GM, WM with WM and 1-(GM+WM) with 1-(GM+WM) (when needed, the 1- (GM+WM) class is generated implicitly, so there is no need to include this class yourself). This procedure begins by creating a mean of all the images, which is used as an initial template. Deformations from this template to each of the individual images are computed, and the template is then re-generated by applying the inverses of the deformations to the images and averaging. This procedure is repeated a number of times.  
+* The next step is the registration itself. This involves the simultaneous registration of e.g. GM with GM, WM with WM and 1-(GM+WM) with 1-(GM+WM) (when needed, the 1- (GM+WM) class is generated implicitly, so there is no need to include this class yourself). This procedure begins by creating a mean of all the images, which is used as an initial template. Deformations from this template to each of the individual images are computed, and the template is then re-generated by applying the inverses of the deformations to the images and averaging. This procedure is repeated a number of times.
 
 * Finally, warped versions of the images (or other images that are in alignment with them) can be generated.
 [nipype_preproc_spm_abide.py](https://github.com/neurospin/pypreprocess/blob/master/scripts/abide_preproc.py) is a script which uses this pipeline to preprocess the [ABIDE](http://fcon_1000.projects.nitrc.org/indi/abide/).
@@ -188,20 +188,9 @@ You can check the latest version of the code with the command::
 or if you have write privileges::
 
        $ git clone git@github.com:neurospin/pypreprocess.git
-       
-Common problems and fixes
-=========================
-* libXp.so.6 missing (in ubuntu >= 15.10, for example). You'll need to install it manually by executing the following lines in a terminal (you'll need root)::
-
-       $ sudo add-apt-repository "deb http://securuty.ubuntu.com/ubuntu precise-security main"   
-       $ sudo apt update
-       $ sudo apt install lixp6
-       $ sudo add-apt-repository -r "deb http://securuty.ubuntu.com/ubuntu precise-security main"
-
-
 
 * whitespaces in the directory name for the variable 'scratch' triggers a bug in nipype and results in a crash (have not tested if this also occur for other path variables)
 
 * when using an 'ini' file, say 'mytest.ini', with ''python preprocessing.py mytest.ini'', there can be a conflict between  pypreprocess.py and the pypreprocess module (solution: rename pypreprocess.py into something like pypreprocini.py)
 
-* the cache is not relocatable (because joblib encode the absolute paths): if you are forced to move the cache -- e.g. because of lack of space on a filesystem -- use a symbolic link to let the system believe that the cache is still at the original location.  
+* the cache is not relocatable (because joblib encode the absolute paths): if you are forced to move the cache -- e.g. because of lack of space on a filesystem -- use a symbolic link to let the system believe that the cache is still at the original location.
