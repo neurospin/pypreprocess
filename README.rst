@@ -49,14 +49,14 @@ Dependencies
 
 Installation
 ============
-To begin with, you may also want to install the pre-compiled version of SPM (in case you don't have matlab, etc.). Just run the following::
+To begin with, you may also want to install the pre-compiled version of SPM (in case you don't have matlab, etc.). From the main pypreprocess directory, run the following::
 
      $ . continuous_integration/install_spm12.sh
 
 Second, install the python packages pip, scipy, pytest, nibabel, sklearn, nipype, pandas, matplotlib, nilearn and configobj.  If you have a python virtual environment, just run::
 
-     $ pip install scipy sklearn nibabel configobj coverage pytest matplotlib pandas nipype --ignore-installed
-     $ git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e . -q; cd ..
+     $ pip install scipy sklearn nibabel configobj coverage pytest matplotlib pandas nipype
+     $ git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e . ; cd ..
 
 If not, make sure to install pip (run: 'sudo apt-get install python-pip'). If you want to install these locally, use the --user option::
 
