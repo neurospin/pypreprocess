@@ -7,9 +7,9 @@ on FSL's FEEDS fMRI single-subject example data
 import os
 import numpy as np
 import pandas as pd
-from nilearn.stats.first_level_model.design_matrix import (make_first_level_design_matrix,
+from nilearn.glm.first_level.design_matrix import (make_first_level_design_matrix,
                                                          check_design_matrix)
-from nilearn.stats.first_level_model import FirstLevelModel
+from nilearn.glm.first_level import FirstLevelModel
 import nibabel
 import time
 from pypreprocess.nipype_preproc_spm_utils import (SubjectData,
