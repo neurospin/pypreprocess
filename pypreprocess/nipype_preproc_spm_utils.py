@@ -1668,6 +1668,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     if len(subjects) < 2:
         if newsegment:
             warnings.warn("There is only one subject. Disabling NewSegment.")
+            newsegment = False
         if dartel:
             warnings.warn("There is only one subject. Disabling DARTEL.")
             dartel = False
