@@ -173,16 +173,9 @@ def fetch_fsl_feeds(data_dir=None, data_name="fsl_feeds", verbose=1):
            "fsl-4.1.0-feeds.tar.gz")
     archive_path = os.path.join(data_dir, os.path.basename(url))
     for i in range(2):
-        _fetch_file(url, data_dir)
-        try:
-            _uncompress_file(archive_path)
-            break
-        except:
-            if i == 0:
-                print("Archive corrupted, trying to download it again.")
-                os.remove(archive_path)
-            else:
-                raise IOError("Unable to download archive from %s" % url)
+        _fetch_files(
+            data_dir, [("feeds", url, {"uncompress": True, "move": "fsl.tar"})]
+        )        
     return _glob_fsl_feeds_data(data_dir)
 
 
