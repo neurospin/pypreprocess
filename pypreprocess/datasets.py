@@ -2,7 +2,7 @@ import os
 import glob
 import re
 import nibabel
-from sklearn.datasets.base import Bunch
+from sklearn.utils import Bunch
 
 # XXX nilearn.datasets.py got factorized recently. The following codeblock
 # is to ensure backward compat.
@@ -33,7 +33,7 @@ def fetch_spm_auditory(data_dir=None, data_name='spm_auditory',
 
     Returns
     -------
-    data: sklearn.datasets.base.Bunch
+    data: sklearn.utils.Bunch
         Dictionary-like object, the interest attributes are:
         - 'func': string list. Paths to functional images
         - 'anat': string list. Path to anat image
@@ -128,7 +128,7 @@ def fetch_fsl_feeds(data_dir=None, data_name="fsl_feeds", verbose=1):
 
     Returns
     -------
-    data: sklearn.datasets.base.Bunch
+    data: sklearn.utils.Bunch
         Dictionary-like object, the interest attributes are:
         - 'func': string list. Paths to functional images
         - 'anat': string list. Path to anat image
@@ -173,16 +173,9 @@ def fetch_fsl_feeds(data_dir=None, data_name="fsl_feeds", verbose=1):
            "fsl-4.1.0-feeds.tar.gz")
     archive_path = os.path.join(data_dir, os.path.basename(url))
     for i in range(2):
-        _fetch_file(url, data_dir)
-        try:
-            _uncompress_file(archive_path)
-            break
-        except:
-            if i == 0:
-                print("Archive corrupted, trying to download it again.")
-                os.remove(archive_path)
-            else:
-                raise IOError("Unable to download archive from %s" % url)
+        _fetch_files(
+            data_dir, [("feeds", url, {"uncompress": True, "move": "fsl.tar"})]
+        )        
     return _glob_fsl_feeds_data(data_dir)
 
 
@@ -199,7 +192,7 @@ def fetch_spm_multimodal_fmri(data_dir=None, data_name="spm_multimodal_fmri",
 
     Returns
     -------
-    data: sklearn.datasets.base.Bunch
+    data: sklearn.utils.Bunch
         Dictionary-like object, the interest attributes are:
         - 'func1': string list. Paths to functional images for session 1
         - 'func2': string list. Paths to functional images for session 2
