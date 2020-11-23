@@ -63,9 +63,8 @@ jobs:
             echo 'export SPM_MCR="$SPM_ROOT_DIR/spm12.sh"' >> $BASH_ENV
             echo 'export PATH="/home/circleci/.local/bin:$PATH"' >> $BASH_ENV
             pip install --upgrade pip
-            pip install scipy sklearn nibabel configobj coverage pytest -q
+            pip install scipy sklearn nibabel nilearn configobj coverage pytest -q
             pip install matplotlib pandas nipype --ignore-installed -q
-            git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e . -q; cd ..
             python setup.py install --user
             python -c "from pypreprocess import datasets; datasets.fetch_spm_auditory(); datasets.fetch_spm_multimodal_fmri(); datasets.fetch_fsl_feeds()"
             sudo chown -R $USER:$USER /home/circleci/
