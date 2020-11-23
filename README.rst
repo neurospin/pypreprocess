@@ -55,19 +55,16 @@ To begin with, you may also want to install the pre-compiled version of SPM (in 
 
 Second, install the python packages pip, scipy, pytest, nibabel, sklearn, nipype, pandas, matplotlib, nilearn and configobj.  If you have a python virtual environment, just run::
 
-     $ pip install scipy sklearn nibabel configobj coverage pytest matplotlib pandas nipype
-     $ git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e . ; cd ..
+     $ pip install scipy sklearn nibabel nilearn configobj coverage pytest matplotlib pandas nipype
 
 If not, make sure to install pip (run: 'sudo apt-get install python-pip'). If you want to install these locally, use the --user option::
 
-     $ pip install scipy sklearn nibabel configobj coverage pytest matplotlib pandas nipype --ignore-installed --user
-     $ git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e . --user; cd ..
+     $ pip install scipy sklearn nibabel nilearn configobj coverage pytest matplotlib pandas nipype --ignore-installed --user
 
 If you want to install these for all users, use sudo::
 
-     $ pip install scipy sklearn nibabel configobj coverage pytest matplotlib pandas nipype --ignore-installed
-     $ git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e . --user; cd ..
-
+     $ pip install scipy sklearn nibabel nilearn configobj coverage pytest matplotlib pandas nipype --ignore-installed
+     
 Finally, install pypreprocess itself by running the following in the pypreprocess::
 
      $ python setup.py install --user
