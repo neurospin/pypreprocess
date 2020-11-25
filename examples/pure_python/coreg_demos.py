@@ -79,7 +79,7 @@ def _nyu_rest_factory(session=1):
         # set subject output directory
         subject_data.output_dir = "/tmp/%s" % subject_id
 
-        subject_data.sanitize(deleteorient=True, niigz2nii=False)
+        subject_data.sanitize(deleteorient=False, niigz2nii=False)
 
         yield (subject_data.subject_id, subject_data.func[0],
                subject_data.anat)

@@ -27,7 +27,7 @@ here</a>.\
 
 # fetch HAXBY dataset
 N_SUBJECTS = 2
-haxby_data = fetch_haxby(n_subjects=N_SUBJECTS)
+haxby_data = fetch_haxby(subjects=N_SUBJECTS)
 
 # set output dir
 OUTPUT_DIR = os.path.join(os.path.dirname(haxby_data.mask),

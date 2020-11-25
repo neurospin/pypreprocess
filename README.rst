@@ -21,6 +21,7 @@ pypreprocess
 * support for precompiled SPM (besides the usual matlab-dependent flavor).
 
 pypreprocess relies on nipype's interfaces to SPM (both precompiled SPM  and matlab-dependent SPM flavors). It also has pure-Python (no C extensions, no compiled code, just Python) modules and scripts for slice-timing correction, motion correction, coregistration, and smoothing, without need for nipype or matlab.
+It has been developed in the Linux environment and is tested with Ubuntu 16 and 18. No guarantees with other OSes.
 
 License
 =======
@@ -64,7 +65,7 @@ If not, make sure to install pip (run: 'sudo apt-get install python-pip'). If yo
 If you want to install these for all users, use sudo::
 
      $ pip install scipy sklearn nibabel nilearn configobj coverage pytest matplotlib pandas nipype --ignore-installed
-     
+
 Finally, install pypreprocess itself by running the following in the pypreprocess::
 
      $ python setup.py install --user
@@ -100,7 +101,7 @@ If you find nipype errors like "could not configure SPM", this is most likely th
 
 Layout of examples
 ==================
-We have written some examplary scripts for preprocessing some popular datasets.
+We have written some example scripts for preprocessing some popular datasets.
 The **examples** directory contains a set of scripts, each demoing an aspect of pypreprocessing. Some scripts even provide use-cases for the nipy-based GLM. The examples use publicly available sMRI and fMRI data. Data fetchers are based on the nilearn API.
 The main examples scripts can be summarized as follows:
 

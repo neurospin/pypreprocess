@@ -174,7 +174,7 @@ def demo_HRF(output_dir, n_slices=10,
     # create time values scaled at 1%
     timescale = .01
     n_timepoints = 24
-    time = np.linspace(0, n_timepoints, num=1 + (n_timepoints - 0) / timescale)
+    time = np.linspace(0, n_timepoints, num=int(1 + (n_timepoints - 0) / timescale))
 
     # create gamma functions
     n1 = 4
@@ -202,7 +202,7 @@ def demo_HRF(output_dir, n_slices=10,
 
     # sample the time and the signal
     freq = 100
-    TR = 3.
+    TR = 3
     acquisition_time = time[::TR * freq]
     n_scans = len(acquisition_time)
 

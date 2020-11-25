@@ -50,7 +50,7 @@ def _do_subject_slice_timing(subject_data, ref_slice=0,
                                 raw_data=sess_func)
         stc_output.append(runner(fmristc.transform)(
                 sess_func,
-                output_dir=subject_data.tmp_output_dir if (
+                output_dir=subject_data.output_dir if (
                     write_output_images > 0) else None,
                 basenames=func_basenames[sess_id],
                 prefix=func_prefix, ext=ext))
@@ -83,7 +83,7 @@ def _do_subject_realign(subject_data, reslice=True, register_to_mean=False,
         [sess_func for sess_func in subject_data.func])
     mrimc_output = runner(mrimc.transform)(
         reslice=reslice,
-        output_dir=subject_data.tmp_output_dir if (
+        output_dir=subject_data.output_dir if (
             write_output_images == 2) else None, ext=ext,
         prefix=func_prefix, basenames=func_basenames)
     subject_data.func = mrimc_output['realigned_images']
@@ -133,7 +133,7 @@ def _do_subject_coregister(
         for sess_func, sess_id in zip(subject_data.func, range(
                 subject_data.n_sessions)):
             coreg_func.append(runner(coreg.transform)(
-                sess_func, output_dir=subject_data.tmp_output_dir if (
+                sess_func, output_dir=subject_data.output_dir if (
                     write_output_images == 2) else None,
                 basenames=func_basenames[sess_id] if coreg_func_to_anat
                 else anat_basename, prefix=func_prefix))
@@ -144,7 +144,7 @@ def _do_subject_coregister(
             anat_basename = get_basenames(subject_data.anat)
         subject_data.anat = runner(coreg.transform)(
             subject_data.anat, basename=anat_basename,
-            output_dir=subject_data.tmp_output_dir if (
+            output_dir=subject_data.output_dir if (
                 write_output_images == 2) else None, prefix=anat_prefix,
             ext=ext)
         src = subject_data.anat
