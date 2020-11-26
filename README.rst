@@ -117,8 +117,6 @@ More advanced examples
 
 * **examples/pipelining/nistats_glm_fsl_feeds_fmri.py**: demos preprocessing + first-level GLM on FSL FEEDS dataset using nistats python package.
 
-* **examples/pipelining/nipype_preproc_spm_nyu.py**: preprocessing of NYU resting-state dataset
-
 Examples using pure Python (no SPM, FSL, etc. required)
 -------------------------------------------------------
 * **examples/pure_python/slice_timing_demos.py, examples/pure_python/realign_demos.py, examples/pure_python/coreg_demos.py**: demos Slice-Timing Correction (STC), motion-correction, and coregistration on various datasets, using modules written in pure Python
