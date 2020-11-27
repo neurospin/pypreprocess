@@ -13,6 +13,7 @@ from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
 import pandas as pd
 from nilearn.glm.first_level.design_matrix import (make_first_level_design_matrix,
                                                          check_design_matrix)
+
 from nilearn.plotting.matrix_plotting import plot_design_matrix
 from nilearn.glm.first_level import FirstLevelModel
 import matplotlib.pyplot as plt
