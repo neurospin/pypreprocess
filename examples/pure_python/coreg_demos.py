@@ -36,19 +36,6 @@ def _spm_auditory_factory():
     sd = fetch_spm_auditory()
     return sd.func[0], sd.anat
 
-
-def _abide_factory(institute="KKI"):
-    for scans in sorted(glob.glob(
-            "/home/elvis/CODE/datasets/ABIDE/%s_*/%s_*/scans" % (
-                institute, institute))):
-        subject_id = os.path.basename(os.path.dirname(os.path.dirname(scans)))
-        func = os.path.join(scans, "rest/resources/NIfTI/files/rest.nii")
-        anat = os.path.join(scans,
-                            "anat/resources/NIfTI/files/mprage.nii")
-
-        yield subject_id, func, anat
-
-
 def _nyu_rest_factory(session=1):
     from pypreprocess.nipype_preproc_spm_utils import SubjectData
 
@@ -79,7 +66,7 @@ def _nyu_rest_factory(session=1):
         # set subject output directory
         subject_data.output_dir = "/tmp/%s" % subject_id
 
-        subject_data.sanitize(deleteorient=True, niigz2nii=False)
+        subject_data.sanitize(deleteorient=False, niigz2nii=False)
 
         yield (subject_data.subject_id, subject_data.func[0],
                subject_data.anat)
@@ -90,9 +77,4 @@ mem.cache(_run_demo)(*_spm_auditory_factory())
 # NYU rest demo
 for subject_id, func, anat in _nyu_rest_factory():
     print("%s +++NYU rest %s+++\r\n" % ("\t" * 5, subject_id))
-    mem.cache(_run_demo)(func, anat)
-
-# ABIDE demo
-for subject_id, func, anat in _abide_factory():
-    print("%s +++ABIDE %s+++\r\n" % ("\t" * 5, subject_id))
     mem.cache(_run_demo)(func, anat)

@@ -21,6 +21,7 @@ pypreprocess
 * support for precompiled SPM (besides the usual matlab-dependent flavor).
 
 pypreprocess relies on nipype's interfaces to SPM (both precompiled SPM  and matlab-dependent SPM flavors). It also has pure-Python (no C extensions, no compiled code, just Python) modules and scripts for slice-timing correction, motion correction, coregistration, and smoothing, without need for nipype or matlab.
+It has been developed in the Linux environment and is tested with Ubuntu 16 and 18. No guarantees with other OSes.
 
 License
 =======
@@ -55,18 +56,15 @@ To begin with, you may also want to install the pre-compiled version of SPM (in 
 
 Second, install the python packages pip, scipy, pytest, nibabel, sklearn, nipype, pandas, matplotlib, nilearn and configobj.  If you have a python virtual environment, just run::
 
-     $ pip install scipy sklearn nibabel configobj coverage pytest matplotlib pandas nipype
-     $ git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e . ; cd ..
+     $ pip install scipy sklearn nibabel nilearn configobj coverage pytest matplotlib pandas nipype
 
 If not, make sure to install pip (run: 'sudo apt-get install python-pip'). If you want to install these locally, use the --user option::
 
-     $ pip install scipy sklearn nibabel configobj coverage pytest matplotlib pandas nipype --ignore-installed --user
-     $ git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e . --user; cd ..
+     $ pip install scipy sklearn nibabel nilearn configobj coverage pytest matplotlib pandas nipype --ignore-installed --user
 
 If you want to install these for all users, use sudo::
 
-     $ pip install scipy sklearn nibabel configobj coverage pytest matplotlib pandas nipype --ignore-installed
-     $ git clone https://github.com/swaythe/nilearn.git; cd nilearn; pip install -e . --user; cd ..
+     $ pip install scipy sklearn nibabel nilearn configobj coverage pytest matplotlib pandas nipype --ignore-installed
 
 Finally, install pypreprocess itself by running the following in the pypreprocess::
 
@@ -103,7 +101,7 @@ If you find nipype errors like "could not configure SPM", this is most likely th
 
 Layout of examples
 ==================
-We have written some examplary scripts for preprocessing some popular datasets.
+We have written some example scripts for preprocessing some popular datasets.
 The **examples** directory contains a set of scripts, each demoing an aspect of pypreprocessing. Some scripts even provide use-cases for the nipy-based GLM. The examples use publicly available sMRI and fMRI data. Data fetchers are based on the nilearn API.
 The main examples scripts can be summarized as follows:
 
@@ -118,8 +116,6 @@ More advanced examples
 * **examples/pipelining/nipype_preproc_spm_multimodal_faces.py**: demos preprocessing + first-level fixed-effects GLM on R. Henson's multi-modal face dataset (multiple sessions)
 
 * **examples/pipelining/nistats_glm_fsl_feeds_fmri.py**: demos preprocessing + first-level GLM on FSL FEEDS dataset using nistats python package.
-
-* **examples/pipelining/nipype_preproc_spm_nyu.py**: preprocessing of NYU resting-state dataset
 
 Examples using pure Python (no SPM, FSL, etc. required)
 -------------------------------------------------------
