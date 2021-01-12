@@ -14,8 +14,33 @@ from nilearn.image import reorder_img, mean_img
 from ..io_utils import load_vols
 EPS = np.finfo(float).eps
 
+import string
+from nilearn.reporting.utils import figure_to_svg_quoted
 
-def plot_spm_motion_parameters(parameter_file, title=None, close=False):
+def _plot_to_svg(plot):
+    """
+    Creates an SVG image as a data URL
+    from a Matplotlib Axes or Figure object.
+
+    Parameters
+    ----------
+    plot: Matplotlib Axes or Figure object
+        Contains the plot information.
+
+    Returns
+    -------
+    url_plot_svg: String
+        SVG Image Data URL
+    """
+    try:
+        return figure_to_svg_quoted(plot)
+    except AttributeError:
+        return figure_to_svg_quoted(plot.figure)
+
+
+def plot_spm_motion_parameters(parameter_file, lengths
+    , title=None, output_filename=None, close=False
+    , nilearn_report=False):
     """ Plot motion parameters obtained with SPM software
 
     Parameters
@@ -40,14 +65,28 @@ def plot_spm_motion_parameters(parameter_file, title=None, close=False):
     # do plotting
     plt.figure()
     plt.plot(motion)
+
+    aux = 0.
+    for l in lengths[:-1]:
+        pl.axvline(aux + l, linestyle="--", c="k")
+        aux += l
+
     if not title is None:
         plt.title(title)
     plt.legend(('TransX', 'TransY', 'TransZ', 'RotX', 'RotY', 'RotZ'),
                loc="upper left", ncol=2)
     plt.xlabel('time(scans)')
     plt.ylabel('Estimated motion (mm/degrees)')
-    if close:
-        plt.close()
+
+    if nilearn_report not in [False,None]:
+        fig = plt.gcf()
+        svg_plot = _plot_to_svg(fig)
+        return svg_plot
+        
+    if not output_filename is None:
+        plt.savefig(output_filename, bbox_inches="tight", dpi=200)
+        if close:
+            plt.close()
 
 
 def compute_cv(data, mask_array=None):
@@ -66,7 +105,8 @@ def plot_registration(reference_img, coregistered_img,
                       cut_coords=None,
                       display_mode='ortho',
                       cmap=None, close=False,
-                      output_filename=None):
+                      output_filename=None,
+                      nilearn_report=False):
     """Plots a coregistered source as bg/contrast for the reference image
 
     Parameters
@@ -113,6 +153,11 @@ def plot_registration(reference_img, coregistered_img,
     # misc
     _slicer.title(title, size=12, color='w', alpha=0)
 
+    if nilearn_report not in [False,None]:
+        fig = plt.gcf()
+        svg_plot = _plot_to_svg(fig)
+        return svg_plot
+
     if not output_filename is None:
         try:
             plt.savefig(output_filename, dpi=200, bbox_inches='tight',
@@ -127,7 +172,8 @@ def plot_registration(reference_img, coregistered_img,
 def plot_segmentation(
         img, gm_filename, wm_filename=None, csf_filename=None,
         output_filename=None, cut_coords=None, display_mode='ortho',
-        cmap=None, title='GM + WM + CSF segmentation', close=False):
+        cmap=None, title='GM + WM + CSF segmentation', close=False,
+        nilearn_report=False):
     """
     Plot a contour mapping of the GM, WM, and CSF of a subject's anatomical.
 
@@ -171,9 +217,16 @@ def plot_segmentation(
 
     # misc
     _slicer.title(title, size=12, color='w', alpha=0)
+
+    if nilearn_report not in [False,None]:
+        fig = plt.gcf()
+        svg_plot = _plot_to_svg(fig)
+        return svg_plot
+
     if not output_filename is None:
         plt.savefig(output_filename, bbox_inches='tight', dpi=200,
                     facecolor="k",
                     edgecolor="k")
         if close:
             plt.close()
+

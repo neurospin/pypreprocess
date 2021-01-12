@@ -13,6 +13,9 @@ import pylab as pl
 import numpy as np
 from ..external.tempita import HTMLTemplate, bunch
 
+import string
+
+
 # find package path
 ROOT_DIR = os.path.split(os.path.abspath(__file__))[0]
 
@@ -282,6 +285,79 @@ class ResultsGallery(object):
         fd = open(self.loader_filename, 'a')
         fd.write(self.raw)
         fd.close()
+
+class NilearnReport(dict):
+    """
+    Nilearn-style reporting.
+    """
+
+    def __setitem__(self, key, item):
+        self.__dict__[key] = item
+
+    def __getitem__(self, key):
+        return self.__dict__[key]
+
+    def __repr__(self):
+        return repr(self.__dict__)
+
+    def __len__(self):
+        return len(self.__dict__)
+
+    def __delitem__(self, key):
+        del self.__dict__[key]
+
+    def clear(self):
+        return self.__dict__.clear()
+
+    def copy(self):
+        return self.__dict__.copy()
+
+    def has_key(self, k):
+        return k in self.__dict__
+
+    def update(self, *args, **kwargs):
+        return self.__dict__.update(*args, **kwargs)
+
+    def keys(self):
+        return self.__dict__.keys()
+
+    def values(self):
+        return self.__dict__.values()
+
+    def items(self):
+        return self.__dict__.items()
+
+    def pop(self, *args):
+        return self.__dict__.pop(*args)
+
+    def __cmp__(self, dict_):
+        return self.__cmp__(self.__dict__, dict_)
+
+    def __contains__(self, item):
+        return item in self.__dict__
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def __unicode__(self):
+        return unicode(repr(self.__dict__))
+
+    def create_report(self):
+
+        HTML_TEMPLATE_ROOT_PATH = os.path.join(os.path.dirname(__file__),
+                                           'template_reports')
+        
+        html_template_path = os.path.join(HTML_TEMPLATE_ROOT_PATH,
+                                          'nilearn_report_template.html')
+        
+        with open(html_template_path) as html_file_obj:
+            html_template_text = html_file_obj.read()
+
+        nilearn_report_template = string.Template(html_template_text)
+
+        nilearn_report_template = nilearn_report_template.safe_substitute(**self.__dict__)
+
+        return nilearn_report_template
 
 
 def commit_subject_thumnbail_to_parent_gallery(thumbnail, subject_id,

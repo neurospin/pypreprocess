@@ -606,6 +606,14 @@ class SubjectData(object):
             fd.write(str(main_html))
             fd.close()
 
+    # def init_nil_report(self,preproc_undergone=None):
+
+    #     self.nil_report_output_dir = os.path.join(self.output_dir, "nil_report")
+    #     if not os.path.exists(self.nil_report_output_dir):
+    #         os.makedirs(self.nil_report_output_dir)
+
+    #     self.
+
     def finalize_report(self, parent_results_gallery=None, last_stage=False):
         """
         Finalizes the business of reporting.
@@ -658,7 +666,8 @@ class SubjectData(object):
         """
         return hasattr(self, 'results_gallery')
 
-    def generate_realignment_thumbnails(self, log=True, nipype=True):
+    def generate_realignment_thumbnails(self, log=True, nipype=True
+                                    , nilearn_report=None):
         """
         Invoked to generate post-realignment thumbnails.
 
@@ -689,12 +698,14 @@ class SubjectData(object):
             self.reports_output_dir, sessions=self.session_ids,
             execution_log_html_filename=execution_log_html if log
             else None, tooltip=mc_tooltip,
-            results_gallery=self.results_gallery)
+            results_gallery=self.results_gallery
+            ,nilearn_report=nilearn_report)
         self.final_thumbnail.img.src = thumbs['rp_plot']
 
     def generate_coregistration_thumbnails(self, coreg_func_to_anat=True,
                                            log=True, comment=True,
-                                           nipype=True):
+                                           nipype=True,nilearn_report=None
+                                           ):
         """
         Invoked to generate post-coregistration thumbnails.
 
@@ -733,10 +744,12 @@ class SubjectData(object):
             self.reports_output_dir,
             execution_log_html_filename=execution_log_html if log
             else None, results_gallery=self.results_gallery,
-            comment=comment, tooltip=reg_tooltip)
+            comment=comment, tooltip=reg_tooltip
+            , nilearn_report=nilearn_report)
         self.final_thumbnail.img.src = thumbs['axial']
 
-    def generate_segmentation_thumbnails(self, log=True, nipype=True):
+    def generate_segmentation_thumbnails(self, log=True, nipype=True,
+                                        nilearn_report=None):
         """
         Invoked to generate post-segmentation thumbnails.
 
@@ -780,11 +793,12 @@ class SubjectData(object):
                 cmap=cmap, brain=brain_name, only_native=True,
                 execution_log_html_filename=execution_log_html if log
                 else None, results_gallery=self.results_gallery,
-                tooltip=segment_tooltip)
+                tooltip=segment_tooltip, nilearn_report=nilearn_report)
             if 'func' in brain_name:
                 self.final_thumbnail.img.src = thumbs['axial']
 
-    def generate_normalization_thumbnails(self, log=True, nipype=True):
+    def generate_normalization_thumbnails(self, log=True, nipype=True
+                                        ,nilearn_report=None):
         """
         Invoked to generate post-normalization thumbnails.
 
@@ -818,7 +832,7 @@ class SubjectData(object):
                         warped_tpms["mwcsf"],
                         "Segment", self.reports_output_dir) if log else None,
                     results_gallery=self.results_gallery,
-                    tooltip=segment_tooltip)
+                    tooltip=segment_tooltip,nilearn_report=nilearn_report)
                 if 'func' in brain_name or not self.func:
                     self.final_thumbnail.img.src = thumbs['axial']
 
@@ -842,7 +856,7 @@ class SubjectData(object):
                 brain, self.reports_output_dir, brain=brain_name,
                 execution_log_html_filename=execution_log_html if log
                 else None, results_gallery=self.results_gallery,
-                tooltip=reg_tooltip)
+                tooltip=reg_tooltip,nilearn_report=nilearn_report)
             if not segmented and ("func" in brain_name or not self.func):
                 self.final_thumbnail.img.src = thumbs['axial']
 

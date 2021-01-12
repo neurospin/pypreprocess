@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, inital-scale=1, shrink-to-fit=yes">
+    <meta charset="utf-8">
+    <title>${page_title}</title> <!-- func:glm_reporter._make_headings() -->
+
+    <style>
+        html {
+            font-family: sans-serif;
+        }
+
+        body {
+            text-align: center;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 5px;
+            padding-left: 15px;
+            padding-right: 15px;
+            text-align: center;
+        }
+
+        tr, td {
+            border-bottom: 0px;
+            border-top: 0px;
+        }
+
+        tr:nth-child(even) {
+            background-color: lightgray;
+        }
+
+        tr:hover {
+            background-color: yellow;
+        }
+
+        details:hover {
+            cursor: pointer;
+        }
+        details > summary {
+            margin-left: auto;
+            margin-right: auto;
+            width: 25%;
+            background-color: lightgray;
+            outline-color: lightgray;
+        }
+
+        address {
+            color: lightgray;
+        }
+        address > a:visited {
+            color: lightgray;
+        }
+    </style>
+
+</head>
+    <body>
+
+        <h3>Preprocessing steps:</h3>
+        ${preproc_undergone}
+
+        <h3>anatomical_image_subject_compartments_contours</h3>
+        <img src="data:image/svg+xml,${anatomical_image_subject_compartments_contours}"/>
+
+         <h3>anatomical_image_subject_compartments_contours_axial</h3>
+        <img src="data:image/svg+xml,${anatomical_image_subject_compartments_contours_axial}"/>
+
+
+        <h3>mean_functional_image_subject_compartments_contours</h3>
+        <img src="data:image/svg+xml,${mean_functional_image_subject_compartments_contours}"/>
+
+        <h3>mean_functional_image_subject_compartments_contours_axial</h3>
+        <img src="data:image/svg+xml,${mean_functional_image_subject_compartments_contours_axial}"/>
+
+
+        <h3>(warped) anatomical_image_subject_compartments_contours</h3>
+        <img src="data:image/svg+xml,${warped_anatomical_image_template_compartments_contours}"/>
+
+
+        <h3>(warped) anatomical_image_template_compartments_contours_axial</h3>
+        <img src="data:image/svg+xml,${warped_anatomical_image_template_compartments_contours_axial}"/>
+
+
+        <h3>(warped) anatomical_image_subject_compartments_contours</h3>
+        <img src="data:image/svg+xml,${warped_anatomical_image_subject_compartments_contours}"/>
+
+
+        <h3>(warped) anatomical_image_subject_compartments_contours_axial</h3>
+        <img src="data:image/svg+xml,${warped_anatomical_image_subject_compartments_contours_axial}"/>
+
+        <h3>template_anatomical_image_outline</h3>
+        <img src="data:image/svg+xml,${template_anatomical_image_outline}"/>
+
+        <h3>anatomical_image_template_outline</h3>
+        <img src="data:image/svg+xml,${anatomical_image_template_outline}"/>
+
+        <h3>anatomical_image_template_outline_axial</h3>
+        <img src="data:image/svg+xml,${anatomical_image_template_outline_axial}"/>
+
+        <h3>(warped) mean_functional_image_template_compartments_contours</h3>
+        <img src="data:image/svg+xml,${warped_mean_functional_image_template_compartments_contours}"/>
+
+        <h3>(warped) mean_functional_image_template_compartments_contours_axial</h3>
+        <img src="data:image/svg+xml,${warped_mean_functional_image_template_compartments_contours_axial}"/>
+
+        <h3>(warped) mean_functional_image_subject_compartments_contours</h3>
+        <img src="data:image/svg+xml,${warped_mean_functional_image_subject_compartments_contours}"/>
+
+        <h3>(warped) mean_functional_image_subject_compartments_contours_axial</h3>
+        <img src="data:image/svg+xml,${warped_mean_functional_image_subject_compartments_contours_axial}"/>
+
+        <h3>template_mean_functional_image_outline</h3>
+        <img src="data:image/svg+xml,${template_mean_functional_image_outline}"/>
+
+        <h3>mean_functional_image_template_outline</h3>
+        <img src="data:image/svg+xml,${mean_functional_image_template_outline}"/>
+
+        <h3>mean_functional_image_template_outline</h3>
+        <img src="data:image/svg+xml,${mean_functional_image_template_outline_axial}"/>
+
+        <h3>mean_functional_image_anatomical_image_outline</h3>
+        <img src="data:image/svg+xml,${mean_functional_image_anatomical_image_outline}"/>
+
+        <h3>mean_functional_image_anatomical_image_outline_axial</h3>
+        <img src="data:image/svg+xml,${mean_functional_image_anatomical_image_outline_axial}"/>
+
+        <h3>anatomical_image_mean_functional_image_outline</h3>
+        <img src="data:image/svg+xml,${anatomical_image_mean_functional_image_outline}"/>
+        
+        <h3>rp_plot</h3>
+        <img src="data:image/svg+xml,${rp_plot}"/>
+
+        <h3>ts_diff_plots</h3>
+        <img src="data:image/svg+xml,${ts_diff_plots_0}"/>
+        <img src="data:image/svg+xml,${ts_diff_plots_1}"/>
+        <img src="data:image/svg+xml,${ts_diff_plots_2}"/>
+        <img src="data:image/svg+xml,${ts_diff_plots_3}"/>
+        <img src="data:image/svg+xml,${ts_diff_plots_4}"/>
+        <img src="data:image/svg+xml,${ts_diff_plots_5}"/>
+
+    <address>
+        Built using <a href="https://nilearn.github.io">Nilearn</a>.
+        Source code on <a href="https://github.com/nilearn/nilearn">GitHub</a>.
+        File bugs & feature requests
+        <a href="https://github.com/nilearn/nilearn/issues">here</a>.
+    </address>
+    </body>
+</html>
