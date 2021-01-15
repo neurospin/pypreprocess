@@ -1506,8 +1506,8 @@ def do_subject_preproc(
         print('Nilearn-style report created')
 
         out_file = open(nilearn_out_obj, 'w')
-        out_file.write('{}'.format(nilearn_report))
-        out_file.write('\n\n{}'.format(list(nilearn_report.keys())))
+        # out_file.write('{}'.format(nilearn_report))
+        out_file.write('{}'.format(list(nilearn_report.keys())))
         out_file.close()
 
     # return preprocessed subject_data

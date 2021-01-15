@@ -81,12 +81,14 @@ def plot_spm_motion_parameters(parameter_file, lengths
     if nilearn_report not in [False,None]:
         fig = plt.gcf()
         svg_plot = _plot_to_svg(fig)
-        return svg_plot
         
     if not output_filename is None:
         plt.savefig(output_filename, bbox_inches="tight", dpi=200)
         if close:
             plt.close()
+        svg_plot = None
+
+    return svg_plot
 
 
 def compute_cv(data, mask_array=None):
@@ -156,7 +158,6 @@ def plot_registration(reference_img, coregistered_img,
     if nilearn_report not in [False,None]:
         fig = plt.gcf()
         svg_plot = _plot_to_svg(fig)
-        return svg_plot
 
     if not output_filename is None:
         try:
@@ -167,7 +168,9 @@ def plot_registration(reference_img, coregistered_img,
         except AttributeError:
             # XXX TODO: handle this case!!
             pass
+        svg_plot = None
 
+    return svg_plot
 
 def plot_segmentation(
         img, gm_filename, wm_filename=None, csf_filename=None,
@@ -221,7 +224,6 @@ def plot_segmentation(
     if nilearn_report not in [False,None]:
         fig = plt.gcf()
         svg_plot = _plot_to_svg(fig)
-        return svg_plot
 
     if not output_filename is None:
         plt.savefig(output_filename, bbox_inches='tight', dpi=200,
@@ -229,4 +231,7 @@ def plot_segmentation(
                     edgecolor="k")
         if close:
             plt.close()
+            
+        svg_plot = None
 
+    return svg_plot
