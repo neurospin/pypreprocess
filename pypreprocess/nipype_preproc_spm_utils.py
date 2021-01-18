@@ -43,6 +43,7 @@ from .purepython_preproc_utils import (
 
 from nilearn.plotting.html_document import HTMLDocument
 from .reporting.preproc_reporter import generate_tsdiffana_thumbnail
+from .reporting.nilearn_reporting import *
 
 # configure SPM
 EPI_TEMPLATE = SPM_DIR = SPM_T1_TEMPLATE = T1_TEMPLATE = None
@@ -381,8 +382,16 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 
     # generate realignment thumbs
     if report:
-        subject_data.generate_realignment_thumbnails(
-            nilearn_report=nilearn_report)
+        subject_data.generate_realignment_thumbnails()
+
+    if nilearn_report not in [False,None]:
+        rp_plot = generate_realignment_report(
+            subject_data=subject_data,
+            estimated_motion=subject_data.realignment_parameters,
+            output_dir=subject_data.output_dir,
+            nilearn_report=nilearn_report
+            )
+        nilearn_report['all_components'].append(rp_plot)
 
     return subject_data.sanitize()
 
@@ -556,8 +565,14 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
 
     # generate coregistration thumbs
     if report:
-        subject_data.generate_coregistration_thumbnails(
+        subject_data.generate_coregistration_thumbnails()
+
+    if nilearn_report not in [False,None]:
+        correg_plot = generate_corregistration_report(
+            subject_data=subject_data,
+            output_dir=subject_data.output_dir,
             nilearn_report=nilearn_report)
+        nilearn_report['all_components'].append(correg_plot)
 
     return subject_data.sanitize()
 
@@ -697,7 +712,17 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
 
     # generate segmentation thumbs
     if report:
-        subject_data.generate_segmentation_thumbnails(nilearn_report=nilearn_report)
+        subject_data.generate_segmentation_thumbnails()
+
+    if nilearn_report not in [False,None]:
+        seg_plot = generate_segmentation_report(
+            subject_data=subject_data,
+            output_dir=subject_data.output_dir,
+            subject_gm_file=getattr(subject_data, 'gm', None),
+            subject_wm_file=getattr(subject_data, 'wm', None),
+            subject_csf_file=getattr(subject_data, 'csf', None),
+            only_native=True,nilearn_report=nilearn_report)
+        nilearn_report['all_components'].append(seg_plot)
 
     return subject_data.sanitize()
 
@@ -932,15 +957,20 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
 
     # generate thumbnails
     if report:
-        subject_data.generate_normalization_thumbnails(
+        subject_data.generate_normalization_thumbnails()
+
+    if nilearn_report not in [False,None]:
+        norm_plot = generate_normalization_report(
+            subject_data=subject_data,
+            output_dir=subject_data.output_dir,
             nilearn_report=nilearn_report)
+        nilearn_report['all_components'].append(norm_plot)
 
     # explicit smoothing
     if np.sum(fwhm) + np.sum(anat_fwhm) > 0:
         subject_data = _do_subject_smooth(
             subject_data, fwhm, anat_fwhm=anat_fwhm, caching=caching,
-            report=report, software=smooth_software
-            ,nilearn_report=nilearn_report)
+            report=report, software=smooth_software)
 
     # commit output files
     if hardlink_output: subject_data.hardlink_output_files()
@@ -1373,8 +1403,23 @@ def do_subject_preproc(
                                  tsdiffana=tsdiffana)
 
     if nilearn_report:
+        preproc_undergone = generate_preproc_undergone_docstring(
+            dcm2nii=subject_data.isdicom,
+            deleteorient=deleteorient,
+            slice_timing=slice_timing,
+            realign=realign,
+            coregister=coregister,
+            segment=segment,
+            normalize=normalize,
+            fwhm=fwhm, anat_fwhm=anat_fwhm,
+            dartel=dartel,
+            coreg_func_to_anat=not coreg_anat_to_func,
+            prepreproc_undergone=prepreproc_undergone,
+            has_func=subject_data.func
+            )
         nilearn_report = NilearnReport()
-        nilearn_report.preproc_undergone=preproc_undergone
+        nilearn_report['preproc_undergone']=preproc_undergone
+        nilearn_report['all_components']=[]
 
     #############################
     # Slice-Timing Correction
@@ -1492,23 +1537,16 @@ def do_subject_preproc(
     if nilearn_report not in [False, None]:
 
         if tsdiffana:
-            generate_tsdiffana_thumbnail(
+            tdsdiffana_plot = generate_tsdiffana_report(
                 subject_data.func, subject_data.session_ids 
                 , subject_data.subject_id
-                , output_dir=subject_data.reports_output_dir
-                , nilearn_report=nilearn_report)
+                , output_dir=subject_data.output_dir)
+            nilearn_report['all_components'].append(tdsdiffana_plot)
 
         html_outfile = os.path.join(subject_data.output_dir, 'nilearn_report.html')
-        nilearn_out_obj = os.path.join(subject_data.output_dir, 'nilearn_report_components')
-
         HTML_report = HTMLDocument(nilearn_report.create_report())
         HTML_report.save_as_html(html_outfile)
         print('Nilearn-style report created')
-
-        out_file = open(nilearn_out_obj, 'w')
-        # out_file.write('{}'.format(nilearn_report))
-        out_file.write('{}'.format(list(nilearn_report.keys())))
-        out_file.close()
 
     # return preprocessed subject_data
     return subject_data.sanitize()
