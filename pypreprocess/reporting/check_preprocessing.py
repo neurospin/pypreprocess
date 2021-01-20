@@ -15,7 +15,7 @@ from ..io_utils import load_vols
 EPS = np.finfo(float).eps
 
 import string
-from .nilearn_reporting import _plot_to_svg
+from nilearn.reporting.glm_reporter import _plot_to_svg
 
 def plot_spm_motion_parameters(parameter_file, lengths
     , title=None, output_filename=None, close=False

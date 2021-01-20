@@ -1,21 +1,25 @@
 import string
 import os
-from nilearn.reporting.utils import figure_to_svg_quoted
+from nilearn.reporting.glm_reporter import _plot_to_svg
 from matplotlib.pyplot import cm
 import joblib
 from joblib import Memory
 import numpy as np
-from .check_preprocessing import *
+from .check_preprocessing import (plot_registration,
+                                  plot_segmentation,
+                                  plot_spm_motion_parameters)
 from ..time_diff import plot_tsdiffs, multi_session_time_slice_diffs
 from ..io_utils import compute_mean_3D_image, sanitize_fwhm
 from ..configure_spm import _configure_spm, _get_version_spm
 from nilearn.plotting.html_document import HTMLDocument
 
+PYPREPROCESS_URL = "https://github.com/neurospin/pypreprocess"
+DARTEL_URL = ("http://www.fil.ion.ucl.ac.uk/spm/software/spm8/"
+              "SPM8_Release_Notes.pdf")
 
 HTML_TEMPLATE_ROOT_PATH = os.path.join(os.path.dirname(__file__),
                                            'template_reports')
 SPM_DIR = _configure_spm()
-# EPI_TEMPLATE = GM_TEMPLATE = T1_TEMPLATE = WM_TEMPLATE = CSF_TEMPLATE = None
 
 def _set_templates(spm_dir=SPM_DIR):
     """
@@ -75,27 +79,6 @@ def create_report(nilearn_report, output_dir, filename='nilearn_report.html'):
     nilearn_report_HTML.save_as_html(html_outfile)
 
     return 'Nilearn-style report created: {}'.format(html_outfile)
-
-
-def _plot_to_svg(plot):
-    """
-    Creates an SVG image as a data URL
-    from a Matplotlib Axes or Figure object.
-
-    Parameters
-    ----------
-    plot: Matplotlib Axes or Figure object
-        Contains the plot information.
-
-    Returns
-    -------
-    url_plot_svg: String
-        SVG Image Data URL
-    """
-    try:
-        return figure_to_svg_quoted(plot)
-    except AttributeError:
-        return figure_to_svg_quoted(plot.figure)
         
 
 def generate_realignment_report(subject_data,estimated_motion, output_dir
