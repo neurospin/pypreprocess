@@ -7,10 +7,10 @@ from joblib import Memory
 import numpy as np
 from .check_preprocessing import *
 from ..time_diff import plot_tsdiffs, multi_session_time_slice_diffs
-from ..io_utils import compute_mean_3D_image
+from ..io_utils import compute_mean_3D_image, sanitize_fwhm
 from ..configure_spm import _configure_spm, _get_version_spm
+from nilearn.plotting.html_document import HTMLDocument
 
-# from pypreprocess.subject_data import *
 
 HTML_TEMPLATE_ROOT_PATH = os.path.join(os.path.dirname(__file__),
                                            'template_reports')
@@ -61,71 +61,20 @@ def embed_in_HTML(html_template_file,components_to_embed):
 
     return string_text
 
-class NilearnReport(dict):
-    """
-    Dictionary for holding components for Nilearn-style report.
-    """
 
-    def __setitem__(self, key, item):
-        self.__dict__[key] = item
+def create_report(nilearn_report, output_dir, filename='nilearn_report.html'):
 
-    def __getitem__(self, key):
-        return self.__dict__[key]
+    html_outfile = os.path.join(output_dir, 'nilearn_report.html')
 
-    def __repr__(self):
-        return repr(self.__dict__)
+    nilearn_report['all_components'] = '\n'.join(
+                                    nilearn_report['all_components'])
+    nilearn_report_text = embed_in_HTML(
+                                'nilearn_report_template.html', nilearn_report)
+    nilearn_report_HTML = HTMLDocument(nilearn_report_text)
 
-    def __len__(self):
-        return len(self.__dict__)
+    nilearn_report_HTML.save_as_html(html_outfile)
 
-    def __delitem__(self, key):
-        del self.__dict__[key]
-
-    def clear(self):
-        return self.__dict__.clear()
-
-    def copy(self):
-        return self.__dict__.copy()
-
-    def has_key(self, k):
-        return k in self.__dict__
-
-    def update(self, *args, **kwargs):
-        return self.__dict__.update(*args, **kwargs)
-
-    def keys(self):
-        return self.__dict__.keys()
-
-    def values(self):
-        return self.__dict__.values()
-
-    def items(self):
-        return self.__dict__.items()
-
-    def pop(self, *args):
-        return self.__dict__.pop(*args)
-
-    def __cmp__(self, dict_):
-        return self.__cmp__(self.__dict__, dict_)
-
-    def __contains__(self, item):
-        return item in self.__dict__
-
-    def __iter__(self):
-        return iter(self.__dict__)
-
-    def __unicode__(self):
-        return unicode(repr(self.__dict__))
-
-    def create_report(self):
-
-        self.__dict__['all_components'] = '\n'.join(
-                                        self.__dict__['all_components'])
-
-        nilearn_report_template = embed_in_HTML(
-                                'nilearn_report_template.html', self.__dict__)
-
-        return nilearn_report_template
+    return 'Nilearn-style report created: {}'.format(html_outfile)
 
 
 def _plot_to_svg(plot):
@@ -386,12 +335,13 @@ def generate_tsdiffana_report(image_files, sessions, subject_id,
 
     tsdiffana_plot = []
     for_substitution = {}
-    # plot figures
+    
     qa_cache_dir = os.path.join(output_dir, "QA")
     if not os.path.exists(qa_cache_dir):
         os.makedirs(qa_cache_dir)
     qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
     results = qa_mem.cache(multi_session_time_slice_diffs)(image_files)
+    # plot figures
     axes = plot_tsdiffs(results, use_same_figure=False)
     figures = [ax.get_figure() for ax in axes]
     heading_template =  "tsdiffana plot {0}"
@@ -407,221 +357,221 @@ def generate_tsdiffana_report(image_files, sessions, subject_id,
     return '\n'.join(tsdiffana_plot)
 
 
-# def generate_preproc_undergone_docstring(
-#     prepreproc_undergone="",
-#     tools_used=None,
-#     dcm2nii=False,
-#     deleteorient=False,
-#     fwhm=None, anat_fwhm=None,
-#     bet=False,
-#     slice_timing=False,
-#     realign=False,
-#     coregister=False,
-#     coreg_func_to_anat=False,
-#     segment=False,
-#     normalize=False,
-#     func_write_voxel_sizes=None,
-#     anat_write_voxel_sizes=None,
-#     dartel=False,
-#     additional_preproc_undergone="",
-#     command_line=None,
-#     details_filename=None,
-#     has_func=True,
-#     ):
-#     """
-#     Generates a brief description of the pipeline used in the preprocessing.
+def generate_preproc_steps_docstring(
+    prepreproc_undergone="",
+    tools_used=None,
+    dcm2nii=False,
+    deleteorient=False,
+    fwhm=None, anat_fwhm=None,
+    bet=False,
+    slice_timing=False,
+    realign=False,
+    coregister=False,
+    coreg_func_to_anat=False,
+    segment=False,
+    normalize=False,
+    func_write_voxel_sizes=None,
+    anat_write_voxel_sizes=None,
+    dartel=False,
+    additional_preproc_undergone="",
+    command_line=None,
+    details_filename=None,
+    has_func=True,
+    ):
+    """
+    Generates a brief description of the pipeline used in the preprocessing.
 
-#     Parameters
-#     ----------
-#     command_line: string, optional (None)
-#         exact command-line typed at the terminal to run the underlying
-#         preprocessing (useful if someone were to reproduce your results)
+    Parameters
+    ----------
+    command_line: string, optional (None)
+        exact command-line typed at the terminal to run the underlying
+        preprocessing (useful if someone were to reproduce your results)
 
-#     """
-#     fwhm = sanitize_fwhm(fwhm)
-#     anat_fwhm = sanitize_fwhm(anat_fwhm)
-#     if dartel:
-#         normalize = False
-#         segment = False
+    """
+    fwhm = sanitize_fwhm(fwhm)
+    anat_fwhm = sanitize_fwhm(anat_fwhm)
+    if dartel:
+        normalize = False
+        segment = False
 
-#     # which tools were used ?
-#     if tools_used is None:
-#         tools_used = (
-#             'All preprocessing was done using <a href="%s">pypreprocess</a>,'
-#             ' a collection of python scripts and modules for '
-#             'preprocessing functional and anatomical MRI data.' % (
-#                 PYPREPROCESS_URL))
-#     preproc_undergone = "<p>%s</p>" % tools_used
+    # which tools were used ?
+    if tools_used is None:
+        tools_used = (
+            'All preprocessing was done using <a href="%s">pypreprocess</a>,'
+            ' a collection of python scripts and modules for '
+            'preprocessing functional and anatomical MRI data.' % (
+                PYPREPROCESS_URL))
+    preproc_undergone = "<p>%s</p>" % tools_used
 
-#     # what was actually typed at the command line ?
-#     if not command_line is None:
-#         preproc_undergone += "Command-line: <i>%s</i><br/>" % command_line
-#     preproc_undergone += (
-#         "<br>For each subject, the following preprocessing steps have "
-#         "been done:")
+    # what was actually typed at the command line ?
+    if not command_line is None:
+        preproc_undergone += "Command-line: <i>%s</i><br/>" % command_line
+    preproc_undergone += (
+        "<br>For each subject, the following preprocessing steps have "
+        "been done:")
 
-#     preproc_undergone += "<ul>"
-#     if prepreproc_undergone:
-#         preproc_undergone += "<li>%s</li>" % prepreproc_undergone
-#     if dcm2nii:
-#         preproc_undergone += (
-#             "<li>"
-#             "dcm2nii has been used to convert input images from DICOM to nifti"
-#             " format"
-#             "</li>")
-#     if deleteorient:
-#         preproc_undergone += (
-#             "<li>"
-#             "Orientation-specific meta-data in the image headers have "
-#             "been suspected as garbage and stripped-off to prevent severe "
-#             "mis-registration problems."
-#             "</li>")
-#     if bet:
-#         preproc_undergone += (
-#             "<li>"
-#             "Brain extraction has been applied to strip-off the skull"
-#             " and other non-brain tissues. This prevents later "
-#             "registration problems like the skull been (mis-)aligned "
-#             "unto the cortical surface, "
-#             "etc.</li>")
-#     if slice_timing:
-#         preproc_undergone += (
-#             "<li>"
-#             "Slice-Timing Correction (STC) has been done to interpolate the "
-#             "BOLD signal in time, so that in the sequel we can safely pretend"
-#             " all 3D volumes within a TR (Repetition Time) were "
-#             "acquired simultaneously, an crucial assumption for any further "
-#             "analysis of the data (GLM, ICA, etc.). "
-#             "</li>"
-#             )
-#     if realign:
-#         preproc_undergone += (
-#             "<li>"
-#             "Motion correction has been done so as to estimate, and then "
-#             "correct for, subject's head motion."
-#             "</li>"
-#             )
-#     if coregister:
-#         preproc_undergone += "<li>"
-#         if coreg_func_to_anat:
-#             preproc_undergone += (
-#                 "The subject's functional images have been coregistered "
-#                 "to their anatomical image."
-#                 )
-#         else:
-#             preproc_undergone += (
-#                 "The subject's anatomical image has been coregistered "
-#                 "against their functional images.")
-#         preproc_undergone += (
-#             " Coregistration is important as it allows: (1) segmentation of "
-#             "the functional via segmentation of the anatomical brain; "
-#             "(2) inter-subject registration via inter-anatomical registration,"
-#             " a trick referred to as 'Indirect Normalization'; "
-#             "(3) ROIs to be defined on the anatomy, making it "
-#             "possible for activation maps to be projected and appreciated"
-#             " thereupon."
-#             "</li>")
-#     if segment:
-#         preproc_undergone += (
-#             "<li>"
-#             "Tissue Segmentation has been employed to segment the "
-#             "anatomical image into GM, WM, and CSF compartments, using "
-#             "template TPMs (Tissue Probability Maps).</li>")
-#     if normalize:
-#         if segment:
-#             if has_func:
-#                 salt = (" The same deformations have been "
-#                         'applied to the functional images.')
-#             else: salt = ""
-#             preproc_undergone += (
-#                 "<li>"
-#                 "The segmented anatomical image has been warped "
-#                 "into the MNI template space by applying the deformations "
-#                 "learnt during segmentation.%s</li>" % salt)
-#         else:
-#             if coregister:
-#                 preproc_undergone += (
-#                     "<li>"
-#                     "Deformations from native to standard space have been "
-#                     "learnt on the anatomically brain. These deformations "
-#                     "have been used to warp the functional and anatomical "
-#                     "images into standard space.</li>")
-#             else:
-#                 preproc_undergone += (
-#                     "<li>"
-#                     "The functional images have been warped from native to "
-#                     "standard space via classical normalization.</li>")
-#     if dartel:
-#         preproc_undergone += (
-#             "<li>"
-#             "Group/Inter-subject Normalization has been done using the "
-#             "SPM8 <a href='%s'>DARTEL</a> to warp subject brains into "
-#             "MNI space. "
-#             "The idea is to register images by computing a &ldquo;flow"
-#             " field&rdquo; which can then be &ldquo;exponentiated"
-#             "&rdquo; to generate both forward and backward deformation"
-#             "s. Processing begins with the &ldquo;import&rdquo; "
-#             "step. This involves taking the parameter files "
-#             "produced by the segmentation (NewSegment), and writing "
-#             "out rigidly "
-#             "transformed versions of the tissue class images, "
-#             "such that they are in as close alignment as possible with"
-#             " the tissue probability maps. &nbsp; "
-#             "The next step is the registration itself. This involves "
-#             "the simultaneous registration of e.g. GM with GM, "
-#             "WM with WM and 1-(GM+WM) with 1-(GM+WM) (when needed, the"
-#             " 1- (GM+WM) class is generated implicitly, so there "
-#             "is no need to include this class yourself). This "
-#             "procedure begins by creating a mean of all the images, "
-#             "which is used as an initial template. Deformations "
-#             "from this template to each of the individual images "
-#             "are computed, and the template is then re-generated"
-#             " by applying the inverses of the deformations to "
-#             "the images and averaging. This procedure is repeated a "
-#             "number of times. &nbsp;Finally, warped "
-#             "versions of the images (or other images that are in "
-#             "alignment with them) can be generated. "
-#             "</li>") % DARTEL_URL
-#     if normalize or dartel:
-#         if (not func_write_voxel_sizes is None or
-#             not anat_write_voxel_sizes is None):
-#             preproc_undergone += "<li>"
-#             sep = ""
-#             if not func_write_voxel_sizes is None:
-#                 preproc_undergone += (
-#                     "Output functional images have been re-written with voxel "
-#                     "size %smm x %smm x %smm.") % tuple(
-#                     func_write_voxel_sizes)
-#                 sep = " "
-#             if not anat_write_voxel_sizes is None:
-#                 preproc_undergone += (
-#                     "%sThe output anatomical image has been re-written with "
-#                     "voxel "
-#                     "size %smm x %smm x %smm.") % tuple([sep] + list(
-#                     anat_write_voxel_sizes))
-#             preproc_undergone += "</li>"
+    preproc_undergone += "<ul>"
+    if prepreproc_undergone:
+        preproc_undergone += "<li>%s</li>" % prepreproc_undergone
+    if dcm2nii:
+        preproc_undergone += (
+            "<li>"
+            "dcm2nii has been used to convert input images from DICOM to nifti"
+            " format"
+            "</li>")
+    if deleteorient:
+        preproc_undergone += (
+            "<li>"
+            "Orientation-specific meta-data in the image headers have "
+            "been suspected as garbage and stripped-off to prevent severe "
+            "mis-registration problems."
+            "</li>")
+    if bet:
+        preproc_undergone += (
+            "<li>"
+            "Brain extraction has been applied to strip-off the skull"
+            " and other non-brain tissues. This prevents later "
+            "registration problems like the skull been (mis-)aligned "
+            "unto the cortical surface, "
+            "etc.</li>")
+    if slice_timing:
+        preproc_undergone += (
+            "<li>"
+            "Slice-Timing Correction (STC) has been done to interpolate the "
+            "BOLD signal in time, so that in the sequel we can safely pretend"
+            " all 3D volumes within a TR (Repetition Time) were "
+            "acquired simultaneously, an crucial assumption for any further "
+            "analysis of the data (GLM, ICA, etc.). "
+            "</li>"
+            )
+    if realign:
+        preproc_undergone += (
+            "<li>"
+            "Motion correction has been done so as to estimate, and then "
+            "correct for, subject's head motion."
+            "</li>"
+            )
+    if coregister:
+        preproc_undergone += "<li>"
+        if coreg_func_to_anat:
+            preproc_undergone += (
+                "The subject's functional images have been coregistered "
+                "to their anatomical image."
+                )
+        else:
+            preproc_undergone += (
+                "The subject's anatomical image has been coregistered "
+                "against their functional images.")
+        preproc_undergone += (
+            " Coregistration is important as it allows: (1) segmentation of "
+            "the functional via segmentation of the anatomical brain; "
+            "(2) inter-subject registration via inter-anatomical registration,"
+            " a trick referred to as 'Indirect Normalization'; "
+            "(3) ROIs to be defined on the anatomy, making it "
+            "possible for activation maps to be projected and appreciated"
+            " thereupon."
+            "</li>")
+    if segment:
+        preproc_undergone += (
+            "<li>"
+            "Tissue Segmentation has been employed to segment the "
+            "anatomical image into GM, WM, and CSF compartments, using "
+            "template TPMs (Tissue Probability Maps).</li>")
+    if normalize:
+        if segment:
+            if has_func:
+                salt = (" The same deformations have been "
+                        'applied to the functional images.')
+            else: salt = ""
+            preproc_undergone += (
+                "<li>"
+                "The segmented anatomical image has been warped "
+                "into the MNI template space by applying the deformations "
+                "learnt during segmentation.%s</li>" % salt)
+        else:
+            if coregister:
+                preproc_undergone += (
+                    "<li>"
+                    "Deformations from native to standard space have been "
+                    "learnt on the anatomically brain. These deformations "
+                    "have been used to warp the functional and anatomical "
+                    "images into standard space.</li>")
+            else:
+                preproc_undergone += (
+                    "<li>"
+                    "The functional images have been warped from native to "
+                    "standard space via classical normalization.</li>")
+    if dartel:
+        preproc_undergone += (
+            "<li>"
+            "Group/Inter-subject Normalization has been done using the "
+            "SPM8 <a href='%s'>DARTEL</a> to warp subject brains into "
+            "MNI space. "
+            "The idea is to register images by computing a &ldquo;flow"
+            " field&rdquo; which can then be &ldquo;exponentiated"
+            "&rdquo; to generate both forward and backward deformation"
+            "s. Processing begins with the &ldquo;import&rdquo; "
+            "step. This involves taking the parameter files "
+            "produced by the segmentation (NewSegment), and writing "
+            "out rigidly "
+            "transformed versions of the tissue class images, "
+            "such that they are in as close alignment as possible with"
+            " the tissue probability maps. &nbsp; "
+            "The next step is the registration itself. This involves "
+            "the simultaneous registration of e.g. GM with GM, "
+            "WM with WM and 1-(GM+WM) with 1-(GM+WM) (when needed, the"
+            " 1- (GM+WM) class is generated implicitly, so there "
+            "is no need to include this class yourself). This "
+            "procedure begins by creating a mean of all the images, "
+            "which is used as an initial template. Deformations "
+            "from this template to each of the individual images "
+            "are computed, and the template is then re-generated"
+            " by applying the inverses of the deformations to "
+            "the images and averaging. This procedure is repeated a "
+            "number of times. &nbsp;Finally, warped "
+            "versions of the images (or other images that are in "
+            "alignment with them) can be generated. "
+            "</li>") % DARTEL_URL
+    if normalize or dartel:
+        if (not func_write_voxel_sizes is None or
+            not anat_write_voxel_sizes is None):
+            preproc_undergone += "<li>"
+            sep = ""
+            if not func_write_voxel_sizes is None:
+                preproc_undergone += (
+                    "Output functional images have been re-written with voxel "
+                    "size %smm x %smm x %smm.") % tuple(
+                    func_write_voxel_sizes)
+                sep = " "
+            if not anat_write_voxel_sizes is None:
+                preproc_undergone += (
+                    "%sThe output anatomical image has been re-written with "
+                    "voxel "
+                    "size %smm x %smm x %smm.") % tuple([sep] + list(
+                    anat_write_voxel_sizes))
+            preproc_undergone += "</li>"
 
-#     if additional_preproc_undergone:
-#         preproc_undergone += additional_preproc_undergone
-#     if np.sum(fwhm) > 0 and has_func:
-#         preproc_undergone += (
-#             "<li>"
-#             "The functional images have been "
-#             "smoothed with a %smm x %smm x %smm "
-#             "Gaussian kernel.</li>") % tuple(fwhm)
-#     if np.sum(anat_fwhm) > 0:
-#         preproc_undergone += (
-#             "<li>"
-#             "The anatomical image has been "
-#             "smoothed with a %smm x %smm x %smm "
-#             "Gaussian kernel.") % tuple(anat_fwhm)
-#         if segment:
-#             preproc_undergone += (
-#                 " Warped TPMs have been smoothed with the same kernel.")
-#     if not details_filename is None:
-#         preproc_undergone += (
-#             " <a href=%s>See complete configuration used for preprocessing"
-#             " here</a>") % os.path.basename(details_filename)
-#     preproc_undergone += "</ul>"
+    if additional_preproc_undergone:
+        preproc_undergone += additional_preproc_undergone
+    if np.sum(fwhm) > 0 and has_func:
+        preproc_undergone += (
+            "<li>"
+            "The functional images have been "
+            "smoothed with a %smm x %smm x %smm "
+            "Gaussian kernel.</li>") % tuple(fwhm)
+    if np.sum(anat_fwhm) > 0:
+        preproc_undergone += (
+            "<li>"
+            "The anatomical image has been "
+            "smoothed with a %smm x %smm x %smm "
+            "Gaussian kernel.") % tuple(anat_fwhm)
+        if segment:
+            preproc_undergone += (
+                " Warped TPMs have been smoothed with the same kernel.")
+    if not details_filename is None:
+        preproc_undergone += (
+            " <a href=%s>See complete configuration used for preprocessing"
+            " here</a>") % os.path.basename(details_filename)
+    preproc_undergone += "</ul>"
 
-#     return preproc_undergone
+    return preproc_undergone

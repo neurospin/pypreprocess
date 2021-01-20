@@ -42,7 +42,6 @@ from .purepython_preproc_utils import (
     _do_subject_smooth as _pp_do_subject_smooth)
 
 from nilearn.plotting.html_document import HTMLDocument
-from .reporting.preproc_reporter import generate_tsdiffana_thumbnail
 from .reporting.nilearn_reporting import *
 
 # configure SPM
@@ -1403,7 +1402,7 @@ def do_subject_preproc(
                                  tsdiffana=tsdiffana)
 
     if nilearn_report:
-        preproc_undergone = generate_preproc_undergone_docstring(
+        preproc_undergone = generate_preproc_steps_docstring(
             dcm2nii=subject_data.isdicom,
             deleteorient=deleteorient,
             slice_timing=slice_timing,
@@ -1417,7 +1416,7 @@ def do_subject_preproc(
             prepreproc_undergone=prepreproc_undergone,
             has_func=subject_data.func
             )
-        nilearn_report = NilearnReport()
+        nilearn_report = {}
         nilearn_report['preproc_undergone']=preproc_undergone
         nilearn_report['all_components']=[]
 
@@ -1543,11 +1542,8 @@ def do_subject_preproc(
                 , output_dir=subject_data.output_dir)
             nilearn_report['all_components'].append(tdsdiffana_plot)
 
-        html_outfile = os.path.join(subject_data.output_dir, 'nilearn_report.html')
-        HTML_report = HTMLDocument(nilearn_report.create_report())
-        HTML_report.save_as_html(html_outfile)
-        print('Nilearn-style report created')
-
+        create_report(nilearn_report,subject_data.output_dir)
+        
     # return preprocessed subject_data
     return subject_data.sanitize()
 

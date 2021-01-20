@@ -15,28 +15,7 @@ from ..io_utils import load_vols
 EPS = np.finfo(float).eps
 
 import string
-from nilearn.reporting.utils import figure_to_svg_quoted
-
-def _plot_to_svg(plot):
-    """
-    Creates an SVG image as a data URL
-    from a Matplotlib Axes or Figure object.
-
-    Parameters
-    ----------
-    plot: Matplotlib Axes or Figure object
-        Contains the plot information.
-
-    Returns
-    -------
-    url_plot_svg: String
-        SVG Image Data URL
-    """
-    try:
-        return figure_to_svg_quoted(plot)
-    except AttributeError:
-        return figure_to_svg_quoted(plot.figure)
-
+from .nilearn_reporting import _plot_to_svg
 
 def plot_spm_motion_parameters(parameter_file, lengths
     , title=None, output_filename=None, close=False
@@ -81,12 +60,13 @@ def plot_spm_motion_parameters(parameter_file, lengths
     if nilearn_report not in [False,None]:
         fig = plt.gcf()
         svg_plot = _plot_to_svg(fig)
-        
+    else: 
+        svg_plot = None
+
     if not output_filename is None:
         plt.savefig(output_filename, bbox_inches="tight", dpi=200)
         if close:
             plt.close()
-        svg_plot = None
 
     return svg_plot
 
@@ -158,6 +138,8 @@ def plot_registration(reference_img, coregistered_img,
     if nilearn_report not in [False,None]:
         fig = plt.gcf()
         svg_plot = _plot_to_svg(fig)
+    else:
+        svg_plot = None
 
     if not output_filename is None:
         try:
@@ -168,7 +150,6 @@ def plot_registration(reference_img, coregistered_img,
         except AttributeError:
             # XXX TODO: handle this case!!
             pass
-        svg_plot = None
 
     return svg_plot
 
@@ -224,6 +205,8 @@ def plot_segmentation(
     if nilearn_report not in [False,None]:
         fig = plt.gcf()
         svg_plot = _plot_to_svg(fig)
+    else:
+        svg_plot = None
 
     if not output_filename is None:
         plt.savefig(output_filename, bbox_inches='tight', dpi=200,
@@ -232,6 +215,4 @@ def plot_segmentation(
         if close:
             plt.close()
             
-        svg_plot = None
-
     return svg_plot

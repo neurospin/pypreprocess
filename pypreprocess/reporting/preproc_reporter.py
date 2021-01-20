@@ -37,8 +37,7 @@ from .base_reporter import (Thumbnail,
                             PYPREPROCESS_URL, DARTEL_URL, ROOT_DIR,
                             commit_subject_thumnbail_to_parent_gallery,
                             get_dataset_report_log_html_template,
-                            copy_web_conf_files,
-                            NilearnReport)
+                            copy_web_conf_files)
 import matplotlib.pyplot as plt
 from nilearn.plotting.html_document import HTMLDocument
 from nilearn.reporting.utils import figure_to_svg_quoted
@@ -501,10 +500,6 @@ def generate_registration_thumbnails(
 
         results_gallery.commit_thumbnails(thumbnail)
 
-    if nilearn_report not in [False,None]:
-        nilearn_report['{}_{}_outline'.format(target[1], source[1])
-                            ]=svg_outline
-
     # plot outline (edge map) of the normalized image
     # on the SPM MNI template
     source, target = (target, source)
@@ -532,13 +527,7 @@ def generate_registration_thumbnails(
         thumbnail.img = img(
             src=os.path.basename(outline), height="250px")
         thumbnail.description = thumb_desc
-        results_gallery.commit_thumbnails(thumbnail)
-
-    if nilearn_report not in [False,None]:
-        nilearn_report['{}_{}_outline'.format(target[1], source[1])
-                            ]=svg_outline
-        nilearn_report['{}_{}_outline_axial'.format(target[1], source[1])
-                            ]=svg_outline_axial                            
+        results_gallery.commit_thumbnails(thumbnail)                           
 
     return output
 
@@ -700,12 +689,6 @@ def generate_segmentation_thumbnails(
 
             results_gallery.commit_thumbnails(thumbnail)
 
-        if nilearn_report not in [False,None]:
-            nilearn_report['{}_template_compartments_contours'.format(_brain)
-                            ]=svg_template_compartments_contours
-            nilearn_report['{}_template_compartments_contours_axial'.format(_brain)
-                            ]=svg_template_compartments_contours_axial
-
         output['axial'] = template_compartments_contours_axial
 
     # plot contours of subject's compartments on subject's brain
@@ -747,12 +730,6 @@ def generate_segmentation_thumbnails(
             thumbnail.description = thumb_desc
 
             results_gallery.commit_thumbnails(thumbnail)
-
-        if nilearn_report not in [False,None]:
-            nilearn_report['{}_subject_compartments_contours'.format(_brain)
-                            ]=svg_subject_compartments_contours
-            nilearn_report['{}_subject_compartments_contours_axial'.format(_brain)
-                            ]=svg_subject_compartments_contours_axial
 
         if only_native:
             output['axial'] = subject_compartments_contours_axial
@@ -796,14 +773,9 @@ def generate_tsdiffana_thumbnail(image_files, sessions, subject_id,
     output_filenames = [output_filename_template.format(i)
                         for i in range(len(figures))]
 
-    cnt = 0
     for fig, output_filename in zip(figures, output_filenames):
-        if nilearn_report not in [False,None]:
-            nilearn_report['ts_diff_plots_{}'.format(cnt)]=_plot_to_svg(fig)
-        else:
             fig.savefig(output_filename, bbox_inches="tight", dpi=200)
             pl.close(fig)
-        cnt+=1
 
     if tooltips is None:
         tooltips = [None] * len(output_filename)
@@ -863,9 +835,6 @@ def generate_realignment_thumbnails(
         results_gallery.commit_thumbnails(thumbnail)
         output['rp_plot'] = rp_plot
 
-    if nilearn_report not in [False,None]:
-        nilearn_report['rp_plot']=svg_rp_plot
-  
     return output
 
 
