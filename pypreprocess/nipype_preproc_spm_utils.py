@@ -29,7 +29,7 @@ from .io_utils import (
 from .subject_data import SubjectData
 from .reporting.base_reporter import (
     ResultsGallery, ProgressReport, copy_web_conf_files,
-    get_module_source_code, dict_to_html_ul,NilearnReport)
+    get_module_source_code, dict_to_html_ul)
 from .reporting.preproc_reporter import (
     _set_templates, generate_preproc_undergone_docstring,
     get_dataset_report_log_html_template,
@@ -1543,7 +1543,7 @@ def do_subject_preproc(
             nilearn_report['all_components'].append(tdsdiffana_plot)
 
         create_report(nilearn_report,subject_data.output_dir)
-        
+
     # return preprocessed subject_data
     return subject_data.sanitize()
 
