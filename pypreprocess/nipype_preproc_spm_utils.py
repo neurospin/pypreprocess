@@ -384,13 +384,14 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
         subject_data.generate_realignment_thumbnails()
 
     if nilearn_report not in [False,None]:
-        rp_plot = generate_realignment_report(
+        rp_plot, rp_log = generate_realignment_report(
             subject_data=subject_data,
             estimated_motion=subject_data.realignment_parameters,
             output_dir=subject_data.output_dir,
             nilearn_report=nilearn_report
             )
         nilearn_report['all_components'].append(rp_plot)
+        nilearn_report['log'].append(rp_log)
 
     return subject_data.sanitize()
 
@@ -567,11 +568,12 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
         subject_data.generate_coregistration_thumbnails()
 
     if nilearn_report not in [False,None]:
-        correg_plot = generate_corregistration_report(
+        correg_plot, correg_log = generate_corregistration_report(
             subject_data=subject_data,
             output_dir=subject_data.output_dir,
             nilearn_report=nilearn_report)
         nilearn_report['all_components'].append(correg_plot)
+        nilearn_report['log'].append(correg_log)
 
     return subject_data.sanitize()
 
@@ -714,7 +716,7 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
         subject_data.generate_segmentation_thumbnails()
 
     if nilearn_report not in [False,None]:
-        seg_plot = generate_segmentation_report(
+        seg_plot, seg_log = generate_segmentation_report(
             subject_data=subject_data,
             output_dir=subject_data.output_dir,
             subject_gm_file=getattr(subject_data, 'gm', None),
@@ -722,6 +724,7 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
             subject_csf_file=getattr(subject_data, 'csf', None),
             only_native=True,nilearn_report=nilearn_report)
         nilearn_report['all_components'].append(seg_plot)
+        nilearn_report['log'].append(seg_log)
 
     return subject_data.sanitize()
 
@@ -959,11 +962,12 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
         subject_data.generate_normalization_thumbnails()
 
     if nilearn_report not in [False,None]:
-        norm_plot = generate_normalization_report(
+        norm_plot, norm_log = generate_normalization_report(
             subject_data=subject_data,
             output_dir=subject_data.output_dir,
             nilearn_report=nilearn_report)
         nilearn_report['all_components'].append(norm_plot)
+        nilearn_report['log'].append(norm_log)
 
     # explicit smoothing
     if np.sum(fwhm) + np.sum(anat_fwhm) > 0:
@@ -1419,6 +1423,7 @@ def do_subject_preproc(
         nilearn_report = {}
         nilearn_report['preproc_undergone']=preproc_undergone
         nilearn_report['all_components']=[]
+        nilearn_report['log']=[]
 
     #############################
     # Slice-Timing Correction

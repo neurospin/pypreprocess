@@ -63,27 +63,51 @@ def embed_in_HTML(html_template_file,components_to_embed):
 
     string_text = string_template.safe_substitute(**components_to_embed)
 
+    html_file_obj.close()
+
     return string_text
 
 
-def create_report(nilearn_report, output_dir, filename='nilearn_report.html'):
+# def add_report_component(to_add,output_dir,filename='nilearn_report'):
 
-    html_outfile = os.path.join(output_dir, 'nilearn_report.html')
+#     html_outfile = os.path.join(output_dir, '{}.html'.format(filename))
 
-    nilearn_report['all_components'] = '\n'.join(
+#     with open(html_outfile) as html_file_obj:
+#         html = html_file_obj.read()
+#     html_file_obj.close()
+
+#     html = Soup(html)
+#     html.find('body').append(to_add)
+
+#     html = HTMLDocument(str(html))
+#     html.save_as_html(html_outfile)
+
+
+def create_report(nilearn_report, output_dir, log=True,
+                 filename='nilearn_report'):
+
+    # create report HTML with all the figures
+    html_outfile = os.path.join(output_dir, '{}.html'.format(filename))
+    nilearn_report['all_components'] = ''.join(
                                     nilearn_report['all_components'])
-    nilearn_report_text = embed_in_HTML(
-                                'nilearn_report_template.html', nilearn_report)
+    nilearn_report_text = embed_in_HTML('nilearn_report_template.html'
+                                    , nilearn_report)
     nilearn_report_HTML = HTMLDocument(nilearn_report_text)
-
     nilearn_report_HTML.save_as_html(html_outfile)
 
-    return 'Nilearn-style report created: {}'.format(html_outfile)
-        
+    if log:
+        # create a separate HTML with all the logs
+        log_outfile = os.path.join(output_dir, '{}_log.html'.format(filename))
+        nilearn_report['log'] = '<hr/>'.join(nilearn_report['log'])
+        log_text = embed_in_HTML('log_template.html', nilearn_report)
+        log_HTML = HTMLDocument(log_text)
+        log_HTML.save_as_html(log_outfile)
+
+    print('Nilearn-style report created: {}'.format(html_outfile))
+
 
 def generate_realignment_report(subject_data,estimated_motion, output_dir
-    , tooltip=None, execution_log_html_filename=None
-    , nilearn_report=None):
+    , tooltip=None, log=True, nilearn_report=None):
 
     """ Creates plots associated with realignment 
     and returns it as an SVG url. """
@@ -109,15 +133,26 @@ def generate_realignment_report(subject_data,estimated_motion, output_dir
         parameter_file=estimated_motion
         , lengths=lengths, close=True, nilearn_report=nilearn_report,
         title="Plot of Estimated motion for %d sessions" % len(sessions))
-    for_substitution['heading'] = "Plot of Estimated motion for %d sessions" % len(sessions)
-
+    for_substitution['heading'] = "Motion Correction"
     rp_plot_text = embed_in_HTML('report_sub_template.html'
                                 ,for_substitution)
 
-    return rp_plot_text
+    if log:
+        for_substitution['id_link'] = for_substitution['heading'].replace(" ", "_")
+        for_substitution['log'] = get_log_text(subject_data.func)
+        for_substitution['log_link'] = "file:///"+os.path.join(output_dir
+                                        , 'nilearn_report_log.html#'
+                                        )+for_substitution['id_link']
+        rp_log_text = embed_in_HTML('log_sub_template.html'
+                                ,for_substitution)
+    else:
+        rp_log_text = None
+
+    return rp_plot_text, rp_log_text
+
 
 def generate_registration_report(target, source, procedure_name,
-    output_dir, execution_log_html_filename=None, nilearn_report=None):
+    output_dir, nilearn_report=None):
 
     """ Plots target's outline on source image and returns them 
     as SVG url embedded in HTML. """
@@ -157,8 +192,8 @@ def generate_registration_report(target, source, procedure_name,
 
 
 def generate_corregistration_report(subject_data, output_dir
-    , coreg_func_to_anat=True, execution_log_html_filename=None
-    , tooltip=None, comment=True, nilearn_report=None):
+    , coreg_func_to_anat=True, log=True, tooltip=None
+    , nilearn_report=None):
 
     """ Creates plots associated with corregistration 
     and returns them as SVG url embedded in HTML.
@@ -176,16 +211,31 @@ def generate_corregistration_report(subject_data, output_dir
         src, ref = ref, src
         src_brain, ref_brain = ref_brain, src_brain
 
-    comments = " %s == > %s" % (src_brain, ref_brain)
+    heading = "Corregistration %s == > %s" % (src_brain, ref_brain)
+
+    for_substitution = {}
+
+    if log:
+        for_substitution['heading'] = heading
+        for_substitution['id_link'] = heading.replace(" ", "_")
+        for_substitution['log'] = get_log_text(src)
+        for_substitution['log_link'] = "file:///"+os.path.join(output_dir
+                                        , 'nilearn_report_log.html#'
+                                        )+heading
+        log_text = embed_in_HTML('log_sub_template.html'
+                                ,for_substitution)
+    else:
+        log_text = None
+
     return generate_registration_report((ref, ref_brain)
-        , (src, src_brain), "Coregistration %s" % comments,
-        output_dir, nilearn_report=nilearn_report)
+        , (src, src_brain), heading, output_dir
+        , nilearn_report=nilearn_report), log_text
 
 
 def generate_segmentation_report(subject_data, output_dir
     , subject_gm_file=None, subject_wm_file=None, subject_csf_file=None
     , comment="", only_native=False, tooltip=None
-    , execution_log_html_filename=None, nilearn_report=None):
+    , log=True, nilearn_report=None):
     
     """ Creates plots associated with segmentation 
     and returns them as SVG url embedded in HTML. """
@@ -203,6 +253,20 @@ def generate_segmentation_report(subject_data, output_dir
             break
     if not segmented:
         return
+
+    if log:
+        for_substitution['heading'] = "Segmentation"
+        for_substitution['id_link'] = for_substitution['heading']
+        for_substitution['log'] = get_log_text(getattr(subject_data
+                                , 'gm') or getattr(subject_data
+                                , 'wm') or getattr(subject_data, 'csf'))
+        for_substitution['log_link'] = "file:///"+os.path.join(output_dir
+                                        , 'nilearn_report_log.html#'
+                                        )+for_substitution['heading']
+        log_text = embed_in_HTML('log_sub_template.html'
+                                ,for_substitution)
+    else:
+        log_text = None
 
     for brain_name, brain, cmap in zip(
             ['anatomical_image', 'mean_functional_image'],
@@ -262,17 +326,19 @@ def generate_segmentation_report(subject_data, output_dir
                                     ,for_substitution)
             seg_plot.append(seg_plot_text)
 
-    return '\n'.join(seg_plot)
+    if log:
+        return '\n'.join(seg_plot), log_text
+    else:
+        return '\n'.join(seg_plot)
 
 def generate_normalization_report(subject_data, output_dir
-    , tooltip=None, execution_log_html_filename=None
-    , nilearn_report=None):
+    , tooltip=None, log=True, nilearn_report=None):
     
     """ Creates plots associated with normalization 
     and returns them as SVG url embedded in HTML. 
     Calls generate_segmentation_report 
     and generate_registration_report. """
-
+    _set_templates()
     norm_plot = []
     subject_data._set_session_ids()
 
@@ -288,7 +354,8 @@ def generate_normalization_report(subject_data, output_dir
                 subject_gm_file=warped_tpms["mwgm"],
                 subject_wm_file=warped_tpms["mwwm"],
                 subject_csf_file=warped_tpms["mwcsf"],
-                comment="warped",nilearn_report=nilearn_report))
+                comment="warped",log=False, 
+                nilearn_report=nilearn_report))
 
     for brain_name, brain, cmap in zip(
             ['anatomical_image', 'mean_functional_image'],
@@ -296,6 +363,22 @@ def generate_normalization_report(subject_data, output_dir
             [cm.gray, cm.nipy_spectral]):
         if not brain:
             continue
+
+        if log:
+            for_substitution = {}
+            for_substitution['heading'] = "Normalization of %s" % brain_name
+            for_substitution['id_link'] = for_substitution['heading'].replace(
+                                                                " ", "_")
+            for_substitution['log'] = get_log_text(getattr(subject_data
+                                    , 'gm') or getattr(subject_data
+                                    , 'wm') or getattr(subject_data, 'csf'))
+            for_substitution['log_link'] = "file:///"+os.path.join(output_dir
+                                            , 'nilearn_report_log.html#'
+                                            )+for_substitution['heading']
+            log_text = embed_in_HTML('log_sub_template.html'
+                                    ,for_substitution)
+        else:
+            log_text = None
 
         if isinstance(brain, str):
             normalized = brain
@@ -305,10 +388,12 @@ def generate_normalization_report(subject_data, output_dir
 
         norm_plot.append(generate_registration_report(
         (T1_TEMPLATE, 'template'), (normalized, brain_name),
-        "Normalization of %s" % brain_name, output_dir,
+        for_substitution['heading'], output_dir,
         nilearn_report=nilearn_report))
 
-    return '\n'.join(norm_plot)
+    print(len(norm_plot))
+    print([type(i) for i in norm_plot])
+    return '\n'.join(norm_plot), log_text
 
 def generate_tsdiffana_report(image_files, sessions, subject_id,
                             output_dir, tooltips=None):
@@ -558,3 +643,85 @@ def generate_preproc_steps_docstring(
     preproc_undergone += "</ul>"
 
     return preproc_undergone
+
+def get_log_text(nipype_output_files):
+
+    execution_log = get_nipype_report(get_nipype_report_filename(
+        nipype_output_files))
+    return execution_log
+
+
+def get_nipype_report_filename(output_files_or_dir):
+    if isinstance(output_files_or_dir, str):
+        if os.path.isdir(output_files_or_dir):
+            return os.path.join(output_files_or_dir,
+                                "_report/report.rst")
+        elif os.path.isfile(output_files_or_dir):
+            return get_nipype_report_filename(
+                os.path.dirname(output_files_or_dir))
+        else:
+            raise OSError(
+                "%s is neither a file nor directory!" % output_files_or_dir)
+    else:
+        # assuming list-like type
+        return get_nipype_report_filename(output_files_or_dir[0])
+
+
+def get_nipype_report(nipype_report_filename):
+    if isinstance(nipype_report_filename, str):
+        if os.path.isfile(nipype_report_filename):
+            nipype_report_filenames = [nipype_report_filename]
+        else:
+            nipype_report_filenames = []
+    else:
+        nipype_report_filenames = nipype_report_filename
+
+    output = []
+    for nipype_report_filename in nipype_report_filenames:
+        if os.path.exists(nipype_report_filename):
+            nipype_report = nipype2htmlreport(
+                nipype_report_filename)
+            output.append(nipype_report)
+
+    output = "<hr/>".join(output)
+
+    return output
+
+
+def nipype2htmlreport(nipype_report_filename):
+    """
+    Converts a nipype.caching report (.rst) to html.
+
+    """
+    with open(nipype_report_filename, 'r') as fd:
+        return lines2breaks(fd.readlines())
+
+def lines2breaks(lines, delimiter="\n", number_lines=False):
+    """
+    Converts line breaks to HTML breaks, adding `pre` tags as necessary.
+
+    Parameters
+    ----------
+    lines: string delimited by delimiter, or else list of strings
+        lines to format into HTML format
+
+    delimiter: string (default '\n')
+        new-line delimiter, can be (escape) characters like '\n', '\r',
+        '\r\n', '\t', etc.
+
+    number_lines: boolean (default False)
+        if false, then output will be line-numbered
+
+    Returns
+    -------
+    HTML-formatted string
+    """
+    if isinstance(lines, str):
+        lines = lines.split(delimiter)
+    if not number_lines:
+        lines = ["%s" % line for line in lines]
+        output = "<pre>%s</pre>" % "".join(lines)
+    else:
+        lines = ["<li>%s</li>" % line for line in lines]
+        output = "<ol><pre>" + "".join(lines) + "</pre></ol>"
+    return output
