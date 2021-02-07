@@ -13,6 +13,7 @@ from ..io_utils import compute_mean_3D_image, sanitize_fwhm
 from ..configure_spm import _configure_spm, _get_version_spm
 from nilearn.plotting.html_document import HTMLDocument
 
+
 PYPREPROCESS_URL = "https://github.com/neurospin/pypreprocess"
 DARTEL_URL = ("http://www.fil.ion.ucl.ac.uk/spm/software/spm8/"
               "SPM8_Release_Notes.pdf")
@@ -68,46 +69,92 @@ def embed_in_HTML(html_template_file,components_to_embed):
     return string_text
 
 
-# def add_report_component(to_add,output_dir,filename='nilearn_report'):
+def initialize_report(output_dir,
+                    log=True,
+                    filename='nilearn_report',
+                    prepreproc_undergone="",
+                    dcm2nii=False,
+                    deleteorient=False,
+                    fwhm=None, anat_fwhm=None,
+                    slice_timing=False,
+                    realign=False,
+                    coregister=False,
+                    coreg_func_to_anat=False,
+                    segment=False,
+                    normalize=False,
+                    dartel=False,
+                    command_line=None,
+                    has_func=True
+                    ):
 
-#     html_outfile = os.path.join(output_dir, '{}.html'.format(filename))
+    report_outfile = os.path.join(output_dir, '{}.html'.format(filename))
 
-#     with open(html_outfile) as html_file_obj:
-#         html = html_file_obj.read()
-#     html_file_obj.close()
+    report_dict = {}
+    report_dict['preproc_undergone'] = generate_preproc_steps_docstring(
+                                        dcm2nii=dcm2nii,
+                                        deleteorient=deleteorient,
+                                        slice_timing=slice_timing,
+                                        realign=realign,
+                                        coregister=coregister,
+                                        segment=segment,
+                                        normalize=normalize,
+                                        fwhm=fwhm, anat_fwhm=anat_fwhm,
+                                        dartel=dartel,
+                                        coreg_func_to_anat=coreg_func_to_anat,
+                                        prepreproc_undergone=prepreproc_undergone,
+                                        has_func=has_func
+                                        )
 
-#     html = Soup(html)
-#     html.find('body').append(to_add)
-
-#     html = HTMLDocument(str(html))
-#     html.save_as_html(html_outfile)
-
-
-def create_report(nilearn_report, output_dir, log=True,
-                 filename='nilearn_report'):
-
-    # create report HTML with all the figures
-    html_outfile = os.path.join(output_dir, '{}.html'.format(filename))
-    nilearn_report['all_components'] = ''.join(
-                                    nilearn_report['all_components'])
-    nilearn_report_text = embed_in_HTML('nilearn_report_template.html'
-                                    , nilearn_report)
-    nilearn_report_HTML = HTMLDocument(nilearn_report_text)
-    nilearn_report_HTML.save_as_html(html_outfile)
+    report_text = embed_in_HTML('nilearn_report_template.html', report_dict)
+    report_HTML = HTMLDocument(report_text).save_as_html(report_outfile)
 
     if log:
         # create a separate HTML with all the logs
         log_outfile = os.path.join(output_dir, '{}_log.html'.format(filename))
-        nilearn_report['log'] = '<hr/>'.join(nilearn_report['log'])
-        log_text = embed_in_HTML('log_template.html', nilearn_report)
-        log_HTML = HTMLDocument(log_text)
-        log_HTML.save_as_html(log_outfile)
+        log_HTML = HTMLDocument("<html><body>").save_as_html(log_outfile)
+        return report_outfile,log_outfile
+    else:
+        return report_outfile,None
 
-    print('Nilearn-style report created: {}'.format(html_outfile))
+def add_component(to_add_report,html_report_path,to_add_log=None,html_log_path=None):
+
+    html_file_obj = open(html_report_path, 'a')
+    html_file_obj.write(to_add_report)
+    html_file_obj.close()
+
+    if html_log_path is not None:
+
+            html_file_obj = open(html_log_path, 'a')
+            html_file_obj.write('<hr/>'+to_add_log)
+            html_file_obj.close()
+
+
+def finalize_report(html_report_path,html_log_path=None):
+
+    html_file_obj = open(html_report_path, 'r')
+    lines = html_file_obj.readlines()
+    lines[6] = "<h1 style='text-align:center;color:white;background-color:green'>Done!</h1>"
+    del lines[3]
+
+    with open(html_report_path, 'w') as html_file_obj:
+        for line in lines:
+            html_file_obj.write(line)
+
+    html_file_obj = open(html_report_path, 'a')
+    html_file_obj.write("</body>\n</html>")
+    html_file_obj.close()
+
+    if html_log_path is not None:
+
+            html_file_obj = open(html_log_path, 'a')
+            html_file_obj.write("</body>\n</html>")
+            html_file_obj.close()
+
+    print('Nilearn-style report created: {}'.format(html_report_path    ))
 
 
 def generate_realignment_report(subject_data,estimated_motion, output_dir
-    , tooltip=None, log=True, nilearn_report=None):
+    , tooltip=None, log=True, report_path=None):
 
     """ Creates plots associated with realignment 
     and returns it as an SVG url. """
@@ -131,7 +178,7 @@ def generate_realignment_report(subject_data,estimated_motion, output_dir
 
     for_substitution['plot'] = plot_spm_motion_parameters(
         parameter_file=estimated_motion
-        , lengths=lengths, close=True, nilearn_report=nilearn_report,
+        , lengths=lengths, close=True, report_path=report_path,
         title="Plot of Estimated motion for %d sessions" % len(sessions))
     for_substitution['heading'] = "Motion Correction"
 
@@ -156,7 +203,7 @@ def generate_realignment_report(subject_data,estimated_motion, output_dir
 
 
 def generate_registration_report(target, source, output_dir,
-    for_substitution, nilearn_report=None):
+    for_substitution, report_path=None):
 
     """ Plots target's outline on source image and returns them 
     as SVG url embedded in HTML. """
@@ -177,7 +224,7 @@ def generate_registration_report(target, source, output_dir,
 
     for_substitution['plot'] = qa_mem.cache(plot_registration)(
         target[0], source[0]
-        , close=True, nilearn_report=nilearn_report,
+        , close=True, report_path=report_path,
         title="Outline of %s on %s" % (target[1], source[1]))
     reg_plot_text = embed_in_HTML('report_sub_template.html'
                                     ,for_substitution)
@@ -187,7 +234,7 @@ def generate_registration_report(target, source, output_dir,
     # on the SPM MNI template
     source, target = (target, source)
     for_substitution['plot'] = qa_mem.cache(plot_registration)(
-        target[0], source[0], close=True, nilearn_report=nilearn_report,
+        target[0], source[0], close=True, report_path=report_path,
         title="Outline of %s on %s" % (target[1], source[1]))
     for_substitution['heading'] = ""
     reg_plot_text = embed_in_HTML('report_sub_template.html'
@@ -199,7 +246,7 @@ def generate_registration_report(target, source, output_dir,
 
 def generate_corregistration_report(subject_data, output_dir
     , coreg_func_to_anat=True, log=True, tooltip=None
-    , nilearn_report=None):
+    , report_path=None):
 
     """ Creates plots associated with corregistration 
     and returns them as SVG url embedded in HTML.
@@ -235,13 +282,13 @@ def generate_corregistration_report(subject_data, output_dir
 
     return generate_registration_report((ref, ref_brain)
         , (src, src_brain), output_dir, for_substitution
-        , nilearn_report=nilearn_report), log_text
+        , report_path=report_path), log_text
 
 
 def generate_segmentation_report(subject_data, output_dir
     , subject_gm_file=None, subject_wm_file=None, subject_csf_file=None
     , comment="", only_native=False, tooltip=None
-    , log=True, nilearn_report=None):
+    , log=True, report_path=None):
     
     """ Creates plots associated with segmentation 
     and returns them as SVG url embedded in HTML. """
@@ -307,7 +354,7 @@ def generate_segmentation_report(subject_data, output_dir
             for_substitution['plot']=qa_mem.cache(plot_segmentation)(
                 brain, gm_filename=GM_TEMPLATE,
                 wm_filename=WM_TEMPLATE, csf_filename=CSF_TEMPLATE,
-                cmap=cmap, close=True, nilearn_report=nilearn_report,
+                cmap=cmap, close=True, report_path=report_path,
                 title=("Template GM, WM, and CSF TPM contours on "
                     "subject's %s") % _brain_name)
 
@@ -329,7 +376,7 @@ def generate_segmentation_report(subject_data, output_dir
             for_substitution['plot'] = qa_mem.cache(plot_segmentation)(
                 brain, subject_gm_file, wm_filename=subject_wm_file,
                 csf_filename=subject_csf_file, cmap=cmap, close=True,
-                nilearn_report=nilearn_report, title=("%s TPM contours on "
+                report_path=report_path, title=("%s TPM contours on "
                     "subject's %s") % (title_prefix, _brain_name))
             log_link_text = embed_in_HTML('log_link_template.html'
                                         ,for_substitution)
@@ -347,7 +394,7 @@ def generate_segmentation_report(subject_data, output_dir
         return '\n'.join(seg_plot)
 
 def generate_normalization_report(subject_data, output_dir
-    , tooltip=None, log=True, nilearn_report=None):
+    , tooltip=None, log=True, report_path=None):
     
     """ Creates plots associated with normalization 
     and returns them as SVG url embedded in HTML. 
@@ -371,7 +418,7 @@ def generate_normalization_report(subject_data, output_dir
                 subject_wm_file=warped_tpms["mwwm"],
                 subject_csf_file=warped_tpms["mwcsf"],
                 comment="warped",log=False, 
-                nilearn_report=nilearn_report)
+                report_path=report_path)
         norm_plot.append(plot_text)
         # logs.append(log_text)
 
@@ -406,7 +453,7 @@ def generate_normalization_report(subject_data, output_dir
 
         norm_plot.append(generate_registration_report(
         (T1_TEMPLATE, 'template'), (normalized, brain_name),
-        output_dir, for_substitution, nilearn_report=nilearn_report))
+        output_dir, for_substitution, report_path=report_path))
 
     return '\n'.join(norm_plot), '<hr/>'.join(logs)
 
@@ -460,7 +507,7 @@ def generate_preproc_steps_docstring(
     additional_preproc_undergone="",
     command_line=None,
     details_filename=None,
-    has_func=True,
+    has_func=True
     ):
     """
     Generates a brief description of the pipeline used in the preprocessing.

@@ -28,7 +28,7 @@ def _plot_to_svg(figV,dpi=300):
 
 def plot_spm_motion_parameters(parameter_file, lengths
     , title=None, output_filename=None, close=False
-    , nilearn_report=False):
+    , report_path=None):
     """ Plot motion parameters obtained with SPM software
 
     Parameters
@@ -66,7 +66,7 @@ def plot_spm_motion_parameters(parameter_file, lengths
     plt.xlabel('time(scans)')
     plt.ylabel('Estimated motion (mm/degrees)')
 
-    if nilearn_report not in [False,None]:
+    if report_path not in [False,None]:
         fig = plt.gcf()
         fig.set_rasterized(True)
         svg_plot = _plot_to_svg(fig)
@@ -98,7 +98,7 @@ def plot_registration(reference_img, coregistered_img,
                       display_mode='ortho',
                       cmap=None, close=False,
                       output_filename=None,
-                      nilearn_report=False):
+                      report_path=None):
     """Plots a coregistered source as bg/contrast for the reference image
 
     Parameters
@@ -145,7 +145,7 @@ def plot_registration(reference_img, coregistered_img,
     # misc
     _slicer.title(title, size=12, color='w', alpha=0)
 
-    if nilearn_report not in [False,None]:
+    if report_path not in [False,None]:
         fig = plt.gcf()
         fig.set_rasterized(True)
         svg_plot = _plot_to_svg(fig)
@@ -168,7 +168,7 @@ def plot_segmentation(
         img, gm_filename, wm_filename=None, csf_filename=None,
         output_filename=None, cut_coords=None, display_mode='ortho',
         cmap=None, title='GM + WM + CSF segmentation', close=False,
-        nilearn_report=False):
+        report_path=None):
     """
     Plot a contour mapping of the GM, WM, and CSF of a subject's anatomical.
 
@@ -213,7 +213,7 @@ def plot_segmentation(
     # misc
     _slicer.title(title, size=12, color='w', alpha=0)
 
-    if nilearn_report not in [False,None]:
+    if report_path not in [False,None]:
         fig = plt.gcf()
         fig.set_rasterized(True) 
         svg_plot = _plot_to_svg(fig)

@@ -242,7 +242,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
 def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
                         caching=True, report=True, software="spm",
                         spm_dir=None, matlab_exec=None, spm_mcr=None,
-                        hardlink_output=True,nilearn_report=None
+                        hardlink_output=True,report_path=None,log_path=None
                         , **kwargs):
     """
     Wrapper for running spm.Realign with optional reporting.
@@ -383,15 +383,14 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
     if report:
         subject_data.generate_realignment_thumbnails()
 
-    if nilearn_report not in [False,None]:
+    if report_path not in [False,None]:
         rp_plot, rp_log = generate_realignment_report(
             subject_data=subject_data,
             estimated_motion=subject_data.realignment_parameters,
             output_dir=subject_data.output_dir,
-            nilearn_report=nilearn_report
+            report_path=report_path
             )
-        nilearn_report['all_components'].append(rp_plot)
-        nilearn_report['log'].append(rp_log)
+        add_component(rp_plot,report_path,rp_log,log_path)
 
     return subject_data.sanitize()
 
@@ -400,7 +399,7 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
                            matlab_exec=None, spm_mcr=None,
                            coreg_anat_to_func=False, caching=True,
                            report=True, software="spm", hardlink_output=True
-                           ,nilearn_report=None,**kwargs):
+                           ,report_path=None,log_path=None,**kwargs):
     """Wrapper for running spm.Coregister with optional reporting.
 
     If subject_data has a `results_gallery` attribute, then QA thumbnails will
@@ -567,13 +566,12 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
     if report:
         subject_data.generate_coregistration_thumbnails()
 
-    if nilearn_report not in [False,None]:
+    if report_path not in [False,None]:
         correg_plot, correg_log = generate_corregistration_report(
             subject_data=subject_data,
             output_dir=subject_data.output_dir,
-            nilearn_report=nilearn_report)
-        nilearn_report['all_components'].append(correg_plot)
-        nilearn_report['log'].append(correg_log)
+            report_path=report_path)
+        add_component(correg_plot,report_path,correg_log,log_path)
 
     return subject_data.sanitize()
 
@@ -581,7 +579,7 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
 def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
                         matlab_exec=None, spm_mcr=None, normalize=False,
                         caching=True, report=True, software="spm",
-                        hardlink_output=True,nilearn_report=None):
+                        hardlink_output=True,report_path=None,log_path=None):
     """
     Wrapper for running spm.Segment with optional reporting.
 
@@ -715,16 +713,15 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
     if report:
         subject_data.generate_segmentation_thumbnails()
 
-    if nilearn_report not in [False,None]:
+    if report_path not in [False,None]:
         seg_plot, seg_log = generate_segmentation_report(
             subject_data=subject_data,
             output_dir=subject_data.output_dir,
             subject_gm_file=getattr(subject_data, 'gm', None),
             subject_wm_file=getattr(subject_data, 'wm', None),
             subject_csf_file=getattr(subject_data, 'csf', None),
-            only_native=True,nilearn_report=nilearn_report)
-        nilearn_report['all_components'].append(seg_plot)
-        nilearn_report['log'].append(seg_log)
+            only_native=True,report_path=report_path)
+        add_component(seg_plot,report_path,seg_log,log_path)
 
     return subject_data.sanitize()
 
@@ -736,7 +733,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                           software="spm", hardlink_output=True,
                           smooth_software="spm", epi_template=None,
                           t1_template=None, coregister=True
-                          , nilearn_report=None
+                          ,report_path=None,log_path=None
                           , **kwargs):
     """
     Wrapper for running spm.Segment with optional reporting.
@@ -961,13 +958,12 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
     if report:
         subject_data.generate_normalization_thumbnails()
 
-    if nilearn_report not in [False,None]:
+    if report_path not in [False,None]:
         norm_plot, norm_log = generate_normalization_report(
             subject_data=subject_data,
             output_dir=subject_data.output_dir,
-            nilearn_report=nilearn_report)
-        nilearn_report['all_components'].append(norm_plot)
-        nilearn_report['log'].append(norm_log)
+            report_path=report_path)
+        add_component(norm_plot,report_path,norm_log,log_path)
 
     # explicit smoothing
     if np.sum(fwhm) + np.sum(anat_fwhm) > 0:
@@ -1406,24 +1402,41 @@ def do_subject_preproc(
                                  tsdiffana=tsdiffana)
 
     if nilearn_report:
-        preproc_undergone = generate_preproc_steps_docstring(
-            dcm2nii=subject_data.isdicom,
-            deleteorient=deleteorient,
-            slice_timing=slice_timing,
-            realign=realign,
-            coregister=coregister,
-            segment=segment,
-            normalize=normalize,
-            fwhm=fwhm, anat_fwhm=anat_fwhm,
-            dartel=dartel,
-            coreg_func_to_anat=not coreg_anat_to_func,
-            prepreproc_undergone=prepreproc_undergone,
-            has_func=subject_data.func
-            )
-        nilearn_report = {}
-        nilearn_report['preproc_undergone']=preproc_undergone
-        nilearn_report['all_components']=[]
-        nilearn_report['log']=[]
+
+        report_path,log_path = initialize_report(subject_data.output_dir,
+                                dcm2nii=subject_data.isdicom,
+                                deleteorient=deleteorient,
+                                slice_timing=slice_timing,
+                                realign=realign,
+                                coregister=coregister,
+                                segment=segment,
+                                normalize=normalize,
+                                fwhm=fwhm, anat_fwhm=anat_fwhm,
+                                dartel=dartel,
+                                coreg_func_to_anat=not coreg_anat_to_func,
+                                prepreproc_undergone=prepreproc_undergone,
+                                has_func=subject_data.func
+                                )
+
+
+        # preproc_undergone = generate_preproc_steps_docstring(
+        #     dcm2nii=subject_data.isdicom,
+        #     deleteorient=deleteorient,
+        #     slice_timing=slice_timing,
+        #     realign=realign,
+        #     coregister=coregister,
+        #     segment=segment,
+        #     normalize=normalize,
+        #     fwhm=fwhm, anat_fwhm=anat_fwhm,
+        #     dartel=dartel,
+        #     coreg_func_to_anat=not coreg_anat_to_func,
+        #     prepreproc_undergone=prepreproc_undergone,
+        #     has_func=subject_data.func
+        #     )
+        # nilearn_report = {}
+        # nilearn_report['preproc_undergone']=preproc_undergone
+        # nilearn_report['all_components']=[]
+        # nilearn_report['log']=[]
 
     #############################
     # Slice-Timing Correction
@@ -1452,7 +1465,8 @@ def do_subject_preproc(
             register_to_mean=register_to_mean,
             report=report,
             hardlink_output=hardlink_output,
-            software=realign_software, nilearn_report=nilearn_report,
+            software=realign_software,
+            report_path=report_path,log_path=log_path,
             **kwargs.get("interface_realign", {}))
 
         # handle failed node
@@ -1471,7 +1485,7 @@ def do_subject_preproc(
             report=report,
             hardlink_output=hardlink_output,
             software=coregister_software,
-            nilearn_report=nilearn_report,
+            report_path=report_path,log_path=log_path,
             **kwargs.get("interface_coregister", {}))
 
         # handle failed node
@@ -1485,7 +1499,9 @@ def do_subject_preproc(
     if segment:
         subject_data = _do_subject_segment(
             subject_data, caching=caching, normalize=normalize, report=report,
-            hardlink_output=hardlink_output,nilearn_report=nilearn_report)
+            hardlink_output=hardlink_output,report_path=report_path,
+            log_path=log_path)
+
 
         # handle failed node
         if subject_data.failed:
@@ -1505,7 +1521,8 @@ def do_subject_preproc(
             smooth_software=smooth_software,
             epi_template=epi_template,
             t1_template=t1_template,
-            coregister=coregister,nilearn_report=nilearn_report,
+            coregister=coregister,report_path=report_path,
+            log_path=log_path,
             **kwargs.get("interface_normalize", {}))
 
         # handle failed node
@@ -1522,8 +1539,8 @@ def do_subject_preproc(
                                           caching=caching,
                                           report=report,
                                           hardlink_output=hardlink_output,
-                                          software=smooth_software,
-                                          nilearn_report=nilearn_report)
+                                          software=smooth_software
+                                          )
 
         # handle failed node
         if subject_data.failed:
@@ -1545,11 +1562,11 @@ def do_subject_preproc(
                 subject_data.func, subject_data.session_ids 
                 , subject_data.subject_id
                 , output_dir=subject_data.output_dir)
-            nilearn_report['all_components'].append(tdsdiffana_plot)
 
-        create_report(nilearn_report,subject_data.output_dir)
+            add_component(tdsdiffana_plot,report_path)
 
-    # return preprocessed subject_data
+        finalize_report(report_path,log_path)
+
     return subject_data.sanitize()
 
 
