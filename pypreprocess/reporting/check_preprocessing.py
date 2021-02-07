@@ -15,7 +15,16 @@ from ..io_utils import load_vols
 EPS = np.finfo(float).eps
 
 import string
-from nilearn.reporting.glm_reporter import _plot_to_svg
+from io import StringIO
+
+
+def _plot_to_svg(figV,dpi=300):
+    
+    with StringIO() as bufferV:
+        figV.savefig(bufferV, format='svg', dpi=dpi)
+        figV_encoded = bufferV.getvalue()
+
+    return figV_encoded
 
 def plot_spm_motion_parameters(parameter_file, lengths
     , title=None, output_filename=None, close=False
@@ -47,7 +56,7 @@ def plot_spm_motion_parameters(parameter_file, lengths
 
     aux = 0.
     for l in lengths[:-1]:
-        pl.axvline(aux + l, linestyle="--", c="k")
+        plt.axvline(aux + l, linestyle="--", c="k")
         aux += l
 
     if not title is None:
@@ -59,6 +68,7 @@ def plot_spm_motion_parameters(parameter_file, lengths
 
     if nilearn_report not in [False,None]:
         fig = plt.gcf()
+        fig.set_rasterized(True)
         svg_plot = _plot_to_svg(fig)
     else: 
         svg_plot = None
@@ -137,6 +147,7 @@ def plot_registration(reference_img, coregistered_img,
 
     if nilearn_report not in [False,None]:
         fig = plt.gcf()
+        fig.set_rasterized(True)
         svg_plot = _plot_to_svg(fig)
     else:
         svg_plot = None
@@ -204,6 +215,7 @@ def plot_segmentation(
 
     if nilearn_report not in [False,None]:
         fig = plt.gcf()
+        fig.set_rasterized(True) 
         svg_plot = _plot_to_svg(fig)
     else:
         svg_plot = None

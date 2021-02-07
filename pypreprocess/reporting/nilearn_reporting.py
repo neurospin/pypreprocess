@@ -1,13 +1,13 @@
 import string
 import os
-from nilearn.reporting.glm_reporter import _plot_to_svg
 from matplotlib.pyplot import cm
 import joblib
 from joblib import Memory
 import numpy as np
 from .check_preprocessing import (plot_registration,
                                   plot_segmentation,
-                                  plot_spm_motion_parameters)
+                                  plot_spm_motion_parameters,
+                                  _plot_to_svg)
 from ..time_diff import plot_tsdiffs, multi_session_time_slice_diffs
 from ..io_utils import compute_mean_3D_image, sanitize_fwhm
 from ..configure_spm import _configure_spm, _get_version_spm
@@ -134,8 +134,6 @@ def generate_realignment_report(subject_data,estimated_motion, output_dir
         , lengths=lengths, close=True, nilearn_report=nilearn_report,
         title="Plot of Estimated motion for %d sessions" % len(sessions))
     for_substitution['heading'] = "Motion Correction"
-    rp_plot_text = embed_in_HTML('report_sub_template.html'
-                                ,for_substitution)
 
     if log:
         for_substitution['id_link'] = for_substitution['heading'].replace(" ", "_")
@@ -148,17 +146,22 @@ def generate_realignment_report(subject_data,estimated_motion, output_dir
     else:
         rp_log_text = None
 
+    log_link_text = embed_in_HTML('log_link_template.html',for_substitution)
+
+    for_substitution['heading'] = for_substitution['heading']+' '+log_link_text
+    rp_plot_text = embed_in_HTML('report_sub_template.html',for_substitution)
+
+
     return rp_plot_text, rp_log_text
 
 
-def generate_registration_report(target, source, procedure_name,
-    output_dir, nilearn_report=None):
+def generate_registration_report(target, source, output_dir,
+    for_substitution, nilearn_report=None):
 
     """ Plots target's outline on source image and returns them 
     as SVG url embedded in HTML. """
 
     reg_plot = []
-    for_substitution = {}
 
     # prepare for smart caching
     qa_cache_dir = os.path.join(output_dir, "QA")
@@ -168,7 +171,10 @@ def generate_registration_report(target, source, procedure_name,
 
     # plot outline (edge map) of template on the
     # normalized image
-    for_substitution['heading'] = procedure_name
+    log_link_text = embed_in_HTML('log_link_template.html'
+                                        ,for_substitution)
+    for_substitution['heading'] += ' '+log_link_text
+
     for_substitution['plot'] = qa_mem.cache(plot_registration)(
         target[0], source[0]
         , close=True, nilearn_report=nilearn_report,
@@ -221,14 +227,14 @@ def generate_corregistration_report(subject_data, output_dir
         for_substitution['log'] = get_log_text(src)
         for_substitution['log_link'] = "file:///"+os.path.join(output_dir
                                         , 'nilearn_report_log.html#'
-                                        )+heading
+                                        )+for_substitution['id_link']
         log_text = embed_in_HTML('log_sub_template.html'
                                 ,for_substitution)
     else:
         log_text = None
 
     return generate_registration_report((ref, ref_brain)
-        , (src, src_brain), heading, output_dir
+        , (src, src_brain), output_dir, for_substitution
         , nilearn_report=nilearn_report), log_text
 
 
@@ -267,6 +273,9 @@ def generate_segmentation_report(subject_data, output_dir
                                 ,for_substitution)
     else:
         log_text = None
+        for_substitution['log_link'] = "file:///"+os.path.join(output_dir
+                                        , 'nilearn_report_log.html#'
+                                        )+"Segmentation"
 
     for brain_name, brain, cmap in zip(
             ['anatomical_image', 'mean_functional_image'],
@@ -302,6 +311,9 @@ def generate_segmentation_report(subject_data, output_dir
                 title=("Template GM, WM, and CSF TPM contours on "
                     "subject's %s") % _brain_name)
 
+            log_link_text = embed_in_HTML('log_link_template.html'
+                                        ,for_substitution)
+            for_substitution['heading'] += ' '+log_link_text
             seg_plot_text = embed_in_HTML('report_sub_template.html'
                                     ,for_substitution)
             seg_plot.append(seg_plot_text)
@@ -319,6 +331,9 @@ def generate_segmentation_report(subject_data, output_dir
                 csf_filename=subject_csf_file, cmap=cmap, close=True,
                 nilearn_report=nilearn_report, title=("%s TPM contours on "
                     "subject's %s") % (title_prefix, _brain_name))
+            log_link_text = embed_in_HTML('log_link_template.html'
+                                        ,for_substitution)
+            for_substitution['heading'] += ' '+log_link_text
             if not only_native:
                 for_substitution['heading'] = ""
 
@@ -340,6 +355,7 @@ def generate_normalization_report(subject_data, output_dir
     and generate_registration_report. """
     _set_templates()
     norm_plot = []
+    logs = []
     subject_data._set_session_ids()
 
     warped_tpms = dict(
@@ -348,14 +364,16 @@ def generate_normalization_report(subject_data, output_dir
     segmented = warped_tpms.values().count(None) < len(warped_tpms)
 
     if segmented:
-        norm_plot.append(generate_segmentation_report(
+        plot_text = generate_segmentation_report(
                 subject_data=subject_data,
                 output_dir=subject_data.output_dir,
                 subject_gm_file=warped_tpms["mwgm"],
                 subject_wm_file=warped_tpms["mwwm"],
                 subject_csf_file=warped_tpms["mwcsf"],
                 comment="warped",log=False, 
-                nilearn_report=nilearn_report))
+                nilearn_report=nilearn_report)
+        norm_plot.append(plot_text)
+        # logs.append(log_text)
 
     for brain_name, brain, cmap in zip(
             ['anatomical_image', 'mean_functional_image'],
@@ -369,16 +387,16 @@ def generate_normalization_report(subject_data, output_dir
             for_substitution['heading'] = "Normalization of %s" % brain_name
             for_substitution['id_link'] = for_substitution['heading'].replace(
                                                                 " ", "_")
-            for_substitution['log'] = get_log_text(getattr(subject_data
-                                    , 'gm') or getattr(subject_data
-                                    , 'wm') or getattr(subject_data, 'csf'))
+            for_substitution['log'] = get_log_text(brain)
             for_substitution['log_link'] = "file:///"+os.path.join(output_dir
                                             , 'nilearn_report_log.html#'
-                                            )+for_substitution['heading']
+                                            )+for_substitution['id_link']
             log_text = embed_in_HTML('log_sub_template.html'
                                     ,for_substitution)
         else:
             log_text = None
+
+        logs.append(log_text)
 
         if isinstance(brain, str):
             normalized = brain
@@ -388,12 +406,9 @@ def generate_normalization_report(subject_data, output_dir
 
         norm_plot.append(generate_registration_report(
         (T1_TEMPLATE, 'template'), (normalized, brain_name),
-        for_substitution['heading'], output_dir,
-        nilearn_report=nilearn_report))
+        output_dir, for_substitution, nilearn_report=nilearn_report))
 
-    print(len(norm_plot))
-    print([type(i) for i in norm_plot])
-    return '\n'.join(norm_plot), log_text
+    return '\n'.join(norm_plot), '<hr/>'.join(logs)
 
 def generate_tsdiffana_report(image_files, sessions, subject_id,
                             output_dir, tooltips=None):
@@ -416,6 +431,7 @@ def generate_tsdiffana_report(image_files, sessions, subject_id,
     headings = [heading_template.format(i) for i in range(len(figures))]
 
     for fig, head in zip(figures, headings):
+        fig.set_rasterized(True)
         for_substitution['plot'] =_plot_to_svg(fig)
         for_substitution['heading'] = head
         tsdiffana_plot_text = embed_in_HTML('report_sub_template.html'
