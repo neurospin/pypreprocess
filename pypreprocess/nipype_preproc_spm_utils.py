@@ -1402,7 +1402,6 @@ def do_subject_preproc(
                                  tsdiffana=tsdiffana)
 
     if nilearn_report:
-
         report_path,log_path = initialize_report(subject_data.output_dir,
                                 dcm2nii=subject_data.isdicom,
                                 deleteorient=deleteorient,
@@ -1417,26 +1416,8 @@ def do_subject_preproc(
                                 prepreproc_undergone=prepreproc_undergone,
                                 has_func=subject_data.func
                                 )
-
-
-        # preproc_undergone = generate_preproc_steps_docstring(
-        #     dcm2nii=subject_data.isdicom,
-        #     deleteorient=deleteorient,
-        #     slice_timing=slice_timing,
-        #     realign=realign,
-        #     coregister=coregister,
-        #     segment=segment,
-        #     normalize=normalize,
-        #     fwhm=fwhm, anat_fwhm=anat_fwhm,
-        #     dartel=dartel,
-        #     coreg_func_to_anat=not coreg_anat_to_func,
-        #     prepreproc_undergone=prepreproc_undergone,
-        #     has_func=subject_data.func
-        #     )
-        # nilearn_report = {}
-        # nilearn_report['preproc_undergone']=preproc_undergone
-        # nilearn_report['all_components']=[]
-        # nilearn_report['log']=[]
+    else:
+        report_path,log_path = None, None
 
     #############################
     # Slice-Timing Correction
@@ -1555,7 +1536,7 @@ def do_subject_preproc(
     if report and not dartel:
         subject_data.finalize_report(last_stage=last_stage)
 
-    if nilearn_report not in [False, None]:
+    if nilearn_report:
 
         if tsdiffana:
             tdsdiffana_plot = generate_tsdiffana_report(

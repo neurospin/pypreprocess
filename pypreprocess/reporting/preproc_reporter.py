@@ -39,33 +39,12 @@ from .base_reporter import (Thumbnail,
                             get_dataset_report_log_html_template,
                             copy_web_conf_files)
 import matplotlib.pyplot as plt
-from nilearn.plotting.html_document import HTMLDocument
-from nilearn.reporting.utils import figure_to_svg_quoted
 
 
 # misc
 SPM_DIR = _configure_spm()
 EPI_TEMPLATE = GM_TEMPLATE = T1_TEMPLATE = WM_TEMPLATE = CSF_TEMPLATE = None
 
-def _plot_to_svg(plot):
-    """
-    Creates an SVG image as a data URL
-    from a Matplotlib Axes or Figure object.
-
-    Parameters
-    ----------
-    plot: Matplotlib Axes or Figure object
-        Contains the plot information.
-
-    Returns
-    -------
-    url_plot_svg: String
-        SVG Image Data URL
-    """
-    try:
-        return figure_to_svg_quoted(plot)
-    except AttributeError:
-        return figure_to_svg_quoted(plot.figure)
 
 def _set_templates(spm_dir=SPM_DIR):
     """
@@ -443,8 +422,7 @@ def get_nipype_report(nipype_report_filename):
 
 def generate_registration_thumbnails(
         target, source, procedure_name, output_dir, tooltip=None,
-        execution_log_html_filename=None, results_gallery=None,
-        nilearn_report=None):
+        execution_log_html_filename=None, results_gallery=None):
     """
     Generates QA thumbnails post-registration.
 
@@ -485,10 +463,9 @@ def generate_registration_thumbnails(
     outline = os.path.join(output_dir,
                            "%s_on_%s_outline.png" % (target[1], source[1]))
 
-    svg_outline = qa_mem.cache(plot_registration)(
+    qa_mem.cache(plot_registration)(
         target[0], source[0], output_filename=outline
-        , close=True, nilearn_report=nilearn_report,
-        title="Outline of %s on %s" % (target[1], source[1]))
+        , close=True,title="Outline of %s on %s" % (target[1], source[1]))
 
     # create thumbnail
     if results_gallery:
@@ -509,15 +486,14 @@ def generate_registration_thumbnails(
                                   source[1]))
     outline_axial = os.path.join(
         output_dir, "%s_on_%s_outline_axial.png" % (target[1], source[1]))
-    svg_outline_axial = qa_mem.cache(plot_registration)(
+    qa_mem.cache(plot_registration)(
         target[0], source[0], output_filename=outline_axial, close=True,
-        display_mode='z', nilearn_report=nilearn_report,
-        title="Outline of %s on %s" % (target[1],source[1]))
+        display_mode='z',title="Outline of %s on %s" % (target[1],source[1]))
 
     output['axial'] = outline_axial
-    svg_outline = qa_mem.cache(plot_registration)(
+    qa_mem.cache(plot_registration)(
         target[0], source[0], output_filename=outline
-        , close=True, nilearn_report=nilearn_report,
+        , close=True,
         title="Outline of %s on %s" % (target[1], source[1]))
 
     # create thumbnail
@@ -534,8 +510,7 @@ def generate_registration_thumbnails(
 
 def generate_normalization_thumbnails(
         normalized_files, output_dir, brain="EPI", tooltip=None,
-        execution_log_html_filename=None, results_gallery=None,
-        nilearn_report=None):
+        execution_log_html_filename=None, results_gallery=None):
     """Generate thumbnails after spatial normalization or subject
 
     Parameters
@@ -562,14 +537,12 @@ def generate_normalization_thumbnails(
         (T1_TEMPLATE, 'template'), (normalized, brain),
         "Normalization of %s" % brain, output_dir,
         execution_log_html_filename=execution_log_html_filename,
-        results_gallery=results_gallery, tooltip=tooltip,
-        nilearn_report=nilearn_report)
+        results_gallery=results_gallery, tooltip=tooltip)
 
 
 def generate_coregistration_thumbnails(
         target, source, output_dir, execution_log_html_filename=None,
-        results_gallery=None, tooltip=None, comment=True
-        , nilearn_report=None):
+        results_gallery=None, tooltip=None, comment=True):
     """
     Generates QA thumbnails post-coregistration.
 
@@ -594,15 +567,14 @@ def generate_coregistration_thumbnails(
     return generate_registration_thumbnails(
         target, source, "Coregistration %s" % comments,
         output_dir, execution_log_html_filename=execution_log_html_filename,
-        results_gallery=results_gallery, tooltip=tooltip
-        , nilearn_report=nilearn_report)
+        results_gallery=results_gallery, tooltip=tooltip)
 
 
 def generate_segmentation_thumbnails(
         normalized_files, output_dir, subject_gm_file=None,
         subject_wm_file=None, subject_csf_file=None, only_native=False,
         brain='func', comments="", execution_log_html_filename=None,
-        cmap=None, tooltip=None, results_gallery=None, nilearn_report=None):
+        cmap=None, tooltip=None, results_gallery=None):
     """Generates thumbnails after indirect normalization
     (segmentation + normalization)
 
@@ -664,16 +636,16 @@ def generate_segmentation_thumbnails(
         template_compartments_contours_axial = os.path.join(
             output_dir,
             "template_compartments_contours_on_%s_axial.png" % _brain)
-        svg_template_compartments_contours_axial = qa_mem.cache(plot_segmentation)(
+        qa_mem.cache(plot_segmentation)(
             normalized_file, GM_TEMPLATE, wm_filename=WM_TEMPLATE,
             csf_filename=CSF_TEMPLATE, display_mode='z', cmap=cmap,
-            output_filename=template_compartments_contours_axial,
-            nilearn_report=nilearn_report,title="template TPMs", close=True)
-        svg_template_compartments_contours = qa_mem.cache(plot_segmentation)(
+            output_filename=template_compartments_contours_axial
+            ,title="template TPMs", close=True)
+        qa_mem.cache(plot_segmentation)(
             normalized_file, gm_filename=GM_TEMPLATE,
             wm_filename=WM_TEMPLATE, csf_filename=CSF_TEMPLATE,
             output_filename=template_compartments_contours,
-            cmap=cmap, close=True, nilearn_report=nilearn_report,
+            cmap=cmap, close=True,
             title=("Template GM, WM, and CSF TPM contours on "
                    "subject's %s") % _brain)
 
@@ -700,11 +672,10 @@ def generate_segmentation_thumbnails(
             output_dir,
             "subject_tpms_contours_on_subject_%s_axial.png" % _brain)
 
-        svg_subject_compartments_contours_axial = qa_mem.cache(plot_segmentation)(
+        qa_mem.cache(plot_segmentation)(
             normalized_file, subject_gm_file, wm_filename=subject_wm_file,
             csf_filename=subject_csf_file, display_mode='z', cmap=cmap,
-            output_filename=subject_compartments_contours_axial,
-            nilearn_report=nilearn_report, close=True, title="subject TPMs")
+            output_filename=subject_compartments_contours_axial, close=True, title="subject TPMs")
 
         title_prefix = "Subject's GM"
         if subject_wm_file:
@@ -712,11 +683,11 @@ def generate_segmentation_thumbnails(
         if subject_csf_file:
             title_prefix += ", and CSF"
 
-        svg_subject_compartments_contours = qa_mem.cache(plot_segmentation)(
+        qa_mem.cache(plot_segmentation)(
             normalized_file, subject_gm_file, wm_filename=subject_wm_file,
             csf_filename=subject_csf_file, cmap=cmap, close=True,
             output_filename=subject_compartments_contours,
-            nilearn_report=nilearn_report, title=("%s TPM contours on "
+            title=("%s TPM contours on "
                "subject's %s") % (title_prefix, _brain))
 
         # create thumbnail
@@ -739,7 +710,7 @@ def generate_segmentation_thumbnails(
 
 def generate_tsdiffana_thumbnail(image_files, sessions, subject_id,
                                  output_dir, results_gallery=None,
-                                 tooltips=None, nilearn_report=None):
+                                 tooltips=None):
     """Generate tsdiffana thumbnails
 
     Parameters
@@ -799,8 +770,7 @@ def generate_tsdiffana_thumbnail(image_files, sessions, subject_id,
 
 def generate_realignment_thumbnails(
         estimated_motion, output_dir, sessions=None, tooltip=None,
-        execution_log_html_filename=None, results_gallery=None
-        , nilearn_report=None):
+        execution_log_html_filename=None, results_gallery=None):
     """Function generates thumbnails for realignment parameters."""
     sessions = [1] if sessions is None else sessions
     if isinstance(estimated_motion, str):
@@ -816,9 +786,9 @@ def generate_realignment_thumbnails(
     lengths = [len(each) for each in tmp]
     estimated_motion = np.vstack(tmp)
     rp_plot = os.path.join(output_dir, 'rp_plot.png')
-    svg_rp_plot = plot_spm_motion_parameters(parameter_file=estimated_motion
+    plot_spm_motion_parameters(parameter_file=estimated_motion
         ,output_filename=rp_plot, lengths=lengths
-        , close=True, nilearn_report=nilearn_report,
+        , close=True,
         title="Plot of Estimated motion for %d sessions" % len(sessions))
 
     # create thumbnail
