@@ -60,10 +60,14 @@ def compute_similarity_from_jhist(jh, fwhm=None, cost_fun='nmi'):
     krn1 = centered_smoothing_kernel(fwhm[0],
                                      np.linspace(-1 * lim[0], lim[0],
                                                  num=2 * lim[0]))
+    # Pad with zero to get odd length
+    krn1 = np.append(krn1,0)
     krn1 = krn1 / np.sum(krn1)
     krn2 = centered_smoothing_kernel(fwhm[1],
                                      np.linspace(-1 * lim[1], lim[1],
                                                  num=2 * lim[1]))
+    # Pad with zero to get odd length
+    krn2 = np.append(krn2,0)
     krn2 = krn2 / np.sum(krn2)
 
     # smooth the histogram with kern1 x kern2
