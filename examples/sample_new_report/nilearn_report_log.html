@@ -1,0 +1,1165 @@
+<html><body><hr/><h3 id='Motion_Correction'>Motion Correction</h3>
+<pre>Node: spm
+=========
+
+
+ Hierarchy : c7cf099bae0f1d9847e476a473476de5
+ Exec ID : c7cf099bae0f1d9847e476a473476de5
+
+
+Original Inputs
+---------------
+
+
+* fwhm : <undefined>
+* in_files : ['/home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Realign/c7cf099bae0f1d9847e476a473476de5/bold.nii']
+* interp : <undefined>
+* jobtype : estwrite
+* matlab_cmd : /home/himanshu/opt/spm12/spm12.sh batch
+* mfile : True
+* out_prefix : r
+* paths : <undefined>
+* quality : <undefined>
+* register_to_mean : True
+* separation : <undefined>
+* use_mcr : True
+* use_v8struct : True
+* weight_img : <undefined>
+* wrap : <undefined>
+* write_interp : <undefined>
+* write_mask : <undefined>
+* write_which : [2, 1]
+* write_wrap : <undefined>
+
+
+Execution Inputs
+----------------
+
+
+* fwhm : <undefined>
+* in_files : ['/home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Realign/c7cf099bae0f1d9847e476a473476de5/bold.nii']
+* interp : <undefined>
+* jobtype : estwrite
+* matlab_cmd : /home/himanshu/opt/spm12/spm12.sh batch
+* mfile : True
+* out_prefix : r
+* paths : <undefined>
+* quality : <undefined>
+* register_to_mean : True
+* separation : <undefined>
+* use_mcr : True
+* use_v8struct : True
+* weight_img : <undefined>
+* wrap : <undefined>
+* write_interp : <undefined>
+* write_mask : <undefined>
+* write_which : [2, 1]
+* write_wrap : <undefined>
+
+
+Execution Outputs
+-----------------
+
+
+* mean_image : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Realign/c7cf099bae0f1d9847e476a473476de5/meanbold.nii
+* modified_in_files : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Realign/c7cf099bae0f1d9847e476a473476de5/bold.nii
+* realigned_files : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Realign/c7cf099bae0f1d9847e476a473476de5/rbold.nii
+* realignment_parameters : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Realign/c7cf099bae0f1d9847e476a473476de5/rp_bold.txt
+
+
+Runtime info
+------------
+
+
+* duration : 764.984012
+* hostname : machine
+* prev_wd : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work
+* working_dir : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Realign/c7cf099bae0f1d9847e476a473476de5
+
+
+Terminal output
+~~~~~~~~~~~~~~~
+
+
+ 
+
+
+Terminal - standard output
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+ ------------------------------------------
+Setting up environment variables
+---
+LD_LIBRARY_PATH is .:/home/himanshu/opt/spm12/spm12/../mcr/v97/runtime/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/bin/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/sys/os/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/sys/opengl/lib/glnxa64
+SPM12, version 7771 (standalone)
+MATLAB, version 9.7.0.1296695 (R2019b) Update 4
+ ___  ____  __  __                                            
+/ __)(  _ \(  \/  )                                           
+\__ \ )___/ )    (   Statistical Parametric Mapping           
+(___/(__)  (_/\/\_)  SPM12 - https://www.fil.ion.ucl.ac.uk/spm/
+
+Executing spm_jobman at 08-Feb-2021 13:34:56:
+-----------------------------------------------------------------------------------------------------
+MATLAB Version: 9.7.0.1296695 (R2019b) Update 4
+MATLAB License Number: unknown
+Operating System: Linux 5.8.0-41-generic #46~20.04.1-Ubuntu SMP Mon Jan 18 17:52:23 UTC 2021 x86_64
+Java Version: Java 1.8.0_202-b08 with Oracle Corporation Java HotSpot(TM) 64-Bit Server VM mixed mode
+-----------------------------------------------------------------------------------------------------
+MATLAB                                                Version 9.7         (R2019b)
+MATLAB Compiler                                       Version 7.1         (R2019b)
+SPM version: SPM12 Release: 7771
+SPM path: /home/himanshu/opt/spm12/spm12/spm12_mcr/spm12/spm12/spm.m
+
+
+------------------------------------------------------------------------
+08-Feb-2021 13:34:59 - Running job #1
+------------------------------------------------------------------------
+08-Feb-2021 13:34:59 - Running 'Realign: Estimate & Reslice'
+
+SPM12: spm_realign (v7141)                         13:34:59 - 08/02/2021
+========================================================================
+Completed                               :          13:39:15 - 08/02/2021
+
+SPM12: spm_reslice (v7141)                         13:39:15 - 08/02/2021
+========================================================================
+Completed                               :          13:41:32 - 08/02/2021
+08-Feb-2021 13:41:33 - Done    'Realign: Estimate & Reslice'
+08-Feb-2021 13:41:33 - Done
+
+
+
+------------------------------------------------------------------------
+08-Feb-2021 13:41:35 - Running job #1
+------------------------------------------------------------------------
+08-Feb-2021 13:41:35 - Running 'Realign: Estimate & Reslice'
+
+SPM12: spm_realign (v7141)                         13:41:35 - 08/02/2021
+========================================================================
+Completed                               :          13:44:58 - 08/02/2021
+
+SPM12: spm_reslice (v7141)                         13:44:58 - 08/02/2021
+========================================================================
+Completed                               :          13:47:30 - 08/02/2021
+08-Feb-2021 13:47:30 - Done    'Realign: Estimate & Reslice'
+08-Feb-2021 13:47:30 - Done
+
+Bye for now...
+
+
+
+Terminal - standard error
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+ 
+
+
+Environment
+~~~~~~~~~~~
+
+
+* COLORTERM : truecolor
+* DBUS_SESSION_BUS_ADDRESS : unix:path=/run/user/1000/bus
+* DESKTOP_SESSION : ubuntu
+* DISPLAY : :0
+* GDMSESSION : ubuntu
+* GNOME_DESKTOP_SESSION_ID : this-is-deprecated
+* GNOME_SHELL_SESSION_MODE : ubuntu
+* GNOME_TERMINAL_SCREEN : /org/gnome/Terminal/screen/7c209c64_7529_474d_9245_5ff163016df2
+* GNOME_TERMINAL_SERVICE : :1.102
+* GPG_AGENT_INFO : /run/user/1000/gnupg/S.gpg-agent:0:1
+* GTK_MODULES : gail:atk-bridge
+* HOME : /home/himanshu
+* IM_CONFIG_PHASE : 1
+* INFOPATH : /usr/local/texlive/2020/texmf-dist/doc/info:
+* INVOCATION_ID : 12cc06baefc34cada06c58914a65073b
+* JOURNAL_STREAM : 8:42977
+* KMP_DUPLICATE_LIB_OK : True
+* KMP_INIT_AT_FORK : FALSE
+* LANG : en_IN
+* LANGUAGE : en_IN:en
+* LESSCLOSE : /usr/bin/lesspipe %s %s
+* LESSOPEN : | /usr/bin/lesspipe %s
+* LOGNAME : himanshu
+* LS_COLORS : rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:
+* MANAGERPID : 1341
+* MANPATH : /usr/local/texlive/2020/texmf-dist/doc/man:
+* OLDPWD : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/pypreprocess
+* PATH : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy/bin:/usr/local/texlive/2020/bin/x86_64-linux:/home/himanshu/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+* PS1 : (ibcpy) \[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ 
+* PWD : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work
+* QT_ACCESSIBILITY : 1
+* QT_IM_MODULE : ibus
+* SESSION_MANAGER : local/machine:@/tmp/.ICE-unix/1601,unix/machine:/tmp/.ICE-unix/1601
+* SHELL : /bin/bash
+* SHLVL : 1
+* SSH_AGENT_PID : 1545
+* SSH_AUTH_SOCK : /run/user/1000/keyring/ssh
+* TERM : xterm-256color
+* USER : himanshu
+* USERNAME : himanshu
+* VIRTUAL_ENV : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy
+* VTE_VERSION : 6003
+* WINDOWPATH : 2
+* XAUTHORITY : /run/user/1000/gdm/Xauthority
+* XDG_CONFIG_DIRS : /etc/xdg/xdg-ubuntu:/etc/xdg
+* XDG_CURRENT_DESKTOP : ubuntu:GNOME
+* XDG_DATA_DIRS : /usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop
+* XDG_MENU_PREFIX : gnome-
+* XDG_RUNTIME_DIR : /run/user/1000
+* XDG_SESSION_CLASS : user
+* XDG_SESSION_DESKTOP : ubuntu
+* XDG_SESSION_TYPE : x11
+* XMODIFIERS : @im=ibus
+* _ : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy/bin/python
+
+</pre><hr/><h3 id='Corregistration_mean_functional_image_==_>_anatomical_image'>Corregistration mean_functional_image == > anatomical_image</h3>
+<pre>Node: spm
+=========
+
+
+ Hierarchy : f155d3c289f2ab9aabe514914b63c9f5
+ Exec ID : f155d3c289f2ab9aabe514914b63c9f5
+
+
+Original Inputs
+---------------
+
+
+* apply_to_files : ['/home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Coregister/f155d3c289f2ab9aabe514914b63c9f5/rbold.nii']
+* cost_function : <undefined>
+* fwhm : <undefined>
+* jobtype : estimate
+* matlab_cmd : /home/himanshu/opt/spm12/spm12.sh batch
+* mfile : True
+* out_prefix : r
+* paths : <undefined>
+* separation : <undefined>
+* source : ['/home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Coregister/f155d3c289f2ab9aabe514914b63c9f5/meanbold.nii']
+* target : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Coregister/f155d3c289f2ab9aabe514914b63c9f5/anat.nii
+* tolerance : <undefined>
+* use_mcr : True
+* use_v8struct : True
+* write_interp : <undefined>
+* write_mask : <undefined>
+* write_wrap : <undefined>
+
+
+Execution Inputs
+----------------
+
+
+* apply_to_files : ['/home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Coregister/f155d3c289f2ab9aabe514914b63c9f5/rbold.nii']
+* cost_function : <undefined>
+* fwhm : <undefined>
+* jobtype : estimate
+* matlab_cmd : /home/himanshu/opt/spm12/spm12.sh batch
+* mfile : True
+* out_prefix : r
+* paths : <undefined>
+* separation : <undefined>
+* source : ['/home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Coregister/f155d3c289f2ab9aabe514914b63c9f5/meanbold.nii']
+* target : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Coregister/f155d3c289f2ab9aabe514914b63c9f5/anat.nii
+* tolerance : <undefined>
+* use_mcr : True
+* use_v8struct : True
+* write_interp : <undefined>
+* write_mask : <undefined>
+* write_wrap : <undefined>
+
+
+Execution Outputs
+-----------------
+
+
+* coregistered_files : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Coregister/f155d3c289f2ab9aabe514914b63c9f5/rbold.nii
+* coregistered_source : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Coregister/f155d3c289f2ab9aabe514914b63c9f5/meanbold.nii
+
+
+Runtime info
+------------
+
+
+* duration : 65.090562
+* hostname : machine
+* prev_wd : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work
+* working_dir : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Coregister/f155d3c289f2ab9aabe514914b63c9f5
+
+
+Terminal output
+~~~~~~~~~~~~~~~
+
+
+ 
+
+
+Terminal - standard output
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+ ------------------------------------------
+Setting up environment variables
+---
+LD_LIBRARY_PATH is .:/home/himanshu/opt/spm12/spm12/../mcr/v97/runtime/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/bin/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/sys/os/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/sys/opengl/lib/glnxa64
+SPM12, version 7771 (standalone)
+MATLAB, version 9.7.0.1296695 (R2019b) Update 4
+ ___  ____  __  __                                            
+/ __)(  _ \(  \/  )                                           
+\__ \ )___/ )    (   Statistical Parametric Mapping           
+(___/(__)  (_/\/\_)  SPM12 - https://www.fil.ion.ucl.ac.uk/spm/
+
+Executing spm_jobman at 11-Feb-2021 14:18:08:
+-----------------------------------------------------------------------------------------------------
+MATLAB Version: 9.7.0.1296695 (R2019b) Update 4
+MATLAB License Number: unknown
+Operating System: Linux 5.8.0-41-generic #46~20.04.1-Ubuntu SMP Mon Jan 18 17:52:23 UTC 2021 x86_64
+Java Version: Java 1.8.0_202-b08 with Oracle Corporation Java HotSpot(TM) 64-Bit Server VM mixed mode
+-----------------------------------------------------------------------------------------------------
+MATLAB                                                Version 9.7         (R2019b)
+MATLAB Compiler                                       Version 7.1         (R2019b)
+SPM version: SPM12 Release: 7771
+SPM path: /home/himanshu/opt/spm12/spm12/spm12_mcr/spm12/spm12/spm.m
+Item estimate: No field(s) named
+roptions
+
+
+------------------------------------------------------------------------
+11-Feb-2021 14:18:11 - Running job #1
+------------------------------------------------------------------------
+11-Feb-2021 14:18:11 - Running 'Coregister: Estimate'
+
+SPM12: spm_coreg (v7320)                           14:18:11 - 11/02/2021
+========================================================================
+Completed                               :          14:18:18 - 11/02/2021
+11-Feb-2021 14:18:34 - Done    'Coregister: Estimate'
+11-Feb-2021 14:18:34 - Done
+
+Item estimate: No field(s) named
+roptions
+
+
+------------------------------------------------------------------------
+11-Feb-2021 14:18:35 - Running job #1
+------------------------------------------------------------------------
+11-Feb-2021 14:18:35 - Running 'Coregister: Estimate'
+
+SPM12: spm_coreg (v7320)                           14:18:35 - 11/02/2021
+========================================================================
+Completed                               :          14:18:45 - 11/02/2021
+11-Feb-2021 14:19:00 - Done    'Coregister: Estimate'
+11-Feb-2021 14:19:00 - Done
+
+Bye for now...
+
+
+
+Terminal - standard error
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+ 
+
+
+Environment
+~~~~~~~~~~~
+
+
+* APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL : true
+* CHROME_DESKTOP : code-url-handler.desktop
+* COLORTERM : truecolor
+* DBUS_SESSION_BUS_ADDRESS : unix:path=/run/user/1000/bus
+* DESKTOP_SESSION : ubuntu
+* DISPLAY : :0
+* GDMSESSION : ubuntu
+* GIT_ASKPASS : /usr/share/code/resources/app/extensions/git/dist/askpass.sh
+* GNOME_DESKTOP_SESSION_ID : this-is-deprecated
+* GNOME_SHELL_SESSION_MODE : ubuntu
+* GNOME_TERMINAL_SCREEN : /org/gnome/Terminal/screen/6d05f38b_7bd7_4720_8c85_a8b78c00e796
+* GNOME_TERMINAL_SERVICE : :1.101
+* GPG_AGENT_INFO : /run/user/1000/gnupg/S.gpg-agent:0:1
+* GTK_MODULES : gail:atk-bridge
+* HOME : /home/himanshu
+* IM_CONFIG_PHASE : 1
+* INFOPATH : /usr/local/texlive/2020/texmf-dist/doc/info:/usr/local/texlive/2020/texmf-dist/doc/info:
+* INVOCATION_ID : 455d053550004ce4a63c8dd67e6fc76c
+* JOURNAL_STREAM : 8:46571
+* KMP_DUPLICATE_LIB_OK : True
+* KMP_INIT_AT_FORK : FALSE
+* LANG : en_GB.UTF-8
+* LANGUAGE : en_IN:en
+* LESSCLOSE : /usr/bin/lesspipe %s %s
+* LESSOPEN : | /usr/bin/lesspipe %s
+* LOGNAME : himanshu
+* LS_COLORS : rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:
+* MANAGERPID : 1376
+* MANPATH : /usr/local/texlive/2020/texmf-dist/doc/man:/usr/local/texlive/2020/texmf-dist/doc/man:
+* OLDPWD : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/pypreprocess
+* ORIGINAL_XDG_CURRENT_DESKTOP : ubuntu:GNOME
+* PATH : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy/bin:/usr/local/texlive/2020/bin/x86_64-linux:/usr/local/texlive/2020/bin/x86_64-linux:/home/himanshu/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+* PS1 : (ibcpy) \[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ 
+* PWD : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work
+* QT_ACCESSIBILITY : 1
+* QT_IM_MODULE : ibus
+* SESSION_MANAGER : local/machine:@/tmp/.ICE-unix/1605,unix/machine:/tmp/.ICE-unix/1605
+* SHELL : /bin/bash
+* SHLVL : 2
+* SSH_AGENT_PID : 1559
+* SSH_AUTH_SOCK : /run/user/1000/keyring/ssh
+* TERM : xterm-256color
+* TERM_PROGRAM : vscode
+* TERM_PROGRAM_VERSION : 1.53.1
+* USER : himanshu
+* USERNAME : himanshu
+* VIRTUAL_ENV : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy
+* VSCODE_GIT_ASKPASS_MAIN : /usr/share/code/resources/app/extensions/git/dist/askpass-main.js
+* VSCODE_GIT_ASKPASS_NODE : /usr/share/code/code
+* VSCODE_GIT_IPC_HANDLE : /run/user/1000/vscode-git-6bb11fa054.sock
+* VTE_VERSION : 6003
+* WINDOWPATH : 2
+* XAUTHORITY : /run/user/1000/gdm/Xauthority
+* XDG_CONFIG_DIRS : /etc/xdg/xdg-ubuntu:/etc/xdg
+* XDG_CURRENT_DESKTOP : Unity
+* XDG_DATA_DIRS : /usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop
+* XDG_MENU_PREFIX : gnome-
+* XDG_RUNTIME_DIR : /run/user/1000
+* XDG_SESSION_CLASS : user
+* XDG_SESSION_DESKTOP : ubuntu
+* XDG_SESSION_TYPE : x11
+* XMODIFIERS : @im=ibus
+* _ : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy/bin/python
+
+</pre><hr/><h3 id='Segmentation'>Segmentation</h3>
+<pre>Node: spm
+=========
+
+
+ Hierarchy : 63edc8eb84a19e57f9aa6f86c461256d
+ Exec ID : 63edc8eb84a19e57f9aa6f86c461256d
+
+
+Original Inputs
+---------------
+
+
+* affine_regularization : <undefined>
+* bias_fwhm : <undefined>
+* bias_regularization : <undefined>
+* clean_masks : <undefined>
+* csf_output_type : [True, True, True]
+* data : ['/home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Segment/63edc8eb84a19e57f9aa6f86c461256d/anat.nii']
+* gaussians_per_class : <undefined>
+* gm_output_type : [True, True, True]
+* mask_image : <undefined>
+* matlab_cmd : /home/himanshu/opt/spm12/spm12.sh batch
+* mfile : True
+* paths : <undefined>
+* sampling_distance : <undefined>
+* save_bias_corrected : <undefined>
+* tissue_prob_maps : ['/home/himanshu/opt/spm12/spm12/spm12_mcr/spm12/spm12/toolbox/OldSeg/grey.nii', '/home/himanshu/opt/spm12/spm12/spm12_mcr/spm12/spm12/toolbox/OldSeg/white.nii', '/home/himanshu/opt/spm12/spm12/spm12_mcr/spm12/spm12/toolbox/OldSeg/csf.nii']
+* use_mcr : True
+* use_v8struct : True
+* warp_frequency_cutoff : <undefined>
+* warping_regularization : <undefined>
+* wm_output_type : [True, True, True]
+
+
+Execution Inputs
+----------------
+
+
+* affine_regularization : <undefined>
+* bias_fwhm : <undefined>
+* bias_regularization : <undefined>
+* clean_masks : <undefined>
+* csf_output_type : [True, True, True]
+* data : ['/home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Segment/63edc8eb84a19e57f9aa6f86c461256d/anat.nii']
+* gaussians_per_class : <undefined>
+* gm_output_type : [True, True, True]
+* mask_image : <undefined>
+* matlab_cmd : /home/himanshu/opt/spm12/spm12.sh batch
+* mfile : True
+* paths : <undefined>
+* sampling_distance : <undefined>
+* save_bias_corrected : <undefined>
+* tissue_prob_maps : ['/home/himanshu/opt/spm12/spm12/spm12_mcr/spm12/spm12/toolbox/OldSeg/grey.nii', '/home/himanshu/opt/spm12/spm12/spm12_mcr/spm12/spm12/toolbox/OldSeg/white.nii', '/home/himanshu/opt/spm12/spm12/spm12_mcr/spm12/spm12/toolbox/OldSeg/csf.nii']
+* use_mcr : True
+* use_v8struct : True
+* warp_frequency_cutoff : <undefined>
+* warping_regularization : <undefined>
+* wm_output_type : [True, True, True]
+
+
+Execution Outputs
+-----------------
+
+
+* bias_corrected_image : <undefined>
+* inverse_transformation_mat : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Segment/63edc8eb84a19e57f9aa6f86c461256d/anat_seg_inv_sn.mat
+* modulated_csf_image : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Segment/63edc8eb84a19e57f9aa6f86c461256d/mwc3anat.nii
+* modulated_gm_image : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Segment/63edc8eb84a19e57f9aa6f86c461256d/mwc1anat.nii
+* modulated_input_image : <undefined>
+* modulated_wm_image : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Segment/63edc8eb84a19e57f9aa6f86c461256d/mwc2anat.nii
+* native_csf_image : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Segment/63edc8eb84a19e57f9aa6f86c461256d/c3anat.nii
+* native_gm_image : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Segment/63edc8eb84a19e57f9aa6f86c461256d/c1anat.nii
+* native_wm_image : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Segment/63edc8eb84a19e57f9aa6f86c461256d/c2anat.nii
+* normalized_csf_image : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Segment/63edc8eb84a19e57f9aa6f86c461256d/wc3anat.nii
+* normalized_gm_image : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Segment/63edc8eb84a19e57f9aa6f86c461256d/wc1anat.nii
+* normalized_wm_image : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Segment/63edc8eb84a19e57f9aa6f86c461256d/wc2anat.nii
+* transformation_mat : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Segment/63edc8eb84a19e57f9aa6f86c461256d/anat_seg_sn.mat
+
+
+Runtime info
+------------
+
+
+* duration : 118.807916
+* hostname : machine
+* prev_wd : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work
+* working_dir : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Segment/63edc8eb84a19e57f9aa6f86c461256d
+
+
+Terminal output
+~~~~~~~~~~~~~~~
+
+
+ 
+
+
+Terminal - standard output
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+ ------------------------------------------
+Setting up environment variables
+---
+LD_LIBRARY_PATH is .:/home/himanshu/opt/spm12/spm12/../mcr/v97/runtime/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/bin/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/sys/os/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/sys/opengl/lib/glnxa64
+SPM12, version 7771 (standalone)
+MATLAB, version 9.7.0.1296695 (R2019b) Update 4
+ ___  ____  __  __                                            
+/ __)(  _ \(  \/  )                                           
+\__ \ )___/ )    (   Statistical Parametric Mapping           
+(___/(__)  (_/\/\_)  SPM12 - https://www.fil.ion.ucl.ac.uk/spm/
+
+Executing spm_jobman at 11-Feb-2021 14:19:56:
+-----------------------------------------------------------------------------------------------------
+MATLAB Version: 9.7.0.1296695 (R2019b) Update 4
+MATLAB License Number: unknown
+Operating System: Linux 5.8.0-41-generic #46~20.04.1-Ubuntu SMP Mon Jan 18 17:52:23 UTC 2021 x86_64
+Java Version: Java 1.8.0_202-b08 with Oracle Corporation Java HotSpot(TM) 64-Bit Server VM mixed mode
+-----------------------------------------------------------------------------------------------------
+MATLAB                                                Version 9.7         (R2019b)
+MATLAB Compiler                                       Version 7.1         (R2019b)
+SPM version: SPM12 Release: 7771
+SPM path: /home/himanshu/opt/spm12/spm12/spm12_mcr/spm12/spm12/spm.m
+
+
+------------------------------------------------------------------------
+11-Feb-2021 14:19:59 - Running job #1
+------------------------------------------------------------------------
+11-Feb-2021 14:19:59 - Running 'Old Segment'
+
+SPM12: spm_preproc (v4916)                         14:19:59 - 11/02/2021
+========================================================================
+Completed                               :          14:20:31 - 11/02/2021
+
+SPM12: spm_write_sn (v4878)                        14:20:49 - 11/02/2021
+========================================================================
+Completed                               :          14:20:50 - 11/02/2021
+
+SPM12: spm_write_sn (v4878)                        14:20:50 - 11/02/2021
+========================================================================
+Completed                               :          14:20:50 - 11/02/2021
+
+SPM12: spm_write_sn (v4878)                        14:20:50 - 11/02/2021
+========================================================================
+Completed                               :          14:20:51 - 11/02/2021
+
+SPM12: spm_write_sn (v4878)                        14:20:51 - 11/02/2021
+========================================================================
+Completed                               :          14:20:51 - 11/02/2021
+
+SPM12: spm_write_sn (v4878)                        14:20:51 - 11/02/2021
+========================================================================
+Completed                               :          14:20:52 - 11/02/2021
+
+SPM12: spm_write_sn (v4878)                        14:20:52 - 11/02/2021
+========================================================================
+Completed                               :          14:20:52 - 11/02/2021
+11-Feb-2021 14:20:52 - Done    'Old Segment'
+11-Feb-2021 14:20:52 - Done
+
+
+
+------------------------------------------------------------------------
+11-Feb-2021 14:20:53 - Running job #1
+------------------------------------------------------------------------
+11-Feb-2021 14:20:53 - Running 'Old Segment'
+
+SPM12: spm_preproc (v4916)                         14:20:53 - 11/02/2021
+========================================================================
+Completed                               :          14:21:23 - 11/02/2021
+
+SPM12: spm_write_sn (v4878)                        14:21:39 - 11/02/2021
+========================================================================
+Completed                               :          14:21:40 - 11/02/2021
+
+SPM12: spm_write_sn (v4878)                        14:21:40 - 11/02/2021
+========================================================================
+Completed                               :          14:21:40 - 11/02/2021
+
+SPM12: spm_write_sn (v4878)                        14:21:40 - 11/02/2021
+========================================================================
+Completed                               :          14:21:41 - 11/02/2021
+
+SPM12: spm_write_sn (v4878)                        14:21:41 - 11/02/2021
+========================================================================
+Completed                               :          14:21:41 - 11/02/2021
+
+SPM12: spm_write_sn (v4878)                        14:21:42 - 11/02/2021
+========================================================================
+Completed                               :          14:21:42 - 11/02/2021
+
+SPM12: spm_write_sn (v4878)                        14:21:42 - 11/02/2021
+========================================================================
+Completed                               :          14:21:43 - 11/02/2021
+11-Feb-2021 14:21:43 - Done    'Old Segment'
+11-Feb-2021 14:21:43 - Done
+
+Bye for now...
+
+
+
+Terminal - standard error
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+ 
+
+
+Environment
+~~~~~~~~~~~
+
+
+* APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL : true
+* CHROME_DESKTOP : code-url-handler.desktop
+* COLORTERM : truecolor
+* DBUS_SESSION_BUS_ADDRESS : unix:path=/run/user/1000/bus
+* DESKTOP_SESSION : ubuntu
+* DISPLAY : :0
+* GDMSESSION : ubuntu
+* GIT_ASKPASS : /usr/share/code/resources/app/extensions/git/dist/askpass.sh
+* GNOME_DESKTOP_SESSION_ID : this-is-deprecated
+* GNOME_SHELL_SESSION_MODE : ubuntu
+* GNOME_TERMINAL_SCREEN : /org/gnome/Terminal/screen/6d05f38b_7bd7_4720_8c85_a8b78c00e796
+* GNOME_TERMINAL_SERVICE : :1.101
+* GPG_AGENT_INFO : /run/user/1000/gnupg/S.gpg-agent:0:1
+* GTK_MODULES : gail:atk-bridge
+* HOME : /home/himanshu
+* IM_CONFIG_PHASE : 1
+* INFOPATH : /usr/local/texlive/2020/texmf-dist/doc/info:/usr/local/texlive/2020/texmf-dist/doc/info:
+* INVOCATION_ID : 455d053550004ce4a63c8dd67e6fc76c
+* JOURNAL_STREAM : 8:46571
+* KMP_DUPLICATE_LIB_OK : True
+* KMP_INIT_AT_FORK : FALSE
+* LANG : en_GB.UTF-8
+* LANGUAGE : en_IN:en
+* LESSCLOSE : /usr/bin/lesspipe %s %s
+* LESSOPEN : | /usr/bin/lesspipe %s
+* LOGNAME : himanshu
+* LS_COLORS : rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:
+* MANAGERPID : 1376
+* MANPATH : /usr/local/texlive/2020/texmf-dist/doc/man:/usr/local/texlive/2020/texmf-dist/doc/man:
+* OLDPWD : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/pypreprocess
+* ORIGINAL_XDG_CURRENT_DESKTOP : ubuntu:GNOME
+* PATH : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy/bin:/usr/local/texlive/2020/bin/x86_64-linux:/usr/local/texlive/2020/bin/x86_64-linux:/home/himanshu/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+* PS1 : (ibcpy) \[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ 
+* PWD : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work
+* QT_ACCESSIBILITY : 1
+* QT_IM_MODULE : ibus
+* SESSION_MANAGER : local/machine:@/tmp/.ICE-unix/1605,unix/machine:/tmp/.ICE-unix/1605
+* SHELL : /bin/bash
+* SHLVL : 2
+* SSH_AGENT_PID : 1559
+* SSH_AUTH_SOCK : /run/user/1000/keyring/ssh
+* TERM : xterm-256color
+* TERM_PROGRAM : vscode
+* TERM_PROGRAM_VERSION : 1.53.1
+* USER : himanshu
+* USERNAME : himanshu
+* VIRTUAL_ENV : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy
+* VSCODE_GIT_ASKPASS_MAIN : /usr/share/code/resources/app/extensions/git/dist/askpass-main.js
+* VSCODE_GIT_ASKPASS_NODE : /usr/share/code/code
+* VSCODE_GIT_IPC_HANDLE : /run/user/1000/vscode-git-6bb11fa054.sock
+* VTE_VERSION : 6003
+* WINDOWPATH : 2
+* XAUTHORITY : /run/user/1000/gdm/Xauthority
+* XDG_CONFIG_DIRS : /etc/xdg/xdg-ubuntu:/etc/xdg
+* XDG_CURRENT_DESKTOP : Unity
+* XDG_DATA_DIRS : /usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop
+* XDG_MENU_PREFIX : gnome-
+* XDG_RUNTIME_DIR : /run/user/1000
+* XDG_SESSION_CLASS : user
+* XDG_SESSION_DESKTOP : ubuntu
+* XDG_SESSION_TYPE : x11
+* XMODIFIERS : @im=ibus
+* _ : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy/bin/python
+
+</pre><hr/><h3 id='Normalization_of_anatomical_image'>Normalization of anatomical_image</h3>
+<pre>Node: spm
+=========
+
+
+ Hierarchy : f3792463455f815074236b25867b200f
+ Exec ID : f3792463455f815074236b25867b200f
+
+
+Original Inputs
+---------------
+
+
+* DCT_period_cutoff : <undefined>
+* affine_regularization_type : <undefined>
+* apply_to_files : ['/home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Normalize/f3792463455f815074236b25867b200f/anat.nii']
+* jobtype : write
+* matlab_cmd : /home/himanshu/opt/spm12/spm12.sh batch
+* mfile : True
+* nonlinear_iterations : <undefined>
+* nonlinear_regularization : <undefined>
+* out_prefix : w
+* parameter_file : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Normalize/f3792463455f815074236b25867b200f/anat_seg_sn.mat
+* paths : <undefined>
+* source : <undefined>
+* source_image_smoothing : <undefined>
+* source_weight : <undefined>
+* template : <undefined>
+* template_image_smoothing : <undefined>
+* template_weight : <undefined>
+* use_mcr : True
+* use_v8struct : True
+* write_bounding_box : [[-78.0, -112.0, -50.0], [78.0, 76.0, 85.0]]
+* write_interp : 1
+* write_preserve : <undefined>
+* write_voxel_sizes : [1.2000000476837158, 0.9375, 0.9375]
+* write_wrap : <undefined>
+
+
+Execution Inputs
+----------------
+
+
+* DCT_period_cutoff : <undefined>
+* affine_regularization_type : <undefined>
+* apply_to_files : ['/home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Normalize/f3792463455f815074236b25867b200f/anat.nii']
+* jobtype : write
+* matlab_cmd : /home/himanshu/opt/spm12/spm12.sh batch
+* mfile : True
+* nonlinear_iterations : <undefined>
+* nonlinear_regularization : <undefined>
+* out_prefix : w
+* parameter_file : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Normalize/f3792463455f815074236b25867b200f/anat_seg_sn.mat
+* paths : <undefined>
+* source : <undefined>
+* source_image_smoothing : <undefined>
+* source_weight : <undefined>
+* template : <undefined>
+* template_image_smoothing : <undefined>
+* template_weight : <undefined>
+* use_mcr : True
+* use_v8struct : True
+* write_bounding_box : [[-78.0, -112.0, -50.0], [78.0, 76.0, 85.0]]
+* write_interp : 1
+* write_preserve : <undefined>
+* write_voxel_sizes : [1.2000000476837158, 0.9375, 0.9375]
+* write_wrap : <undefined>
+
+
+Execution Outputs
+-----------------
+
+
+* normalization_parameters : <undefined>
+* normalized_files : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Normalize/f3792463455f815074236b25867b200f/wanat.nii
+* normalized_source : <undefined>
+
+
+Runtime info
+------------
+
+
+* duration : 19.029302
+* hostname : machine
+* prev_wd : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work
+* working_dir : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Normalize/f3792463455f815074236b25867b200f
+
+
+Terminal output
+~~~~~~~~~~~~~~~
+
+
+ 
+
+
+Terminal - standard output
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+ ------------------------------------------
+Setting up environment variables
+---
+LD_LIBRARY_PATH is .:/home/himanshu/opt/spm12/spm12/../mcr/v97/runtime/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/bin/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/sys/os/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/sys/opengl/lib/glnxa64
+SPM12, version 7771 (standalone)
+MATLAB, version 9.7.0.1296695 (R2019b) Update 4
+ ___  ____  __  __                                            
+/ __)(  _ \(  \/  )                                           
+\__ \ )___/ )    (   Statistical Parametric Mapping           
+(___/(__)  (_/\/\_)  SPM12 - https://www.fil.ion.ucl.ac.uk/spm/
+
+Executing spm_jobman at 11-Feb-2021 14:22:39:
+-----------------------------------------------------------------------------------------------------
+MATLAB Version: 9.7.0.1296695 (R2019b) Update 4
+MATLAB License Number: unknown
+Operating System: Linux 5.8.0-41-generic #46~20.04.1-Ubuntu SMP Mon Jan 18 17:52:23 UTC 2021 x86_64
+Java Version: Java 1.8.0_202-b08 with Oracle Corporation Java HotSpot(TM) 64-Bit Server VM mixed mode
+-----------------------------------------------------------------------------------------------------
+MATLAB                                                Version 9.7         (R2019b)
+MATLAB Compiler                                       Version 7.1         (R2019b)
+SPM version: SPM12 Release: 7771
+SPM path: /home/himanshu/opt/spm12/spm12/spm12_mcr/spm12/spm12/spm.m
+Conversion Normalise:Write -> Old Normalise:Write
+
+
+------------------------------------------------------------------------
+11-Feb-2021 14:22:42 - Running job #1
+------------------------------------------------------------------------
+11-Feb-2021 14:22:42 - Running 'Old Normalise: Write'
+
+SPM12: spm_write_sn (v4878)                        14:22:42 - 11/02/2021
+========================================================================
+Completed                               :          14:22:43 - 11/02/2021
+11-Feb-2021 14:22:43 - Done    'Old Normalise: Write'
+11-Feb-2021 14:22:43 - Done
+
+Conversion Normalise:Write -> Old Normalise:Write
+
+
+------------------------------------------------------------------------
+11-Feb-2021 14:22:44 - Running job #1
+------------------------------------------------------------------------
+11-Feb-2021 14:22:44 - Running 'Old Normalise: Write'
+
+SPM12: spm_write_sn (v4878)                        14:22:44 - 11/02/2021
+========================================================================
+Completed                               :          14:22:45 - 11/02/2021
+11-Feb-2021 14:22:45 - Done    'Old Normalise: Write'
+11-Feb-2021 14:22:45 - Done
+
+Bye for now...
+
+
+
+Terminal - standard error
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+ 
+
+
+Environment
+~~~~~~~~~~~
+
+
+* APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL : true
+* CHROME_DESKTOP : code-url-handler.desktop
+* COLORTERM : truecolor
+* DBUS_SESSION_BUS_ADDRESS : unix:path=/run/user/1000/bus
+* DESKTOP_SESSION : ubuntu
+* DISPLAY : :0
+* GDMSESSION : ubuntu
+* GIT_ASKPASS : /usr/share/code/resources/app/extensions/git/dist/askpass.sh
+* GNOME_DESKTOP_SESSION_ID : this-is-deprecated
+* GNOME_SHELL_SESSION_MODE : ubuntu
+* GNOME_TERMINAL_SCREEN : /org/gnome/Terminal/screen/6d05f38b_7bd7_4720_8c85_a8b78c00e796
+* GNOME_TERMINAL_SERVICE : :1.101
+* GPG_AGENT_INFO : /run/user/1000/gnupg/S.gpg-agent:0:1
+* GTK_MODULES : gail:atk-bridge
+* HOME : /home/himanshu
+* IM_CONFIG_PHASE : 1
+* INFOPATH : /usr/local/texlive/2020/texmf-dist/doc/info:/usr/local/texlive/2020/texmf-dist/doc/info:
+* INVOCATION_ID : 455d053550004ce4a63c8dd67e6fc76c
+* JOURNAL_STREAM : 8:46571
+* KMP_DUPLICATE_LIB_OK : True
+* KMP_INIT_AT_FORK : FALSE
+* LANG : en_GB.UTF-8
+* LANGUAGE : en_IN:en
+* LESSCLOSE : /usr/bin/lesspipe %s %s
+* LESSOPEN : | /usr/bin/lesspipe %s
+* LOGNAME : himanshu
+* LS_COLORS : rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:
+* MANAGERPID : 1376
+* MANPATH : /usr/local/texlive/2020/texmf-dist/doc/man:/usr/local/texlive/2020/texmf-dist/doc/man:
+* OLDPWD : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/pypreprocess
+* ORIGINAL_XDG_CURRENT_DESKTOP : ubuntu:GNOME
+* PATH : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy/bin:/usr/local/texlive/2020/bin/x86_64-linux:/usr/local/texlive/2020/bin/x86_64-linux:/home/himanshu/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+* PS1 : (ibcpy) \[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ 
+* PWD : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work
+* QT_ACCESSIBILITY : 1
+* QT_IM_MODULE : ibus
+* SESSION_MANAGER : local/machine:@/tmp/.ICE-unix/1605,unix/machine:/tmp/.ICE-unix/1605
+* SHELL : /bin/bash
+* SHLVL : 2
+* SSH_AGENT_PID : 1559
+* SSH_AUTH_SOCK : /run/user/1000/keyring/ssh
+* TERM : xterm-256color
+* TERM_PROGRAM : vscode
+* TERM_PROGRAM_VERSION : 1.53.1
+* USER : himanshu
+* USERNAME : himanshu
+* VIRTUAL_ENV : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy
+* VSCODE_GIT_ASKPASS_MAIN : /usr/share/code/resources/app/extensions/git/dist/askpass-main.js
+* VSCODE_GIT_ASKPASS_NODE : /usr/share/code/code
+* VSCODE_GIT_IPC_HANDLE : /run/user/1000/vscode-git-6bb11fa054.sock
+* VTE_VERSION : 6003
+* WINDOWPATH : 2
+* XAUTHORITY : /run/user/1000/gdm/Xauthority
+* XDG_CONFIG_DIRS : /etc/xdg/xdg-ubuntu:/etc/xdg
+* XDG_CURRENT_DESKTOP : Unity
+* XDG_DATA_DIRS : /usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop
+* XDG_MENU_PREFIX : gnome-
+* XDG_RUNTIME_DIR : /run/user/1000
+* XDG_SESSION_CLASS : user
+* XDG_SESSION_DESKTOP : ubuntu
+* XDG_SESSION_TYPE : x11
+* XMODIFIERS : @im=ibus
+* _ : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy/bin/python
+
+</pre><hr/><h3 id='Normalization_of_mean_functional_image'>Normalization of mean_functional_image</h3>
+<pre>Node: spm
+=========
+
+
+ Hierarchy : 7bf0ff39c43852fc193e29b2e04063d2
+ Exec ID : 7bf0ff39c43852fc193e29b2e04063d2
+
+
+Original Inputs
+---------------
+
+
+* DCT_period_cutoff : <undefined>
+* affine_regularization_type : <undefined>
+* apply_to_files : ['/home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Normalize/7bf0ff39c43852fc193e29b2e04063d2/rbold.nii']
+* jobtype : write
+* matlab_cmd : /home/himanshu/opt/spm12/spm12.sh batch
+* mfile : True
+* nonlinear_iterations : <undefined>
+* nonlinear_regularization : <undefined>
+* out_prefix : w
+* parameter_file : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Normalize/7bf0ff39c43852fc193e29b2e04063d2/anat_seg_sn.mat
+* paths : <undefined>
+* source : <undefined>
+* source_image_smoothing : <undefined>
+* source_weight : <undefined>
+* template : <undefined>
+* template_image_smoothing : <undefined>
+* template_weight : <undefined>
+* use_mcr : True
+* use_v8struct : True
+* write_bounding_box : [[-78.0, -112.0, -50.0], [78.0, 76.0, 85.0]]
+* write_interp : 1
+* write_preserve : <undefined>
+* write_voxel_sizes : [3.499999761581421, 3.75, 3.75]
+* write_wrap : <undefined>
+
+
+Execution Inputs
+----------------
+
+
+* DCT_period_cutoff : <undefined>
+* affine_regularization_type : <undefined>
+* apply_to_files : ['/home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Normalize/7bf0ff39c43852fc193e29b2e04063d2/rbold.nii']
+* jobtype : write
+* matlab_cmd : /home/himanshu/opt/spm12/spm12.sh batch
+* mfile : True
+* nonlinear_iterations : <undefined>
+* nonlinear_regularization : <undefined>
+* out_prefix : w
+* parameter_file : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Normalize/7bf0ff39c43852fc193e29b2e04063d2/anat_seg_sn.mat
+* paths : <undefined>
+* source : <undefined>
+* source_image_smoothing : <undefined>
+* source_weight : <undefined>
+* template : <undefined>
+* template_image_smoothing : <undefined>
+* template_weight : <undefined>
+* use_mcr : True
+* use_v8struct : True
+* write_bounding_box : [[-78.0, -112.0, -50.0], [78.0, 76.0, 85.0]]
+* write_interp : 1
+* write_preserve : <undefined>
+* write_voxel_sizes : [3.499999761581421, 3.75, 3.75]
+* write_wrap : <undefined>
+
+
+Execution Outputs
+-----------------
+
+
+* normalization_parameters : <undefined>
+* normalized_files : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Normalize/7bf0ff39c43852fc193e29b2e04063d2/wrbold.nii
+* normalized_source : <undefined>
+
+
+Runtime info
+------------
+
+
+* duration : 123.012402
+* hostname : machine
+* prev_wd : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work
+* working_dir : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/test-outputs/test_old/subj1/cache_dir/nipype_mem/nipype-interfaces-spm-preprocess-Normalize/7bf0ff39c43852fc193e29b2e04063d2
+
+
+Terminal output
+~~~~~~~~~~~~~~~
+
+
+ 
+
+
+Terminal - standard output
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+ ------------------------------------------
+Setting up environment variables
+---
+LD_LIBRARY_PATH is .:/home/himanshu/opt/spm12/spm12/../mcr/v97/runtime/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/bin/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/sys/os/glnxa64:/home/himanshu/opt/spm12/spm12/../mcr/v97/sys/opengl/lib/glnxa64
+SPM12, version 7771 (standalone)
+MATLAB, version 9.7.0.1296695 (R2019b) Update 4
+ ___  ____  __  __                                            
+/ __)(  _ \(  \/  )                                           
+\__ \ )___/ )    (   Statistical Parametric Mapping           
+(___/(__)  (_/\/\_)  SPM12 - https://www.fil.ion.ucl.ac.uk/spm/
+
+Executing spm_jobman at 11-Feb-2021 14:23:00:
+-----------------------------------------------------------------------------------------------------
+MATLAB Version: 9.7.0.1296695 (R2019b) Update 4
+MATLAB License Number: unknown
+Operating System: Linux 5.8.0-41-generic #46~20.04.1-Ubuntu SMP Mon Jan 18 17:52:23 UTC 2021 x86_64
+Java Version: Java 1.8.0_202-b08 with Oracle Corporation Java HotSpot(TM) 64-Bit Server VM mixed mode
+-----------------------------------------------------------------------------------------------------
+MATLAB                                                Version 9.7         (R2019b)
+MATLAB Compiler                                       Version 7.1         (R2019b)
+SPM version: SPM12 Release: 7771
+SPM path: /home/himanshu/opt/spm12/spm12/spm12_mcr/spm12/spm12/spm.m
+Conversion Normalise:Write -> Old Normalise:Write
+
+
+------------------------------------------------------------------------
+11-Feb-2021 14:23:04 - Running job #1
+------------------------------------------------------------------------
+11-Feb-2021 14:23:04 - Running 'Old Normalise: Write'
+
+SPM12: spm_write_sn (v4878)                        14:23:04 - 11/02/2021
+========================================================================
+Completed                               :          14:23:55 - 11/02/2021
+11-Feb-2021 14:23:56 - Done    'Old Normalise: Write'
+11-Feb-2021 14:23:56 - Done
+
+Conversion Normalise:Write -> Old Normalise:Write
+
+
+------------------------------------------------------------------------
+11-Feb-2021 14:23:57 - Running job #1
+------------------------------------------------------------------------
+11-Feb-2021 14:23:57 - Running 'Old Normalise: Write'
+
+SPM12: spm_write_sn (v4878)                        14:23:57 - 11/02/2021
+========================================================================
+Completed                               :          14:24:50 - 11/02/2021
+11-Feb-2021 14:24:51 - Done    'Old Normalise: Write'
+11-Feb-2021 14:24:51 - Done
+
+Bye for now...
+
+
+
+Terminal - standard error
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+ 
+
+
+Environment
+~~~~~~~~~~~
+
+
+* APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL : true
+* CHROME_DESKTOP : code-url-handler.desktop
+* COLORTERM : truecolor
+* DBUS_SESSION_BUS_ADDRESS : unix:path=/run/user/1000/bus
+* DESKTOP_SESSION : ubuntu
+* DISPLAY : :0
+* GDMSESSION : ubuntu
+* GIT_ASKPASS : /usr/share/code/resources/app/extensions/git/dist/askpass.sh
+* GNOME_DESKTOP_SESSION_ID : this-is-deprecated
+* GNOME_SHELL_SESSION_MODE : ubuntu
+* GNOME_TERMINAL_SCREEN : /org/gnome/Terminal/screen/6d05f38b_7bd7_4720_8c85_a8b78c00e796
+* GNOME_TERMINAL_SERVICE : :1.101
+* GPG_AGENT_INFO : /run/user/1000/gnupg/S.gpg-agent:0:1
+* GTK_MODULES : gail:atk-bridge
+* HOME : /home/himanshu
+* IM_CONFIG_PHASE : 1
+* INFOPATH : /usr/local/texlive/2020/texmf-dist/doc/info:/usr/local/texlive/2020/texmf-dist/doc/info:
+* INVOCATION_ID : 455d053550004ce4a63c8dd67e6fc76c
+* JOURNAL_STREAM : 8:46571
+* KMP_DUPLICATE_LIB_OK : True
+* KMP_INIT_AT_FORK : FALSE
+* LANG : en_GB.UTF-8
+* LANGUAGE : en_IN:en
+* LESSCLOSE : /usr/bin/lesspipe %s %s
+* LESSOPEN : | /usr/bin/lesspipe %s
+* LOGNAME : himanshu
+* LS_COLORS : rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:
+* MANAGERPID : 1376
+* MANPATH : /usr/local/texlive/2020/texmf-dist/doc/man:/usr/local/texlive/2020/texmf-dist/doc/man:
+* OLDPWD : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work/pypreprocess
+* ORIGINAL_XDG_CURRENT_DESKTOP : ubuntu:GNOME
+* PATH : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy/bin:/usr/local/texlive/2020/bin/x86_64-linux:/usr/local/texlive/2020/bin/x86_64-linux:/home/himanshu/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+* PS1 : (ibcpy) \[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ 
+* PWD : /home/himanshu/Desktop/1-IBC-INRIA/x-working/reporting-work
+* QT_ACCESSIBILITY : 1
+* QT_IM_MODULE : ibus
+* SESSION_MANAGER : local/machine:@/tmp/.ICE-unix/1605,unix/machine:/tmp/.ICE-unix/1605
+* SHELL : /bin/bash
+* SHLVL : 2
+* SSH_AGENT_PID : 1559
+* SSH_AUTH_SOCK : /run/user/1000/keyring/ssh
+* TERM : xterm-256color
+* TERM_PROGRAM : vscode
+* TERM_PROGRAM_VERSION : 1.53.1
+* USER : himanshu
+* USERNAME : himanshu
+* VIRTUAL_ENV : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy
+* VSCODE_GIT_ASKPASS_MAIN : /usr/share/code/resources/app/extensions/git/dist/askpass-main.js
+* VSCODE_GIT_ASKPASS_NODE : /usr/share/code/code
+* VSCODE_GIT_IPC_HANDLE : /run/user/1000/vscode-git-6bb11fa054.sock
+* VTE_VERSION : 6003
+* WINDOWPATH : 2
+* XAUTHORITY : /run/user/1000/gdm/Xauthority
+* XDG_CONFIG_DIRS : /etc/xdg/xdg-ubuntu:/etc/xdg
+* XDG_CURRENT_DESKTOP : Unity
+* XDG_DATA_DIRS : /usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop
+* XDG_MENU_PREFIX : gnome-
+* XDG_RUNTIME_DIR : /run/user/1000
+* XDG_SESSION_CLASS : user
+* XDG_SESSION_DESKTOP : ubuntu
+* XDG_SESSION_TYPE : x11
+* XMODIFIERS : @im=ibus
+* _ : /home/himanshu/Desktop/1-IBC-INRIA/ibcpy/bin/python
+
+</pre></body>
+</html>
