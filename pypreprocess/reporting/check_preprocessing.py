@@ -14,17 +14,19 @@ from nilearn.image import reorder_img, mean_img
 from ..io_utils import load_vols
 EPS = np.finfo(float).eps
 
-import string
-from io import StringIO
+import io
+import base64
+import urllib.parse
 
-
-def _plot_to_svg(figV,dpi=300):
+def _plot_to_svg(fig,dpi=300):
     
-    with StringIO() as bufferV:
-        figV.savefig(bufferV, format='svg', dpi=dpi)
-        figV_encoded = bufferV.getvalue()
+    with io.BytesIO() as io_buffer:
+        fig.savefig(
+            io_buffer, format="svg", facecolor="white", edgecolor="white",
+            dpi=dpi
+            )
+        return urllib.parse.quote(io_buffer.getvalue().decode("utf-8"))
 
-    return figV_encoded
 
 def plot_spm_motion_parameters(parameter_file, lengths
     , title=None, output_filename=None, close=False
@@ -68,7 +70,7 @@ def plot_spm_motion_parameters(parameter_file, lengths
 
     if report_path not in [False,None]:
         fig = plt.gcf()
-        fig.set_rasterized(True)
+        # fig.set_rasterized(True)
         svg_plot = _plot_to_svg(fig)
     else: 
         svg_plot = None
@@ -147,7 +149,7 @@ def plot_registration(reference_img, coregistered_img,
 
     if report_path not in [False,None]:
         fig = plt.gcf()
-        fig.set_rasterized(True)
+        # fig.set_rasterized(True)
         svg_plot = _plot_to_svg(fig)
     else:
         svg_plot = None
@@ -215,7 +217,7 @@ def plot_segmentation(
 
     if report_path not in [False,None]:
         fig = plt.gcf()
-        fig.set_rasterized(True) 
+        # fig.set_rasterized(True) 
         svg_plot = _plot_to_svg(fig)
     else:
         svg_plot = None

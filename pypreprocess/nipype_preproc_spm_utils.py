@@ -1403,6 +1403,7 @@ def do_subject_preproc(
 
     if nilearn_report:
         report_path,log_path = initialize_report(subject_data.output_dir,
+                                subject_name=subject_data.subject_id,
                                 dcm2nii=subject_data.isdicom,
                                 deleteorient=deleteorient,
                                 slice_timing=slice_timing,

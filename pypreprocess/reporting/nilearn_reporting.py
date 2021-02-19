@@ -1,4 +1,5 @@
 import string
+from time import gmtime, strftime
 import os
 from matplotlib.pyplot import cm
 import joblib
@@ -70,6 +71,7 @@ def embed_in_HTML(html_template_file,components_to_embed):
 
 
 def initialize_report(output_dir,
+                    subject_name='Subject',
                     log=True,
                     filename='nilearn_report',
                     prepreproc_undergone="",
@@ -104,7 +106,9 @@ def initialize_report(output_dir,
                                         prepreproc_undergone=prepreproc_undergone,
                                         has_func=has_func
                                         )
-
+    report_dict['subject_name'] = subject_name
+    report_dict['start_time'] = strftime("%d-%b-%Y %H:%M:%S", gmtime())
+    report_dict['end_time'] = "STILL RUNNING..."
     report_text = embed_in_HTML('nilearn_report_template.html', report_dict)
     report_HTML = HTMLDocument(report_text).save_as_html(report_outfile)
 
@@ -123,17 +127,17 @@ def add_component(to_add_report,html_report_path,to_add_log=None,html_log_path=N
     html_file_obj.close()
 
     if html_log_path is not None:
-
-            html_file_obj = open(html_log_path, 'a')
-            html_file_obj.write('<hr/>'+to_add_log)
-            html_file_obj.close()
+        html_file_obj = open(html_log_path, 'a')
+        html_file_obj.write('<hr/>'+to_add_log)
+        html_file_obj.close()
 
 
 def finalize_report(html_report_path,html_log_path=None):
 
     html_file_obj = open(html_report_path, 'r')
     lines = html_file_obj.readlines()
-    lines[6] = "<h1 style='text-align:center;color:white;background-color:green'>Done!</h1>"
+    end_time = strftime("%d-%b-%Y %H:%M:%S", gmtime())
+    lines[8] = "<h4 style='text-align:center'>End time: {}</h4>".format(end_time)
     del lines[3]
 
     with open(html_report_path, 'w') as html_file_obj:
@@ -145,10 +149,9 @@ def finalize_report(html_report_path,html_log_path=None):
     html_file_obj.close()
 
     if html_log_path is not None:
-
-            html_file_obj = open(html_log_path, 'a')
-            html_file_obj.write("</body>\n</html>")
-            html_file_obj.close()
+        html_file_obj = open(html_log_path, 'a')
+        html_file_obj.write("</body>\n</html>")
+        html_file_obj.close()
 
     print('Nilearn-style report created: {}'.format(html_report_path    ))
 
@@ -181,6 +184,11 @@ def generate_realignment_report(subject_data,estimated_motion, output_dir
         , lengths=lengths, close=True, report_path=report_path,
         title="Plot of Estimated motion for %d sessions" % len(sessions))
     for_substitution['heading'] = "Motion Correction"
+    for_substitution['tooltip'] = "Motion parameters estimated during \
+        motion-correction. If motion is less than half a voxel,\
+        it&#x27;s generally OK. Moreover, it&#x27;s recommended\
+        to include these estimated motion parameters as confounds \
+        (nuissance regressors) in the the GLM."
 
     if log:
         for_substitution['id_link'] = for_substitution['heading'].replace(" ", "_")
@@ -197,7 +205,6 @@ def generate_realignment_report(subject_data,estimated_motion, output_dir
 
     for_substitution['heading'] = for_substitution['heading']+' '+log_link_text
     rp_plot_text = embed_in_HTML('report_sub_template.html',for_substitution)
-
 
     return rp_plot_text, rp_log_text
 
@@ -221,7 +228,15 @@ def generate_registration_report(target, source, output_dir,
     log_link_text = embed_in_HTML('log_link_template.html'
                                         ,for_substitution)
     for_substitution['heading'] += ' '+log_link_text
-
+    for_substitution['tooltip'] = "The red contours should match the background\
+                                    image well. Otherwise, something might have\
+                                    gone wrong. Typically things that can go\
+                                    wrong include: lesions\
+                                    (missing brain tissue); bad orientation\
+                                    headers; non-brain tissue in anatomical\
+                                    image, etc. In rare cases, it might be that\
+                                    the registration algorithm simply didn&#x27;t\
+                                    succeed."
     for_substitution['plot'] = qa_mem.cache(plot_registration)(
         target[0], source[0]
         , close=True, report_path=report_path,
@@ -237,6 +252,7 @@ def generate_registration_report(target, source, output_dir,
         target[0], source[0], close=True, report_path=report_path,
         title="Outline of %s on %s" % (target[1], source[1]))
     for_substitution['heading'] = ""
+    for_substitution['tooltip'] = ""
     reg_plot_text = embed_in_HTML('report_sub_template.html'
                                     ,for_substitution)
     reg_plot.append(reg_plot_text)
@@ -267,7 +283,7 @@ def generate_corregistration_report(subject_data, output_dir
     heading = "Corregistration %s == > %s" % (src_brain, ref_brain)
 
     for_substitution = {}
-
+ 
     if log:
         for_substitution['heading'] = heading
         for_substitution['id_link'] = heading.replace(" ", "_")
@@ -348,7 +364,15 @@ def generate_segmentation_report(subject_data, output_dir
 
         _brain_name = "%s_%s" % (comment, brain_name)
         for_substitution['heading'] = "Segmentation of %s " % _brain_name
-
+        for_substitution['tooltip'] = "Acronyms: TPM means Tissue Probability\
+                Map; GM means Grey-Matter; WM means White-Matter; CSF means\
+                Cerebro-Spinal Fuild. The TPM contours shoud match the\
+                background image well. Otherwise, something might have gone\
+                wrong. Typically things that can go wrong include: lesions\
+                (missing brain tissue); bad orientation headers; non-brain\
+                tissue in anatomical image (i.e needs brain extraction), etc.\
+                In rare cases, it might be that the segmentation algorithm\
+                simply didn&#x27;t succeed."
         # plot contours of template compartments on subject's brain
         if not only_native:
             for_substitution['plot']=qa_mem.cache(plot_segmentation)(
@@ -383,6 +407,7 @@ def generate_segmentation_report(subject_data, output_dir
             for_substitution['heading'] += ' '+log_link_text
             if not only_native:
                 for_substitution['heading'] = ""
+                for_substitution['tooltip'] = ""
 
             seg_plot_text = embed_in_HTML('report_sub_template.html'
                                     ,for_substitution)
@@ -476,11 +501,27 @@ def generate_tsdiffana_report(image_files, sessions, subject_id,
     figures = [ax.get_figure() for ax in axes]
     heading_template =  "tsdiffana plot {0}"
     headings = [heading_template.format(i) for i in range(len(figures))]
+    tooltips = ["(Squared) differences across sequential volumes. A large\
+        value indicates an artifact that occurred during the slice\
+        acquisition, possibly related to motion.", "Average signal over each\
+        volume. A large drop / peak (e.g. 1%) w.r.t the mean level indicates\
+        an artefact. For example, there are  usually large values peaks in\
+        the first few slices due to T2  relaxation effects, and these slices\
+        are usually adviced to be discarded.", "Variance index per slice.\
+        Note that acquisition artifacts can be slice-specific. Look at the\
+        data if there is a peak somewhere.", "Scaled variance per slice\
+        indicates slices where artifacts occur. A slice/time with large\
+        variance should be eyeballed.", "Large variations should be confined\
+        to vascular structures or ventricles. Large variations around the\
+        brain indicate residual motion effects.", "Large variations should\
+        be confined to vascular structures or ventricles. Large variations\
+        around the brain indicate (uncorrected) motion effects."]
 
-    for fig, head in zip(figures, headings):
+    for fig, head, tip in zip(figures, headings, tooltips):
         fig.set_rasterized(True)
         for_substitution['plot'] =_plot_to_svg(fig)
         for_substitution['heading'] = head
+        for_substitution['tooltip'] = tip
         tsdiffana_plot_text = embed_in_HTML('report_sub_template.html'
                                     ,for_substitution)
         tsdiffana_plot.append(tsdiffana_plot_text)
