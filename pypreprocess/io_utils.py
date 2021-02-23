@@ -262,6 +262,11 @@ def is_3D(image):
 
     if isinstance(image, str):
         image = nibabel.load(image)
+        if os.path.exists(image):
+            image = nibabel.load(image)
+        else:
+            raise FileNotFoundError("File {} not found.".format(
+                image))
     elif isinstance(image, list):
         image = nibabel.concat_images(image,
                                       check_affines=False
