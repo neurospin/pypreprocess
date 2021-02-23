@@ -261,7 +261,6 @@ def is_3D(image):
     """Check whether image is 3D"""
 
     if isinstance(image, str):
-        image = nibabel.load(image)
         if os.path.exists(image):
             image = nibabel.load(image)
         else:
