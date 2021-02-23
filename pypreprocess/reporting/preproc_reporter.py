@@ -486,7 +486,7 @@ def generate_registration_thumbnails(
         output_dir, "%s_on_%s_outline_axial.png" % (target[1], source[1]))
     qa_mem.cache(plot_registration)(
         target[0], source[0], output_filename=outline_axial, close=True,
-        display_mode='z', title="Outline of %s on %s" % (target[1],source[1]))
+        display_mode='z', title="Outline of %s on %s" % (target[1], source[1]))
 
     output['axial'] = outline_axial
     qa_mem.cache(plot_registration)(

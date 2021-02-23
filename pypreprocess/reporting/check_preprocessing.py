@@ -21,6 +21,8 @@ import urllib.parse
 def _plot_to_svg(fig, dpi=300):
     
     with io.BytesIO() as io_buffer:
+
+        fig.tight_layout(pad=0.4)
         fig.savefig(
             io_buffer, format="svg", facecolor="white",
             edgecolor="white", dpi=dpi)
