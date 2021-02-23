@@ -18,19 +18,18 @@ import io
 import base64
 import urllib.parse
 
-def _plot_to_svg(fig,dpi=300):
+def _plot_to_svg(fig, dpi=300):
     
     with io.BytesIO() as io_buffer:
         fig.savefig(
-            io_buffer, format="svg", facecolor="white", edgecolor="white",
-            dpi=dpi
-            )
+            io_buffer, format="svg", facecolor="white",
+            edgecolor="white", dpi=dpi)
         return urllib.parse.quote(io_buffer.getvalue().decode("utf-8"))
 
 
-def plot_spm_motion_parameters(parameter_file, lengths
-    , title=None, output_filename=None, close=False
-    , report_path=None):
+def plot_spm_motion_parameters(parameter_file, lengths,
+                            title=None, output_filename=None,
+                            close=False, report_path=None):
     """ Plot motion parameters obtained with SPM software
 
     Parameters
@@ -68,9 +67,8 @@ def plot_spm_motion_parameters(parameter_file, lengths
     plt.xlabel('time(scans)')
     plt.ylabel('Estimated motion (mm/degrees)')
 
-    if report_path not in [False,None]:
+    if report_path not in [False, None]:
         fig = plt.gcf()
-        # fig.set_rasterized(True)
         svg_plot = _plot_to_svg(fig)
     else: 
         svg_plot = None
@@ -147,9 +145,8 @@ def plot_registration(reference_img, coregistered_img,
     # misc
     _slicer.title(title, size=12, color='w', alpha=0)
 
-    if report_path not in [False,None]:
+    if report_path not in [False, None]:
         fig = plt.gcf()
-        # fig.set_rasterized(True)
         svg_plot = _plot_to_svg(fig)
     else:
         svg_plot = None
@@ -215,17 +212,15 @@ def plot_segmentation(
     # misc
     _slicer.title(title, size=12, color='w', alpha=0)
 
-    if report_path not in [False,None]:
+    if report_path not in [False, None]:
         fig = plt.gcf()
-        # fig.set_rasterized(True) 
         svg_plot = _plot_to_svg(fig)
     else:
         svg_plot = None
 
     if not output_filename is None:
         plt.savefig(output_filename, bbox_inches='tight', dpi=200,
-                    facecolor="k",
-                    edgecolor="k")
+                    facecolor="k", edgecolor="k")
         if close:
             plt.close()
             

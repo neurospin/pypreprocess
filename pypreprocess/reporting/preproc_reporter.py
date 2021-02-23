@@ -464,8 +464,8 @@ def generate_registration_thumbnails(
                            "%s_on_%s_outline.png" % (target[1], source[1]))
 
     qa_mem.cache(plot_registration)(
-        target[0], source[0], output_filename=outline
-        , close=True,title="Outline of %s on %s" % (target[1], source[1]))
+        target[0], source[0], output_filename=outline,
+        close=True, title="Outline of %s on %s" % (target[1], source[1]))
 
     # create thumbnail
     if results_gallery:
@@ -481,19 +481,16 @@ def generate_registration_thumbnails(
     # on the SPM MNI template
     source, target = (target, source)
     outline = os.path.join(
-        output_dir,
-        "%s_on_%s_outline.png" % (target[1],
-                                  source[1]))
+        output_dir, "%s_on_%s_outline.png" % (target[1], source[1]))
     outline_axial = os.path.join(
         output_dir, "%s_on_%s_outline_axial.png" % (target[1], source[1]))
     qa_mem.cache(plot_registration)(
         target[0], source[0], output_filename=outline_axial, close=True,
-        display_mode='z',title="Outline of %s on %s" % (target[1],source[1]))
+        display_mode='z', title="Outline of %s on %s" % (target[1],source[1]))
 
     output['axial'] = outline_axial
     qa_mem.cache(plot_registration)(
-        target[0], source[0], output_filename=outline
-        , close=True,
+        target[0], source[0], output_filename=outline, close=True,
         title="Outline of %s on %s" % (target[1], source[1]))
 
     # create thumbnail
@@ -639,8 +636,8 @@ def generate_segmentation_thumbnails(
         qa_mem.cache(plot_segmentation)(
             normalized_file, GM_TEMPLATE, wm_filename=WM_TEMPLATE,
             csf_filename=CSF_TEMPLATE, display_mode='z', cmap=cmap,
-            output_filename=template_compartments_contours_axial
-            ,title="template TPMs", close=True)
+            output_filename=template_compartments_contours_axial,
+            title="template TPMs", close=True)
         qa_mem.cache(plot_segmentation)(
             normalized_file, gm_filename=GM_TEMPLATE,
             wm_filename=WM_TEMPLATE, csf_filename=CSF_TEMPLATE,
@@ -786,10 +783,9 @@ def generate_realignment_thumbnails(
     lengths = [len(each) for each in tmp]
     estimated_motion = np.vstack(tmp)
     rp_plot = os.path.join(output_dir, 'rp_plot.png')
-    plot_spm_motion_parameters(parameter_file=estimated_motion
-        ,output_filename=rp_plot, lengths=lengths
-        , close=True,
-        title="Plot of Estimated motion for %d sessions" % len(sessions))
+    plot_spm_motion_parameters(parameter_file=estimated_motion, 
+                        output_filename=rp_plot, lengths=lengths, close=True, 
+                        title="Plot of Estimated motion for %d sessions" % len(sessions))
 
     # create thumbnail
     if results_gallery:
@@ -957,8 +953,7 @@ def generate_subject_preproc_report(
         coreg_func_to_anat=func_to_anat,
         segment=did_segment,
         normalize=did_normalize,
-        additional_preproc_undergone=additional_preproc_undergone,
-        )
+        additional_preproc_undergone=additional_preproc_undergone)
 
     report_log_filename = os.path.join(
         output_dir, 'report_log.html')

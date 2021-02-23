@@ -606,14 +606,6 @@ class SubjectData(object):
             fd.write(str(main_html))
             fd.close()
 
-    # def init_nil_report(self,preproc_undergone=None):
-
-    #     self.nil_report_output_dir = os.path.join(self.output_dir, "nil_report")
-    #     if not os.path.exists(self.nil_report_output_dir):
-    #         os.makedirs(self.nil_report_output_dir)
-
-    #     self.
-
     def finalize_report(self, parent_results_gallery=None, last_stage=False):
         """
         Finalizes the business of reporting.
