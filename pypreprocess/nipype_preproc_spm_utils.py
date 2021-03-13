@@ -27,14 +27,6 @@ from .io_utils import (
     load_vols, ravel_filenames, unravel_filenames, get_vox_dims,
     niigz2nii, resample_img, compute_output_voxel_size, sanitize_fwhm)
 from .subject_data import SubjectData
-from .reporting.base_reporter import (
-    ResultsGallery, ProgressReport, copy_web_conf_files,
-    get_module_source_code, dict_to_html_ul)
-from .reporting.preproc_reporter import (
-    _set_templates, generate_preproc_undergone_docstring,
-    get_dataset_report_log_html_template,
-    get_dataset_report_preproc_html_template,
-    get_dataset_report_html_template)
 from .purepython_preproc_utils import (
     _do_subject_slice_timing as _pp_do_subject_slice_timing,
     _do_subject_realign as _pp_do_subject_realign,
@@ -42,7 +34,7 @@ from .purepython_preproc_utils import (
     _do_subject_smooth as _pp_do_subject_smooth)
 
 from nilearn.plotting.html_document import HTMLDocument
-from .reporting.nilearn_reporting import (embed_in_HTML,
+from .reporting.nilearn_reporting import (_set_templates,embed_in_HTML,
     initialize_report, add_component, finalize_report,
     generate_realignment_report, generate_registration_report,
     generate_corregistration_report, generate_segmentation_report,
@@ -144,7 +136,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
                              matlab_exec=None, spm_mcr=None, ref_slice=1,
                              slice_order="ascending", interleaved=False,
                              caching=True, software="spm",
-                             hardlink_output=True, report=True, **kwargs):
+                             hardlink_output=True, **kwargs):
     """
     Slice-Timing Correction.
 
@@ -245,7 +237,7 @@ def _do_subject_slice_timing(subject_data, TR, TA=None, spm_dir=None,
 
 
 def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
-                        caching=True, report=True, software="spm",
+                        caching=True, software="spm",
                         spm_dir=None, matlab_exec=None, spm_mcr=None,
                         hardlink_output=True, report_path=None,
                         log_path=None, **kwargs):
@@ -384,10 +376,6 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
     if hardlink_output:
         subject_data.hardlink_output_files()
 
-    # generate realignment thumbs
-    if report:
-        subject_data.generate_realignment_thumbnails()
-
     if report_path not in [False, None]:
         rp_plot, rp_log = generate_realignment_report(
             subject_data=subject_data,
@@ -402,7 +390,7 @@ def _do_subject_realign(subject_data, reslice=False, register_to_mean=False,
 def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
                            matlab_exec=None, spm_mcr=None,
                            coreg_anat_to_func=False, caching=True,
-                           report=True, software="spm", hardlink_output=True,
+                           software="spm", hardlink_output=True,
                            report_path=None, log_path=None, **kwargs):
     """Wrapper for running spm.Coregister with optional reporting.
 
@@ -566,10 +554,6 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
     if hardlink_output:
         subject_data.hardlink_output_files()
 
-    # generate coregistration thumbs
-    if report:
-        subject_data.generate_coregistration_thumbnails()
-
     if report_path not in [False, None]:
         correg_plot, correg_log = generate_corregistration_report(
             subject_data=subject_data,
@@ -582,7 +566,7 @@ def _do_subject_coregister(subject_data, reslice=False, spm_dir=None,
 
 def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
                         matlab_exec=None, spm_mcr=None, normalize=False,
-                        caching=True, report=True, software="spm",
+                        caching=True, software="spm",
                         hardlink_output=True, report_path=None, log_path=None):
     """
     Wrapper for running spm.Segment with optional reporting.
@@ -713,10 +697,6 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
     if hardlink_output:
         subject_data.hardlink_output_files()
 
-    # generate segmentation thumbs
-    if report:
-        subject_data.generate_segmentation_thumbnails()
-
     if report_path not in [False, None]:
         seg_plot, seg_log = generate_segmentation_report(
             subject_data=subject_data,
@@ -733,7 +713,7 @@ def _do_subject_segment(subject_data, output_modulated_tpms=True, spm_dir=None,
 def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
                           spm_dir=None, matlab_exec=None, spm_mcr=None,
                           func_write_voxel_sizes=[3, 3, 3],
-                          anat_write_voxel_sizes=[1, 1, 1], report=True,
+                          anat_write_voxel_sizes=[1, 1, 1],
                           software="spm", hardlink_output=True,
                           smooth_software="spm", epi_template=None,
                           t1_template=None, coregister=True,
@@ -957,10 +937,6 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
     # commit output files
     if hardlink_output: subject_data.hardlink_output_files()
 
-    # generate thumbnails
-    if report:
-        subject_data.generate_normalization_thumbnails()
-
     if report_path not in [False, None]:
         norm_plot, norm_log = generate_normalization_report(
             subject_data=subject_data,
@@ -972,7 +948,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
     if np.sum(fwhm) + np.sum(anat_fwhm) > 0:
         subject_data = _do_subject_smooth(
             subject_data, fwhm, anat_fwhm=anat_fwhm, caching=caching,
-            report=report, software=smooth_software)
+            software=smooth_software)
 
     # commit output files
     if hardlink_output: subject_data.hardlink_output_files()
@@ -982,7 +958,7 @@ def _do_subject_normalize(subject_data, fwhm=0., anat_fwhm=0., caching=True,
 
 def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
                        matlab_exec=None, spm_mcr=None, caching=True,
-                       software="spm", report=True, hardlink_output=True):
+                       software="spm", hardlink_output=True):
     """
     Wrapper for running spm.Smooth with optional reporting.
 
@@ -1081,9 +1057,6 @@ def _do_subject_smooth(subject_data, fwhm, anat_fwhm=None, spm_dir=None,
     # commit output files
     if hardlink_output: subject_data.hardlink_output_files()
 
-    # reporting
-    if report: subject_data.generate_smooth_thumbnails()
-
     return subject_data.sanitize()
 
 
@@ -1096,7 +1069,6 @@ def _do_subject_dartelnorm2mni(subject_data,
                                anat_fwhm=0.,
                                output_modulated_tpms=False,
                                caching=True,
-                               report=True,
                                parent_results_gallery=None,
                                last_stage=True,
                                func_write_voxel_sizes=None,
@@ -1200,19 +1172,10 @@ def _do_subject_dartelnorm2mni(subject_data,
         # smooth func
         if np.sum(fwhm) > 0:
             subject_data = _do_subject_smooth(
-                subject_data, fwhm, caching=caching, report=report)
+                subject_data, fwhm, caching=caching)
 
     # hardlink output files
     if hardlink_output: subject_data.hardlink_output_files()
-
-    if report:
-        # generate normalization thumbnails
-        subject_data.generate_normalization_thumbnails()
-
-        # finalize
-        subject_data.finalize_report(
-            parent_results_gallery=parent_results_gallery,
-            last_stage=last_stage)
 
     return subject_data.sanitize()
 
@@ -1246,7 +1209,6 @@ def do_subject_preproc(
     anat_write_voxel_sizes=None,
     smooth_software="spm",
     hardlink_output=True,
-    report=True,
     tsdiffana=True,
     parent_results_gallery=None,
     last_stage=True,
@@ -1380,29 +1342,6 @@ def do_subject_preproc(
     # the EPI template to MNI
     segment = (not subject_data.anat is None) and segment
 
-    # get ready for reporting
-    if report:
-        # generate explanation of preproc steps undergone by subject
-        preproc_undergone = generate_preproc_undergone_docstring(
-            dcm2nii=subject_data.isdicom,
-            deleteorient=deleteorient,
-            slice_timing=slice_timing,
-            realign=realign,
-            coregister=coregister,
-            segment=segment,
-            normalize=normalize,
-            fwhm=fwhm, anat_fwhm=anat_fwhm,
-            dartel=dartel,
-            coreg_func_to_anat=not coreg_anat_to_func,
-            prepreproc_undergone=prepreproc_undergone,
-            has_func=subject_data.func
-            )
-
-        # initialize report factory
-        subject_data.init_report(parent_results_gallery=parent_results_gallery,
-                                 preproc_undergone=preproc_undergone,
-                                 tsdiffana=tsdiffana)
-
     if nilearn_report:
         report_path, log_path = initialize_report(subject_data.output_dir,
                                 subject_name=subject_data.subject_id,
@@ -1427,15 +1366,14 @@ def do_subject_preproc(
     if slice_timing:
         subject_data = _do_subject_slice_timing(
             subject_data, TR, caching=caching, ref_slice=ref_slice,
-            TA=TA, slice_order=slice_order, interleaved=interleaved,
-            report=report,  # post-stc reporting bugs like hell!
+            TA=TA, slice_order=slice_order, interleaved=interleaved, # post-stc reporting bugs like hell!
             software=slice_timing_software,
             hardlink_output=hardlink_output,
             **kwargs.get("interface_slice_timing", {}))
 
         # handle failed node
         if subject_data.failed:
-            subject_data.finalize_report(last_stage=last_stage)
+            print("Slice time correction failed")
             return subject_data
 
     #######################
@@ -1446,7 +1384,6 @@ def do_subject_preproc(
             subject_data, caching=caching,
             reslice=realign_reslice,
             register_to_mean=register_to_mean,
-            report=report,
             hardlink_output=hardlink_output,
             software=realign_software,
             report_path=report_path, log_path=log_path,
@@ -1454,7 +1391,7 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data.finalize_report(last_stage=last_stage)
+            print("Realigment failed")
             return subject_data
 
     ##################################################################
@@ -1465,7 +1402,6 @@ def do_subject_preproc(
             subject_data, caching=caching,
             coreg_anat_to_func=coreg_anat_to_func,
             reslice=coregister_reslice,
-            report=report,
             hardlink_output=hardlink_output,
             software=coregister_software,
             report_path=report_path, log_path=log_path,
@@ -1473,7 +1409,7 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data.finalize_report(last_stage=last_stage)
+            print("Corregistration failed")
             return subject_data
 
     #####################################
@@ -1481,14 +1417,13 @@ def do_subject_preproc(
     #####################################
     if segment:
         subject_data = _do_subject_segment(
-            subject_data, caching=caching, normalize=normalize, report=report,
+            subject_data, caching=caching, normalize=normalize,
             hardlink_output=hardlink_output, report_path=report_path,
             log_path=log_path)
 
-
         # handle failed node
         if subject_data.failed:
-            subject_data.finalize_report(last_stage=last_stage)
+            print("Segmentation of anatomical image failed")
             return subject_data
 
     ##########################
@@ -1499,7 +1434,7 @@ def do_subject_preproc(
             subject_data, fwhm, anat_fwhm=anat_fwhm,
             func_write_voxel_sizes=func_write_voxel_sizes,
             anat_write_voxel_sizes=anat_write_voxel_sizes,
-            caching=caching, report=report,
+            caching=caching,
             hardlink_output=hardlink_output,
             smooth_software=smooth_software,
             epi_template=epi_template,
@@ -1510,7 +1445,7 @@ def do_subject_preproc(
 
         # handle failed node
         if subject_data.failed:
-            subject_data.finalize_report(last_stage=last_stage)
+            print("Spatial normalization failed")
             return subject_data
 
     #########################################
@@ -1520,14 +1455,13 @@ def do_subject_preproc(
         subject_data = _do_subject_smooth(subject_data,
                                           fwhm, anat_fwhm=anat_fwhm,
                                           caching=caching,
-                                          report=report,
                                           hardlink_output=hardlink_output,
                                           software=smooth_software
                                           )
 
         # handle failed node
         if subject_data.failed:
-            subject_data.finalize_report(last_stage=last_stage)
+            print("Smoothing without spatial normalization failed")
             return subject_data
 
     # hard-link node output files
@@ -1535,11 +1469,7 @@ def do_subject_preproc(
         if hardlink_output:
             subject_data.hardlink_output_files(final=True)
 
-    if report and not dartel:
-        subject_data.finalize_report(last_stage=last_stage)
-
     if nilearn_report:
-
         if tsdiffana:
             tdsdiffana_plot = generate_tsdiffana_report(
                 subject_data.func, subject_data.session_ids,
@@ -1555,7 +1485,7 @@ def do_subject_preproc(
 
 def _do_subjects_newsegment(
         subjects, output_dir, spm_dir=None, matlab_exec=None,
-        spm_mcr=None, fwhm=0, anat_fwhm=0., n_jobs=-1, report=True,
+        spm_mcr=None, fwhm=0, anat_fwhm=0., n_jobs=-1,
         func_write_voxel_sizes=None, anat_write_voxel_sizes=None,
         output_modulated_tpms=False, parent_results_gallery=None,
         do_dartel=True, **kwargs):
@@ -1593,9 +1523,6 @@ def _do_subjects_newsegment(
             sd.csf = newsegment_result.outputs.native_class_images[2][j]
             sd.nipype_results['newsegment'] = newsegment_result
 
-            # generate segmentation thumbs
-            if report:
-                sd.generate_segmentation_thumbnails()
         if not do_dartel:
             return subjects
 
@@ -1620,7 +1547,6 @@ def _do_subjects_newsegment(
             delayed(
                 _do_subject_dartelnorm2mni)(
                     subject_data,
-                    report=report,
                     parent_results_gallery=parent_results_gallery,
                     fwhm=fwhm, anat_fwhm=anat_fwhm,
                     func_write_voxel_sizes=func_write_voxel_sizes,
@@ -1720,7 +1646,6 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     scratch = output_dir
     if "scratch" in preproc_params:
         scratch = preproc_params.pop("scratch")
-    report = preproc_params.get("report", True)
     dataset_id = preproc_params.get('dataset_id', None)
     dataset_description = preproc_params.get('dataset_description', None)
     shutdown_reloaders = preproc_params.get('shutdown_reloaders', True)
@@ -1778,99 +1703,6 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
             subject_data.output_dir = os.path.join(output_dir,
                                                    subject_data.subject_id)
 
-    # generate html report (for QA) as desired
-    parent_results_gallery = None
-    if report:
-        # what exactly was typed at the command-line (terminal) ?
-        command_line = "python %s" % " ".join(sys.argv)
-
-        # copy web stuff to output_dir
-        copy_web_conf_files(output_dir)
-
-        report_log_filename = os.path.join(output_dir, 'report_log.html')
-        report_preproc_filename = os.path.join(
-            output_dir, 'report_preproc.html')
-        report_filename = os.path.join(output_dir, 'report.html')
-
-        # get caller module handle from stack-frame
-        user_script_name = sys.argv[0]
-        user_source_code = get_module_source_code(
-            user_script_name)
-
-        # scrape complete configuration used for preprocessing
-        if preproc_details is None:
-            preproc_details = ""
-            frame = inspect.currentframe()
-            args, _, _, values = inspect.getargvalues(frame)
-            preproc_func_name = inspect.getframeinfo(frame)[2]
-            preproc_details += ("Function <i>%s(...)</i> was invoked by "
-                                "the script"
-                                " <i>%s</i> with the following arguments:"
-                                ) % (preproc_func_name, user_script_name)
-            args_dict = dict((arg, values[arg])
-                             for arg in args if arg not in [
-                                     "dataset_description",
-                                     "report_filename", "report",
-                                     "tsdiffana", "shutdown_reloaders",
-                                     "subjects"])
-            args_dict['output_dir'] = output_dir
-            preproc_details += dict_to_html_ul(args_dict)
-        details_filename = os.path.join(output_dir, "preproc_details.html")
-        open(details_filename, "w").write("<pre>%s</pre>" % preproc_details)
-
-        # initialize results gallery
-        loader_filename = os.path.join(output_dir, "results_loader.php")
-        parent_results_gallery = ResultsGallery(
-            loader_filename=loader_filename, refresh_timeout=30)
-
-        # initialize progress bar
-        progress_logger = ProgressReport(
-            report_log_filename,
-            other_watched_files=[report_filename, report_preproc_filename])
-
-        # html markup
-        log = get_dataset_report_log_html_template(
-            start_time=time.ctime())
-        preproc = get_dataset_report_preproc_html_template(
-            results=parent_results_gallery, start_time=time.ctime(),
-            dataset_description=dataset_description,
-            source_code=user_source_code,
-            source_script_name=user_script_name)
-        main_html = get_dataset_report_html_template(
-            results=parent_results_gallery, start_time=time.ctime(),
-            dataset_id=dataset_id)
-        with open(report_log_filename, 'w') as fd:
-            fd.write(str(log))
-            fd.close()
-        with open(report_preproc_filename, 'w') as fd:
-            fd.write(str(preproc))
-            fd.close()
-        with open(report_filename, 'w') as fd:
-            fd.write(str(main_html))
-            fd.close()
-        preproc_params['parent_results_gallery'] = parent_results_gallery
-
-        # log command line
-        progress_logger.log("<b>Command line</b><br/>")
-        progress_logger.log("%s" % command_line)
-        progress_logger.log("<hr/>")
-
-        # log environ variables
-        progress_logger.log("<b>Environ Variables</b><br/>")
-        progress_logger.log(
-            "<ul>" + "".join(["<li>%s: %s</li>" % (item, value)
-                              for item, value in os.environ.items()])
-            + "</ul><hr/>")
-
-    def finalize_report():
-        if not report:
-            return
-        progress_logger.finish(report_preproc_filename)
-        if shutdown_reloaders:
-            print("Finishing %s..." % output_dir)
-            progress_logger.finish_dir(output_dir)
-        print("\r\n\tHTML report written to %s" % report_preproc_filename)
-
     normalize = preproc_params.get("normalize", True)
 
     # don't yet segment nor normalize if dartel enabled
@@ -1902,7 +1734,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         preproc_params["hardlink_output"] = True
         for param in preproc_params.keys():
             if param not in ["fwhm", "anat_fwhm", "func_write_voxel_sizes",
-                             "anat_write_voxel_sizes", "caching", "report",
+                             "anat_write_voxel_sizes", "caching",
                              "hardlink_output", "smooth_software"]:
                 preproc_params.pop(param)
         subjects = Parallel(n_jobs=n_jobs)(delayed(_do_subject_normalize)(
@@ -1911,5 +1743,4 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         for subject_data in subjects:
             subject_data.hardlink_output_files(final=True)
 
-    finalize_report()
     return subjects
