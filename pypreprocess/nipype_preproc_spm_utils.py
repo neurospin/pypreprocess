@@ -34,7 +34,7 @@ from .purepython_preproc_utils import (
     _do_subject_smooth as _pp_do_subject_smooth)
 
 from nilearn.plotting.html_document import HTMLDocument
-from .reporting.reporter import (_set_templates,embed_in_HTML,
+from .reporting.preproc_reporter import (_set_templates,embed_in_HTML,
     initialize_report, add_component, finalize_report,
     generate_realignment_report, generate_registration_report,
     generate_corregistration_report, generate_segmentation_report,
