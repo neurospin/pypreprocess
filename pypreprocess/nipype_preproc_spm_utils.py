@@ -34,7 +34,7 @@ from .purepython_preproc_utils import (
     _do_subject_smooth as _pp_do_subject_smooth)
 
 from nilearn.plotting.html_document import HTMLDocument
-from .reporting.nilearn_reporting import (_set_templates,embed_in_HTML,
+from .reporting.preproc_reporter import (_set_templates,embed_in_HTML,
     initialize_report, add_component, finalize_report,
     generate_realignment_report, generate_registration_report,
     generate_corregistration_report, generate_segmentation_report,
@@ -1215,7 +1215,7 @@ def do_subject_preproc(
     preproc_undergone=None,
     prepreproc_undergone="",
     caching=True,
-    nilearn_report=True,
+    report=True,
     **kwargs
     ):
     """
@@ -1342,7 +1342,7 @@ def do_subject_preproc(
     # the EPI template to MNI
     segment = (not subject_data.anat is None) and segment
 
-    if nilearn_report:
+    if report:
         report_path, log_path = initialize_report(subject_data.output_dir,
                                 subject_name=subject_data.subject_id,
                                 dcm2nii=subject_data.isdicom,
@@ -1469,7 +1469,7 @@ def do_subject_preproc(
         if hardlink_output:
             subject_data.hardlink_output_files(final=True)
 
-    if nilearn_report:
+    if report:
         if tsdiffana:
             tdsdiffana_plot = generate_tsdiffana_report(
                 subject_data.func, subject_data.session_ids,
