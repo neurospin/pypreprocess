@@ -8,7 +8,7 @@
 
 import os
 import inspect
-from .reporting.preproc_reporter import (
+from .reporting.pypreproc_reporter import (
     generate_preproc_steps_docstring)
 from joblib import Memory
 from .io_utils import get_basenames, save_vols, is_niimg, load_vols

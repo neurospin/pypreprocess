@@ -21,11 +21,7 @@ from pypreprocess.nipype_preproc_spm_utils import (SubjectData,
 from pypreprocess.io_utils import load_specific_vol
 from pypreprocess.fsl_to_nipy import (read_fsl_design_file,
                                       make_dmtx_from_timing_files)
-from pypreprocess.reporting.glm_reporter import (generate_subject_stats_report,
-                                                 group_one_sample_t_test)
-from pypreprocess.reporting.base_reporter import (ProgressReport,
-                                                  pretty_time
-                                                  )
+from pypreprocess.reporting.pypreproc_reporter import pretty_time
 from pypreprocess.conf_parser import _generate_preproc_pipeline
 from joblib import Parallel, delayed, Memory
 from nipype.caching import Memory as NipypeMemory
@@ -533,20 +529,3 @@ if __name__ == '__main__':
 
         print("... done.\r\n")
         print("Group GLM")
-        contrasts = subjects[0].contrasts
-        subjects_effects_maps = [subject_data.effects_maps
-                                 for subject_data in subjects]
-
-        group_one_sample_t_test(
-            mask_images,
-            subjects_effects_maps,
-            contrasts,
-            task_output_dir,
-            threshold=threshold,
-            cluster_th=cluster_th,
-            start_time=stats_start_time,
-            subjects=[subject_data.subject_id for subject_data in subjects],
-            title='Group GLM for HCP fMRI %s protocol (%i subjects)' % (
-                protocol, len(subjects)),
-            slicer=slicer
-            )

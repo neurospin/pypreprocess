@@ -446,8 +446,3 @@ def _generate_preproc_pipeline(config_file, dataset_dir=None, output_dir=None,
 
 # this pseudo is better
 import_data = _generate_preproc_pipeline
-
-
-if __name__ == '__main__':
-    from pypreprocess.reporting.base_reporter import dict_to_html_ul
-    print(dict_to_html_ul(_parse_job("job.conf")))

@@ -9,7 +9,6 @@ import numpy as np
 import nibabel
 from pypreprocess.nipype_preproc_spm_utils import do_subjects_preproc
 from pypreprocess.datasets import fetch_spm_auditory
-from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
 import pandas as pd
 from nilearn.glm.first_level.design_matrix import (make_first_level_design_matrix,
                                                          check_design_matrix)

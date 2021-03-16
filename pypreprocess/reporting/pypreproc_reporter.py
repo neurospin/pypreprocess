@@ -827,3 +827,9 @@ def lines2breaks(lines, delimiter="\n", number_lines=False):
         lines = ["<li>%s</li>" % line for line in lines]
         output = "<ol><pre>" + "".join(lines) + "</pre></ol>"
     return output
+
+def pretty_time():
+    """
+    Returns currenct time in the format: hh:mm:ss ddd mmm yyyy.
+    """
+    return " ".join([time.ctime().split(" ")[i] for i in [3, 0, 2, 1, 4]])
