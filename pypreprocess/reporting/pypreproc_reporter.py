@@ -55,7 +55,18 @@ def _set_templates(spm_dir=SPM_DIR):
 
 def embed_in_HTML(html_template_file,components_to_embed):
 
-    """ Embeds components in a given HTML template """
+    """ 
+    Embeds components in a given HTML template.
+
+    Parameters
+    ----------
+    html_template_file: .html template file 
+        containing variables which would be sustituted with given components
+
+    components_to_embed: string
+        values to be substituted into the given HTML file
+
+    """
 
     html_template_path = os.path.join(HTML_TEMPLATE_ROOT_PATH,
                                       html_template_file)
@@ -73,7 +84,7 @@ def embed_in_HTML(html_template_file,components_to_embed):
 def initialize_report(output_dir,
                     subject_name='Subject',
                     log=True,
-                    filename='nilearn_report',
+                    filename='report',
                     prepreproc_undergone="",
                     dcm2nii=False,
                     deleteorient=False,
@@ -88,6 +99,21 @@ def initialize_report(output_dir,
                     command_line=None,
                     has_func=True
                     ):
+
+    """ 
+    Initializes an HTML report containing the description of the 
+    preprocessing steps to be implemented and the processing start time
+    to be populated with visualisations for each steps.
+
+    Parameters
+    ----------
+    output_dir: string
+        directory to save the initialized HTML report
+
+    log: bool, optional (default True)
+        whether to initialize a log report or not
+
+    """
 
     report_outfile = os.path.join(output_dir, '{}.html'.format(filename))
 
@@ -109,7 +135,7 @@ def initialize_report(output_dir,
     report_dict['subject_name'] = subject_name
     report_dict['start_time'] = strftime("%d-%b-%Y %H:%M:%S", gmtime())
     report_dict['end_time'] = "STILL RUNNING..."
-    report_text = embed_in_HTML('nilearn_report_template.html', report_dict)
+    report_text = embed_in_HTML('report_template.html', report_dict)
     report_HTML = HTMLDocument(report_text).save_as_html(report_outfile)
 
     if log:
@@ -120,8 +146,31 @@ def initialize_report(output_dir,
     else:
         return report_outfile, None
 
-def add_component(to_add_report, html_report_path,
-                to_add_log=None, html_log_path=None):
+def add_component(to_add_report, html_report_path, to_add_log=None,
+                 html_log_path=None):
+
+    """ 
+    Appends components to the end of a given HTML report file.
+
+    Parameters
+    ----------
+    to_add_report: string
+        a component to be appended to a given report HTML file.
+    
+    html_report_path: stringlog=True
+        location of the HTML report file to which the component would be
+        appended.
+
+    to_add_log: string, optional (default None)
+        a log component to be added to the log report HTML file, only
+        specified if a log report has been initialized.
+
+    html_log_path: string, optional (default None)
+        location of the HTML log report file to which the log component 
+        would be appended, only specified if a log report has been 
+        initialized.
+
+    """
 
     html_file_obj = open(html_report_path, 'a')
     html_file_obj.write(to_add_report)
@@ -134,6 +183,22 @@ def add_component(to_add_report, html_report_path,
 
 
 def finalize_report(html_report_path, html_log_path=None):
+
+    """ 
+    Finalizes the report files created. Involves - adding the processing
+    end time, disabling automatic page refreshing, adding closing tags at
+    the bottom of the html reports and printing out report path.
+
+    Parameters
+    ----------
+    html_report_path: string
+        location of the HTML report file to be finalized.
+
+    html_log_path: string, optional (default None)
+        location of the HTML log report file to be finalized,
+        only specified if a log report has been initialized.
+
+    """
 
     html_file_obj = open(html_report_path, 'r')
     lines = html_file_obj.readlines()
@@ -154,14 +219,28 @@ def finalize_report(html_report_path, html_log_path=None):
         html_file_obj.write("</body>\n</html>")
         html_file_obj.close()
 
-    print('Nilearn-style report created: {}'.format(html_report_path    ))
+    print('Report created and saved to - {}'.format(html_report_path))
 
 
 def generate_realignment_report(subject_data, estimated_motion, output_dir,
                                 tooltip=None, log=True, report_path=None):
 
-    """ Creates plots associated with realignment 
-    and returns it as an SVG url. """
+    """ 
+    Creates visualization associated with realignment 
+    and returns it as an SVG url. 
+
+    Parameters
+    ----------
+    subject_data: `SubjectData` instance
+       object that encapsulates the date for the subject (should have fields
+       like func, anat, output_dir, etc.)
+
+    estimated_motion: string
+        location of the file containing estimated motion parameters
+
+    output_dir: string
+        directory containing all the output files
+    """
 
     subject_data._set_session_ids()
     if not hasattr(subject_data, 'realignment_parameters'):
@@ -195,7 +274,7 @@ def generate_realignment_report(subject_data, estimated_motion, output_dir,
         for_substitution['id_link'] = for_substitution['heading'].replace(" ", "_")
         for_substitution['log'] = get_log_text(subject_data.func)
         for_substitution['log_link'] = "file:///"+os.path.join(output_dir,
-                                        'nilearn_report_log.html#'
+                                        'report_log.html#'
                                         )+for_substitution['id_link']
         rp_log_text = embed_in_HTML('log_sub_template.html',
                                     for_substitution)
@@ -213,8 +292,29 @@ def generate_realignment_report(subject_data, estimated_motion, output_dir,
 def generate_registration_report(target, source, output_dir,
                                 for_substitution, report_path=None):
 
-    """ Plots target's outline on source image and returns them 
-    as SVG url embedded in HTML. """
+    """ 
+    Plots target's outline on source image and returns them 
+    as SVG url embedded in HTML.
+
+    Parameters
+    ----------
+    target: string
+        location of the .nii file for the target image
+
+    source: string
+        location of the .nii file for the target image
+
+    output_dir: string
+        directory containing all the output files
+
+    for_substitution: dict
+        a dictionary containing all the components concerning registration
+        to be embedded in the report HTML files
+    
+    report_path: string, optional (default None)
+        path to the report HTML file
+
+    """
 
     reg_plot = []
 
@@ -264,9 +364,24 @@ def generate_corregistration_report(subject_data, output_dir,
                                     coreg_func_to_anat=True, log=True,
                                     tooltip=None, report_path=None):
 
-    """ Creates plots associated with corregistration 
+    """ 
+    Creates plots associated with corregistration 
     and returns them as SVG url embedded in HTML.
-    Calls generate_registration_plot. """
+    Calls generate_registration_plot. 
+    
+    Parameters
+    ----------
+     subject_data: `SubjectData` instance
+       object that encapsulates the date for the subject (should have fields
+       like func, anat, output_dir, etc.)
+
+    output_dir: string
+        directory containing all the output files
+    
+    report_path: string, optional (default None)
+        path to the report HTML file
+
+    """
 
     subject_data._set_session_ids()
 
@@ -306,8 +421,23 @@ def generate_segmentation_report(subject_data, output_dir,
     comment="", only_native=False, tooltip=None,
     log=True, report_path=None):
     
-    """ Creates plots associated with segmentation 
-    and returns them as SVG url embedded in HTML. """
+    """ 
+    Creates plots associated with segmentation 
+    and returns them as SVG url embedded in HTML. 
+    
+    Parameters
+    ----------
+     subject_data: `SubjectData` instance
+       object that encapsulates the date for the subject (should have fields
+       like func, anat, output_dir, etc.)
+
+    output_dir: string
+        directory containing all the output files
+    
+    report_path: string, optional (default None)
+        path to the report HTML file
+
+    """
     _set_templates()
 
     seg_plot = []
@@ -420,10 +550,25 @@ def generate_segmentation_report(subject_data, output_dir,
 def generate_normalization_report(subject_data, output_dir, tooltip=None,
                                 log=True, report_path=None):
     
-    """ Creates plots associated with normalization 
-    and returns them as SVG url embedded in HTML. 
-    Calls generate_segmentation_report 
-    and generate_registration_report. """
+    """ 
+    Creates plots associated with normalization and returns them as SVG url 
+    embedded in HTML. Calls generate_segmentation_report and 
+    generate_registration_report. 
+    
+    Parameters
+    ----------
+     subject_data: `SubjectData` instance
+       object that encapsulates the date for the subject (should have fields
+       like func, anat, output_dir, etc.)
+
+    output_dir: string
+        directory containing all the output files
+    
+    report_path: string, optional (default None)
+        path to the report HTML file
+
+    """
+
     _set_templates()
     norm_plot = []
     logs = []
@@ -483,8 +628,19 @@ def generate_normalization_report(subject_data, output_dir, tooltip=None,
 def generate_tsdiffana_report(image_files, sessions, subject_id,
                             output_dir, tooltips=None):
 
-    """ Creates plots associated with tsdiffana 
-    and returns them as SVG url embedded in HTML. """
+    """ 
+    Creates plots associated with tsdiffana and returns them as SVG 
+    url embedded in HTML. 
+    
+    Parameters
+    ----------
+    image_files: string
+        location to the functional images
+
+    output_dir: string
+        directory containing all the output files
+    
+    """
 
     tsdiffana_plot = []
     for_substitution = {}
@@ -747,6 +903,16 @@ def generate_preproc_steps_docstring(
     return preproc_undergone
 
 def get_log_text(nipype_output_files):
+
+    """
+    Creates properly formatted HTML log file containing the logs 
+    corresponding to each of preprocessing pipeline functions calls.
+    Calls get_nipype_report_filename and get_nipype_report for formatting 
+    the log files.
+
+    nipype_output_files: string
+        location of the nipype log files
+    """
 
     execution_log = get_nipype_report(get_nipype_report_filename(
         nipype_output_files))
