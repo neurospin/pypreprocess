@@ -1556,7 +1556,8 @@ def _do_subjects_newsegment(
             for subject_data in subjects)
 
 
-def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
+def do_subjects_preproc(subject_factory, session_ids=None, report=True,
+                         **preproc_params):
     """
     This function does intra-subject preprocessing on a group of subjects.
 
@@ -1695,6 +1696,17 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
     if not len(subjects):
         raise RuntimeError("subject_factory is empty; nothing to do!")
 
+    # initialize an HTML index file linking to indvidual subject reports
+    if report:
+        all_report_path = os.path.join(output_dir, 'report_index.html')
+        all_report_obj = open(all_report_path, 'w')
+        all_report_obj.write("<!DOCTYPE html>\n<html lang='en'>\
+                            \n<head><title>index</title></head>")
+        all_report_obj.write("<h1>Index of pypreprocess reports</h1>\
+                            \n<p>(click on the subject ids to open the\
+                                corresponding reports)</p>\
+                            \n<hr/>\n<ul>")
+
     # sanitize subject output directories
     for subject_data in subjects:
         if not hasattr(subject_data, "output_dir"):
@@ -1702,6 +1714,18 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
                 subject_data.subject_id = "sub001"
             subject_data.output_dir = os.path.join(output_dir,
                                                    subject_data.subject_id)
+        # insert links to indvidual subject reports to the index file
+        if report:
+            sub_report_link = "file:///"+os.path.join(os.getcwd(),
+                            subject_data.output_dir, 'report.html')
+            all_report_obj.write("\n<li><a href={}>{}</a></li>".format(
+                                sub_report_link, subject_data.subject_id))
+
+    # Finalize and close the index file
+    if report:
+        all_report_obj.write("</ul>")
+        all_report_obj.write("</html>")
+        all_report_obj.close()
 
     normalize = preproc_params.get("normalize", True)
 
@@ -1742,5 +1766,7 @@ def do_subjects_preproc(subject_factory, session_ids=None, **preproc_params):
         # final hard link
         for subject_data in subjects:
             subject_data.hardlink_output_files(final=True)
+
+    print('HTML report created and saved to {}'.format(all_report_path))
 
     return subjects

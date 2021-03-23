@@ -194,8 +194,8 @@ def finalize_report(html_report_path, html_log_path=None):
     html_file_obj = open(html_report_path, 'r')
     lines = html_file_obj.readlines()
     end_time = strftime("%d-%b-%Y %H:%M:%S", gmtime())
-    lines[8] = "<h4 style='text-align:center'>End time: {}</h4>".format(end_time)
-    del lines[3]
+    lines[9] = "<h4 style='text-align:center'>End time: {}</h4>".format(end_time)
+    del lines[4]
 
     with open(html_report_path, 'w') as html_file_obj:
         for line in lines:
@@ -209,9 +209,6 @@ def finalize_report(html_report_path, html_log_path=None):
         html_file_obj = open(html_log_path, 'a')
         html_file_obj.write("</body>\n</html>")
         html_file_obj.close()
-
-    print('Report created and saved to - {}'.format(html_report_path))
-
 
 def generate_realignment_report(subject_data, estimated_motion, output_dir,
                                 tooltip=None, log=True, report_path=None):
