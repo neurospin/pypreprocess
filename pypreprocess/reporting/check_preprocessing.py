@@ -19,9 +19,20 @@ import base64
 import urllib.parse
 
 def _plot_to_svg(fig, dpi=300):
-    
-    with io.BytesIO() as io_buffer:
+    """ 
+    Converts matplotlib figure instance to an SVG url
+    that can be loaded in a browser.
 
+    Parameters
+    ----------
+    fig: `matplotlib.figure.Figure` instance 
+        consisting of the plot to be converted to SVG
+        url and then enbedded in an HTML report.
+
+    dpi: float, optional (default 300)
+        Dots per inch. Resolution of the SVG plot generated
+    """
+    with io.BytesIO() as io_buffer:
         fig.tight_layout(pad=0.4)
         fig.savefig(
             io_buffer, format="svg", facecolor="white",
@@ -46,7 +57,6 @@ def plot_spm_motion_parameters(parameter_file, lengths,
         output filename for storing the plotted figure
 
     """
-
     # load parameters
     motion = np.loadtxt(parameter_file) if isinstance(
         parameter_file, str) else parameter_file[..., :6]
@@ -186,7 +196,6 @@ def plot_segmentation(
 
     csf_filename: string (optional)
                  path of file containing Cerebro-Spinal Fluid template
-
 
     """
     # misc

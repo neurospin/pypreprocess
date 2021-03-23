@@ -16,8 +16,7 @@ from nilearn.plotting.html_document import HTMLDocument
 
 
 PYPREPROCESS_URL = "https://github.com/neurospin/pypreprocess"
-DARTEL_URL = ("http://www.fil.ion.ucl.ac.uk/spm/software/spm8/"
-              "SPM8_Release_Notes.pdf")
+DARTEL_URL = ("https://www.fil.ion.ucl.ac.uk/spm/software/spm12/SPM12_Release_Notes.pdf")
 
 HTML_TEMPLATE_ROOT_PATH = os.path.join(os.path.dirname(__file__),
                                            'template_reports')
@@ -54,7 +53,6 @@ def _set_templates(spm_dir=SPM_DIR):
     CSF_TEMPLATE = os.path.join(SPM_DIR, tpm_path, 'csf.nii')
 
 def embed_in_HTML(html_template_file,components_to_embed):
-
     """ 
     Embeds components in a given HTML template.
 
@@ -67,7 +65,6 @@ def embed_in_HTML(html_template_file,components_to_embed):
         values to be substituted into the given HTML file
 
     """
-
     html_template_path = os.path.join(HTML_TEMPLATE_ROOT_PATH,
                                       html_template_file)
     with open(html_template_path) as html_file_obj:
@@ -99,7 +96,6 @@ def initialize_report(output_dir,
                     command_line=None,
                     has_func=True
                     ):
-
     """ 
     Initializes an HTML report containing the description of the 
     preprocessing steps to be implemented and the processing start time
@@ -114,7 +110,6 @@ def initialize_report(output_dir,
         whether to initialize a log report or not
 
     """
-
     report_outfile = os.path.join(output_dir, '{}.html'.format(filename))
 
     report_dict = {}
@@ -148,7 +143,6 @@ def initialize_report(output_dir,
 
 def add_component(to_add_report, html_report_path, to_add_log=None,
                  html_log_path=None):
-
     """ 
     Appends components to the end of a given HTML report file.
 
@@ -171,7 +165,6 @@ def add_component(to_add_report, html_report_path, to_add_log=None,
         initialized.
 
     """
-
     html_file_obj = open(html_report_path, 'a')
     html_file_obj.write(to_add_report)
     html_file_obj.close()
@@ -183,7 +176,6 @@ def add_component(to_add_report, html_report_path, to_add_log=None,
 
 
 def finalize_report(html_report_path, html_log_path=None):
-
     """ 
     Finalizes the report files created. Involves - adding the processing
     end time, disabling automatic page refreshing, adding closing tags at
@@ -199,7 +191,6 @@ def finalize_report(html_report_path, html_log_path=None):
         only specified if a log report has been initialized.
 
     """
-
     html_file_obj = open(html_report_path, 'r')
     lines = html_file_obj.readlines()
     end_time = strftime("%d-%b-%Y %H:%M:%S", gmtime())
@@ -224,7 +215,6 @@ def finalize_report(html_report_path, html_log_path=None):
 
 def generate_realignment_report(subject_data, estimated_motion, output_dir,
                                 tooltip=None, log=True, report_path=None):
-
     """ 
     Creates visualization associated with realignment 
     and returns it as an SVG url. 
@@ -241,7 +231,6 @@ def generate_realignment_report(subject_data, estimated_motion, output_dir,
     output_dir: string
         directory containing all the output files
     """
-
     subject_data._set_session_ids()
     if not hasattr(subject_data, 'realignment_parameters'):
         raise ValueError("'realignment_parameters' attribute not set!")
@@ -271,17 +260,15 @@ def generate_realignment_report(subject_data, estimated_motion, output_dir,
         (nuissance regressors) in the the GLM."
 
     if log:
+        log_link = "file:///"+os.path.join(output_dir, 'report_log.html#')
         for_substitution['id_link'] = for_substitution['heading'].replace(" ", "_")
         for_substitution['log'] = get_log_text(subject_data.func)
-        for_substitution['log_link'] = "file:///"+os.path.join(output_dir,
-                                        'report_log.html#'
-                                        )+for_substitution['id_link']
-        rp_log_text = embed_in_HTML('log_sub_template.html',
-                                    for_substitution)
+        for_substitution['log_link'] = log_link+for_substitution['id_link']
+        rp_log_text = embed_in_HTML('log_sub_template.html', for_substitution)
     else:
         rp_log_text = None
 
-    log_link_text = embed_in_HTML('log_link_template.html',for_substitution)
+    log_link_text = embed_in_HTML('log_link_template.html', for_substitution)
 
     for_substitution['heading'] = for_substitution['heading']+' '+log_link_text
     rp_plot_text = embed_in_HTML('report_sub_template.html', for_substitution)
@@ -291,7 +278,6 @@ def generate_realignment_report(subject_data, estimated_motion, output_dir,
 
 def generate_registration_report(target, source, output_dir,
                                 for_substitution, report_path=None):
-
     """ 
     Plots target's outline on source image and returns them 
     as SVG url embedded in HTML.
@@ -315,7 +301,6 @@ def generate_registration_report(target, source, output_dir,
         path to the report HTML file
 
     """
-
     reg_plot = []
 
     # prepare for smart caching
@@ -326,8 +311,7 @@ def generate_registration_report(target, source, output_dir,
 
     # plot outline (edge map) of template on the
     # normalized image
-    log_link_text = embed_in_HTML('log_link_template.html',
-                                    for_substitution)
+    log_link_text = embed_in_HTML('log_link_template.html', for_substitution)
     for_substitution['heading'] += ' '+log_link_text
     for_substitution['tooltip'] = "The red contours should match the background\
                                     image well. Otherwise, something might have\
@@ -363,7 +347,6 @@ def generate_registration_report(target, source, output_dir,
 def generate_corregistration_report(subject_data, output_dir,
                                     coreg_func_to_anat=True, log=True,
                                     tooltip=None, report_path=None):
-
     """ 
     Creates plots associated with corregistration 
     and returns them as SVG url embedded in HTML.
@@ -382,7 +365,6 @@ def generate_corregistration_report(subject_data, output_dir,
         path to the report HTML file
 
     """
-
     subject_data._set_session_ids()
 
     if subject_data.anat is None:
@@ -399,15 +381,15 @@ def generate_corregistration_report(subject_data, output_dir,
 
     for_substitution = {}
  
+
+
     if log:
+        log_link = 'file:///'+os.path.join(output_dir, 'report_log.html#')
         for_substitution['heading'] = heading
         for_substitution['id_link'] = heading.replace(" ", "_")
         for_substitution['log'] = get_log_text(src)
-        for_substitution['log_link'] = 'file:///'+os.path.join(output_dir,
-                                        'nilearn_report_log.html#'
-                                        )+for_substitution['id_link']
-        log_text = embed_in_HTML('log_sub_template.html',
-                                for_substitution)
+        for_substitution['log_link'] = log_link+for_substitution['id_link']
+        log_text = embed_in_HTML('log_sub_template.html', for_substitution)
     else:
         log_text = None
 
@@ -420,7 +402,6 @@ def generate_segmentation_report(subject_data, output_dir,
     subject_gm_file=None, subject_wm_file=None, subject_csf_file=None,
     comment="", only_native=False, tooltip=None,
     log=True, report_path=None):
-    
     """ 
     Creates plots associated with segmentation 
     and returns them as SVG url embedded in HTML. 
@@ -453,21 +434,20 @@ def generate_segmentation_report(subject_data, output_dir,
     if not segmented:
         return
 
+    log_link = 'file:///'+os.path.join(output_dir, 'report_log.html#')
+
     if log:
         for_substitution['heading'] = 'Segmentation'
         for_substitution['id_link'] = for_substitution['heading']
-        for_substitution['log'] = get_log_text(getattr(subject_data,
-                                    'gm') or getattr(subject_data,
-                                    'wm') or getattr(subject_data, 'csf'))
-        for_substitution['log_link'] = 'file:///'+os.path.join(output_dir,
-                                        'nilearn_report_log.html#'
-                                        )+for_substitution['heading']
+        for_substitution['log'] = get_log_text(
+                                    getattr(subject_data, 'gm') or
+                                    getattr(subject_data, 'wm') or
+                                    getattr(subject_data, 'csf'))
+        for_substitution['log_link'] = log_link+for_substitution['heading']
         log_text = embed_in_HTML('log_sub_template.html',for_substitution)
     else:
+        for_substitution['log_link'] = log_link+'Segmentation'
         log_text = None
-        for_substitution['log_link'] = 'file:///'+os.path.join(output_dir,
-                                        'nilearn_report_log.html#'
-                                        )+'Segmentation'
 
     for brain_name, brain, cmap in zip(
             ['anatomical_image', 'mean_functional_image'],
@@ -511,11 +491,9 @@ def generate_segmentation_report(subject_data, output_dir,
                 title=("Template GM, WM, and CSF TPM contours on "
                     "subject's %s") % _brain_name)
 
-            log_link_text = embed_in_HTML('log_link_template.html',
-                                        for_substitution)
+            log_link_text = embed_in_HTML('log_link_template.html', for_substitution)
             for_substitution['heading'] += ' '+log_link_text
-            seg_plot_text = embed_in_HTML('report_sub_template.html',
-                                        for_substitution)
+            seg_plot_text = embed_in_HTML('report_sub_template.html', for_substitution)
             seg_plot.append(seg_plot_text)
 
         # plot contours of subject's compartments on subject's brain
@@ -531,8 +509,7 @@ def generate_segmentation_report(subject_data, output_dir,
                 csf_filename=subject_csf_file, cmap=cmap, close=True,
                 report_path=report_path, title=("%s TPM contours on "
                     "subject's %s") % (title_prefix, _brain_name))
-            log_link_text = embed_in_HTML('log_link_template.html',
-                                        for_substitution)
+            log_link_text = embed_in_HTML('log_link_template.html', for_substitution)
             for_substitution['heading'] += ' '+log_link_text
             if not only_native:
                 for_substitution['heading'] = ""
@@ -549,7 +526,6 @@ def generate_segmentation_report(subject_data, output_dir,
 
 def generate_normalization_report(subject_data, output_dir, tooltip=None,
                                 log=True, report_path=None):
-    
     """ 
     Creates plots associated with normalization and returns them as SVG url 
     embedded in HTML. Calls generate_segmentation_report and 
@@ -568,7 +544,6 @@ def generate_normalization_report(subject_data, output_dir, tooltip=None,
         path to the report HTML file
 
     """
-
     _set_templates()
     norm_plot = []
     logs = []
@@ -586,7 +561,7 @@ def generate_normalization_report(subject_data, output_dir, tooltip=None,
                 subject_gm_file=warped_tpms["mwgm"],
                 subject_wm_file=warped_tpms["mwwm"],
                 subject_csf_file=warped_tpms["mwcsf"],
-                comment="warped",log=False, 
+                comment="warped", log=False, 
                 report_path=report_path)
         norm_plot.append(plot_text)
         
@@ -599,15 +574,13 @@ def generate_normalization_report(subject_data, output_dir, tooltip=None,
 
         if log:
             for_substitution = {}
+            log_link = 'file:///'+os.path.join(output_dir, 'report_log.html#')
             for_substitution['heading'] = "Normalization of %s" % brain_name
             for_substitution['id_link'] = for_substitution['heading'].replace(
                                                                 " ", "_")
             for_substitution['log'] = get_log_text(brain)
-            for_substitution['log_link'] = 'file:///'+os.path.join(output_dir
-                                            , 'nilearn_report_log.html#'
-                                            )+for_substitution['id_link']
-            log_text = embed_in_HTML('log_sub_template.html',
-                                    for_substitution)
+            for_substitution['log_link'] = log_link+for_substitution['id_link']
+            log_text = embed_in_HTML('log_sub_template.html', for_substitution)
         else:
             log_text = None
 
@@ -627,7 +600,6 @@ def generate_normalization_report(subject_data, output_dir, tooltip=None,
 
 def generate_tsdiffana_report(image_files, sessions, subject_id,
                             output_dir, tooltips=None):
-
     """ 
     Creates plots associated with tsdiffana and returns them as SVG 
     url embedded in HTML. 
@@ -641,7 +613,6 @@ def generate_tsdiffana_report(image_files, sessions, subject_id,
         directory containing all the output files
     
     """
-
     tsdiffana_plot = []
     for_substitution = {}
     
@@ -712,7 +683,6 @@ def generate_preproc_steps_docstring(
     command_line: string, optional (None)
         exact command-line typed at the terminal to run the underlying
         preprocessing (useful if someone were to reproduce your results)
-
     """
     fwhm = sanitize_fwhm(fwhm)
     anat_fwhm = sanitize_fwhm(anat_fwhm)
@@ -903,7 +873,6 @@ def generate_preproc_steps_docstring(
     return preproc_undergone
 
 def get_log_text(nipype_output_files):
-
     """
     Creates properly formatted HTML log file containing the logs 
     corresponding to each of preprocessing pipeline functions calls.
@@ -913,7 +882,6 @@ def get_log_text(nipype_output_files):
     nipype_output_files: string
         location of the nipype log files
     """
-
     execution_log = get_nipype_report(get_nipype_report_filename(
         nipype_output_files))
     return execution_log
