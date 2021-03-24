@@ -14,8 +14,6 @@ import nibabel
 import time
 from pypreprocess.nipype_preproc_spm_utils import (SubjectData,
                                                    do_subjects_preproc)
-from pypreprocess.reporting.glm_reporter import generate_subject_stats_report
-from pypreprocess.reporting.base_reporter import ProgressReport
 from pypreprocess.datasets import fetch_fsl_feeds
 from pypreprocess.io_utils import compute_mean_3D_image
 

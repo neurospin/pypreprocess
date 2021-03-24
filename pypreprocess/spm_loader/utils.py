@@ -16,7 +16,6 @@ from pypreprocess.external.nistats.glm import FirstLevelGLM
 PYPREPROCESS_DIR = os.path.dirname(
     os.path.dirname(os.path.split(os.path.abspath(__file__))[0]))
 sys.path.append(PYPREPROCESS_DIR)
-from ..reporting import glm_reporter
 from ..nipype_preproc_spm_utils import do_subjects_preproc, SubjectData
 
 
@@ -276,29 +275,6 @@ def execute_glm(doc, out_dir, contrast_definitions=None,
             if dtype == 'z':
                 _contrasts[contrast_name] = contrast
                 z_maps[contrast_name] = map_path
-
-    # invoke a single API to handle plotting and html business for you
-    subject_stats_report_filename = os.path.join(
-        subject_output_dir, "report_stats.html")
-    glm_reporter.generate_subject_stats_report(
-        subject_stats_report_filename,
-        _contrasts,
-        z_maps,
-        doc['mask'],
-        design_matrices=list(params['design_matrices']),
-        subject_id=doc['subject'],
-        cluster_th=15,  # 15 voxels
-        start_time=stats_start_time,
-        TR=doc['TR'],
-        n_scans=doc['n_scans'],
-        n_sessions=doc['n_sessions'],
-        model=glm_model,
-        )
-
-    print("Report for subject %s written to %s" % (
-        doc['subject'],
-        subject_stats_report_filename))
-
 
 def inv_perm(perm):
     inverse = [0] * len(perm)

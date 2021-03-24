@@ -14,8 +14,35 @@ from nilearn.image import reorder_img, mean_img
 from ..io_utils import load_vols
 EPS = np.finfo(float).eps
 
+import io
+import base64
+import urllib.parse
 
-def plot_spm_motion_parameters(parameter_file, title=None, close=False):
+def _plot_to_svg(fig, dpi=300):
+    """ 
+    Converts matplotlib figure instance to an SVG url
+    that can be loaded in a browser.
+
+    Parameters
+    ----------
+    fig: `matplotlib.figure.Figure` instance 
+        consisting of the plot to be converted to SVG
+        url and then enbedded in an HTML report.
+
+    dpi: float, optional (default 300)
+        Dots per inch. Resolution of the SVG plot generated
+    """
+    with io.BytesIO() as io_buffer:
+        fig.tight_layout(pad=0.4)
+        fig.savefig(
+            io_buffer, format="svg", facecolor="white",
+            edgecolor="white", dpi=dpi)
+        return urllib.parse.quote(io_buffer.getvalue().decode("utf-8"))
+
+
+def plot_spm_motion_parameters(parameter_file, lengths,
+                            title=None, output_filename=None,
+                            close=False, report_path=None):
     """ Plot motion parameters obtained with SPM software
 
     Parameters
@@ -30,7 +57,6 @@ def plot_spm_motion_parameters(parameter_file, title=None, close=False):
         output filename for storing the plotted figure
 
     """
-
     # load parameters
     motion = np.loadtxt(parameter_file) if isinstance(
         parameter_file, str) else parameter_file[..., :6]
@@ -40,14 +66,31 @@ def plot_spm_motion_parameters(parameter_file, title=None, close=False):
     # do plotting
     plt.figure()
     plt.plot(motion)
+
+    aux = 0.
+    for l in lengths[:-1]:
+        plt.axvline(aux + l, linestyle="--", c="k")
+        aux += l
+
     if not title is None:
         plt.title(title)
     plt.legend(('TransX', 'TransY', 'TransZ', 'RotX', 'RotY', 'RotZ'),
                loc="upper left", ncol=2)
     plt.xlabel('time(scans)')
     plt.ylabel('Estimated motion (mm/degrees)')
-    if close:
-        plt.close()
+
+    if report_path not in [False, None]:
+        fig = plt.gcf()
+        svg_plot = _plot_to_svg(fig)
+    else: 
+        svg_plot = None
+
+    if not output_filename is None:
+        plt.savefig(output_filename, bbox_inches="tight", dpi=200)
+        if close:
+            plt.close()
+
+    return svg_plot
 
 
 def compute_cv(data, mask_array=None):
@@ -66,7 +109,8 @@ def plot_registration(reference_img, coregistered_img,
                       cut_coords=None,
                       display_mode='ortho',
                       cmap=None, close=False,
-                      output_filename=None):
+                      output_filename=None,
+                      report_path=None):
     """Plots a coregistered source as bg/contrast for the reference image
 
     Parameters
@@ -113,6 +157,12 @@ def plot_registration(reference_img, coregistered_img,
     # misc
     _slicer.title(title, size=12, color='w', alpha=0)
 
+    if report_path not in [False, None]:
+        fig = plt.gcf()
+        svg_plot = _plot_to_svg(fig)
+    else:
+        svg_plot = None
+
     if not output_filename is None:
         try:
             plt.savefig(output_filename, dpi=200, bbox_inches='tight',
@@ -123,11 +173,13 @@ def plot_registration(reference_img, coregistered_img,
             # XXX TODO: handle this case!!
             pass
 
+    return svg_plot
 
 def plot_segmentation(
         img, gm_filename, wm_filename=None, csf_filename=None,
         output_filename=None, cut_coords=None, display_mode='ortho',
-        cmap=None, title='GM + WM + CSF segmentation', close=False):
+        cmap=None, title='GM + WM + CSF segmentation', close=False,
+        report_path=None):
     """
     Plot a contour mapping of the GM, WM, and CSF of a subject's anatomical.
 
@@ -144,7 +196,6 @@ def plot_segmentation(
 
     csf_filename: string (optional)
                  path of file containing Cerebro-Spinal Fluid template
-
 
     """
     # misc
@@ -171,9 +222,17 @@ def plot_segmentation(
 
     # misc
     _slicer.title(title, size=12, color='w', alpha=0)
+
+    if report_path not in [False, None]:
+        fig = plt.gcf()
+        svg_plot = _plot_to_svg(fig)
+    else:
+        svg_plot = None
+
     if not output_filename is None:
         plt.savefig(output_filename, bbox_inches='tight', dpi=200,
-                    facecolor="k",
-                    edgecolor="k")
+                    facecolor="k", edgecolor="k")
         if close:
             plt.close()
+            
+    return svg_plot
