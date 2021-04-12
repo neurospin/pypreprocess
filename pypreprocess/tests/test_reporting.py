@@ -8,7 +8,7 @@ def test_reporting():
     haxby_data = fetch_haxby(subjects=1)
 
     # set output dir
-    output_dir = os.path.join(os.path.dirname(haxby_data.mask),"haxby_runs")
+    output_dir = os.path.join(os.path.dirname(haxby_data.mask), "haxby_runs")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
