@@ -38,7 +38,7 @@ def _do_subject_slice_timing(subject_data, ref_slice=0,
 
     # prepare for smart caching
     if caching:
-        mem = Memory(cachedir=os.path.join(
+        mem = Memory(location=os.path.join(
             subject_data.output_dir, 'cache_dir'), verbose=100)
     runner = lambda handle: mem.cache(handle) if caching else handle
     stc_output = []
@@ -75,7 +75,7 @@ def _do_subject_realign(subject_data, reslice=True, register_to_mean=False,
 
     # prepare for smart caching
     if caching:
-        mem = Memory(cachedir=os.path.join(
+        mem = Memory(location=os.path.join(
             subject_data.output_dir, 'cache_dir'), verbose=100)
     runner = lambda handle: mem.cache(handle) if caching else handle
     mrimc = runner(MRIMotionCorrection(
@@ -117,7 +117,7 @@ def _do_subject_coregister(
 
     # prepare for smart caching
     if caching:
-        mem = Memory(cachedir=os.path.join(
+        mem = Memory(location=os.path.join(
                 subject_data.output_dir, 'cache_dir'), verbose=100)
     runner = lambda handle: mem.cache(handle) if caching else handle
 
@@ -168,7 +168,7 @@ def _do_subject_smooth(subject_data, fwhm, prefix=None,
     if func_basenames is None:
         func_basenames = [get_basenames(func) for func in subject_data.func]
     if caching:
-        mem = Memory(cachedir=os.path.join(
+        mem = Memory(location=os.path.join(
                 subject_data.output_dir, 'cache_dir'), verbose=100)
     sfunc = []
     for sess in range(subject_data.n_sessions):
@@ -291,7 +291,7 @@ def do_subject_preproc(
 
     # prepare for smart caching
     if caching:
-        mem = Memory(cachedir=os.path.join(
+        mem = Memory(location=os.path.join(
             subject_data.output_dir, 'cache_dir'), verbose=100)
 
     # prefix for final output images

@@ -372,7 +372,7 @@ def do_3Dto4D_merge(
     merge_cache_dir = os.path.join(output_dir, "merge")
     if not os.path.exists(merge_cache_dir):
         os.makedirs(merge_cache_dir)
-    merge_mem = joblib.Memory(cachedir=merge_cache_dir, verbose=5)
+    merge_mem = joblib.Memory(location=merge_cache_dir, verbose=5)
 
     # merging proper
     fourD_img = merge_mem.cache(nibabel.concat_images)(threeD_img_filenames,
@@ -432,7 +432,7 @@ def resample_img(input_img_filename,
     cache_dir = os.path.join(output_dir, "resample_img_cache")
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
-    mem = joblib.Memory(cachedir=cache_dir, verbose=5)
+    mem = joblib.Memory(location=cache_dir, verbose=5)
 
     # resample input img to new resolution
     resampled_img = mem.cache(ni_resample_img)(

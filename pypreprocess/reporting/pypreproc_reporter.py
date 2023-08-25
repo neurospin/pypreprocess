@@ -304,7 +304,7 @@ def generate_registration_report(target, source, output_dir,
     qa_cache_dir = os.path.join(output_dir, "QA")
     if not os.path.exists(qa_cache_dir):
         os.makedirs(qa_cache_dir)
-    qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
+    qa_mem = joblib.Memory(location=qa_cache_dir, verbose=5)
 
     # plot outline (edge map) of template on the
     # normalized image
@@ -466,7 +466,7 @@ def generate_segmentation_report(subject_data, output_dir,
         qa_cache_dir = os.path.join(output_dir, "QA")
         if not os.path.exists(qa_cache_dir):
             os.makedirs(qa_cache_dir)
-        qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
+        qa_mem = joblib.Memory(location=qa_cache_dir, verbose=5)
 
         _brain_name = "%s_%s" % (comment, brain_name)
         for_substitution['heading'] = "Segmentation of %s " % _brain_name
@@ -616,7 +616,7 @@ def generate_tsdiffana_report(image_files, sessions, subject_id,
     qa_cache_dir = os.path.join(output_dir, "QA")
     if not os.path.exists(qa_cache_dir):
         os.makedirs(qa_cache_dir)
-    qa_mem = joblib.Memory(cachedir=qa_cache_dir, verbose=5)
+    qa_mem = joblib.Memory(location=qa_cache_dir, verbose=5)
     results = qa_mem.cache(multi_session_time_slice_diffs)(image_files)
     # plot figures
     axes = plot_tsdiffs(results, use_same_figure=False)
