@@ -15,7 +15,7 @@ MAINTAINER_EMAIL = 'gael.varoquaux@normalesup.org'
 URL = 'http://pypreprocess.github.com'
 LICENSE = 'new BSD'
 DOWNLOAD_URL = 'http://pypreprocess.github.com'
-VERSION = '0.1-git'
+VERSION = '0.1'
 
 from numpy.distutils.core import setup
 
