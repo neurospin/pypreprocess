@@ -119,7 +119,7 @@ def do_subject_glm(subject_data):
         # reslice func images
         func_files = [mem.cache(reslice_vols)(
             sess_func,
-            target_affine=nibabel.load(sess_func[0]).get_affine())
+            target_affine=nibabel.load(sess_func[0]).affine)
                       for sess_func in func_files]
 
     ### GLM: loop on (session_bold, onse_file) pairs over the various sessions

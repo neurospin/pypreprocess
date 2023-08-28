@@ -77,7 +77,7 @@ def cluster_stats(stat_img, mask_img, threshold, height_control='fpr',
     if not _check_same_fov(mask_img, stat_img):
         raise ValueError('mask_img and stat_img do not have the same fov')
     mask = mask_img.get_fdata().astype(np.bool)
-    affine = mask_img.get_affine()
+    affine = mask_img.affine
     stat_map = stat_img.get_fdata() * mask
     n_voxels = mask.sum()
 

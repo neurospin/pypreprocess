@@ -95,7 +95,7 @@ def _single_volume_fit(moving_vol, fixed_vol_affine, fixed_vol_A0, affine_correc
     """
     moving_vol = nibabel.Nifti1Image(moving_vol.get_fdata(),
                                      np.dot(affine_correction,
-                                            moving_vol.get_affine()))
+                                            moving_vol.affine))
     # initialize final rp for this vol
     vol_rp = get_initial_motion_params()
     # smooth volume t
@@ -115,7 +115,7 @@ def _single_volume_fit(moving_vol, fixed_vol_affine, fixed_vol_A0, affine_correc
         # pass from volume t's grid to that of the reference
         # volume (0)
         y1, y2, y3 = transform_coords(np.zeros(6), fixed_vol_affine,
-                                      moving_vol.get_affine(), [x1, x2, x3])
+                                      moving_vol.affine, [x1, x2, x3])
 
         # sanity mask: some voxels might have fallen out of business;
         # and zap'em
@@ -383,10 +383,10 @@ class MRIMotionCorrection(object):
 
         # affine correction
         vol_0 = nibabel.Nifti1Image(
-            vol_0.get_fdata(), np.dot(affine_correction, vol_0.get_affine()))
+            vol_0.get_fdata(), np.dot(affine_correction, vol_0.affine))
 
         # voxel dimensions on the working grid
-        skip = np.sqrt(np.sum(vol_0.get_affine()[:3, :3] ** 2, axis=0)
+        skip = np.sqrt(np.sum(vol_0.affine[:3, :3] ** 2, axis=0)
                        ) ** (-1) * self.sep
 
         # build working grid
@@ -414,7 +414,7 @@ class MRIMotionCorrection(object):
                                      mode='wrap',).reshape(x1.shape)
 
         # compute rate of change of chi2 w.r.t. parameters
-        A0 = _compute_rate_of_change_of_chisq(vol_0.get_affine(),
+        A0 = _compute_rate_of_change_of_chisq(vol_0.affine,
                                               [x1, x2, x3], [Gx, Gy, Gz],
                                               lkp=self.lkp)
 
@@ -477,7 +477,7 @@ class MRIMotionCorrection(object):
             svf_kwargs = {'log': self._log}
 
         rps = Parallel(n_jobs=n_jobs)(delayed(
-              _single_volume_fit)(vol, vol_0.get_affine(), A0,
+              _single_volume_fit)(vol, vol_0.affine, A0,
                                   affine_correction,
                                   b, x1, x2, x3, fwhm=self.fwhm,
                                   n_iterations=self.n_iterations,
@@ -575,9 +575,9 @@ class MRIMotionCorrection(object):
                  " %i/%i...") % (sess + 1, self.n_sessions))
 
             # affine correction, for inter-session realignment
-            affine_correction = np.dot(rfirst_vols[sess].get_affine(),
+            affine_correction = np.dot(rfirst_vols[sess].affine,
                                        scipy.linalg.inv(
-                                           rfirst_vols[0].get_affine()))
+                                           rfirst_vols[0].affine))
 
             sess_rp = self._single_session_fit(
                 self.vols_[sess],

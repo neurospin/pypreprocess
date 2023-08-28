@@ -301,7 +301,7 @@ def apply_realignment_to_vol(vol, q, inverse=True):
 
     # apply affine transformation
     return nibabel.Nifti1Image(vol.get_fdata(), np.dot(
-        M_q, vol.get_affine()))
+        M_q, vol.affine))
 
 
 def apply_realignment(vols, rp, inverse=True):
@@ -364,8 +364,8 @@ def extract_realignment_matrix(coregistered, original, inverse=False):
     if inverse: coregistered, original = original, coregistered
     coregistered = load_vols(coregistered)[0]
     original = load_vols(original)[0]
-    return np.dot(original.get_affine(),
-                  scipy.linalg.inv(coregistered.get_affine()))
+    return np.dot(original.affine,
+                  scipy.linalg.inv(coregistered.affine))
 
 
 def extract_realignment_params(coregistered, original, inverse=False):

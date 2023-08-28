@@ -523,7 +523,7 @@ if __name__ == '__main__':
         mask_images = [subject_data.mask for subject_data in subjects]
         group_mask = nibabel.Nifti1Image(
             intersect_masks(mask_images).astype(np.int8),
-            nibabel.load(mask_images[0]).get_affine())
+            nibabel.load(mask_images[0]).affine)
         nibabel.save(group_mask, os.path.join(
                 task_output_dir, "mask.nii.gz"))
 

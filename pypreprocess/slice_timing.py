@@ -436,9 +436,9 @@ class fMRISTC(STC):
             if isinstance(raw_data, str):
                 self.basenames_ = os.path.basename(raw_data)
             img = nibabel.load(raw_data)
-            raw_data, self.affine_ = img.get_fdata(), img.get_affine()
+            raw_data, self.affine_ = img.get_fdata(), img.affine
         elif is_niimg(raw_data):
-            raw_data, self.affine_ = raw_data.get_fdata(), raw_data.get_affine()
+            raw_data, self.affine_ = raw_data.get_fdata(), raw_data.affine
         elif isinstance(raw_data, list) and (isinstance(
                 raw_data[0], str) or is_niimg(raw_data[0])):
             # list of strings or niimgs
@@ -448,12 +448,12 @@ class fMRISTC(STC):
             _first = check_niimg(raw_data[0])
             _raw_data = np.ndarray(list(_first.shape) + [n_scans])
             _raw_data[..., 0] = _first.get_fdata()
-            self.affine_ = [_first.get_affine()]
+            self.affine_ = [_first.affine]
 
             for t in range(1, n_scans):
                 vol = check_niimg(raw_data[t])
                 _raw_data[..., t] = vol.get_fdata()
-                self.affine_.append(vol.get_affine())
+                self.affine_.append(vol.affine)
             raw_data = _raw_data
         else:
             raw_data = np.array(raw_data)

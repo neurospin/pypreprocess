@@ -75,7 +75,7 @@ def test_ts_diff_ana_two_session():
     # create basic L pattern
     n_scans = 2
     film, _ = make_test_data(n_scans=n_scans)
-    film, affine = film.get_fdata(), film.get_affine()
+    film, affine = film.get_fdata(), film.affine
     shape = film.shape
     ref = film.copy()
     scal = np.sum(ref) * 1. / ref.size

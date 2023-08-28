@@ -33,11 +33,11 @@ def test_reslice_vols():
     film = apply_realignment(film, rp)
 
     # affines are not the same
-    assert not np.all(film[1].get_affine() == film[0].get_affine())
+    assert not np.all(film[1].affine == film[0].affine)
 
     # reslice vols
     film = list(reslice_vols(film))
 
     # affines are now the same
-    np.testing.assert_array_equal(film[1].get_affine(),
-                                  film[0].get_affine())
+    np.testing.assert_array_equal(film[1].affine,
+                                  film[0].affine)
