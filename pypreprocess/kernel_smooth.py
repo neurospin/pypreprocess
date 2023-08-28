@@ -391,7 +391,7 @@ def smooth_image(img, fwhm, **kwargs):
             fwhm=fwhm,
             **kwargs)
 
-        return ni.Nifti1Image(smoothing_kernel.smooth(img.get_data(),
+        return ni.Nifti1Image(smoothing_kernel.smooth(img.get_fdata(),
                                                       clean=True),
                               img.get_affine())
 

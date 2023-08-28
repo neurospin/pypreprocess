@@ -128,7 +128,7 @@ def _get_timeseries(data, row_mask, affine=None):
         return nb.concat_images(np.array(data)[row_mask])
     elif isinstance(data, (str, unicode)):
         img = nb.load(data)
-        return nb.Nifti1Image(img.get_data()[row_mask, :], img.get_affine())
+        return nb.Nifti1Image(img.get_fdata()[row_mask, :], img.get_affine())
     elif isinstance(data, (np.ndarray, np.memmap)):
         if affine is None:
             raise Exception('The affine is not optional '

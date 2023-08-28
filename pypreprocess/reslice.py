@@ -163,9 +163,9 @@ def reslice_vols(vols, target_affine=None, interp_order=3,
 
             # resample vol on new grid
             rdata = scipy.ndimage.map_coordinates(
-                vol.get_data(), new_grid, order=interp_order, mode=interp_mode)
+                vol.get_fdata(), new_grid, order=interp_order, mode=interp_mode)
         else:  # don't reslice first vol
-            rdata = vol.get_data().ravel()
+            rdata = vol.get_fdata().ravel()
         rdata[~msk]  = 0
 
         # replace vols's affine with ref vol's (this has been the ultimate

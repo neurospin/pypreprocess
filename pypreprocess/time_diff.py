@@ -59,8 +59,8 @@ def multi_session_time_slice_diffs(img_list):
             results['diff2_mean_vol'] = mean_img(
                 [results['diff2_mean_vol'], results_['diff2_mean_vol']])
             results['slice_diff2_max_vol'] = nib.Nifti1Image(
-                np.maximum(results_['slice_diff2_max_vol'].get_data(),
-                           results['slice_diff2_max_vol'].get_data()),
+                np.maximum(results_['slice_diff2_max_vol'].get_fdata(),
+                           results['slice_diff2_max_vol'].get_fdata()),
                 results['slice_diff2_max_vol'].get_affine()
                 )
             results['session_length'].append(results_['session_length'])
@@ -123,7 +123,7 @@ def time_slice_diffs(img):
     diff_mean_vol = np.zeros(shape[:3])
     slice_diff_max_vol = np.zeros(shape[:3])
     slice_diff_max = np.zeros(S)
-    arr = img.get_data()  # inefficient ??
+    arr = img.get_fdata()  # inefficient ??
     last_vol = arr[..., 0]
     vol_mean[0] = np.nanmean(last_vol)
 

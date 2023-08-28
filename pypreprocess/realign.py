@@ -93,13 +93,13 @@ def _single_volume_fit(moving_vol, fixed_vol_affine, fixed_vol_A0, affine_correc
             the estimated realignment parameters
 
     """
-    moving_vol = nibabel.Nifti1Image(moving_vol.get_data(),
+    moving_vol = nibabel.Nifti1Image(moving_vol.get_fdata(),
                                      np.dot(affine_correction,
                                             moving_vol.get_affine()))
     # initialize final rp for this vol
     vol_rp = get_initial_motion_params()
     # smooth volume t
-    V = smooth_func(moving_vol, fwhm).get_data()
+    V = smooth_func(moving_vol, fwhm).get_fdata()
     # global optical flow problem with affine motion model: run
     # Gauss-Newton iterated LS (this loop should normally converge
     # after about as few as 5 iterations)
@@ -383,7 +383,7 @@ class MRIMotionCorrection(object):
 
         # affine correction
         vol_0 = nibabel.Nifti1Image(
-            vol_0.get_data(), np.dot(affine_correction, vol_0.get_affine()))
+            vol_0.get_fdata(), np.dot(affine_correction, vol_0.get_affine()))
 
         # voxel dimensions on the working grid
         skip = np.sqrt(np.sum(vol_0.get_affine()[:3, :3] ** 2, axis=0)
@@ -396,7 +396,7 @@ class MRIMotionCorrection(object):
                               0:dim[2] - .5 - 1:skip[2]].reshape((3, -1))
 
         # smooth 0th volume to absorb noise before differentiating
-        sref_vol = self.smooth_func(vol_0, self.fwhm).get_data()
+        sref_vol = self.smooth_func(vol_0, self.fwhm).get_fdata()
 
         # resample the smoothed reference volume unto doped working grid
         G = ndimage.map_coordinates(sref_vol, [x1, x2, x3], order=self.interp,

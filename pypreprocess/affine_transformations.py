@@ -300,7 +300,7 @@ def apply_realignment_to_vol(vol, q, inverse=True):
         M_q = scipy.linalg.inv(M_q)
 
     # apply affine transformation
-    return nibabel.Nifti1Image(vol.get_data(), np.dot(
+    return nibabel.Nifti1Image(vol.get_fdata(), np.dot(
         M_q, vol.get_affine()))
 
 

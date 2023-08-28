@@ -77,7 +77,7 @@ def load_vols(niimgs):
     if is_niimg(niimgs):
         # should be 3d, squash 4th dimension otherwise
         if niimgs.shape[-1] == 1:
-            return [nibabel.Nifti1Image(niimgs.get_data()[:, :, :, 0],
+            return [nibabel.Nifti1Image(niimgs.get_fdata()[:, :, :, 0],
                                         niimgs.get_affine())]
         else:
             return list(iter_img(niimgs))
@@ -382,7 +382,7 @@ def do_3Dto4D_merge(
     # sanity
     if len(fourD_img.shape) == 5:
         fourD_img = nibabel.Nifti1Image(
-            fourD_img.get_data()[..., ..., ..., 0, ...],
+            fourD_img.get_fdata()[..., ..., ..., 0, ...],
             fourD_img.get_affine())
 
     # save image to disk
@@ -477,7 +477,7 @@ def compute_mean_image(images, output_filename=None, threeD=False):
                 image = nibabel.concat_images(image,
                                               check_affines=False
                                               )
-        data = image.get_data()
+        data = image.get_fdata()
 
         if threeD:
             if is_4D(image):
@@ -626,15 +626,15 @@ def loaduint8(img, log=None):
 
     # load volume into memory
     img = load_vols(img)[0]
-    vol = img.get_data()
+    vol = img.get_fdata()
 
     # if isinstance(img, np.ndarray) or isinstance(img, list):
     #     vol = np.array(img)
     # elif isinstance(img, str):
     #     img = nibabel.load(img)
-    #     vol = img.get_data()
+    #     vol = img.get_fdata()
     # elif is_niimg(img):
-    #     vol = img.get_data()
+    #     vol = img.get_fdata()
     # else:
     #     raise TypeError("Unsupported input type: %s" % type(img))
 
