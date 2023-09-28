@@ -386,14 +386,14 @@ def smooth_image(img, fwhm, **kwargs):
         assert len(img.shape) == 3
 
         smoothing_kernel = LinearFilter(
-            img.get_affine(),
+            img.affine,
             img.shape,
             fwhm=fwhm,
             **kwargs)
 
-        return ni.Nifti1Image(smoothing_kernel.smooth(img.get_data(),
+        return ni.Nifti1Image(smoothing_kernel.smooth(img.get_fdata(),
                                                       clean=True),
-                              img.get_affine())
+                              img.affine)
 
 
 def centered_smoothing_kernel(fwhm, x):

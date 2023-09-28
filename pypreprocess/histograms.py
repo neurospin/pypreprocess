@@ -303,10 +303,10 @@ def joint_histogram(ref, src, grid=None, samp=None, M=np.eye(4),
 
         # create sampled grid for ref img
         grid = make_sampled_grid(ref.shape, samp=_correct_voxel_samp(
-                ref.get_affine(), samp))
+                ref.affine, samp))
 
         # interpolate ref on sampled grid
-        ref = trilinear_interp(ref.get_data().ravel(order='F'),
+        ref = trilinear_interp(ref.get_fdata().ravel(order='F'),
                                ref.shape, grid[0], grid[1], grid[2])
     else:
         # ref image already sampled on coarse grid

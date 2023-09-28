@@ -34,9 +34,9 @@ def test_ts_diff_ana_null():
                               np.zeros(n_scans - 1))
     assert_array_almost_equal(report['slice_mean_diff2'],
                               np.zeros((n_scans - 1, shape[2])))
-    assert_array_almost_equal(report['diff2_mean_vol'].get_data(),
+    assert_array_almost_equal(report['diff2_mean_vol'].get_fdata(),
                               np.zeros(shape[:3]))
-    assert_array_almost_equal(report['slice_diff2_max_vol'].get_data(),
+    assert_array_almost_equal(report['slice_diff2_max_vol'].get_fdata(),
                               np.zeros(shape[:3]))
 
 
@@ -64,9 +64,9 @@ def test_ts_diff_ana():
     assert_array_almost_equal(report['slice_mean_diff2'],
                               scal * np.ones((n_scans - 1, shape[2]))
                               )
-    assert_array_almost_equal(report['diff2_mean_vol'].get_data(),
+    assert_array_almost_equal(report['diff2_mean_vol'].get_fdata(),
                               ref[..., 0])
-    assert_array_almost_equal(report['slice_diff2_max_vol'].get_data(),
+    assert_array_almost_equal(report['slice_diff2_max_vol'].get_fdata(),
                               ref[..., 0])
 
 
@@ -75,7 +75,7 @@ def test_ts_diff_ana_two_session():
     # create basic L pattern
     n_scans = 2
     film, _ = make_test_data(n_scans=n_scans)
-    film, affine = film.get_data(), film.get_affine()
+    film, affine = film.get_fdata(), film.affine
     shape = film.shape
     ref = film.copy()
     scal = np.sum(ref) * 1. / ref.size
@@ -95,9 +95,9 @@ def test_ts_diff_ana_two_session():
     assert_array_almost_equal(
         report['slice_mean_diff2'],
         np.tile(scal * np.ones((n_scans - 1, shape[2])), (2, 1)))
-    assert_array_almost_equal(report['diff2_mean_vol'].get_data(),
+    assert_array_almost_equal(report['diff2_mean_vol'].get_fdata(),
                               ref[..., 0])
-    assert_array_almost_equal(report['slice_diff2_max_vol'].get_data(),
+    assert_array_almost_equal(report['slice_diff2_max_vol'].get_fdata(),
                               ref[..., 0])
 
 
@@ -134,8 +134,8 @@ def test_ts_diff_ana_nan():
     assert not np.any(np.isnan(report['volume_means']))
     assert not np.any(np.isnan(report['volume_mean_diff2']))
     assert not np.any(np.isnan(report['slice_mean_diff2']))
-    assert not np.any(np.isnan(report['diff2_mean_vol'].get_data()))
-    assert not np.any(np.isnan(report['slice_diff2_max_vol'].get_data()))
+    assert not np.any(np.isnan(report['diff2_mean_vol'].get_fdata()))
+    assert not np.any(np.isnan(report['slice_diff2_max_vol'].get_fdata()))
 
 
 def test_issue_144():

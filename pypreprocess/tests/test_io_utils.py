@@ -427,8 +427,8 @@ def test_delete_orientation():
     delete_orientation(vol1, '/tmp', output_tag='del_')
     vol1 = nibabel.load('/tmp/vol1.nii.gz')
     vol2 = nibabel.load('/tmp/del_vol1.nii.gz')
-    data_vol1 = vol1.get_data()
-    data_vol2 = vol2.get_data()
+    data_vol1 = vol1.get_fdata()
+    data_vol2 = vol2.get_fdata()
     assert_array_equal(data_vol1, data_vol2)
     header = vol2.get_header()
     for key in ['dim_info', 'quatern_b', 'quatern_c', 'quatern_d',

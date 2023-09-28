@@ -75,7 +75,7 @@ def _sanitize(section, key, **replacements):
     if key in ["fwhm", "anat_fwhm", "anat_write_voxel_sizes",
                "func_write_voxel_sizes", "slice_order",
                "anat_write_voxel_size", "func_write_voxel_sizes"]:
-        dtype = np.int if key == "slice_order" else np.float
+        dtype = np.int if key == "slice_order" else float
         if not isinstance(val, str):
             val = ",".join(val)
         for x in "()[]":

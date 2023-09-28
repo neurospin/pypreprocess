@@ -77,8 +77,8 @@ def load_vols(niimgs):
     if is_niimg(niimgs):
         # should be 3d, squash 4th dimension otherwise
         if niimgs.shape[-1] == 1:
-            return [nibabel.Nifti1Image(niimgs.get_data()[:, :, :, 0],
-                                        niimgs.get_affine())]
+            return [nibabel.Nifti1Image(niimgs.get_fdata()[:, :, :, 0],
+                                        niimgs.affine)]
         else:
             return list(iter_img(niimgs))
     else:
@@ -372,7 +372,7 @@ def do_3Dto4D_merge(
     merge_cache_dir = os.path.join(output_dir, "merge")
     if not os.path.exists(merge_cache_dir):
         os.makedirs(merge_cache_dir)
-    merge_mem = joblib.Memory(cachedir=merge_cache_dir, verbose=5)
+    merge_mem = joblib.Memory(location=merge_cache_dir, verbose=5)
 
     # merging proper
     fourD_img = merge_mem.cache(nibabel.concat_images)(threeD_img_filenames,
@@ -382,8 +382,8 @@ def do_3Dto4D_merge(
     # sanity
     if len(fourD_img.shape) == 5:
         fourD_img = nibabel.Nifti1Image(
-            fourD_img.get_data()[..., ..., ..., 0, ...],
-            fourD_img.get_affine())
+            fourD_img.get_fdata()[..., ..., ..., 0, ...],
+            fourD_img.affine)
 
     # save image to disk
     if not output_filename is None:
@@ -432,7 +432,7 @@ def resample_img(input_img_filename,
     cache_dir = os.path.join(output_dir, "resample_img_cache")
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
-    mem = joblib.Memory(cachedir=cache_dir, verbose=5)
+    mem = joblib.Memory(location=cache_dir, verbose=5)
 
     # resample input img to new resolution
     resampled_img = mem.cache(ni_resample_img)(
@@ -477,14 +477,14 @@ def compute_mean_image(images, output_filename=None, threeD=False):
                 image = nibabel.concat_images(image,
                                               check_affines=False
                                               )
-        data = image.get_data()
+        data = image.get_fdata()
 
         if threeD:
             if is_4D(image):
                 data = data.mean(-1)
 
         all_data.append(data)
-        all_affine.append(image.get_affine())
+        all_affine.append(image.affine)
 
     # compute mean
     mean_data = np.mean(all_data, axis=0)
@@ -626,15 +626,15 @@ def loaduint8(img, log=None):
 
     # load volume into memory
     img = load_vols(img)[0]
-    vol = img.get_data()
+    vol = img.get_fdata()
 
     # if isinstance(img, np.ndarray) or isinstance(img, list):
     #     vol = np.array(img)
     # elif isinstance(img, str):
     #     img = nibabel.load(img)
-    #     vol = img.get_data()
+    #     vol = img.get_fdata()
     # elif is_niimg(img):
-    #     vol = img.get_data()
+    #     vol = img.get_fdata()
     # else:
     #     raise TypeError("Unsupported input type: %s" % type(img))
 
@@ -673,7 +673,7 @@ def loaduint8(img, log=None):
 
     # return the data
     if isinstance(img, str) or is_niimg(img):
-        return nibabel.Nifti1Image(uint8_dat, img.get_affine())
+        return nibabel.Nifti1Image(uint8_dat, img.affine)
     else:
         return uint8_dat
 

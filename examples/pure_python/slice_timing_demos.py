@@ -1,3 +1,4 @@
+
 """
 :Author: DOHMATOB Elvis Dopgima elvis[dot]dohmatob[at]inria[dot]fr
 :Synopsis: Manipulations with slice timing
@@ -265,7 +266,7 @@ def _fmri_demo_runner(output_dir, subjects, dataset_id,
             return fmri_files
 
         if isinstance(fmri_files, str):
-            return nibabel.load(fmri_files).get_data()
+            return nibabel.load(fmri_files).get_fdata()
         else:
             n_scans = len(fmri_files)
             _first = _load_fmri(fmri_files[0])

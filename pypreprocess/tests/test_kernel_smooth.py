@@ -57,11 +57,11 @@ def test_smooth_image_for_3D_vol():
     vol = create_random_image()
     svol = smooth_image(vol, [5, 7, 11.])
     assert svol.shape == vol.shape
-    numpy.testing.assert_array_equal(svol.get_affine(), vol.get_affine())
+    numpy.testing.assert_array_equal(svol.affine, vol.affine)
 
 
 def test_smooth_image_for_4D_film():
     film = create_random_image(ndim=4)
     sfilm = smooth_image(film, [5, 7., 11])
     assert sfilm.shape == film.shape
-    numpy.testing.assert_array_equal(sfilm.get_affine(), film.get_affine())
+    numpy.testing.assert_array_equal(sfilm.affine, film.affine)
