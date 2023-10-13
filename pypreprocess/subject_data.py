@@ -438,8 +438,8 @@ class SubjectData(object):
                     filename = do_nii2niigz(filename, self.anat_scratch_dir)
                     linked_filename = hard_link(filename,
                                                 self.anat_output_dir)
-            if final:
-                setattr(self, item, linked_filename)
+                    if final:
+                        setattr(self, item, linked_filename)
 
         # func stuff
         self.save_realignment_parameters()
